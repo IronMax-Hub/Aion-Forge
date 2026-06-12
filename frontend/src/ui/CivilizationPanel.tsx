@@ -46,11 +46,15 @@ const MILESTONE_COLOR: Record<string, string> = {
 function pct(n: number) { return `${Math.round(n * 100)}%`; }
 function fmt(n: number) { return n >= 1 ? n.toFixed(1) : n.toFixed(2); }
 
-function Bar({ value, color }: { value: number; color: string }) {
+function TraitRow({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="bio-bar-track">
-      <div className="bio-bar-fill" style={{ width: pct(value), background: color }} />
-    </div>
+    <>
+      <span className="trait-label">{label}</span>
+      <div className="trait-bar-track">
+        <div className="trait-bar-fill" style={{ width: pct(value), background: color }} />
+      </div>
+      <span className="trait-value">{pct(value)}</span>
+    </>
   );
 }
 
@@ -59,103 +63,72 @@ export function CivilizationPanel({ civilization: civ, species, onBack, onClose 
   const narrative  = describeCivilization(civ, species);
 
   return (
-    <div className="star-panel bio-panel civ-panel" role="dialog" aria-label={`Civilization ${civ.id + 1} details`}>
-      <div className="star-panel-header">
-        <div className="star-dot civ-dot" style={{ background: stageColor, boxShadow: `0 0 10px ${stageColor}` }} />
-        <div className="star-panel-title">
-          <span className="star-id">CIVILIZATION #{civ.id + 1}</span>
-          {civ.isRare && <span className="star-rare">REMARKABLE</span>}
+    <div className="inspector" role="dialog" aria-label={`Civilization ${civ.id + 1} details`}>
+      <div className="inspector-header">
+        <div className="inspector-dot" style={{ background: stageColor, boxShadow: `0 0 10px ${stageColor}` }} />
+        <div className="inspector-title-block">
+          <span className="inspector-id">Civilization #{civ.id + 1}</span>
+          <span className="inspector-subtitle" style={{ color: stageColor }}>{TECH_STAGE_LABEL[civ.techStage]}</span>
         </div>
-        <button className="panel-close" onClick={onBack} aria-label="Back to biosphere">←</button>
-        <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
-      </div>
-
-      <div className="star-class" style={{ color: stageColor }}>
-        {TECH_STAGE_LABEL[civ.techStage]}
-      </div>
-
-      <p className="civ-narrative">{narrative}</p>
-
-      <div className="star-stats">
-        <span className="meta-label">AGE</span>
-        <span className="meta-value">{civ.ageGyr.toFixed(3)} Gyr</span>
-        <span className="meta-label">POPULATION</span>
-        <span className="meta-value">{fmt(civ.population)}B</span>
-        <span className="meta-label">COLLAPSES</span>
-        <span className="meta-value" style={{ color: civ.collapsesCount > 0 ? "rgba(220,120,80,0.85)" : "inherit" }}>
-          {civ.collapsesCount}
-        </span>
-      </div>
-
-      <div className="civ-traits-title">SPECIES TRAITS</div>
-      <div className="bio-stats">
-        <span className="meta-label">CURIOSITY</span>
-        <div className="bio-stat-right">
-          <Bar value={species.curiosity} color="rgba(100, 180, 255, 0.7)" />
-          <span className="meta-value civ-pct">{pct(species.curiosity)}</span>
-        </div>
-        <span className="meta-label">COOPERATION</span>
-        <div className="bio-stat-right">
-          <Bar value={species.cooperation} color="rgba(80, 220, 160, 0.7)" />
-          <span className="meta-value civ-pct">{pct(species.cooperation)}</span>
-        </div>
-        <span className="meta-label">AGGRESSION</span>
-        <div className="bio-stat-right">
-          <Bar value={species.aggression} color="rgba(220, 100, 80, 0.7)" />
-          <span className="meta-value civ-pct">{pct(species.aggression)}</span>
-        </div>
-        <span className="meta-label">ADAPTABILITY</span>
-        <div className="bio-stat-right">
-          <Bar value={species.adaptability} color="rgba(200, 180, 80, 0.7)" />
-          <span className="meta-value civ-pct">{pct(species.adaptability)}</span>
-        </div>
-        <span className="meta-label">RESILIENCE</span>
-        <div className="bio-stat-right">
-          <Bar value={species.resilience} color="rgba(160, 140, 220, 0.7)" />
-          <span className="meta-value civ-pct">{pct(species.resilience)}</span>
+        {civ.isRare && <span className="inspector-badge">Remarkable</span>}
+        <div className="inspector-controls">
+          <button className="inspector-btn" onClick={onBack} aria-label="Back to biosphere">←</button>
+          <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
       </div>
 
-      <div className="civ-traits-title">CIVILIZATION</div>
-      <div className="bio-stats">
-        <span className="meta-label">COHESION</span>
-        <div className="bio-stat-right">
-          <Bar value={civ.socialCohesion} color="rgba(80, 200, 180, 0.7)" />
-          <span className="meta-value civ-pct">{pct(civ.socialCohesion)}</span>
-        </div>
-        <span className="meta-label">EFFICIENCY</span>
-        <div className="bio-stat-right">
-          <Bar value={civ.resourceEfficiency} color="rgba(180, 220, 80, 0.7)" />
-          <span className="meta-value civ-pct">{pct(civ.resourceEfficiency)}</span>
-        </div>
-        <span className="meta-label">EXPANSION</span>
-        <div className="bio-stat-right">
-          <Bar value={civ.expansionTendency} color="rgba(220, 160, 80, 0.7)" />
-          <span className="meta-value civ-pct">{pct(civ.expansionTendency)}</span>
-        </div>
-        <span className="meta-label">COLLAPSE RISK</span>
-        <div className="bio-stat-right">
-          <Bar value={civ.collapseRisk} color="rgba(220, 80, 80, 0.7)" />
-          <span className="meta-value civ-pct">{pct(civ.collapseRisk)}</span>
-        </div>
-      </div>
+      <div className="inspector-body">
+        <p className="narrative">{narrative}</p>
 
-      {civ.milestones.length > 0 && (
-        <div className="bio-extinctions">
-          <div className="bio-ext-title">TIMELINE</div>
-          {civ.milestones.slice(0, 6).map((m, i) => (
-            <div key={i} className="civ-milestone-row">
-              <span className="civ-milestone-icon" style={{ color: MILESTONE_COLOR[m.type] }}>
-                {MILESTONE_ICON[m.type]}
-              </span>
-              <span className="civ-milestone-label" style={{ color: MILESTONE_COLOR[m.type] }}>
-                {MILESTONE_LABEL[m.type]}
-              </span>
-              <span className="bio-ext-time">{m.timeAgo.toFixed(3)} Gya</span>
-            </div>
-          ))}
+        <div className="data-grid">
+          <span className="data-label">Age</span>
+          <span className="data-value">{civ.ageGyr.toFixed(3)} Gyr</span>
+          <span className="data-label">Population</span>
+          <span className="data-value">{fmt(civ.population)}B</span>
+          <span className="data-label">Collapses</span>
+          <span className="data-value" style={{ color: civ.collapsesCount > 0 ? "rgba(220,120,80,0.85)" : "inherit" }}>
+            {civ.collapsesCount}
+          </span>
         </div>
-      )}
+
+        <div className="inspector-section">
+          <div className="section-title">Species Traits</div>
+          <div className="trait-grid">
+            <TraitRow label="Curiosity"    value={species.curiosity}    color="rgba(100, 180, 255, 0.7)" />
+            <TraitRow label="Cooperation"  value={species.cooperation}  color="rgba(80, 220, 160, 0.7)" />
+            <TraitRow label="Aggression"   value={species.aggression}   color="rgba(220, 100, 80, 0.7)" />
+            <TraitRow label="Adaptability" value={species.adaptability} color="rgba(200, 180, 80, 0.7)" />
+            <TraitRow label="Resilience"   value={species.resilience}   color="rgba(160, 140, 220, 0.7)" />
+          </div>
+        </div>
+
+        <div className="inspector-section">
+          <div className="section-title">Civilization</div>
+          <div className="trait-grid">
+            <TraitRow label="Cohesion"     value={civ.socialCohesion}      color="rgba(80, 200, 180, 0.7)" />
+            <TraitRow label="Efficiency"   value={civ.resourceEfficiency}  color="rgba(180, 220, 80, 0.7)" />
+            <TraitRow label="Expansion"    value={civ.expansionTendency}   color="rgba(220, 160, 80, 0.7)" />
+            <TraitRow label="Collapse Risk" value={civ.collapseRisk}       color="rgba(220, 80, 80, 0.7)" />
+          </div>
+        </div>
+
+        {civ.milestones.length > 0 && (
+          <div className="inspector-section">
+            <div className="section-title">Milestones</div>
+            {civ.milestones.slice(0, 6).map((m, i) => (
+              <div key={i} className="civ-milestone-row">
+                <span className="civ-milestone-icon" style={{ color: MILESTONE_COLOR[m.type] }}>
+                  {MILESTONE_ICON[m.type]}
+                </span>
+                <span className="civ-milestone-label" style={{ color: MILESTONE_COLOR[m.type] }}>
+                  {MILESTONE_LABEL[m.type]}
+                </span>
+                <span className="bio-ext-time">{m.timeAgo.toFixed(3)} Gya</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

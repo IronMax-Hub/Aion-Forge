@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { audioEngine, ambientLayer, discovery, ui, lab, timeline as tlAudio, civLayer } from "./audio";
+import { AudioControls } from "./ui/AudioControls";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
 import { generateGalaxy, pickGalaxyType } from "./simulation/galaxy";
 import type { GalaxyType, GalaxyConfig, GalaxyParticles } from "./simulation/galaxy";
@@ -87,6 +89,15 @@ export default function App() {
   const [currentSeed,          setCurrentSeed]          = useState<number>(0);
   const [, setCurrentSystem] = useState<PlanetarySystem | null>(null);
 
+  // Audio — initialize on first user interaction (browser requirement)
+  const audioInitRef = useRef(false);
+  const initAudio = useCallback(() => {
+    if (audioInitRef.current) return;
+    audioInitRef.current = true;
+    audioEngine.init();
+    ambientLayer.start();
+  }, []);
+
   const generate = useCallback((s: number, cfg?: UniverseConfig) => {
     const config = cfg ?? universeConfig;
     setIsGenerating(true);
@@ -117,8 +128,12 @@ export default function App() {
         setSelectedStar(star);
         setSelectedPlanet(null);
         setSelectedBiosphere(null);
+        ui.inspect();
+        if (star.isRare) discovery.rareStar();
       });
       setIsGenerating(false);
+      ui.universeLoad();
+      ambientLayer.setContext("galaxy");
       // Pre-compute snapshot in idle time so button clicks are instant
       setTimeout(() => {
         cachedSnapshotRef.current = buildSnapshot(s, config, population);
@@ -204,15 +219,18 @@ export default function App() {
     cachedSnapshotRef.current = snap;
     snapshotRef.current = snap;
     setBaselineSnapshot(snap);
+    ui.baseline();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSeed, universeConfig]);
 
   const handleCompare = useCallback(() => {
     if (!baselineSnapshot || !populationRef.current) return;
+    lab.compareBegin();
     const expSnap = cachedSnapshotRef.current ?? buildSnapshot(currentSeed, universeConfig, populationRef.current);
     cachedSnapshotRef.current = expSnap;
     const cmp = compareUniverses(baselineSnapshot, expSnap);
     setComparison(cmp);
+    lab.compareReveal();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baselineSnapshot, currentSeed, universeConfig]);
 
@@ -231,6 +249,7 @@ export default function App() {
 
   const handleSaveToGallery = useCallback(() => {
     if (!populationRef.current) return;
+    ui.save();
     const snap = cachedSnapshotRef.current ?? buildSnapshot(currentSeed, universeConfig, populationRef.current);
     cachedSnapshotRef.current = snap;
     const summaryText = generateUniverseSummary({
@@ -267,6 +286,7 @@ export default function App() {
     setUniverseConfig(meta.config);
     setSeed(meta.seed);
     setShowGallery(false);
+    ui.restore();
     generate(meta.seed, meta.config);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generate]);
@@ -322,10 +342,13 @@ export default function App() {
     setSelectedPlanet(null);
     setSelectedBiosphere(null);
     setView("system");
+    ui.panelOpen();
+    ambientLayer.setContext("system");
 
     rendererRef.current.renderPlanetarySystem(system, selectedStar, (planet) => {
       setSelectedPlanet(planet);
       setSelectedBiosphere(null);
+      ui.inspect();
     }, biospheres);
   }, [selectedStar, currentSeed, universeConfig]);
 
@@ -337,6 +360,8 @@ export default function App() {
     setSelectedCivilization(null);
     setSelectedSpecies(null);
     setView("biosphere");
+    ambientLayer.setContext("biosphere");
+    if (bio.hasLife) discovery.firstLife();
   }, [selectedPlanet, selectedStar, currentSeed, universeConfig]);
 
   const handleScanCivilization = useCallback(() => {
@@ -346,6 +371,10 @@ export default function App() {
       setSelectedCivilization(result.civilization);
       setSelectedSpecies(result.species);
       setView("civilization");
+      ambientLayer.setContext("civilization");
+      civLayer.activate(result.civilization.techStage);
+      if (result.civilization.isRare) discovery.remarkableCivilization();
+      else discovery.civilizationMilestone();
     }
   }, [selectedBiosphere, selectedPlanet, currentSeed, universeConfig]);
 
@@ -359,6 +388,9 @@ export default function App() {
     setCurrentSystem(null);
     systemBiosphereRef.current = new Map();
     rendererRef.current?.exitSystemView();
+    ui.back();
+    ambientLayer.setContext("galaxy");
+    civLayer.deactivate();
   };
 
   const handleBackToPlanet = () => {
@@ -366,12 +398,18 @@ export default function App() {
     setSelectedCivilization(null);
     setSelectedSpecies(null);
     setView("system");
+    ui.back();
+    ambientLayer.setContext("system");
+    civLayer.deactivate();
   };
 
   const handleBackToBiosphere = () => {
     setSelectedCivilization(null);
     setSelectedSpecies(null);
     setView("biosphere");
+    ui.back();
+    ambientLayer.setContext("biosphere");
+    civLayer.deactivate();
   };
 
   const handleBackToStar = () => {
@@ -385,99 +423,146 @@ export default function App() {
     (k) => Math.abs((universeConfig[k as keyof typeof DEFAULT_CONFIG] as number) - DEFAULT_CONFIG[k as keyof typeof DEFAULT_CONFIG]) < 0.005
   );
 
+  const universeId = currentSeed > 0 ? makeUniverseId(currentSeed) : null;
+
   return (
     <div className="app">
       <canvas ref={canvasRef} className="viewport" />
 
       <div className="hud">
-        <div className="hud-title">AION FORGE</div>
 
-        <div className="meta">
-          <span className="meta-label">SEED</span>
-          <span className="meta-value">{seed}</span>
-          <span className="meta-label">TYPE</span>
-          <span className="meta-value type">{galaxyType.toUpperCase()}</span>
-          <span className="meta-label">PARTICLES</span>
-          <span className="meta-value">{PARTICLE_COUNT.toLocaleString()}</span>
-          <span className="meta-label">STARS</span>
-          <span className="meta-value">2,000</span>
-          {!isDefaultConfig && (
-            <>
-              <span className="meta-label">LAWS</span>
-              <span className="meta-value" style={{ color: "rgba(255,180,60,0.8)" }}>MODIFIED</span>
-            </>
-          )}
+        {/* ── Observatory identity header ── */}
+        <div className="obs-header">
+          <div className="obs-instrument-name">Aion Forge</div>
+          <div className={`obs-universe-id${isGenerating && !universeId ? " generating" : ""}`}>
+            {universeId ?? "——————————"}
+          </div>
+          <div className="obs-universe-meta">
+            {universeId && (
+              <span className="obs-meta-chip">{galaxyType}</span>
+            )}
+            {universeId && (
+              <span className="obs-meta-chip">{PARTICLE_COUNT.toLocaleString()} particles</span>
+            )}
+            {!isDefaultConfig && (
+              <span className="obs-meta-chip modified">Laws Modified</span>
+            )}
+          </div>
         </div>
 
+        {/* ── Galaxy view controls ── */}
         {view === "galaxy" && (
           <>
-            <form className="seed-form" onSubmit={handleSeedSubmit}>
-              <input
-                className="seed-input"
-                type="number"
-                min={0}
-                placeholder="Enter seed…"
-                value={inputSeed}
-                onChange={(e) => setInputSeed(e.target.value)}
-                aria-label="Universe seed"
-              />
-              <button className="btn" type="submit" disabled={isGenerating}>GO</button>
-            </form>
-            <div className="controls">
-              <button className="btn primary" onClick={handleRandomize} disabled={isGenerating}>RANDOMIZE</button>
-              <button className="btn"         onClick={handleRegenerate} disabled={isGenerating}>REGENERATE</button>
-            </div>
-            <div className="controls">
-              <button className="btn" onClick={() => { setShowConfigPanel((v) => !v); setShowHistoryPanel(false); setShowGallery(false); }}>
-                {showConfigPanel ? "CLOSE LAWS" : "LAWS OF REALITY"}
-              </button>
-              <button className="btn" onClick={() => { setShowHistoryPanel((v) => !v); setShowConfigPanel(false); setShowGallery(false); }}>
-                {showHistoryPanel ? "CLOSE EXPS" : "EXPERIMENTS"}
-              </button>
-            </div>
-            <div className="controls">
-              <button className="btn primary" onClick={handleSaveToGallery} disabled={isGenerating} title="Save this universe to your gallery">
-                SAVE UNIVERSE
-              </button>
-              <button className="btn" onClick={() => { setShowGallery((v) => !v); setShowConfigPanel(false); setShowHistoryPanel(false); }}>
-                {showGallery ? "CLOSE GALLERY" : `GALLERY (${gallery.length})`}
-              </button>
-            </div>
-            <label className="import-zone" style={{ marginTop: 2 }}>
-              DROP OR CLICK TO IMPORT .JSON
-              <input type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
-            </label>
-            {baselineSnapshot && (
-              <div className="controls">
-                <button className="btn" onClick={handleCompare} disabled={isGenerating}>COMPARE</button>
-                <span className="hint" style={{ alignSelf: "center" }}>baseline set</span>
+            <div className="console-section">
+              <div className="console-section-label">Observe</div>
+              <form className="seed-form" onSubmit={handleSeedSubmit}>
+                <input
+                  className="seed-input"
+                  type="number"
+                  min={0}
+                  placeholder="Enter seed…"
+                  value={inputSeed}
+                  onChange={(e) => setInputSeed(e.target.value)}
+                  aria-label="Universe seed"
+                />
+                <button className="btn" type="submit" disabled={isGenerating} onClick={initAudio}>ENTER</button>
+              </form>
+              <div className="controls" style={{ marginTop: 4 }}>
+                <button className="btn primary" onClick={() => { initAudio(); handleRandomize(); }} disabled={isGenerating}>FORGE RANDOM</button>
+                <button className="btn" onClick={() => { initAudio(); handleRegenerate(); }} disabled={isGenerating}>REFORGE</button>
               </div>
-            )}
-            {!baselineSnapshot && (
-              <button className="btn" onClick={handleSetBaseline} disabled={isGenerating} title="Save current universe as baseline for comparison">
-                SET BASELINE
-              </button>
-            )}
+            </div>
+
+            <div className="console-section">
+              <div className="console-section-label">Reality</div>
+              <div className="controls">
+                <button className="btn" onClick={() => {
+                  initAudio();
+                  const opening = !showConfigPanel;
+                  setShowConfigPanel((v) => !v); setShowHistoryPanel(false); setShowGallery(false);
+                  if (opening) { ui.panelOpen(); ambientLayer.setContext("laboratory"); }
+                  else         { ui.panelClose(); ambientLayer.setContext("galaxy"); }
+                }}>
+                  {showConfigPanel ? "CLOSE LAWS" : "LAWS OF REALITY"}
+                </button>
+                <button className="btn" onClick={() => {
+                  initAudio();
+                  const opening = !showHistoryPanel;
+                  setShowHistoryPanel((v) => !v); setShowConfigPanel(false); setShowGallery(false);
+                  opening ? ui.panelOpen() : ui.panelClose();
+                }}>
+                  {showHistoryPanel ? "CLOSE LOG" : "EXPERIMENT LOG"}
+                </button>
+              </div>
+            </div>
+
+            <div className="console-section">
+              <div className="console-section-label">Archive</div>
+              <div className="controls">
+                <button className="btn primary" onClick={handleSaveToGallery} disabled={isGenerating} title="Archive this universe">
+                  ARCHIVE REALITY
+                </button>
+                <button className="btn" onClick={() => {
+                  initAudio();
+                  const opening = !showGallery;
+                  setShowGallery((v) => !v); setShowConfigPanel(false); setShowHistoryPanel(false);
+                  opening ? ui.panelOpen() : ui.panelClose();
+                }}>
+                  {showGallery ? "CLOSE LIBRARY" : `LIBRARY (${gallery.length})`}
+                </button>
+              </div>
+              <label className="import-zone" style={{ marginTop: 4 }}>
+                RESTORE UNIVERSE
+                <input type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
+              </label>
+            </div>
+
+            <div className="console-section">
+              <div className="console-section-label">Compare</div>
+              {baselineSnapshot ? (
+                <div className="controls">
+                  <button className="btn primary" onClick={handleCompare} disabled={isGenerating}>COMPARE REALITIES</button>
+                  <span className="hint" style={{ alignSelf: "center" }}>baseline set</span>
+                </div>
+              ) : (
+                <button className="btn" onClick={handleSetBaseline} disabled={isGenerating} title="Establish current universe as comparison baseline">
+                  ESTABLISH BASELINE
+                </button>
+              )}
+            </div>
           </>
         )}
 
+        {/* ── System / biosphere / civilization view ── */}
         {view !== "galaxy" && (
-          <div className="controls">
-            <button className="btn" onClick={handleExitSystem}>← GALAXY VIEW</button>
+          <div className="nav-strip">
+            <button className="btn" onClick={handleExitSystem}>← OBSERVATORY</button>
             {universeTimeline && (
-              <button className="btn timeline-open-btn" onClick={() => setShowTimeline((v) => !v)}>
-                {showTimeline ? "CLOSE HISTORY" : "HISTORY"}
+              <button className="btn timeline-open-btn" onClick={() => {
+                initAudio();
+                const opening = !showTimeline;
+                setShowTimeline((v) => !v);
+                if (opening) { ui.panelOpen(); ambientLayer.setContext("timeline"); }
+                else         { ui.panelClose(); ambientLayer.setContext(view === "civilization" ? "civilization" : view === "biosphere" ? "biosphere" : "system"); }
+              }}>
+                {showTimeline ? "CLOSE CHRONICLES" : "CHRONICLES"}
               </button>
             )}
           </div>
         )}
 
-        {isGenerating && <div className="generating" role="status" aria-live="polite">Forging universe…</div>}
-        {!isGenerating && view === "galaxy"    && !selectedStar     && <div className="hint">Click a star to inspect it</div>}
-        {view === "galaxy"    && selectedStar                        && <div className="hint">Click EXPLORE to enter its system</div>}
-        {view === "system"    && !selectedPlanet                     && <div className="hint">Click a planet to inspect it</div>}
-        {view === "system"    && selectedPlanet && !selectedBiosphere && <div className="hint">Click SCAN BIOSPHERE to search for life</div>}
-        {view === "biosphere" && selectedBiosphere?.hasLife          && !selectedCivilization && <div className="hint">Click SCAN CIVILIZATION if intelligence emerged</div>}
+        {/* ── Status / hints ── */}
+        <div className="console-section">
+          {isGenerating && <div className="generating" role="status" aria-live="polite">Forging reality…</div>}
+          {!isGenerating && view === "galaxy" && !selectedStar     && <div className="hint">Select a star to begin observation</div>}
+          {view === "galaxy" && selectedStar                        && <div className="hint">Enter the system to explore its worlds</div>}
+          {view === "system" && !selectedPlanet                     && <div className="hint">Select a world to analyze it</div>}
+          {view === "system" && selectedPlanet && !selectedBiosphere && <div className="hint">Analyze the biosphere to search for life</div>}
+          {view === "biosphere" && selectedBiosphere?.hasLife && !selectedCivilization && <div className="hint">Analyze civilization if intelligence emerged</div>}
+        </div>
+
+        <AudioControls onFirstInteraction={initAudio} />
+
       </div>
 
       {/* Reality config panel */}

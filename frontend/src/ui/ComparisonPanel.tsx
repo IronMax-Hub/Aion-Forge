@@ -8,12 +8,12 @@ interface Props {
 
 export function ComparisonPanel({ comparison: cmp, onSave, onClose }: Props) {
   return (
-    <div className="star-panel compare-panel" role="dialog" aria-label="Experiment comparison results">
+    <div className="compare-panel" role="dialog" aria-label="Experiment comparison results">
       <div className="timeline-header">
-        <span className="hud-title" style={{ fontSize: 10, marginBottom: 0 }}>EXPERIMENT RESULTS</span>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button className="tl-filter-btn" onClick={onSave}>SAVE</button>
-          <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
+        <div className="tl-panel-label">Experiment Results</div>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button className="tl-filter-btn" onClick={onSave}>Save</button>
+          <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
       </div>
 
@@ -25,7 +25,7 @@ export function ComparisonPanel({ comparison: cmp, onSave, onClose }: Props) {
           const worse  = row.delta < 0;
           return (
             <div key={row.label} className="compare-row">
-              <span className="compare-row-label">{row.label.toUpperCase()}</span>
+              <span className="compare-row-label">{row.label}</span>
               <span className="compare-val">{row.baseline}{row.unit}</span>
               <span className={`compare-val${better ? " better" : worse ? " worse" : ""}`}>
                 {row.experiment}{row.unit}
@@ -39,8 +39,8 @@ export function ComparisonPanel({ comparison: cmp, onSave, onClose }: Props) {
       </div>
 
       {cmp.surprises.length > 0 && (
-        <div>
-          <div className="bio-ext-title" style={{ marginBottom: 4 }}>UNEXPECTED OUTCOMES</div>
+        <div style={{ padding: "var(--sp-3) var(--sp-6) var(--sp-5)" }}>
+          <div className="section-title" style={{ marginBottom: "var(--sp-3)" }}>Unexpected Outcomes</div>
           {cmp.surprises.map((s, i) => (
             <div key={i} className="surprise-item">{s}</div>
           ))}

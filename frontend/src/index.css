@@ -1,10 +1,105 @@
+/* ── Aion Forge Design Tokens ─────────────────────────────────────────────── */
+
+:root {
+  /* Background layers */
+  --col-void:      #000008;
+  --col-deep:      rgba(3, 6, 16, 0.97);
+  --col-surface:   rgba(6, 10, 24, 0.93);
+  --col-elevated:  rgba(10, 16, 34, 0.85);
+  --col-card:      rgba(10, 16, 36, 0.72);
+  --col-hover:     rgba(22, 34, 70, 0.45);
+  --col-selected:  rgba(16, 28, 58, 0.55);
+
+  /* Text tiers */
+  --col-text-1:  rgba(210, 230, 255, 0.94);
+  --col-text-2:  rgba(165, 200, 245, 0.78);
+  --col-text-3:  rgba(120, 158, 215, 0.58);
+  --col-text-4:  rgba(80, 112, 175, 0.42);
+  --col-text-5:  rgba(55, 80, 135, 0.30);
+
+  /* Accent — deep-field blue */
+  --col-accent:      rgba(100, 168, 255, 0.92);
+  --col-accent-dim:  rgba(100, 168, 255, 0.22);
+  --col-accent-glow: rgba(100, 168, 255, 0.06);
+
+  /* Special colors */
+  --col-gold:       rgba(255, 205, 80, 0.92);
+  --col-gold-dim:   rgba(255, 205, 80, 0.13);
+  --col-life:       rgba(72, 220, 140, 0.88);
+  --col-life-dim:   rgba(72, 220, 140, 0.13);
+  --col-danger:     rgba(225, 85, 65, 0.88);
+  --col-danger-dim: rgba(225, 85, 65, 0.11);
+  --col-amber:      rgba(255, 170, 50, 0.88);
+  --col-purple:     rgba(195, 150, 255, 0.88);
+
+  /* Borders */
+  --col-border-1:  rgba(70, 105, 190, 0.15);
+  --col-border-2:  rgba(85, 120, 205, 0.24);
+  --col-border-3:  rgba(100, 148, 230, 0.40);
+  --col-border-4:  rgba(120, 168, 250, 0.60);
+
+  /* Typography */
+  --fs-2xs:  8px;
+  --fs-xs:   9px;
+  --fs-sm:   10px;
+  --fs-md:   11px;
+  --fs-base: 12px;
+  --fs-lg:   13px;
+  --fs-xl:   15px;
+  --fs-2xl:  18px;
+  --fs-3xl:  22px;
+
+  --ls-tight:   0.03em;
+  --ls-normal:  0.08em;
+  --ls-wide:    0.16em;
+  --ls-wider:   0.22em;
+  --ls-widest:  0.32em;
+
+  /* Spacing */
+  --sp-1:  3px;
+  --sp-2:  5px;
+  --sp-3:  8px;
+  --sp-4:  10px;
+  --sp-5:  12px;
+  --sp-6:  16px;
+  --sp-7:  20px;
+  --sp-8:  24px;
+  --sp-9:  32px;
+
+  /* Border radius */
+  --radius-sm:  3px;
+  --radius-md:  6px;
+  --radius-lg:  10px;
+  --radius-xl:  14px;
+
+  /* Effects */
+  --blur-sm:  blur(6px);
+  --blur-md:  blur(12px);
+  --blur-lg:  blur(20px);
+
+  /* Transitions */
+  --dur-fast:    110ms;
+  --dur-normal:  200ms;
+  --dur-slow:    340ms;
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-inout:  cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Panel widths */
+  --panel-sm:       230px;
+  --panel-md:       270px;
+  --panel-lg:       330px;
+  --panel-xl:       380px;
+  --panel-timeline: 520px;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: #000005;
+  background: var(--col-void);
   overflow: hidden;
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { UniverseTimeline, HistoricalEvent, EventCategory, Importance } from "../simulation/history";
 import { sortTimeline, filterByCategory, IMPORTANCE_RANK } from "../simulation/history";
+import { timeline as tlAudio } from "../audio";
 
 interface Props {
   timeline: UniverseTimeline;
@@ -9,11 +10,19 @@ interface Props {
 }
 
 const CATEGORY_LABEL: Record<EventCategory, string> = {
-  cosmic:         "COSMIC",
-  stellar:        "STELLAR",
-  planetary:      "PLANETARY",
-  biological:     "BIOLOGICAL",
-  civilizational: "CIVILIZATIONAL",
+  cosmic:         "Cosmic",
+  stellar:        "Stellar",
+  planetary:      "Planetary",
+  biological:     "Biological",
+  civilizational: "Civilizational",
+};
+
+const CATEGORY_ICON: Record<EventCategory, string> = {
+  cosmic:         "✦",
+  stellar:        "★",
+  planetary:      "○",
+  biological:     "◉",
+  civilizational: "◆",
 };
 
 const CATEGORY_COLOR: Record<EventCategory, string> = {
@@ -37,7 +46,6 @@ const CATEGORY_OPTIONS: (EventCategory | "all")[] = [
   "all", "cosmic", "stellar", "planetary", "biological", "civilizational",
 ];
 
-// Replay speeds: events per second
 const SPEEDS = [0.5, 1, 2, 4] as const;
 
 function EventRow({
@@ -58,28 +66,33 @@ function EventRow({
     }
   }, [highlighted]);
 
+  const catColor = CATEGORY_COLOR[event.category];
+  const impColor = IMPORTANCE_COLOR[event.importance];
+
   return (
     <div
       ref={ref}
       className={`tl-event${expanded ? " expanded" : ""}${highlighted ? " highlighted" : ""}`}
       onClick={onClick}
     >
-      <div className="tl-event-dot" style={{ background: CATEGORY_COLOR[event.category] }} />
+      <span className="tl-event-icon" style={{ color: catColor }}>
+        {CATEGORY_ICON[event.category]}
+      </span>
       <div className="tl-event-body">
         <div className="tl-event-meta">
-          <span className="tl-event-cat" style={{ color: CATEGORY_COLOR[event.category] }}>
+          <span className="tl-event-cat" style={{ color: catColor }}>
             {CATEGORY_LABEL[event.category]}
           </span>
           <span className="tl-event-time">{event.timestampGyr.toFixed(3)} Gya</span>
-          <span className="tl-event-imp" style={{ color: IMPORTANCE_COLOR[event.importance] }}>
-            {event.importance.toUpperCase()}
+          <span className="tl-event-imp" style={{ color: impColor }}>
+            {event.importance}
           </span>
         </div>
         <div className="tl-event-summary">{event.summary}</div>
         {expanded && (
           <div className="tl-event-detail">
-            <span className="meta-label">SUBJECT</span>
-            <span className="meta-value" style={{ fontSize: 9 }}>{event.subjectId}</span>
+            <span className="data-label">Subject</span>
+            <span className="data-value" style={{ fontSize: 9 }}>{event.subjectId}</span>
           </div>
         )}
       </div>
@@ -92,14 +105,12 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
   const [minImportance,  setMinImportance]  = useState<Importance>("minor");
   const [expandedId,     setExpandedId]     = useState<number | null>(null);
 
-  // Replay state (AF-103)
   const [replayMode,    setReplayMode]    = useState(false);
   const [replayPlaying, setReplayPlaying] = useState(false);
   const [replayIndex,   setReplayIndex]   = useState(0);
   const [replaySpeed,   setReplaySpeed]   = useState<typeof SPEEDS[number]>(1);
   const replayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Build filtered event list
   let events: HistoricalEvent[];
   if (categoryFilter !== "all") {
     events = filterByCategory(timeline, categoryFilter);
@@ -108,10 +119,8 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
   }
   events = events.filter((e) => IMPORTANCE_RANK[e.importance] >= IMPORTANCE_RANK[minImportance]);
 
-  // In replay mode events play oldest→newest, so reverse the display order
   const replayEvents = [...events].reverse();
 
-  // Replay tick
   useEffect(() => {
     if (!replayMode || !replayPlaying) return;
     if (replayIndex >= replayEvents.length) {
@@ -121,6 +130,7 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
     const delay = 1000 / replaySpeed;
     replayRef.current = setTimeout(() => {
       setReplayIndex((i) => i + 1);
+      tlAudio.replayTick();
     }, delay);
     return () => { if (replayRef.current) clearTimeout(replayRef.current); };
   }, [replayMode, replayPlaying, replayIndex, replayEvents.length, replaySpeed]);
@@ -129,6 +139,7 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
     setReplayMode(true);
     setReplayIndex(0);
     setReplayPlaying(true);
+    tlAudio.replayStart();
   }
 
   function stopReplay() {
@@ -138,17 +149,24 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
     if (replayRef.current) clearTimeout(replayRef.current);
   }
 
-  const displayedEvents  = replayMode ? replayEvents.slice(0, replayIndex) : events;
+  const displayedEvents    = replayMode ? replayEvents.slice(0, replayIndex) : events;
   const highlightedEventId = replayMode && replayIndex > 0 ? replayEvents[replayIndex - 1]?.id : null;
 
   return (
-    <div className="timeline-panel" role="dialog" aria-label="Universe timeline">
+    <div className="timeline-panel" role="dialog" aria-label="Universe chronicles">
       <div className="timeline-header">
-        <span className="hud-title" style={{ fontSize: 10, marginBottom: 0 }}>UNIVERSE TIMELINE</span>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div>
+          <div className="tl-panel-label">Chronicles</div>
+          <div className="timeline-count">
+            {replayMode
+              ? `${replayIndex} / ${replayEvents.length}`
+              : `${events.length} event${events.length !== 1 ? "s" : ""}`}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
           {!replayMode ? (
             <button className="tl-filter-btn" onClick={startReplay} title="Replay history from the beginning" aria-label="Replay timeline">
-              ▶ REPLAY
+              ▶ Replay
             </button>
           ) : (
             <>
@@ -158,7 +176,7 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
                 disabled={replayIndex >= replayEvents.length}
                 aria-label={replayPlaying ? "Pause replay" : "Play replay"}
               >
-                {replayPlaying ? "⏸ PAUSE" : "▶ PLAY"}
+                {replayPlaying ? "⏸" : "▶"}
               </button>
               {SPEEDS.map((s) => (
                 <button
@@ -171,16 +189,15 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
                   {s}×
                 </button>
               ))}
-              <button className="tl-filter-btn" onClick={stopReplay} aria-label="Stop replay">✕</button>
+              <button className="inspector-btn" onClick={stopReplay} aria-label="Stop replay">✕</button>
             </>
           )}
-          <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
+          <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
       </div>
 
       <div className="timeline-summary">{summary}</div>
 
-      {/* Filters — hidden during replay */}
       {!replayMode && (
         <div className="timeline-filters">
           <div className="timeline-filter-row">
@@ -195,12 +212,12 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
                 }
                 onClick={() => setCategoryFilter(c)}
               >
-                {c === "all" ? "ALL" : CATEGORY_LABEL[c as EventCategory]}
+                {c === "all" ? "All" : CATEGORY_LABEL[c as EventCategory]}
               </button>
             ))}
           </div>
           <div className="timeline-filter-row">
-            <span className="meta-label" style={{ alignSelf: "center" }}>MIN</span>
+            <span className="data-label" style={{ alignSelf: "center" }}>Min</span>
             {IMPORTANCE_OPTIONS.map((imp) => (
               <button
                 key={imp}
@@ -212,23 +229,23 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
                 }
                 onClick={() => setMinImportance(imp)}
               >
-                {imp.toUpperCase()}
+                {imp}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      <div className="timeline-count">
-        {replayMode
-          ? `${replayIndex} / ${replayEvents.length} event${replayEvents.length !== 1 ? "s" : ""}`
-          : `${events.length} event${events.length !== 1 ? "s" : ""}`}
-      </div>
-
       <div className="timeline-events">
         {displayedEvents.length === 0 && !replayPlaying && (
-          <div className="timeline-empty">
-            {replayMode ? "Waiting…" : "No events match this filter."}
+          <div className="empty-state">
+            <div className="empty-state-icon">∅</div>
+            <div className="empty-state-title">
+              {replayMode ? "Awaiting replay…" : "No events match"}
+            </div>
+            {!replayMode && (
+              <p className="empty-state-body">Try a broader filter to reveal more of this universe's history.</p>
+            )}
           </div>
         )}
         {displayedEvents.map((e) => (
@@ -237,7 +254,14 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
             event={e}
             expanded={expandedId === e.id}
             highlighted={e.id === highlightedEventId}
-            onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}
+            onClick={() => {
+              const opening = expandedId !== e.id;
+              setExpandedId(expandedId === e.id ? null : e.id);
+              if (opening) {
+                if (e.importance === "legendary") tlAudio.legendaryMoment();
+                else tlAudio.eventOpen(e.importance);
+              }
+            }}
           />
         ))}
       </div>

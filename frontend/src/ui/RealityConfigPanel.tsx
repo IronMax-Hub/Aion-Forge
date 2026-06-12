@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { UniverseConfig, ConfigWarning } from "../simulation/config";
 import { CONFIG_LABELS, CONFIG_DESCRIPTIONS, PRESETS, validateConfig } from "../simulation/config";
+import { lab } from "../audio";
 
 interface Props {
   config: UniverseConfig;
@@ -30,11 +31,7 @@ function sliderColor(val: number): string {
 function fmtVal(v: number): string { return v.toFixed(2) + "×"; }
 
 export function RealityConfigPanel({ config, onChange, onClose }: Props) {
-  // Local draft — updated on every slider tick for responsive display.
-  // Parent is notified (and universe regenerated) only on pointer release.
   const [draft, setDraft] = useState<UniverseConfig>(config);
-
-  // Sync when parent pushes a new config (preset click, external load)
   useEffect(() => { setDraft(config); }, [config]);
 
   const warnings: ConfigWarning[] = validateConfig(draft);
@@ -53,17 +50,18 @@ export function RealityConfigPanel({ config, onChange, onClose }: Props) {
     const next = { ...preset.values, seed: config.seed };
     setDraft(next);
     onChange(next);
+    lab.presetApply();
   }
 
   return (
     <div className="config-panel" role="dialog" aria-label="Laws of reality — universe configuration">
       <div className="timeline-header">
-        <span className="hud-title" style={{ fontSize: 10, marginBottom: 0 }}>LAWS OF REALITY</span>
-        <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
+        <div className="tl-panel-label">Laws of Reality</div>
+        <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
-      {/* Presets */}
       <div className="config-presets">
+        <div className="section-title" style={{ width: "100%", marginBottom: 4 }}>Presets</div>
         {PRESETS.map((p) => (
           <button
             key={p.name}
@@ -76,7 +74,6 @@ export function RealityConfigPanel({ config, onChange, onClose }: Props) {
         ))}
       </div>
 
-      {/* Sliders */}
       <div className="config-sliders">
         {SLIDER_KEYS.map((key) => {
           const val = draft[key] as number;
@@ -84,7 +81,7 @@ export function RealityConfigPanel({ config, onChange, onClose }: Props) {
           return (
             <div key={key} className="config-row">
               <div className="config-row-header">
-                <span className="meta-label">{CONFIG_LABELS[key]}</span>
+                <span className="data-label">{CONFIG_LABELS[key]}</span>
                 <span className="config-val" style={{ color: sliderColor(val) }}>{fmtVal(val)}</span>
               </div>
               <input
@@ -95,7 +92,7 @@ export function RealityConfigPanel({ config, onChange, onClose }: Props) {
                 value={val}
                 className="config-slider"
                 style={{ accentColor: sliderColor(val) }}
-                onChange={(e) => setDraftKey(key, parseFloat(e.target.value))}
+                onChange={(e) => { setDraftKey(key, parseFloat(e.target.value)); lab.sliderMove((parseFloat(e.target.value) - 0.01) / 1.99); }}
                 onPointerUp={commitDraft}
               />
               <div className="config-desc">{CONFIG_DESCRIPTIONS[key]}</div>

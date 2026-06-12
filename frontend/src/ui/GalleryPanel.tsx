@@ -27,77 +27,66 @@ function timeSince(ts: number): string {
 }
 
 export function GalleryPanel({ gallery, discoveries, onLoad, onGalleryChange, onClose }: Props) {
-  const [tab, setTab]   = useState<Tab>("gallery");
+  const [tab, setTab]       = useState<Tab>("gallery");
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
   const featured = getFeaturedUniverses(gallery);
 
-  function handleToggleFavorite(id: string) {
-    toggleFavorite(id);
-    onGalleryChange();
-  }
-
-  function handleRemove(id: string) {
-    removeFromGallery(id);
-    onGalleryChange();
-  }
-
-  function handleExport(meta: UniverseMeta) {
-    exportUniverse(meta);
-  }
+  function handleToggleFavorite(id: string) { toggleFavorite(id); onGalleryChange(); }
+  function handleRemove(id: string)          { removeFromGallery(id); onGalleryChange(); }
+  function handleExport(meta: UniverseMeta)  { exportUniverse(meta); }
 
   const displayList = tab === "featured" ? featured : gallery;
 
   return (
-    <div className="timeline-panel gallery-panel" role="dialog" aria-label="Universe gallery">
+    <div className="timeline-panel gallery-panel" role="dialog" aria-label="Library of Aion">
       <div className="timeline-header">
-        <span className="hud-title" style={{ fontSize: 10, marginBottom: 0 }}>UNIVERSE GALLERY</span>
-        <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
+        <div className="tl-panel-label">Library of Aion</div>
+        <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
-      {/* Tabs */}
-      <div className="timeline-filter-row">
+      <div className="timeline-filters" style={{ paddingTop: "var(--sp-3)", paddingBottom: "var(--sp-3)" }}>
         {(["gallery", "featured", "discoveries"] as Tab[]).map((t) => (
           <button
             key={t}
             className={`tl-filter-btn${tab === t ? " active" : ""}`}
             onClick={() => setTab(t)}
           >
-            {t === "gallery" ? `SAVED (${gallery.length})` : t === "featured" ? "FEATURED" : `DISCOVERIES (${discoveries.length})`}
+            {t === "gallery"
+              ? `Saved (${gallery.length})`
+              : t === "featured"
+              ? "Featured"
+              : `Discoveries (${discoveries.length})`}
           </button>
         ))}
       </div>
 
       {/* Discoveries tab */}
       {tab === "discoveries" && (
-        <div className="timeline-events">
+        <div className="gallery-scroll">
           {discoveries.length === 0 && (
-            <div className="timeline-empty">No discoveries saved yet.</div>
+            <div className="empty-state">
+              <div className="empty-state-icon">✦</div>
+              <div className="empty-state-title">No Discoveries Yet</div>
+              <p className="empty-state-body">Rare stars and remarkable civilizations will appear here when found.</p>
+            </div>
           )}
           {(["favorite-stars", "remarkable-worlds", "extraordinary-civilizations", "historic-events"] as const).map((cat) => {
             const items = discoveries.filter((d) => d.category === cat);
             if (items.length === 0) return null;
             return (
-              <div key={cat}>
-                <div className="bio-ext-title" style={{ marginTop: 6 }}>{COLLECTION_LABEL[cat].toUpperCase()}</div>
+              <div key={cat} className="discovery-group">
+                <div className="discovery-group-label">{COLLECTION_LABEL[cat]}</div>
                 {items.map((item) => (
-                  <div key={item.id} className="tl-event">
-                    <div className="tl-event-body">
-                      <div className="tl-event-meta">
-                        <span className="tl-event-cat">{item.label}</span>
-                        <span className="tl-event-time">{timeSince(item.savedAt)}</span>
-                        <button
-                          className="panel-close"
-                          style={{ fontSize: 9 }}
-                          onClick={() => { removeDiscovery(item.id); onGalleryChange(); }}
-                        >✕</button>
-                      </div>
-                      <div className="tl-event-summary">{item.description}</div>
-                      <div style={{ fontSize: 9, color: "rgba(100,130,180,0.5)" }}>
-                        Seed {item.universeSeed}
-                      </div>
-                    </div>
+                  <div key={item.id} className="discovery-item">
+                    <span className="discovery-label" title={item.description}>{item.label}</span>
+                    <span className="discovery-meta">{timeSince(item.savedAt)}</span>
+                    <button
+                      className="discovery-del"
+                      onClick={() => { removeDiscovery(item.id); onGalleryChange(); }}
+                      aria-label="Remove discovery"
+                    >✕</button>
                   </div>
                 ))}
               </div>
@@ -108,20 +97,29 @@ export function GalleryPanel({ gallery, discoveries, onLoad, onGalleryChange, on
 
       {/* Gallery + featured tabs */}
       {tab !== "discoveries" && (
-        <div className="timeline-events">
+        <div className="gallery-scroll">
           {displayList.length === 0 && (
-            <div className="timeline-empty">
-              {tab === "featured" ? "Save universes to see featured realities." : "No universes saved yet."}
+            <div className="empty-state">
+              <div className="empty-state-icon">○</div>
+              <div className="empty-state-title">
+                {tab === "featured" ? "No Featured Realities" : "Library Empty"}
+              </div>
+              <p className="empty-state-body">
+                {tab === "featured"
+                  ? "Archive multiple universes to see featured realities here."
+                  : "Archive a universe to begin building your library."}
+              </p>
             </div>
           )}
           {displayList.map((meta) => (
             <div key={meta.snapshotId} className="gallery-card">
               <div className="gallery-card-header">
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="gallery-card-id">{meta.snapshotId}</div>
                   {editId === meta.snapshotId ? (
                     <input
                       className="seed-input"
-                      style={{ width: 140, fontSize: 10, padding: "3px 6px" }}
+                      style={{ width: "100%", fontSize: 10, padding: "3px 6px", marginTop: 2 }}
                       value={editName}
                       autoFocus
                       onChange={(e) => setEditName(e.target.value)}
@@ -136,45 +134,49 @@ export function GalleryPanel({ gallery, discoveries, onLoad, onGalleryChange, on
                       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
                     />
                   ) : (
-                    <span
-                      className="star-id"
-                      style={{ cursor: "pointer" }}
+                    <button
+                      className="gallery-card-name"
                       onClick={() => { setEditId(meta.snapshotId); setEditName(meta.name); }}
                       title="Click to rename"
                     >
                       {meta.name}
-                    </span>
+                    </button>
                   )}
-                  <div className="experiment-id">{meta.snapshotId}</div>
                 </div>
-                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
                   <button
-                    className="panel-close"
-                    style={{ color: meta.isFavorite ? "rgba(255,200,80,0.9)" : undefined }}
+                    className={`gallery-icon-btn${meta.isFavorite ? " active" : ""}`}
                     onClick={() => handleToggleFavorite(meta.snapshotId)}
-                    title={meta.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                    title={meta.isFavorite ? "Remove from favorites" : "Mark as favorite"}
+                    aria-label="Toggle favorite"
                   >★</button>
-                  <button className="panel-close" onClick={() => handleExport(meta)} title="Export">↓</button>
-                  <button className="panel-close" onClick={() => handleRemove(meta.snapshotId)} title="Delete">✕</button>
+                  <button
+                    className="gallery-icon-btn"
+                    onClick={() => handleExport(meta)}
+                    title="Export universe"
+                    aria-label="Export"
+                  >↓</button>
+                  <button
+                    className="gallery-icon-btn danger"
+                    onClick={() => handleRemove(meta.snapshotId)}
+                    title="Remove from library"
+                    aria-label="Remove"
+                  >✕</button>
                 </div>
               </div>
 
-              <div className="tl-event-summary" style={{ marginTop: 4 }}>{meta.summary}</div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "auto auto auto auto", gap: "4px 10px", marginTop: 6 }}>
-                <span className="meta-label">SEED</span>
-                <span className="meta-value" style={{ fontSize: 9 }}>{meta.seed}</span>
-                <span className="meta-label">LIFE</span>
-                <span className="meta-value" style={{ fontSize: 9 }}>{meta.lifeBearingPlanets}</span>
-                <span className="meta-label">CIVS</span>
-                <span className="meta-value" style={{ fontSize: 9 }}>{meta.civilizationCount}</span>
-                <span className="meta-label">SAVED</span>
-                <span className="meta-value" style={{ fontSize: 9 }}>{timeSince(meta.createdAt)}</span>
+              <div className="gallery-card-meta">
+                <span className="gallery-card-stat">Seed {meta.seed}</span>
+                <span className="gallery-card-stat">{meta.lifeBearingPlanets} life-bearing</span>
+                <span className="gallery-card-stat">{meta.civilizationCount} civilization{meta.civilizationCount !== 1 ? "s" : ""}</span>
+                <span className="gallery-card-stat">{timeSince(meta.createdAt)}</span>
               </div>
 
-              <div className="panel-actions" style={{ marginTop: 6 }}>
-                <button className="btn primary bookmark-btn" style={{ fontSize: 9 }} onClick={() => onLoad(meta)}>
-                  LOAD →
+              <div className="gallery-card-summary">{meta.summary}</div>
+
+              <div className="gallery-card-actions">
+                <button className="btn primary" style={{ flex: 1 }} onClick={() => onLoad(meta)}>
+                  Restore →
                 </button>
               </div>
             </div>

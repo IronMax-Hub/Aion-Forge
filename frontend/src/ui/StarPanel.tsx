@@ -49,65 +49,69 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
   const canExplore = CAN_HAVE_PLANETS[star.classification];
 
   return (
-    <div className="star-panel" role="dialog" aria-label={`Star ${star.id} details`}>
-      <div className="star-panel-header">
-        <div className="star-dot" style={{ background: starColor, boxShadow: `0 0 8px ${starColor}` }} />
-        <div className="star-panel-title">
-          <span className="star-id">STAR #{star.id.toString().padStart(4, "0")}</span>
-          {star.isRare && <span className="star-rare">RARE</span>}
+    <div className="inspector" role="dialog" aria-label={`Star ${star.id} details`}>
+      <div className="inspector-header">
+        <div className="inspector-dot" style={{ background: starColor, boxShadow: `0 0 8px ${starColor}` }} />
+        <div className="inspector-title-block">
+          <span className="inspector-id">Star #{star.id.toString().padStart(4, "0")}</span>
+          <span className="inspector-subtitle">{CLASS_LABEL[star.classification]}</span>
         </div>
-        <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
+        {star.isRare && <span className="inspector-badge">Rare</span>}
+        <div className="inspector-controls">
+          <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
+        </div>
       </div>
 
-      <div className="star-class">{CLASS_LABEL[star.classification]}</div>
+      <div className="inspector-body">
+        <div className="data-grid">
+          <span className="data-label">Mass</span>
+          <span className="data-value">{fmt(star.mass)} M☉</span>
+          <span className="data-label">Age</span>
+          <span className="data-value">{fmt(star.age, 1)} Gyr</span>
+          <span className="data-label">Lifespan</span>
+          <span className="data-value">{fmt(star.lifespan, 1)} Gyr</span>
+          <span className="data-label">Temperature</span>
+          <span className="data-value">{star.temperature > 0 ? `${fmt(star.temperature, 0)} K` : "—"}</span>
+          <span className="data-label">Luminosity</span>
+          <span className="data-value">{star.luminosity > 0 ? `${fmt(star.luminosity, 2)} L☉` : "—"}</span>
+        </div>
 
-      <div className="star-stats">
-        <Row label="MASS"        value={`${fmt(star.mass)} M☉`} />
-        <Row label="AGE"         value={`${fmt(star.age, 1)} Gyr`} />
-        <Row label="LIFESPAN"    value={`${fmt(star.lifespan, 1)} Gyr`} />
-        <Row label="TEMPERATURE" value={star.temperature > 0 ? `${fmt(star.temperature, 0)} K` : "—"} />
-        <Row label="LUMINOSITY"  value={star.luminosity > 0 ? `${fmt(star.luminosity, 2)} L☉` : "—"} />
-      </div>
-
-      <div className="panel-actions">
-        <button
-          className="btn primary bookmark-btn"
-          onClick={onExplore}
-          disabled={!canExplore}
-          title={canExplore ? undefined : "No planetary system possible"}
-        >
-          EXPLORE SYSTEM →
-        </button>
-        <button className={`btn bookmark-btn ${bookmarked ? "bookmarked" : ""}`} onClick={toggleBookmark}>
-          {bookmarked ? "★" : "☆"}
-        </button>
-        {onSaveDiscovery && star.isRare && (
+        <div className="inspector-actions">
           <button
-            className="btn bookmark-btn"
-            title="Add to Favorite Stars collection"
-            onClick={() => onSaveDiscovery({
-              id: `star-${galaxySeed}-${star.id}`,
-              category: "favorite-stars",
-              universeSeed: galaxySeed,
-              subjectId: `star-${star.id}`,
-              label: `STAR #${star.id.toString().padStart(4, "0")}`,
-              description: `${star.classification.replace("-", " ")} — ${star.mass.toFixed(2)} M☉, ${Math.round(star.temperature)} K`,
-              savedAt: Date.now(),
-            })}
+            className="btn primary"
+            onClick={onExplore}
+            disabled={!canExplore}
+            title={canExplore ? undefined : "No planetary system possible"}
+            style={{ flex: 1 }}
           >
-            +
+            Explore System →
           </button>
-        )}
+          <button
+            className={`inspector-btn${bookmarked ? " bookmarked" : ""}`}
+            onClick={toggleBookmark}
+            aria-label={bookmarked ? "Remove bookmark" : "Bookmark star"}
+          >
+            {bookmarked ? "★" : "☆"}
+          </button>
+          {onSaveDiscovery && star.isRare && (
+            <button
+              className="inspector-btn"
+              title="Save to discoveries"
+              onClick={() => onSaveDiscovery({
+                id: `star-${galaxySeed}-${star.id}`,
+                category: "favorite-stars",
+                universeSeed: galaxySeed,
+                subjectId: `star-${star.id}`,
+                label: `Star #${star.id.toString().padStart(4, "0")}`,
+                description: `${star.classification.replace("-", " ")} — ${star.mass.toFixed(2)} M☉, ${Math.round(star.temperature)} K`,
+                savedAt: Date.now(),
+              })}
+            >
+              +
+            </button>
+          )}
+        </div>
       </div>
     </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <>
-      <span className="meta-label">{label}</span>
-      <span className="meta-value">{value}</span>
-    </>
   );
 }

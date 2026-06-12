@@ -50,36 +50,6 @@ Even surprise should emerge.
 
 ---
 
-## What Is Aion Forge?
-
-Aion Forge is an engine for generating and observing alternate realities.
-
-At its core, it explores the relationship between:
-
-```text
-Simple Rules
-↓
-Interactions
-↓
-Probabilities
-↓
-Consequences
-↓
-Histories
-↓
-Stories
-```
-
-Each generated universe begins with:
-
-* a deterministic seed,
-* a set of physical laws,
-* and the passage of time.
-
-Everything else unfolds from there.
-
----
-
 ## Core Principles
 
 ### Emergence Over Prescription
@@ -122,145 +92,6 @@ Aion Forge is about discovery, not domination.
 
 ---
 
-## Planned Evolution
-
-### The First Spark
-
-Generate galaxies.
-
-Explore the cosmos.
-
-Experience awe.
-
----
-
-### The Age of Stars
-
-Populate galaxies with stellar systems.
-
----
-
-### The Age of Worlds
-
-Generate planets and environments.
-
----
-
-### The Breath of Life
-
-Allow biology to emerge.
-
----
-
-### The Watchers
-
-Enable intelligence and civilization.
-
----
-
-### Histories
-
-Transform simulations into stories.
-
----
-
-### The Laboratory
-
-Experiment with alternate realities.
-
-Change the laws of existence.
-
-Observe the consequences.
-
----
-
-### Shared Eternities
-
-Allow universes to become artifacts people exchange and revisit.
-
----
-
-## Technology
-
-### Current Stack
-
-Frontend:
-
-* React
-* TypeScript
-* Three.js
-
----
-
-### Future Exploration
-
-Potential additions:
-
-* Rust
-* WebAssembly
-* Laravel
-* PostgreSQL
-
-Technology serves the philosophy.
-
-Not the other way around.
-
----
-
-## Why Build This?
-
-Because some questions are difficult to answer through explanation alone.
-
-Questions such as:
-
-* What if gravity were weaker?
-* What if cooperation evolved more readily than aggression?
-* What if stars lived twice as long?
-* What if intelligent life emerged frequently?
-* What if entropy progressed differently?
-
-Aion Forge attempts to answer these questions through unfolding realities rather than static explanations.
-
----
-
-## Intended Audience
-
-Aion Forge is for people who wonder.
-
-People who ask:
-
-* Why?
-* What if?
-* What happens next?
-
-People who find themselves comforted by contemplating realities larger than themselves.
-
-People who believe that understanding often begins with curiosity.
-
----
-
-## Contributing
-
-If you wish to contribute, please begin by reading:
-
-* `docs/PROJECT_CHARTER.md`
-* `docs/CLAUDE.md`
-* `docs/SYSTEM_SPEC.md`
-* `docs/SIMULATION_RULES.md`
-* `docs/ROADMAP.md`
-* `docs/TASKS.md`
-
-These documents define the philosophy and structure of Aion Forge.
-
-Contributions should preserve:
-
-* determinism,
-* understandability,
-* emergence,
-* wonder.
-
----
-
 ## Getting Started
 
 ```bash
@@ -269,9 +100,11 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 in your browser.
+Open `http://localhost:5173` in your browser.
 
-Enter a seed, or click **RANDOMIZE** to generate a universe.
+Enter a seed and press **Enter**, or click **Forge Random** to generate a universe.
+
+Sound begins on your first interaction.
 
 ---
 
@@ -279,34 +112,37 @@ Enter a seed, or click **RANDOMIZE** to generate a universe.
 
 These seeds produce universes worth exploring:
 
-| Seed | Type | Notes |
-|------|------|-------|
-| `271828` | Elliptical | Rich in civilizations — 12 arose in a 100-star sample |
+| Seed | Galaxy Type | Notes |
+|------|-------------|-------|
+| `271828` | Elliptical | Rich in civilizations — 12 arose across the stellar population |
 | `100000` | Spiral | Classic spiral, abundant life, 8 civilizations |
 | `3141592` | Spiral | Dense biosphere network, 8 civilizations |
 | `404040` | Elliptical | 8 civilizations; elliptical density at work |
 | `13579` | Spiral | 7 civilizations, balanced distribution |
 | `137035` | Irregular | Irregular galaxy yielding 7 civilizations — rare |
 
-For a contrasting experience, try seed `161803` for a sparse, quieter universe.
+For a contrasting experience, try seed `161803` — a sparse, quieter universe.
 
 ---
 
 ## Navigation
 
 ```
-Galaxy View  →  click a star  →  Star Panel
-Star Panel   →  EXPLORE SYSTEM  →  Planetary System
-Planet       →  SCAN BIOSPHERE  →  Biosphere Panel
-Biosphere    →  SCAN CIVILIZATION  →  Civilization Panel
-Any view     →  HISTORY (HUD)  →  Timeline Panel
+Observatory (Galaxy View)
+  → click a star         → Star Inspector
+  → Explore System       → Planetary System
+  → click a planet       → Planet Inspector
+  → Scan Biosphere       → Biosphere Inspector
+  → Scan Civilization    → Civilization Inspector
+  → Chronicles (HUD)     → Universe Timeline
+  → ← Observatory        → Return to Galaxy View
 ```
 
 ---
 
 ## Experimenting with Reality
 
-Click **LAWS OF REALITY** to adjust the six fundamental constants:
+Click **Laws of Reality** to adjust the six fundamental constants:
 
 * **Gravity Strength** — alters planetary orbital radii
 * **Expansion Rate** — scales the galaxy
@@ -315,31 +151,109 @@ Click **LAWS OF REALITY** to adjust the six fundamental constants:
 * **Emergence Sensitivity** — controls how often life appears
 * **Intelligence Modifier** — adjusts civilization emergence probability
 
-Use **SET BASELINE** and **COMPARE** to measure the consequences.
+Apply a **Preset** for curated configurations, or adjust sliders manually.
+
+Click **Establish Baseline**, modify the laws, then click **Compare Realities** to measure the consequences of changing the rules of existence.
+
+---
+
+## Sound
+
+Aion Forge includes a fully procedural audio system — no audio files, all synthesized.
+
+Sound should amplify wonder without demanding attention.
+
+Each view has a distinct ambient atmosphere:
+
+* **Galaxy view** — deep cosmic drones, sparse movement
+* **Stellar systems** — lighter harmonic textures
+* **Biospheres** — warmer, living frequencies
+* **Civilizations** — abstract motifs that evolve with technological stage
+* **Chronicles** — slow, contemplative atmosphere
+
+Discoveries are acknowledged with restraint — a quiet tone, not a fanfare.
+
+Audio controls appear at the bottom of the console. Click **◎** to mute. Click **⊹** to adjust individual layer volumes.
+
+---
+
+## The Observatory Interface
+
+Aion Forge presents as a premium observatory instrument.
+
+The left console contains:
+
+* **Universe identity** — the unique universe ID (AF-U-XXXX-XXXX), galaxy type, and law modification state
+* **Observe** — seed input, Forge Random, Reforge
+* **Reality** — Laws of Reality panel, Experiment Log
+* **Archive** — Archive Reality, Library of Aion, Restore Universe
+* **Compare** — Establish Baseline, Compare Realities
+* **Sound** — ambient audio controls
+
+The right panel contains contextual inspectors — Star, Planet, Biosphere, Civilization — each presenting observatory-grade data.
 
 ---
 
 ## Current Status
 
-**Version 1.0 — The Great Refinement**
+**Version 1.0 + Enhancement I + Enhancement III**
 
-Aion Forge has reached its first mature release.
+Aion Forge has completed its first mature release and two post-release enhancements.
 
-Phases 0 through 9 are complete.
+### Simulation (Phases 0–9)
 
-The simulation stack covers the full journey from cosmic structure to civilization and recorded history:
-
-* Deterministic galaxy generation (spiral, elliptical, irregular)
+* Deterministic galaxy generation — spiral, elliptical, irregular
 * 2,000-star stellar populations with full lifecycle simulation
 * Planetary system generation with habitability assessment
 * Probability-driven biosphere emergence and evolutionary progression
 * Civilization formation, technological progression, collapse and recovery
 * Historical event recording and timeline replay
 * Configurable laws of physics with experiment comparison
-* Universe persistence, gallery, export/import, and discovery collections
+* Universe persistence, library, export/import, and discovery collections
 * 22 determinism tests covering every simulation layer
 
+### Enhancement I — The Observatory
+
+A complete visual and experiential transformation.
+
+* Unified design system — CSS custom properties covering color, typography, spacing, motion
+* Premium observatory interface — universe identity header with unique ID, console section grouping, observatory language throughout
+* Contextual inspector system — all six panel types rebuilt with the inspector vocabulary
+* Enhanced timeline — category icons, importance-scaled cues, improved replay
+* Gallery and discovery journal — universe cards, browsing, discovery collections
+* Empty state design — intentional experiences for every unloaded state
+* Motion system — entrance animations, hover transitions, standardized timing
+* Responsive layouts — ultrawide, desktop, laptop, tablet
+
+### Enhancement III — Sound Design
+
+A fully procedural audio system.
+
+All sound is synthesized via the Web Audio API — no audio files.
+
+* Seven contextual ambient profiles with smooth crossfades
+* Discovery sounds — tuned for restraint, not reward
+* Interface audio — tactile confirmations, barely audible
+* Reality Laboratory audio — slider pitch tracks value, preset and comparison cues
+* Timeline audio — importance-scaled event cues, legendary moment tones, replay rhythm
+* Civilization presence layer — abstract motifs that grow in harmonic complexity with advancement
+* Adaptive mixing — ambient remains dominant at all times
+* Per-layer volume controls with persistent preferences
+
 Every universe is fully reproducible from its seed.
+
+---
+
+## Technology
+
+### Current Stack
+
+* React
+* TypeScript
+* Vite
+* Web Audio API
+* Three.js (galaxy rendering)
+* Vitest (determinism test suite)
 
 ---
 
@@ -352,7 +266,6 @@ Begin by reading:
 * `Documents/SYSTEM_SPEC.md` — technical specification
 * `Documents/SIMULATION_RULES.md` — simulation layer rules
 * `Documents/ROADMAP.md` — development phases
-* `Documents/TASKS.md` — task history
 
 Contributions must preserve determinism, understandability, emergence, and wonder.
 
@@ -375,7 +288,5 @@ Most possibilities are never realized.
 This repository is an attempt to realize one of them.
 
 Welcome to Aion Forge.
-
-Version 1.0.
 
 Let's see what emerges.

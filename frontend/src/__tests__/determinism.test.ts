@@ -243,6 +243,7 @@ describe("Serialization", () => {
       lifeBearingPlanets: 5,
       civilizationCount: 2,
       legendaryEvents: 3,
+      totalPlanets: 10000,
       notes: "test",
       isFavorite: false,
     };

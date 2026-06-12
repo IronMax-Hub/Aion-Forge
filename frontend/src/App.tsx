@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { audioEngine, ambientLayer, discovery, ui, lab, timeline as tlAudio, civLayer } from "./audio";
+import { audioEngine, ambientLayer, discovery, ui, lab, civLayer } from "./audio";
 import { AudioControls } from "./ui/AudioControls";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
 import { generateGalaxy, pickGalaxyType } from "./simulation/galaxy";
@@ -129,7 +129,7 @@ export default function App() {
         setSelectedPlanet(null);
         setSelectedBiosphere(null);
         ui.inspect();
-        if (star.isRare) discovery.rareStar();
+        if (star?.isRare) discovery.rareStar();
       });
       setIsGenerating(false);
       ui.universeLoad();
@@ -274,6 +274,7 @@ export default function App() {
       lifeBearingPlanets: snap.lifeBearingPlanets,
       civilizationCount: snap.civilizationCount,
       legendaryEvents: snap.legendaryEvents,
+      totalPlanets: snap.totalPlanets,
       notes: "",
       isFavorite: false,
     };

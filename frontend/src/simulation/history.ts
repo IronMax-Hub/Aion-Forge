@@ -1,7 +1,7 @@
 import { createRNG } from "./rng";
 import type { GalaxyParticles } from "./galaxy";
 import type { StellarPopulation, Star } from "./star";
-import type { PlanetarySystem, Planet } from "./planet";
+import type { Planet } from "./planet";
 import type { Biosphere } from "./biosphere";
 import type { Civilization, Species } from "./civilization";
 
@@ -153,7 +153,6 @@ export function recordStellarEvents(
   const events: HistoricalEvent[] = [];
 
   // Birth
-  const birthAge = star.age + (star.lifespan - star.age) * 0.95 + star.age * 0.05;
   events.push({
     id: nextId(), universeSeed: seed,
     timestampGyr: star.age + star.lifespan * 0.9,

@@ -24,6 +24,7 @@ export interface UniverseMeta {
   lifeBearingPlanets: number;
   civilizationCount: number;
   legendaryEvents: number;
+  totalPlanets: number;
   notes: string;
   isFavorite: boolean;
 }

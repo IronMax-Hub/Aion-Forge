@@ -200,7 +200,7 @@ function buildMilestones(
   return milestones.sort((a, b) => b.timeAgo - a.timeAgo);
 }
 
-function collapseNote(species: Species, rng: () => number): string {
+function collapseNote(_species: Species, rng: () => number): string {
   const causes = [
     "Resource depletion triggered societal breakdown",
     "Internal conflict fractured the civilization",

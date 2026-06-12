@@ -94,7 +94,6 @@ class AmbientLayer {
   private voices:    AmbientVoice[] = [];
   private noiseNode: AudioBufferSourceNode | null = null;
   private noiseGain: GainNode | null = null;
-  private noiseFilter: BiquadFilterNode | null = null;
   private masterGain: GainNode | null = null;
   private currentContext = "galaxy";
   private running = false;
@@ -234,9 +233,8 @@ class AmbientLayer {
     noiseGainNode.connect(this.masterGain);
     source.start();
 
-    this.noiseNode   = source;
-    this.noiseGain   = noiseGainNode;
-    this.noiseFilter = filter;
+    this.noiseNode = source;
+    this.noiseGain = noiseGainNode;
   }
 
   private clearVoices(): void {
@@ -251,7 +249,6 @@ class AmbientLayer {
     try { this.noiseNode?.stop(); this.noiseGain?.disconnect(); } catch { /* ignore */ }
     this.noiseNode = null;
     this.noiseGain = null;
-    this.noiseFilter = null;
   }
 
   private teardown(): void {

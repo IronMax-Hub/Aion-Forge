@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import type { Star } from "../simulation/star";
 import { temperatureToColor } from "../simulation/star";
 import { bookmarkStar, removeBookmark, isBookmarked } from "../simulation/journal";
+import type { DiscoveryItem } from "../simulation/persistence";
 
 interface Props {
   star: Star;
   galaxySeed: number;
   onClose: () => void;
   onExplore: () => void;
+  onSaveDiscovery?: (item: DiscoveryItem) => void;
 }
 
 const CLASS_LABEL: Record<string, string> = {
@@ -30,7 +32,7 @@ const CAN_HAVE_PLANETS: Record<string, boolean> = {
   "white-dwarf": true, "neutron-star": false, "black-hole": false,
 };
 
-export function StarPanel({ star, galaxySeed, onClose, onExplore }: Props) {
+export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscovery }: Props) {
   const [bookmarked, setBookmarked] = useState(() => isBookmarked(star.id, galaxySeed));
 
   useEffect(() => {
@@ -79,6 +81,23 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore }: Props) {
         <button className={`btn bookmark-btn ${bookmarked ? "bookmarked" : ""}`} onClick={toggleBookmark}>
           {bookmarked ? "★" : "☆"}
         </button>
+        {onSaveDiscovery && star.isRare && (
+          <button
+            className="btn bookmark-btn"
+            title="Add to Favorite Stars collection"
+            onClick={() => onSaveDiscovery({
+              id: `star-${galaxySeed}-${star.id}`,
+              category: "favorite-stars",
+              universeSeed: galaxySeed,
+              subjectId: `star-${star.id}`,
+              label: `STAR #${star.id.toString().padStart(4, "0")}`,
+              description: `${star.classification.replace("-", " ")} — ${star.mass.toFixed(2)} M☉, ${Math.round(star.temperature)} K`,
+              savedAt: Date.now(),
+            })}
+          >
+            +
+          </button>
+        )}
       </div>
     </div>
   );

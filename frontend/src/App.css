@@ -765,3 +765,51 @@
   color: rgba(120, 150, 200, 0.5);
   font-size: 9px;
 }
+
+/* ── Gallery panel (Phase 8) ──────────────────────────────────────────────── */
+
+.gallery-panel {
+  left: auto;
+  right: 24px;
+  transform: none;
+  width: 320px;
+}
+
+.gallery-card {
+  border: 1px solid rgba(60, 90, 140, 0.2);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  background: rgba(12, 18, 40, 0.5);
+  transition: border-color 0.15s;
+}
+
+.gallery-card:hover {
+  border-color: rgba(80, 120, 200, 0.35);
+}
+
+.gallery-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* ── Import drop zone ─────────────────────────────────────────────────────── */
+
+.import-zone {
+  border: 1px dashed rgba(80, 120, 200, 0.3);
+  border-radius: 4px;
+  padding: 10px;
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: rgba(100, 140, 200, 0.5);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.import-zone:hover, .import-zone.drag-over {
+  border-color: rgba(100, 160, 255, 0.55);
+  color: rgba(150, 190, 255, 0.8);
+}

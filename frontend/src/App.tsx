@@ -25,6 +25,13 @@ import { TimelinePanel } from "./ui/TimelinePanel";
 import { RealityConfigPanel } from "./ui/RealityConfigPanel";
 import { ComparisonPanel } from "./ui/ComparisonPanel";
 import { ExperimentHistoryPanel } from "./ui/ExperimentHistoryPanel";
+import { GalleryPanel } from "./ui/GalleryPanel";
+import {
+  makeUniverseId, generateUniverseSummary,
+  saveToGallery, loadGallery, importUniverseFromFile,
+  saveDiscovery, loadDiscoveries,
+} from "./simulation/persistence";
+import type { UniverseMeta, DiscoveryItem } from "./simulation/persistence";
 import "./App.css";
 
 const PARTICLE_COUNT = 60000;
@@ -63,6 +70,9 @@ export default function App() {
   const [baselineSnapshot,  setBaselineSnapshot]  = useState<UniverseSnapshot | null>(null);
   const [comparison,        setComparison]        = useState<UniverseComparison | null>(null);
   const [experiments,       setExperiments]       = useState<ExperimentRecord[]>(() => loadExperiments());
+  const [gallery,           setGallery]           = useState<UniverseMeta[]>(() => loadGallery());
+  const [discoveries,       setDiscoveries]       = useState<DiscoveryItem[]>(() => loadDiscoveries());
+  const [showGallery,       setShowGallery]       = useState(false);
 
   const [selectedStar,         setSelectedStar]         = useState<Star | null>(null);
   const [selectedPlanet,       setSelectedPlanet]       = useState<Planet | null>(null);
@@ -190,6 +200,68 @@ export default function App() {
     setExperiments(loadExperiments());
     setComparison(null);
   }, [comparison]);
+
+  const refreshGallery = useCallback(() => {
+    setGallery(loadGallery());
+    setDiscoveries(loadDiscoveries());
+  }, []);
+
+  const handleSaveToGallery = useCallback(() => {
+    if (!populationRef.current) return;
+    const snap = buildSnapshot(currentSeed, universeConfig, populationRef.current);
+    const summaryText = generateUniverseSummary({
+      seed: currentSeed,
+      config: universeConfig,
+      galaxyType,
+      starCount: snap.starCount,
+      lifeBearingPlanets: snap.lifeBearingPlanets,
+      civilizationCount: snap.civilizationCount,
+      legendaryEvents: snap.legendaryEvents,
+      totalPlanets: snap.totalPlanets,
+    });
+    const meta: UniverseMeta = {
+      snapshotId: makeUniverseId(currentSeed),
+      seed: currentSeed,
+      config: universeConfig,
+      name: makeUniverseId(currentSeed),
+      createdAt: Date.now(),
+      galaxyType,
+      summary: summaryText,
+      starCount: snap.starCount,
+      lifeBearingPlanets: snap.lifeBearingPlanets,
+      civilizationCount: snap.civilizationCount,
+      legendaryEvents: snap.legendaryEvents,
+      notes: "",
+      isFavorite: false,
+    };
+    saveToGallery(meta);
+    refreshGallery();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSeed, universeConfig, galaxyType, refreshGallery]);
+
+  const handleLoadFromGallery = useCallback((meta: UniverseMeta) => {
+    setUniverseConfig(meta.config);
+    setSeed(meta.seed);
+    setShowGallery(false);
+    generate(meta.seed, meta.config);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generate]);
+
+  const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const meta = await importUniverseFromFile(file);
+    if (meta) {
+      saveToGallery(meta);
+      refreshGallery();
+    }
+    e.target.value = "";
+  }, [refreshGallery]);
+
+  const handleSaveDiscovery = useCallback((item: DiscoveryItem) => {
+    saveDiscovery(item);
+    refreshGallery();
+  }, [refreshGallery]);
 
   const handleApplyConfig = useCallback((next: UniverseConfig) => {
     setUniverseConfig(next);
@@ -328,13 +400,25 @@ export default function App() {
               <button className="btn"         onClick={handleRegenerate} disabled={isGenerating}>REGENERATE</button>
             </div>
             <div className="controls">
-              <button className="btn" onClick={() => { setShowConfigPanel((v) => !v); setShowHistoryPanel(false); }}>
+              <button className="btn" onClick={() => { setShowConfigPanel((v) => !v); setShowHistoryPanel(false); setShowGallery(false); }}>
                 {showConfigPanel ? "CLOSE LAWS" : "LAWS OF REALITY"}
               </button>
-              <button className="btn" onClick={() => { setShowHistoryPanel((v) => !v); setShowConfigPanel(false); }}>
-                {showHistoryPanel ? "CLOSE HISTORY" : "EXPERIMENTS"}
+              <button className="btn" onClick={() => { setShowHistoryPanel((v) => !v); setShowConfigPanel(false); setShowGallery(false); }}>
+                {showHistoryPanel ? "CLOSE EXPS" : "EXPERIMENTS"}
               </button>
             </div>
+            <div className="controls">
+              <button className="btn primary" onClick={handleSaveToGallery} disabled={isGenerating} title="Save this universe to your gallery">
+                SAVE UNIVERSE
+              </button>
+              <button className="btn" onClick={() => { setShowGallery((v) => !v); setShowConfigPanel(false); setShowHistoryPanel(false); }}>
+                {showGallery ? "CLOSE GALLERY" : `GALLERY (${gallery.length})`}
+              </button>
+            </div>
+            <label className="import-zone" style={{ marginTop: 2 }}>
+              DROP OR CLICK TO IMPORT .JSON
+              <input type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
+            </label>
             {baselineSnapshot && (
               <div className="controls">
                 <button className="btn" onClick={handleCompare} disabled={isGenerating}>COMPARE</button>
@@ -385,6 +469,17 @@ export default function App() {
         />
       )}
 
+      {/* Universe gallery */}
+      {showGallery && (
+        <GalleryPanel
+          gallery={gallery}
+          discoveries={discoveries}
+          onLoad={handleLoadFromGallery}
+          onGalleryChange={refreshGallery}
+          onClose={() => setShowGallery(false)}
+        />
+      )}
+
       {/* Comparison results */}
       {comparison && (
         <ComparisonPanel
@@ -400,6 +495,7 @@ export default function App() {
           galaxySeed={currentSeed}
           onClose={() => setSelectedStar(null)}
           onExplore={handleExploreSystem}
+          onSaveDiscovery={handleSaveDiscovery}
         />
       )}
 

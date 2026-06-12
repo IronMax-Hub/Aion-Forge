@@ -237,16 +237,36 @@
   align-items: baseline;
 }
 
-.bookmark-btn {
+.panel-actions {
+  display: flex;
+  gap: 6px;
   margin-top: 4px;
+}
+
+.bookmark-btn {
   font-size: 10px;
-  letter-spacing: 0.15em;
-  width: 100%;
+  letter-spacing: 0.12em;
   text-align: center;
-  padding: 6px;
+  padding: 6px 10px;
+  flex: 1;
 }
 
 .bookmark-btn.bookmarked {
   border-color: rgba(255, 200, 80, 0.4);
   color: rgba(255, 210, 100, 0.9);
+}
+
+/* ── Habitability bar ─────────────────────────────────────────────────────── */
+
+.hab-bar {
+  height: 3px;
+  background: rgba(60, 80, 120, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.hab-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
 }

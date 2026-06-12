@@ -5,7 +5,10 @@ import type { GalaxyType, GalaxyConfig } from "./simulation/galaxy";
 import { createRNG } from "./simulation/rng";
 import { generateStarsFor } from "./simulation/star";
 import type { Star } from "./simulation/star";
+import { generatePlanetsFor } from "./simulation/planet";
+import type { Planet } from "./simulation/planet";
 import { StarPanel } from "./ui/StarPanel";
+import { PlanetPanel } from "./ui/PlanetPanel";
 import "./App.css";
 
 const PARTICLE_COUNT = 60000;
@@ -25,19 +28,26 @@ export default function App() {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<UniverseRenderer | null>(null);
 
-  const [seed, setSeed]           = useState<number>(() => randomSeed());
-  const [inputSeed, setInputSeed] = useState<string>("");
+  const [seed, setSeed]             = useState<number>(() => randomSeed());
+  const [inputSeed, setInputSeed]   = useState<string>("");
   const [galaxyType, setGalaxyType] = useState<GalaxyType>("spiral");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedStar, setSelectedStar] = useState<Star | null>(null);
-  const [currentSeed, setCurrentSeed]   = useState<number>(0);
+
+  const [selectedStar, setSelectedStar]     = useState<Star | null>(null);
+  const [selectedPlanet, setSelectedPlanet] = useState<Planet | null>(null);
+  const [currentSeed, setCurrentSeed]       = useState<number>(0);
+  const [inSystemView, setInSystemView]     = useState(false);
 
   const generate = useCallback((s: number) => {
     setIsGenerating(true);
     setSelectedStar(null);
+    setSelectedPlanet(null);
+    setInSystemView(false);
+    rendererRef.current?.exitSystemView();
+
     requestAnimationFrame(() => {
-      const config   = buildGalaxyConfig(s);
-      const particles = generateGalaxy(config);
+      const config     = buildGalaxyConfig(s);
+      const particles  = generateGalaxy(config);
       const population = generateStarsFor(config);
       setGalaxyType(config.type);
       setCurrentSeed(s);
@@ -74,6 +84,25 @@ export default function App() {
     }
   };
 
+  const handleExploreSystem = useCallback(() => {
+    if (!selectedStar || !rendererRef.current) return;
+    const system = generatePlanetsFor(selectedStar, currentSeed);
+    setInSystemView(true);
+    setSelectedPlanet(null);
+    rendererRef.current.renderPlanetarySystem(system, selectedStar, (planet) => {
+      setSelectedPlanet(planet);
+    });
+  }, [selectedStar, currentSeed]);
+
+  const handleExitSystem = () => {
+    setInSystemView(false);
+    setSelectedPlanet(null);
+    rendererRef.current?.exitSystemView();
+  };
+
+  const showHint       = !isGenerating && !selectedStar && !inSystemView;
+  const showStarPanel  = !!selectedStar && !inSystemView;
+
   return (
     <div className="app">
       <canvas ref={canvasRef} className="viewport" />
@@ -92,34 +121,50 @@ export default function App() {
           <span className="meta-value">2,000</span>
         </div>
 
-        <form className="seed-form" onSubmit={handleSeedSubmit}>
-          <input
-            className="seed-input"
-            type="number"
-            min={0}
-            placeholder="Enter seed…"
-            value={inputSeed}
-            onChange={(e) => setInputSeed(e.target.value)}
-          />
-          <button className="btn" type="submit" disabled={isGenerating}>GO</button>
-        </form>
+        {!inSystemView && (
+          <>
+            <form className="seed-form" onSubmit={handleSeedSubmit}>
+              <input
+                className="seed-input"
+                type="number"
+                min={0}
+                placeholder="Enter seed…"
+                value={inputSeed}
+                onChange={(e) => setInputSeed(e.target.value)}
+              />
+              <button className="btn" type="submit" disabled={isGenerating}>GO</button>
+            </form>
+            <div className="controls">
+              <button className="btn primary" onClick={handleRandomize} disabled={isGenerating}>RANDOMIZE</button>
+              <button className="btn"         onClick={handleRegenerate} disabled={isGenerating}>REGENERATE</button>
+            </div>
+          </>
+        )}
 
-        <div className="controls">
-          <button className="btn primary" onClick={handleRandomize} disabled={isGenerating}>RANDOMIZE</button>
-          <button className="btn"         onClick={handleRegenerate} disabled={isGenerating}>REGENERATE</button>
-        </div>
+        {inSystemView && (
+          <button className="btn" onClick={handleExitSystem}>← GALAXY VIEW</button>
+        )}
 
         {isGenerating && <div className="generating">Forging universe…</div>}
-        {!isGenerating && !selectedStar && (
-          <div className="hint">Click a star to inspect it</div>
-        )}
+        {showHint && <div className="hint">Click a star to inspect it</div>}
+        {selectedStar && !inSystemView && <div className="hint">Click EXPLORE to enter its system</div>}
+        {inSystemView && !selectedPlanet && <div className="hint">Click a planet to inspect it</div>}
       </div>
 
-      {selectedStar && (
+      {showStarPanel && (
         <StarPanel
           star={selectedStar}
           galaxySeed={currentSeed}
           onClose={() => setSelectedStar(null)}
+          onExplore={handleExploreSystem}
+        />
+      )}
+
+      {inSystemView && selectedPlanet && (
+        <PlanetPanel
+          planet={selectedPlanet}
+          onClose={handleExitSystem}
+          onBack={() => setSelectedPlanet(null)}
         />
       )}
     </div>

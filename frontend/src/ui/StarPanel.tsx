@@ -7,6 +7,7 @@ interface Props {
   star: Star;
   galaxySeed: number;
   onClose: () => void;
+  onExplore: () => void;
 }
 
 const CLASS_LABEL: Record<string, string> = {
@@ -24,7 +25,12 @@ function fmt(n: number, decimals = 2) {
   return n.toFixed(decimals);
 }
 
-export function StarPanel({ star, galaxySeed, onClose }: Props) {
+const CAN_HAVE_PLANETS: Record<string, boolean> = {
+  protostar: true, "main-sequence": true, "red-giant": true,
+  "white-dwarf": true, "neutron-star": false, "black-hole": false,
+};
+
+export function StarPanel({ star, galaxySeed, onClose, onExplore }: Props) {
   const [bookmarked, setBookmarked] = useState(() => isBookmarked(star.id, galaxySeed));
 
   useEffect(() => {
@@ -32,17 +38,13 @@ export function StarPanel({ star, galaxySeed, onClose }: Props) {
   }, [star.id, galaxySeed]);
 
   const toggleBookmark = () => {
-    if (bookmarked) {
-      removeBookmark(star.id, galaxySeed);
-      setBookmarked(false);
-    } else {
-      bookmarkStar(star, galaxySeed);
-      setBookmarked(true);
-    }
+    if (bookmarked) { removeBookmark(star.id, galaxySeed); setBookmarked(false); }
+    else            { bookmarkStar(star, galaxySeed);      setBookmarked(true);  }
   };
 
   const [r, g, b] = temperatureToColor(star.temperature);
-  const starColor = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+  const starColor  = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+  const canExplore = CAN_HAVE_PLANETS[star.classification];
 
   return (
     <div className="star-panel">
@@ -65,9 +67,19 @@ export function StarPanel({ star, galaxySeed, onClose }: Props) {
         <Row label="LUMINOSITY"  value={star.luminosity > 0 ? `${fmt(star.luminosity, 2)} L☉` : "—"} />
       </div>
 
-      <button className={`btn bookmark-btn ${bookmarked ? "bookmarked" : ""}`} onClick={toggleBookmark}>
-        {bookmarked ? "★ BOOKMARKED" : "☆ BOOKMARK"}
-      </button>
+      <div className="panel-actions">
+        <button
+          className="btn primary bookmark-btn"
+          onClick={onExplore}
+          disabled={!canExplore}
+          title={canExplore ? undefined : "No planetary system possible"}
+        >
+          EXPLORE SYSTEM →
+        </button>
+        <button className={`btn bookmark-btn ${bookmarked ? "bookmarked" : ""}`} onClick={toggleBookmark}>
+          {bookmarked ? "★" : "☆"}
+        </button>
+      </div>
     </div>
   );
 }

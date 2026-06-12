@@ -401,3 +401,181 @@
   font-size: 9px;
   letter-spacing: 0.05em;
 }
+
+/* ── Timeline panel (Phase 6) ─────────────────────────────────────────────── */
+
+.timeline-panel {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 500px;
+  max-height: calc(100vh - 48px);
+  background: rgba(6, 10, 22, 0.92);
+  border: 1px solid rgba(100, 150, 220, 0.2);
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+}
+
+.timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.timeline-summary {
+  font-size: 10px;
+  color: rgba(160, 200, 255, 0.65);
+  letter-spacing: 0.05em;
+  line-height: 1.5;
+  border-bottom: 1px solid rgba(80, 110, 170, 0.2);
+  padding-bottom: 8px;
+}
+
+.timeline-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timeline-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.tl-filter-btn {
+  background: rgba(10, 15, 30, 0.6);
+  border: 1px solid rgba(80, 110, 170, 0.2);
+  border-radius: 3px;
+  color: rgba(120, 150, 200, 0.5);
+  cursor: pointer;
+  font: inherit;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  padding: 3px 7px;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.tl-filter-btn:hover {
+  border-color: rgba(100, 150, 220, 0.4);
+  color: rgba(160, 200, 255, 0.8);
+}
+
+.tl-filter-btn.active {
+  border-color: rgba(100, 150, 220, 0.5);
+  color: rgba(180, 215, 255, 0.9);
+}
+
+.timeline-count {
+  font-size: 9px;
+  color: rgba(100, 130, 180, 0.45);
+  letter-spacing: 0.1em;
+}
+
+.timeline-events {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 420px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(80, 110, 170, 0.3) transparent;
+}
+
+.timeline-empty {
+  font-size: 10px;
+  color: rgba(100, 120, 160, 0.45);
+  padding: 12px 0;
+  text-align: center;
+  letter-spacing: 0.1em;
+}
+
+.tl-event {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.tl-event:hover {
+  background: rgba(30, 45, 80, 0.4);
+}
+
+.tl-event.expanded {
+  background: rgba(20, 35, 65, 0.5);
+  border-color: rgba(80, 110, 170, 0.25);
+}
+
+.tl-event.highlighted {
+  background: rgba(30, 55, 100, 0.55);
+  border-color: rgba(100, 150, 255, 0.35);
+}
+
+.tl-event-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.tl-event-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tl-event-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.tl-event-cat {
+  font-size: 8px;
+  letter-spacing: 0.15em;
+  flex-shrink: 0;
+}
+
+.tl-event-time {
+  font-size: 9px;
+  color: rgba(100, 130, 180, 0.5);
+  flex: 1;
+}
+
+.tl-event-imp {
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  flex-shrink: 0;
+}
+
+.tl-event-summary {
+  font-size: 10px;
+  color: rgba(160, 195, 240, 0.8);
+  line-height: 1.45;
+}
+
+.tl-event-detail {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-top: 2px;
+}
+
+.timeline-open-btn {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  padding: 5px 10px;
+}

@@ -1,20 +1,23 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
 import { generateGalaxy, pickGalaxyType } from "./simulation/galaxy";
-import type { GalaxyType, GalaxyConfig } from "./simulation/galaxy";
+import type { GalaxyType, GalaxyConfig, GalaxyParticles } from "./simulation/galaxy";
 import { createRNG } from "./simulation/rng";
 import { generateStarsFor } from "./simulation/star";
-import type { Star } from "./simulation/star";
+import type { Star, StellarPopulation } from "./simulation/star";
 import { generatePlanetsFor } from "./simulation/planet";
 import type { Planet, PlanetarySystem } from "./simulation/planet";
 import { generateBiosphere } from "./simulation/biosphere";
 import type { Biosphere } from "./simulation/biosphere";
 import { generateCivilization } from "./simulation/civilization";
 import type { Civilization, Species } from "./simulation/civilization";
+import { buildUniverseTimeline, summarizeTimeline } from "./simulation/history";
+import type { UniverseTimeline } from "./simulation/history";
 import { StarPanel } from "./ui/StarPanel";
 import { PlanetPanel } from "./ui/PlanetPanel";
 import { BiospherePanel } from "./ui/BiospherePanel";
 import { CivilizationPanel } from "./ui/CivilizationPanel";
+import { TimelinePanel } from "./ui/TimelinePanel";
 import "./App.css";
 
 const PARTICLE_COUNT = 60000;
@@ -33,8 +36,10 @@ function buildGalaxyConfig(seed: number): GalaxyConfig {
 type View = "galaxy" | "system" | "biosphere" | "civilization";
 
 export default function App() {
-  const canvasRef   = useRef<HTMLCanvasElement>(null);
-  const rendererRef = useRef<UniverseRenderer | null>(null);
+  const canvasRef     = useRef<HTMLCanvasElement>(null);
+  const rendererRef   = useRef<UniverseRenderer | null>(null);
+  const galaxyRef     = useRef<GalaxyParticles | null>(null);
+  const populationRef = useRef<StellarPopulation | null>(null);
 
   const [seed, setSeed]             = useState<number>(() => randomSeed());
   const [inputSeed, setInputSeed]   = useState<string>("");
@@ -47,6 +52,9 @@ export default function App() {
   const [selectedBiosphere,     setSelectedBiosphere]     = useState<Biosphere | null>(null);
   const [selectedCivilization,  setSelectedCivilization]  = useState<Civilization | null>(null);
   const [selectedSpecies,       setSelectedSpecies]       = useState<Species | null>(null);
+  const [universeTimeline,      setUniverseTimeline]      = useState<UniverseTimeline | null>(null);
+  const [timelineSummary,       setTimelineSummary]       = useState<string>("");
+  const [showTimeline,          setShowTimeline]          = useState(false);
   const [currentSeed,           setCurrentSeed]           = useState<number>(0);
   const [, setCurrentSystem] = useState<PlanetarySystem | null>(null);
 
@@ -57,6 +65,9 @@ export default function App() {
     setSelectedBiosphere(null);
     setSelectedCivilization(null);
     setSelectedSpecies(null);
+    setUniverseTimeline(null);
+    setTimelineSummary("");
+    setShowTimeline(false);
     setCurrentSystem(null);
     setView("galaxy");
     rendererRef.current?.exitSystemView();
@@ -65,6 +76,8 @@ export default function App() {
       const config     = buildGalaxyConfig(s);
       const particles  = generateGalaxy(config);
       const population = generateStarsFor(config);
+      galaxyRef.current     = particles;
+      populationRef.current = population;
       setGalaxyType(config.type);
       setCurrentSeed(s);
       rendererRef.current?.renderGalaxy(particles);
@@ -108,11 +121,29 @@ export default function App() {
     if (!selectedStar || !rendererRef.current) return;
     const system = generatePlanetsFor(selectedStar, currentSeed);
 
-    // Pre-generate all biospheres for this system so the renderer can show life glows
+    // Pre-generate all biospheres so renderer can show life glows
     const biospheres = new Map<number, Biosphere>();
     for (const planet of system.planets) {
       const bio = generateBiosphere(planet, selectedStar, currentSeed);
       biospheres.set(planet.id, bio);
+    }
+
+    // Build universe timeline for this system
+    if (galaxyRef.current && populationRef.current) {
+      const systemEntries = system.planets.map((planet) => {
+        const bio = biospheres.get(planet.id)!;
+        const civResult = generateCivilization(bio, planet, currentSeed);
+        return {
+          planet,
+          star: selectedStar,
+          bio,
+          civ: civResult.civilization ?? undefined,
+          species: civResult.species ?? undefined,
+        };
+      });
+      const tl = buildUniverseTimeline(currentSeed, galaxyRef.current, populationRef.current, systemEntries);
+      setUniverseTimeline(tl);
+      setTimelineSummary(summarizeTimeline(tl));
     }
 
     setCurrentSystem(system);
@@ -151,6 +182,7 @@ export default function App() {
     setSelectedBiosphere(null);
     setSelectedCivilization(null);
     setSelectedSpecies(null);
+    setShowTimeline(false);
     setCurrentSystem(null);
     rendererRef.current?.exitSystemView();
   };
@@ -214,7 +246,14 @@ export default function App() {
         )}
 
         {view !== "galaxy" && (
-          <button className="btn" onClick={handleExitSystem}>← GALAXY VIEW</button>
+          <div className="controls">
+            <button className="btn" onClick={handleExitSystem}>← GALAXY VIEW</button>
+            {universeTimeline && (
+              <button className="btn timeline-open-btn" onClick={() => setShowTimeline((v) => !v)}>
+                {showTimeline ? "CLOSE HISTORY" : "HISTORY"}
+              </button>
+            )}
+          </div>
         )}
 
         {isGenerating && <div className="generating">Forging universe…</div>}
@@ -258,6 +297,14 @@ export default function App() {
           species={selectedSpecies}
           onBack={handleBackToBiosphere}
           onClose={handleExitSystem}
+        />
+      )}
+
+      {showTimeline && universeTimeline && (
+        <TimelinePanel
+          timeline={universeTimeline}
+          summary={timelineSummary}
+          onClose={() => setShowTimeline(false)}
         />
       )}
     </div>

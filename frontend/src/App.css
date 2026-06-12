@@ -356,3 +356,48 @@
   font-size: 9px;
   color: rgba(120, 130, 160, 0.5);
 }
+
+/* ── Civilization panel (Phase 5) ─────────────────────────────────────────── */
+
+.civ-panel {
+  width: 260px;
+}
+
+.civ-dot {
+  width: 10px;
+  height: 10px;
+}
+
+.civ-traits-title {
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: rgba(120, 140, 180, 0.5);
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+.civ-pct {
+  font-size: 9px;
+  width: 30px;
+  text-align: right;
+  flex-shrink: 0;
+  color: rgba(150, 180, 220, 0.6);
+}
+
+.civ-milestone-row {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  column-gap: 6px;
+  align-items: baseline;
+  font-size: 10px;
+}
+
+.civ-milestone-icon {
+  font-size: 8px;
+  text-align: center;
+}
+
+.civ-milestone-label {
+  font-size: 9px;
+  letter-spacing: 0.05em;
+}

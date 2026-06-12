@@ -9,9 +9,12 @@ import { generatePlanetsFor } from "./simulation/planet";
 import type { Planet, PlanetarySystem } from "./simulation/planet";
 import { generateBiosphere } from "./simulation/biosphere";
 import type { Biosphere } from "./simulation/biosphere";
+import { generateCivilization } from "./simulation/civilization";
+import type { Civilization, Species } from "./simulation/civilization";
 import { StarPanel } from "./ui/StarPanel";
 import { PlanetPanel } from "./ui/PlanetPanel";
 import { BiospherePanel } from "./ui/BiospherePanel";
+import { CivilizationPanel } from "./ui/CivilizationPanel";
 import "./App.css";
 
 const PARTICLE_COUNT = 60000;
@@ -27,7 +30,7 @@ function buildGalaxyConfig(seed: number): GalaxyConfig {
   return { type, particleCount: PARTICLE_COUNT, seed, scale: SCALE };
 }
 
-type View = "galaxy" | "system" | "biosphere";
+type View = "galaxy" | "system" | "biosphere" | "civilization";
 
 export default function App() {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
@@ -39,10 +42,12 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [view, setView]             = useState<View>("galaxy");
 
-  const [selectedStar,     setSelectedStar]     = useState<Star | null>(null);
-  const [selectedPlanet,   setSelectedPlanet]   = useState<Planet | null>(null);
-  const [selectedBiosphere, setSelectedBiosphere] = useState<Biosphere | null>(null);
-  const [currentSeed,      setCurrentSeed]      = useState<number>(0);
+  const [selectedStar,          setSelectedStar]          = useState<Star | null>(null);
+  const [selectedPlanet,        setSelectedPlanet]        = useState<Planet | null>(null);
+  const [selectedBiosphere,     setSelectedBiosphere]     = useState<Biosphere | null>(null);
+  const [selectedCivilization,  setSelectedCivilization]  = useState<Civilization | null>(null);
+  const [selectedSpecies,       setSelectedSpecies]       = useState<Species | null>(null);
+  const [currentSeed,           setCurrentSeed]           = useState<number>(0);
   const [, setCurrentSystem] = useState<PlanetarySystem | null>(null);
 
   const generate = useCallback((s: number) => {
@@ -50,6 +55,8 @@ export default function App() {
     setSelectedStar(null);
     setSelectedPlanet(null);
     setSelectedBiosphere(null);
+    setSelectedCivilization(null);
+    setSelectedSpecies(null);
     setCurrentSystem(null);
     setView("galaxy");
     rendererRef.current?.exitSystemView();
@@ -123,25 +130,49 @@ export default function App() {
     if (!selectedPlanet || !selectedStar) return;
     const bio = generateBiosphere(selectedPlanet, selectedStar, currentSeed);
     setSelectedBiosphere(bio);
+    setSelectedCivilization(null);
+    setSelectedSpecies(null);
     setView("biosphere");
   }, [selectedPlanet, selectedStar, currentSeed]);
+
+  const handleScanCivilization = useCallback(() => {
+    if (!selectedBiosphere || !selectedPlanet) return;
+    const result = generateCivilization(selectedBiosphere, selectedPlanet, currentSeed);
+    if (result.civilization && result.species) {
+      setSelectedCivilization(result.civilization);
+      setSelectedSpecies(result.species);
+      setView("civilization");
+    }
+  }, [selectedBiosphere, selectedPlanet, currentSeed]);
 
   const handleExitSystem = () => {
     setView("galaxy");
     setSelectedPlanet(null);
     setSelectedBiosphere(null);
+    setSelectedCivilization(null);
+    setSelectedSpecies(null);
     setCurrentSystem(null);
     rendererRef.current?.exitSystemView();
   };
 
   const handleBackToPlanet = () => {
     setSelectedBiosphere(null);
+    setSelectedCivilization(null);
+    setSelectedSpecies(null);
     setView("system");
+  };
+
+  const handleBackToBiosphere = () => {
+    setSelectedCivilization(null);
+    setSelectedSpecies(null);
+    setView("biosphere");
   };
 
   const handleBackToStar = () => {
     setSelectedPlanet(null);
     setSelectedBiosphere(null);
+    setSelectedCivilization(null);
+    setSelectedSpecies(null);
   };
 
   return (
@@ -187,10 +218,11 @@ export default function App() {
         )}
 
         {isGenerating && <div className="generating">Forging universe…</div>}
-        {!isGenerating && view === "galaxy"    && !selectedStar  && <div className="hint">Click a star to inspect it</div>}
-        {view === "galaxy"  && selectedStar                       && <div className="hint">Click EXPLORE to enter its system</div>}
-        {view === "system"  && !selectedPlanet                    && <div className="hint">Click a planet to inspect it</div>}
-        {view === "system"  && selectedPlanet  && !selectedBiosphere && <div className="hint">Click SCAN BIOSPHERE to search for life</div>}
+        {!isGenerating && view === "galaxy"      && !selectedStar     && <div className="hint">Click a star to inspect it</div>}
+        {view === "galaxy"      && selectedStar                        && <div className="hint">Click EXPLORE to enter its system</div>}
+        {view === "system"      && !selectedPlanet                     && <div className="hint">Click a planet to inspect it</div>}
+        {view === "system"      && selectedPlanet  && !selectedBiosphere && <div className="hint">Click SCAN BIOSPHERE to search for life</div>}
+        {view === "biosphere"   && selectedBiosphere?.hasLife           && !selectedCivilization && <div className="hint">Click SCAN CIVILIZATION if intelligence emerged</div>}
       </div>
 
       {view === "galaxy" && selectedStar && (
@@ -215,6 +247,16 @@ export default function App() {
         <BiospherePanel
           biosphere={selectedBiosphere}
           onBack={handleBackToPlanet}
+          onClose={handleExitSystem}
+          onScanCivilization={handleScanCivilization}
+        />
+      )}
+
+      {view === "civilization" && selectedCivilization && selectedSpecies && (
+        <CivilizationPanel
+          civilization={selectedCivilization}
+          species={selectedSpecies}
+          onBack={handleBackToBiosphere}
           onClose={handleExitSystem}
         />
       )}

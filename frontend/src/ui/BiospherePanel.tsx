@@ -5,6 +5,7 @@ interface Props {
   biosphere: Biosphere;
   onBack: () => void;
   onClose: () => void;
+  onScanCivilization: () => void;
 }
 
 function Bar({ value, color }: { value: number; color: string }) {
@@ -31,7 +32,9 @@ function fmt(n: number) {
   return n < 0.1 ? `${(n * 1000).toFixed(0)} Myr` : `${n.toFixed(2)} Gyr`;
 }
 
-export function BiospherePanel({ biosphere, onBack, onClose }: Props) {
+const CAN_HAVE_CIVILIZATION = new Set(["complex", "dominant"]);
+
+export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization }: Props) {
   const stageColor = STAGE_COLOR[biosphere.stage];
 
   if (!biosphere.hasLife) {
@@ -97,6 +100,17 @@ export function BiospherePanel({ biosphere, onBack, onClose }: Props) {
           ))}
         </div>
       )}
+
+      <div className="panel-actions">
+        <button
+          className="btn primary bookmark-btn"
+          onClick={onScanCivilization}
+          disabled={!CAN_HAVE_CIVILIZATION.has(biosphere.stage)}
+          title={CAN_HAVE_CIVILIZATION.has(biosphere.stage) ? undefined : "Biosphere not complex enough for intelligence"}
+        >
+          SCAN CIVILIZATION →
+        </button>
+      </div>
     </div>
   );
 }

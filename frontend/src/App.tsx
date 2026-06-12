@@ -6,9 +6,12 @@ import { createRNG } from "./simulation/rng";
 import { generateStarsFor } from "./simulation/star";
 import type { Star } from "./simulation/star";
 import { generatePlanetsFor } from "./simulation/planet";
-import type { Planet } from "./simulation/planet";
+import type { Planet, PlanetarySystem } from "./simulation/planet";
+import { generateBiosphere } from "./simulation/biosphere";
+import type { Biosphere } from "./simulation/biosphere";
 import { StarPanel } from "./ui/StarPanel";
 import { PlanetPanel } from "./ui/PlanetPanel";
+import { BiospherePanel } from "./ui/BiospherePanel";
 import "./App.css";
 
 const PARTICLE_COUNT = 60000;
@@ -24,6 +27,8 @@ function buildGalaxyConfig(seed: number): GalaxyConfig {
   return { type, particleCount: PARTICLE_COUNT, seed, scale: SCALE };
 }
 
+type View = "galaxy" | "system" | "biosphere";
+
 export default function App() {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<UniverseRenderer | null>(null);
@@ -32,17 +37,21 @@ export default function App() {
   const [inputSeed, setInputSeed]   = useState<string>("");
   const [galaxyType, setGalaxyType] = useState<GalaxyType>("spiral");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [view, setView]             = useState<View>("galaxy");
 
-  const [selectedStar, setSelectedStar]     = useState<Star | null>(null);
-  const [selectedPlanet, setSelectedPlanet] = useState<Planet | null>(null);
-  const [currentSeed, setCurrentSeed]       = useState<number>(0);
-  const [inSystemView, setInSystemView]     = useState(false);
+  const [selectedStar,     setSelectedStar]     = useState<Star | null>(null);
+  const [selectedPlanet,   setSelectedPlanet]   = useState<Planet | null>(null);
+  const [selectedBiosphere, setSelectedBiosphere] = useState<Biosphere | null>(null);
+  const [currentSeed,      setCurrentSeed]      = useState<number>(0);
+  const [, setCurrentSystem] = useState<PlanetarySystem | null>(null);
 
   const generate = useCallback((s: number) => {
     setIsGenerating(true);
     setSelectedStar(null);
     setSelectedPlanet(null);
-    setInSystemView(false);
+    setSelectedBiosphere(null);
+    setCurrentSystem(null);
+    setView("galaxy");
     rendererRef.current?.exitSystemView();
 
     requestAnimationFrame(() => {
@@ -52,7 +61,11 @@ export default function App() {
       setGalaxyType(config.type);
       setCurrentSeed(s);
       rendererRef.current?.renderGalaxy(particles);
-      rendererRef.current?.renderStars(population, (star) => setSelectedStar(star));
+      rendererRef.current?.renderStars(population, (star) => {
+        setSelectedStar(star);
+        setSelectedPlanet(null);
+        setSelectedBiosphere(null);
+      });
       setIsGenerating(false);
     });
   }, []);
@@ -87,21 +100,49 @@ export default function App() {
   const handleExploreSystem = useCallback(() => {
     if (!selectedStar || !rendererRef.current) return;
     const system = generatePlanetsFor(selectedStar, currentSeed);
-    setInSystemView(true);
+
+    // Pre-generate all biospheres for this system so the renderer can show life glows
+    const biospheres = new Map<number, Biosphere>();
+    for (const planet of system.planets) {
+      const bio = generateBiosphere(planet, selectedStar, currentSeed);
+      biospheres.set(planet.id, bio);
+    }
+
+    setCurrentSystem(system);
     setSelectedPlanet(null);
+    setSelectedBiosphere(null);
+    setView("system");
+
     rendererRef.current.renderPlanetarySystem(system, selectedStar, (planet) => {
       setSelectedPlanet(planet);
-    });
+      setSelectedBiosphere(null);
+    }, biospheres);
   }, [selectedStar, currentSeed]);
 
+  const handleScanBiosphere = useCallback(() => {
+    if (!selectedPlanet || !selectedStar) return;
+    const bio = generateBiosphere(selectedPlanet, selectedStar, currentSeed);
+    setSelectedBiosphere(bio);
+    setView("biosphere");
+  }, [selectedPlanet, selectedStar, currentSeed]);
+
   const handleExitSystem = () => {
-    setInSystemView(false);
+    setView("galaxy");
     setSelectedPlanet(null);
+    setSelectedBiosphere(null);
+    setCurrentSystem(null);
     rendererRef.current?.exitSystemView();
   };
 
-  const showHint       = !isGenerating && !selectedStar && !inSystemView;
-  const showStarPanel  = !!selectedStar && !inSystemView;
+  const handleBackToPlanet = () => {
+    setSelectedBiosphere(null);
+    setView("system");
+  };
+
+  const handleBackToStar = () => {
+    setSelectedPlanet(null);
+    setSelectedBiosphere(null);
+  };
 
   return (
     <div className="app">
@@ -121,7 +162,7 @@ export default function App() {
           <span className="meta-value">2,000</span>
         </div>
 
-        {!inSystemView && (
+        {view === "galaxy" && (
           <>
             <form className="seed-form" onSubmit={handleSeedSubmit}>
               <input
@@ -141,17 +182,18 @@ export default function App() {
           </>
         )}
 
-        {inSystemView && (
+        {view !== "galaxy" && (
           <button className="btn" onClick={handleExitSystem}>← GALAXY VIEW</button>
         )}
 
         {isGenerating && <div className="generating">Forging universe…</div>}
-        {showHint && <div className="hint">Click a star to inspect it</div>}
-        {selectedStar && !inSystemView && <div className="hint">Click EXPLORE to enter its system</div>}
-        {inSystemView && !selectedPlanet && <div className="hint">Click a planet to inspect it</div>}
+        {!isGenerating && view === "galaxy"    && !selectedStar  && <div className="hint">Click a star to inspect it</div>}
+        {view === "galaxy"  && selectedStar                       && <div className="hint">Click EXPLORE to enter its system</div>}
+        {view === "system"  && !selectedPlanet                    && <div className="hint">Click a planet to inspect it</div>}
+        {view === "system"  && selectedPlanet  && !selectedBiosphere && <div className="hint">Click SCAN BIOSPHERE to search for life</div>}
       </div>
 
-      {showStarPanel && (
+      {view === "galaxy" && selectedStar && (
         <StarPanel
           star={selectedStar}
           galaxySeed={currentSeed}
@@ -160,11 +202,20 @@ export default function App() {
         />
       )}
 
-      {inSystemView && selectedPlanet && (
+      {view === "system" && selectedPlanet && !selectedBiosphere && (
         <PlanetPanel
           planet={selectedPlanet}
           onClose={handleExitSystem}
-          onBack={() => setSelectedPlanet(null)}
+          onBack={handleBackToStar}
+          onScanBiosphere={handleScanBiosphere}
+        />
+      )}
+
+      {view === "biosphere" && selectedBiosphere && (
+        <BiospherePanel
+          biosphere={selectedBiosphere}
+          onBack={handleBackToPlanet}
+          onClose={handleExitSystem}
         />
       )}
     </div>

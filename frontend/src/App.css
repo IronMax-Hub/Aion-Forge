@@ -270,3 +270,89 @@
   border-radius: 2px;
   transition: width 0.4s ease;
 }
+
+/* ── Biosphere panel (Phase 4) ────────────────────────────────────────────── */
+
+.bio-panel {
+  width: 240px;
+}
+
+.bio-empty {
+  font-size: 10px;
+  color: rgba(120, 130, 160, 0.6);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.bio-pulse {
+  animation: bio-pulse 2s ease-in-out infinite;
+}
+
+@keyframes bio-pulse {
+  0%, 100% { opacity: 0.7; }
+  50%       { opacity: 1;   box-shadow: 0 0 14px currentColor; }
+}
+
+.bio-stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  row-gap: 6px;
+  align-items: center;
+}
+
+.bio-stat-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bio-bar-track {
+  flex: 1;
+  height: 3px;
+  background: rgba(60, 80, 120, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bio-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+}
+
+.bio-extinctions {
+  border-top: 1px solid rgba(80, 110, 170, 0.2);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bio-ext-title {
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: rgba(120, 140, 180, 0.5);
+  margin-bottom: 2px;
+}
+
+.bio-ext-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  column-gap: 8px;
+  align-items: baseline;
+  font-size: 10px;
+}
+
+.bio-ext-cause {
+  color: rgba(160, 170, 200, 0.7);
+}
+
+.bio-ext-severity {
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.bio-ext-time {
+  font-size: 9px;
+  color: rgba(120, 130, 160, 0.5);
+}

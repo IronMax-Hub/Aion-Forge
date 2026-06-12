@@ -5,6 +5,7 @@ interface Props {
   planet: Planet;
   onClose: () => void;
   onBack: () => void;
+  onScanBiosphere: () => void;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -18,34 +19,36 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const ATMO_LABEL: Record<string, string> = {
-  none:     "None",
-  thin:     "Thin",
-  moderate: "Moderate",
-  thick:    "Thick",
-  crushing: "Crushing",
+  none: "None", thin: "Thin", moderate: "Moderate", thick: "Thick", crushing: "Crushing",
 };
 
 function fmt(n: number, d = 2) {
   return n < 0.01 ? n.toExponential(1) : n.toFixed(d);
 }
 
-function habitabilityLabel(score: number) {
-  if (score > 0.7) return "HIGH";
-  if (score > 0.4) return "MODERATE";
-  if (score > 0.1) return "LOW";
-  return "NEGLIGIBLE";
-}
-
-function habitabilityColor(score: number) {
+function habColor(score: number) {
   if (score > 0.7) return "rgba(80, 220, 140, 0.85)";
   if (score > 0.4) return "rgba(180, 220, 80, 0.85)";
   if (score > 0.1) return "rgba(220, 160, 60, 0.75)";
   return "rgba(140, 140, 160, 0.5)";
 }
 
-export function PlanetPanel({ planet, onClose, onBack }: Props) {
+function habLabel(score: number) {
+  if (score > 0.7) return "HIGH";
+  if (score > 0.4) return "MODERATE";
+  if (score > 0.1) return "LOW";
+  return "NEGLIGIBLE";
+}
+
+const CAN_HAVE_LIFE: Record<string, boolean> = {
+  rocky: true, ocean: true, ice: true, desert: true,
+  "gas-giant": false, lava: false, rogue: false,
+};
+
+export function PlanetPanel({ planet, onClose, onBack, onScanBiosphere }: Props) {
   const [r, g, b] = PLANET_COLORS[planet.type];
   const planetColor = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+  const canScan = CAN_HAVE_LIFE[planet.type];
 
   return (
     <div className="star-panel">
@@ -64,30 +67,35 @@ export function PlanetPanel({ planet, onClose, onBack }: Props) {
       <div className="star-stats">
         <span className="meta-label">ORBIT</span>
         <span className="meta-value">{fmt(planet.orbitalRadius, 2)} AU</span>
-
         <span className="meta-label">MASS</span>
         <span className="meta-value">{fmt(planet.mass, 2)} M⊕</span>
-
         <span className="meta-label">SIZE</span>
         <span className="meta-value">{fmt(planet.size, 2)} R⊕</span>
-
         <span className="meta-label">TEMPERATURE</span>
         <span className="meta-value">{Math.round(planet.temperature)} K</span>
-
         <span className="meta-label">ATMOSPHERE</span>
         <span className="meta-value">{ATMO_LABEL[planet.atmosphere]}</span>
-
         <span className="meta-label">RESOURCES</span>
         <span className="meta-value">{Math.round(planet.resourceAbundance * 100)}%</span>
-
         <span className="meta-label">HABITABILITY</span>
-        <span className="meta-value" style={{ color: habitabilityColor(planet.habitabilityScore) }}>
-          {habitabilityLabel(planet.habitabilityScore)}
+        <span className="meta-value" style={{ color: habColor(planet.habitabilityScore) }}>
+          {habLabel(planet.habitabilityScore)}
         </span>
       </div>
 
       <div className="hab-bar">
-        <div className="hab-fill" style={{ width: `${planet.habitabilityScore * 100}%`, background: habitabilityColor(planet.habitabilityScore) }} />
+        <div className="hab-fill" style={{ width: `${planet.habitabilityScore * 100}%`, background: habColor(planet.habitabilityScore) }} />
+      </div>
+
+      <div className="panel-actions">
+        <button
+          className="btn primary bookmark-btn"
+          onClick={onScanBiosphere}
+          disabled={!canScan}
+          title={canScan ? undefined : "No life possible on this world"}
+        >
+          SCAN BIOSPHERE →
+        </button>
       </div>
     </div>
   );

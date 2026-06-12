@@ -5,6 +5,7 @@ import type { Star, StellarPopulation } from "../simulation/star";
 import { temperatureToColor } from "../simulation/star";
 import type { Planet, PlanetarySystem } from "../simulation/planet";
 import { PLANET_COLORS } from "../simulation/planet";
+import type { Biosphere } from "../simulation/biosphere";
 
 export class UniverseRenderer {
   private renderer: THREE.WebGLRenderer;
@@ -159,7 +160,8 @@ export class UniverseRenderer {
   renderPlanetarySystem(
     system: PlanetarySystem,
     hostStar: Star,
-    onPlanetSelected: (planet: Planet | null) => void
+    onPlanetSelected: (planet: Planet | null) => void,
+    biospheres: Map<number, Biosphere> = new Map()
   ) {
     this.onPlanetSelected = onPlanetSelected;
     this.planetData = system.planets;
@@ -217,15 +219,29 @@ export class UniverseRenderer {
       pMesh.userData = { planetId: planet.id };
       group.add(pMesh);
 
-      // Habitable world glow
+      // Habitability glow (faint)
       if (planet.habitabilityScore > 0.4) {
         const hGeo = new THREE.SphereGeometry(pSize * 1.8, 12, 12);
         const hMat = new THREE.MeshBasicMaterial({
-          color: 0x44ff88, transparent: true, opacity: planet.habitabilityScore * 0.2,
+          color: 0x44ff88, transparent: true, opacity: planet.habitabilityScore * 0.15,
         });
         const hMesh = new THREE.Mesh(hGeo, hMat);
         hMesh.position.copy(pMesh.position);
         group.add(hMesh);
+      }
+
+      // Life glow — stronger, pulsing green when biosphere present
+      const bio = biospheres.get(planet.id);
+      if (bio?.hasLife) {
+        const lifeGeo = new THREE.SphereGeometry(pSize * 2.4, 12, 12);
+        const lifeIntensity = 0.15 + bio.complexity * 0.35;
+        const lifeMat = new THREE.MeshBasicMaterial({
+          color: 0x55ff99, transparent: true, opacity: lifeIntensity,
+        });
+        const lifeMesh = new THREE.Mesh(lifeGeo, lifeMat);
+        lifeMesh.position.copy(pMesh.position);
+        lifeMesh.userData = { lifeGlow: true, baseOpacity: lifeIntensity };
+        group.add(lifeMesh);
       }
     }
 
@@ -341,10 +357,24 @@ export class UniverseRenderer {
   // ── Render loop ───────────────────────────────────────────────────────────
 
   private startLoop() {
+    let t = 0;
     const tick = () => {
       this.animFrameId = requestAnimationFrame(tick);
       this.stepTween();
       this.controls.update();
+
+      // Pulse life glows
+      if (this.systemGroup) {
+        t += 0.02;
+        this.systemGroup.traverse(obj => {
+          if (obj.userData.lifeGlow) {
+            const m = obj as THREE.Mesh;
+            (m.material as THREE.MeshBasicMaterial).opacity =
+              obj.userData.baseOpacity * (0.7 + 0.3 * Math.sin(t));
+          }
+        });
+      }
+
       this.renderer.render(this.scene, this.camera);
     };
     tick();

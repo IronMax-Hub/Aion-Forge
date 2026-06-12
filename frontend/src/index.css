@@ -1,0 +1,13 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #000005;
+  overflow: hidden;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+}

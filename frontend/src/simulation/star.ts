@@ -17,7 +17,7 @@ export interface Star {
   id: number;
   position: [number, number, number];
   mass: number;        // solar masses
-  age: number;         // billion years
+  age: number;         // billion yearss
   lifespan: number;    // billion years
   temperature: number; // Kelvin
   luminosity: number;  // solar luminosities
@@ -55,12 +55,12 @@ function classify(mass: number, age: number, lifespan: number): StellarClass {
 // ── Temperature (AF-024) ──────────────────────────────────────────────────────
 
 const TEMP_RANGE: Record<StellarClass, [number, number]> = {
-  protostar:        [2000,   4000],
-  "main-sequence":  [3000,  40000],
-  "red-giant":      [3000,   5000],
-  "white-dwarf":    [8000,  80000],
-  "neutron-star":   [100000, 1000000],
-  "black-hole":     [0, 0],
+  protostar: [2000, 4000],
+  "main-sequence": [3000, 40000],
+  "red-giant": [3000, 5000],
+  "white-dwarf": [8000, 80000],
+  "neutron-star": [100000, 1000000],
+  "black-hole": [0, 0],
 };
 
 function calcTemperature(cls: StellarClass, mass: number, jitter: number): number {
@@ -186,9 +186,9 @@ export function generateStarsFor(
     const luminosity = calcLuminosity(cls, mass, temp);
 
     let pos: [number, number, number];
-    if (galaxy.type === "spiral")      pos = posSpiral(rng, galaxy.scale);
+    if (galaxy.type === "spiral") pos = posSpiral(rng, galaxy.scale);
     else if (galaxy.type === "elliptical") pos = posElliptical(rng, galaxy.scale);
-    else                               pos = posIrregular(rng, galaxy.scale);
+    else pos = posIrregular(rng, galaxy.scale);
 
     stars.push({ id: i, position: pos, mass, age, lifespan, temperature: temp, luminosity, classification: cls, isRare });
   }

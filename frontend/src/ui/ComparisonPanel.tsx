@@ -8,12 +8,12 @@ interface Props {
 
 export function ComparisonPanel({ comparison: cmp, onSave, onClose }: Props) {
   return (
-    <div className="star-panel compare-panel">
+    <div className="star-panel compare-panel" role="dialog" aria-label="Experiment comparison results">
       <div className="timeline-header">
         <span className="hud-title" style={{ fontSize: 10, marginBottom: 0 }}>EXPERIMENT RESULTS</span>
         <div style={{ display: "flex", gap: 6 }}>
           <button className="tl-filter-btn" onClick={onSave}>SAVE</button>
-          <button className="panel-close" onClick={onClose}>✕</button>
+          <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
       </div>
 

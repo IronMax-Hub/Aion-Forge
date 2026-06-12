@@ -39,12 +39,12 @@ export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization 
 
   if (!biosphere.hasLife) {
     return (
-      <div className="star-panel">
+      <div className="star-panel" role="dialog" aria-label="Biosphere scan — no life">
         <div className="star-panel-header">
           <div className="star-dot" style={{ background: "rgba(80,80,100,0.6)" }} />
           <span className="star-id">BIOSPHERE SCAN</span>
-          <button className="panel-close" onClick={onBack}>←</button>
-          <button className="panel-close" onClick={onClose}>✕</button>
+          <button className="panel-close" onClick={onBack} aria-label="Back to planet">←</button>
+          <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className="star-class" style={{ color: STAGE_COLOR.none }}>
           {STAGE_LABEL.none}
@@ -57,14 +57,14 @@ export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization 
   }
 
   return (
-    <div className="star-panel bio-panel">
+    <div className="star-panel bio-panel" role="dialog" aria-label="Biosphere details">
       <div className="star-panel-header">
         <div className="star-dot bio-pulse" style={{ background: stageColor, boxShadow: `0 0 8px ${stageColor}` }} />
         <div className="star-panel-title">
           <span className="star-id">BIOSPHERE</span>
         </div>
-        <button className="panel-close" onClick={onBack}>←</button>
-        <button className="panel-close" onClick={onClose}>✕</button>
+        <button className="panel-close" onClick={onBack} aria-label="Back to planet">←</button>
+        <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
       <div className="star-class" style={{ color: stageColor }}>

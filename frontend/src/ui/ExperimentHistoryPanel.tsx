@@ -7,10 +7,10 @@ interface Props {
 
 export function ExperimentHistoryPanel({ experiments, onClose }: Props) {
   return (
-    <div className="star-panel compare-panel">
+    <div className="star-panel compare-panel" role="dialog" aria-label="Experiment history">
       <div className="timeline-header">
         <span className="hud-title" style={{ fontSize: 10, marginBottom: 0 }}>EXPERIMENT HISTORY</span>
-        <button className="panel-close" onClick={onClose}>✕</button>
+        <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
       {experiments.length === 0 && (

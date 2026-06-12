@@ -637,7 +637,7 @@ Shared Eternities.
 
 ---
 
-# Phase 9: Refinement
+# Phase 9: Refinement ✓ Complete
 
 ## Objective
 
@@ -645,21 +645,19 @@ Improve depth without betraying simplicity.
 
 ---
 
-## Areas of Improvement
+## Completed
 
-Examples:
-
-* simulation optimization,
-* richer event systems,
-* improved rendering,
-* enhanced visual storytelling,
-* accessibility.
-
----
-
-## Rule
-
-New complexity must justify itself.
+* 22 determinism tests covering every simulation layer
+* Snapshot caching — button clicks are instant after generation
+* Config slider deferred regeneration — only regenerates on pointer release
+* Biosphere result caching within system view — eliminates redundant generation
+* Global Escape key handler — closes overlays in priority order
+* ARIA roles and labels across all panels
+* Focus-visible keyboard ring styling
+* Evocative timeline and universe summary prose
+* Civilization narrative paragraphs
+* `.civ-narrative` styled display
+* README updated to Version 1.0
 
 ---
 

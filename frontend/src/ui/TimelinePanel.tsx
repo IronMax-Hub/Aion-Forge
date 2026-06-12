@@ -142,12 +142,12 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
   const highlightedEventId = replayMode && replayIndex > 0 ? replayEvents[replayIndex - 1]?.id : null;
 
   return (
-    <div className="timeline-panel">
+    <div className="timeline-panel" role="dialog" aria-label="Universe timeline">
       <div className="timeline-header">
         <span className="hud-title" style={{ fontSize: 10, marginBottom: 0 }}>UNIVERSE TIMELINE</span>
         <div style={{ display: "flex", gap: 6 }}>
           {!replayMode ? (
-            <button className="tl-filter-btn" onClick={startReplay} title="Replay history from the beginning">
+            <button className="tl-filter-btn" onClick={startReplay} title="Replay history from the beginning" aria-label="Replay timeline">
               ▶ REPLAY
             </button>
           ) : (
@@ -156,6 +156,7 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
                 className="tl-filter-btn"
                 onClick={() => setReplayPlaying((p) => !p)}
                 disabled={replayIndex >= replayEvents.length}
+                aria-label={replayPlaying ? "Pause replay" : "Play replay"}
               >
                 {replayPlaying ? "⏸ PAUSE" : "▶ PLAY"}
               </button>
@@ -164,14 +165,16 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
                   key={s}
                   className={`tl-filter-btn${replaySpeed === s ? " active" : ""}`}
                   onClick={() => setReplaySpeed(s)}
+                  aria-label={`${s}× speed`}
+                  aria-pressed={replaySpeed === s}
                 >
                   {s}×
                 </button>
               ))}
-              <button className="tl-filter-btn" onClick={stopReplay}>✕</button>
+              <button className="tl-filter-btn" onClick={stopReplay} aria-label="Stop replay">✕</button>
             </>
           )}
-          <button className="panel-close" onClick={onClose}>✕</button>
+          <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
       </div>
 

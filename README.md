@@ -261,19 +261,100 @@ Contributions should preserve:
 
 ---
 
+## Getting Started
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173 in your browser.
+
+Enter a seed, or click **RANDOMIZE** to generate a universe.
+
+---
+
+## Quick Start Seeds
+
+These seeds produce universes worth exploring:
+
+| Seed | Type | Notes |
+|------|------|-------|
+| `271828` | Elliptical | Rich in civilizations — 12 arose in a 100-star sample |
+| `100000` | Spiral | Classic spiral, abundant life, 8 civilizations |
+| `3141592` | Spiral | Dense biosphere network, 8 civilizations |
+| `404040` | Elliptical | 8 civilizations; elliptical density at work |
+| `13579` | Spiral | 7 civilizations, balanced distribution |
+| `137035` | Irregular | Irregular galaxy yielding 7 civilizations — rare |
+
+For a contrasting experience, try seed `161803` for a sparse, quieter universe.
+
+---
+
+## Navigation
+
+```
+Galaxy View  →  click a star  →  Star Panel
+Star Panel   →  EXPLORE SYSTEM  →  Planetary System
+Planet       →  SCAN BIOSPHERE  →  Biosphere Panel
+Biosphere    →  SCAN CIVILIZATION  →  Civilization Panel
+Any view     →  HISTORY (HUD)  →  Timeline Panel
+```
+
+---
+
+## Experimenting with Reality
+
+Click **LAWS OF REALITY** to adjust the six fundamental constants:
+
+* **Gravity Strength** — alters planetary orbital radii
+* **Expansion Rate** — scales the galaxy
+* **Stellar Ignition Threshold** — changes the mass distribution of stars
+* **Entropy Rate** — alters stellar lifespans
+* **Emergence Sensitivity** — controls how often life appears
+* **Intelligence Modifier** — adjusts civilization emergence probability
+
+Use **SET BASELINE** and **COMPARE** to measure the consequences.
+
+---
+
 ## Current Status
 
-Aion Forge is in its earliest stage of development.
+**Version 1.0 — The Great Refinement**
 
-The foundations have been established.
+Aion Forge has reached its first mature release.
 
-The first galaxies have yet to ignite.
+Phases 0 through 9 are complete.
 
-The first worlds have yet to form.
+The simulation stack covers the full journey from cosmic structure to civilization and recorded history:
 
-The first civilizations have yet to wonder about the stars above them.
+* Deterministic galaxy generation (spiral, elliptical, irregular)
+* 2,000-star stellar populations with full lifecycle simulation
+* Planetary system generation with habitability assessment
+* Probability-driven biosphere emergence and evolutionary progression
+* Civilization formation, technological progression, collapse and recovery
+* Historical event recording and timeline replay
+* Configurable laws of physics with experiment comparison
+* Universe persistence, gallery, export/import, and discovery collections
+* 22 determinism tests covering every simulation layer
 
-The universe has not begun.
+Every universe is fully reproducible from its seed.
+
+---
+
+## Contributing
+
+Begin by reading:
+
+* `CLAUDE.md` — engineering philosophy and contributor guidelines
+* `Documents/PROJECT_CHARTER.md` — the vision and purpose
+* `Documents/SYSTEM_SPEC.md` — technical specification
+* `Documents/SIMULATION_RULES.md` — simulation layer rules
+* `Documents/ROADMAP.md` — development phases
+* `Documents/TASKS.md` — task history
+
+Contributions must preserve determinism, understandability, emergence, and wonder.
 
 ---
 
@@ -294,5 +375,7 @@ Most possibilities are never realized.
 This repository is an attempt to realize one of them.
 
 Welcome to Aion Forge.
+
+Version 1.0.
 
 Let's see what emerges.

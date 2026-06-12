@@ -326,3 +326,49 @@ export function generateCivilization(
 
   return { species, civilization: civ };
 }
+
+// ── Civilization narrative ─────────────────────────────────────────────────────
+
+export function describeCivilization(civ: Civilization, species: Species): string {
+  const parts: string[] = [];
+
+  // Character
+  const dominant = species.curiosity > species.cooperation && species.curiosity > species.aggression
+    ? "curious"
+    : species.cooperation > species.aggression
+    ? "cooperative"
+    : "aggressive";
+
+  const characterLine =
+    dominant === "curious"
+      ? "Driven by an insatiable need to understand, this species directed its energy outward — into science, exploration, and the unknown."
+      : dominant === "cooperative"
+      ? "This species built its civilization on shared effort, favoring collective survival over individual ambition."
+      : "Shaped by competition, this species rose through conflict — its history marked by the tension between destruction and renewal.";
+
+  parts.push(characterLine);
+
+  // Trajectory
+  if (civ.techStage === "collapsed") {
+    parts.push(
+      civ.collapsesCount > 1
+        ? `Having collapsed ${civ.collapsesCount} times, its survivors carry the weight of what was lost.`
+        : "A single collapse ended its trajectory. The remnants endure."
+    );
+  } else if (civ.techStage === "space-age") {
+    parts.push("It has crossed the threshold — the stars are no longer beyond reach.");
+  } else if (civ.collapsesCount > 0) {
+    parts.push(
+      `After ${civ.collapsesCount === 1 ? "a collapse" : `${civ.collapsesCount} collapses`}, it rebuilt. What survives is harder than what came before.`
+    );
+  } else {
+    parts.push("It has grown without catastrophic interruption — a rare continuity.");
+  }
+
+  // Rarity note
+  if (civ.isRare) {
+    parts.push("By any measure, this civilization is remarkable.");
+  }
+
+  return parts.join(" ");
+}

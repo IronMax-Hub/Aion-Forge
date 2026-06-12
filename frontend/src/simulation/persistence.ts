@@ -78,42 +78,38 @@ export function deserializeUniverse(raw: string): UniverseMeta | null {
 // ── Snapshot summary generator (AF-142) ───────────────────────────────────────
 
 export function generateUniverseSummary(meta: Omit<UniverseMeta, "summary" | "name" | "notes" | "isFavorite" | "snapshotId" | "createdAt">): string {
-  const { lifeBearingPlanets, civilizationCount, legendaryEvents, galaxyType, starCount } = meta;
-  const parts: string[] = [];
+  const { lifeBearingPlanets, civilizationCount, legendaryEvents, galaxyType, starCount, totalPlanets } = meta;
 
-  // Galaxy character
-  if (starCount < 1000) parts.push("A sparse");
-  else if (starCount > 1800) parts.push("A dense");
-  else parts.push("A");
+  const density = starCount < 1000 ? "sparse" : starCount > 1800 ? "dense" : "mid-sized";
+  const galaxyDesc = `A ${density} ${galaxyType} galaxy containing ${starCount.toLocaleString()} stars`;
+  const planetDesc = totalPlanets > 0 ? ` and ${totalPlanets.toLocaleString()} worlds` : "";
 
-  parts.push(`${galaxyType} galaxy`);
-
-  // Life
   if (lifeBearingPlanets === 0) {
-    parts.push("where no life emerged.");
-    return parts.join(" ");
+    return `${galaxyDesc}${planetDesc}. No chemistry yielded life — the universe aged in complete silence.`;
   }
 
-  parts.push(
+  const lifeDesc =
     lifeBearingPlanets === 1
-      ? "where life emerged on a single world"
-      : `where life spread across ${lifeBearingPlanets} worlds`
-  );
+      ? "On one improbable world, chemistry became biology"
+      : `On ${lifeBearingPlanets} worlds, chemistry became biology`;
 
-  // Civilizations
   if (civilizationCount === 0) {
-    parts.push("but intelligence never arose.");
-  } else if (civilizationCount === 1) {
-    parts.push("and one civilization emerged");
-    if (legendaryEvents > 3) parts.push("to witness extraordinary events.");
-    else parts.push(".");
-  } else {
-    parts.push(`and ${civilizationCount} civilizations arose`);
-    if (legendaryEvents > 5) parts.push("in a universe marked by legendary moments.");
-    else parts.push(".");
+    return `${galaxyDesc}${planetDesc}. ${lifeDesc}, but intelligence never emerged to contemplate it.`;
   }
 
-  return parts.join(" ");
+  const civDesc =
+    civilizationCount === 1
+      ? "a single civilization arose to ask questions of the cosmos"
+      : `${civilizationCount} civilizations independently discovered language, fire, and the stars`;
+
+  const legacyDesc =
+    legendaryEvents === 0
+      ? "Their history unfolded quietly."
+      : legendaryEvents <= 3
+      ? `${legendaryEvents} legendary moment${legendaryEvents > 1 ? "s" : ""} shaped their story.`
+      : `A universe of legendary moments — ${legendaryEvents} events that will not be forgotten.`;
+
+  return `${galaxyDesc}${planetDesc}. ${lifeDesc}, and ${civDesc}. ${legacyDesc}`;
 }
 
 // ── localStorage persistence ──────────────────────────────────────────────────

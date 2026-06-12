@@ -51,11 +51,13 @@ function buildGalaxyConfig(seed: number, universeConfig: UniverseConfig): Galaxy
 type View = "galaxy" | "system" | "biosphere" | "civilization";
 
 export default function App() {
-  const canvasRef     = useRef<HTMLCanvasElement>(null);
-  const rendererRef   = useRef<UniverseRenderer | null>(null);
-  const galaxyRef     = useRef<GalaxyParticles | null>(null);
-  const populationRef = useRef<StellarPopulation | null>(null);
-  const snapshotRef   = useRef<UniverseSnapshot | null>(null);
+  const canvasRef          = useRef<HTMLCanvasElement>(null);
+  const rendererRef        = useRef<UniverseRenderer | null>(null);
+  const galaxyRef          = useRef<GalaxyParticles | null>(null);
+  const populationRef      = useRef<StellarPopulation | null>(null);
+  const snapshotRef        = useRef<UniverseSnapshot | null>(null);
+  const cachedSnapshotRef  = useRef<UniverseSnapshot | null>(null);
+  const systemBiosphereRef = useRef<Map<number, Biosphere>>(new Map());
 
   const [seed, setSeed]             = useState<number>(() => randomSeed());
   const [inputSeed, setInputSeed]   = useState<string>("");
@@ -99,6 +101,7 @@ export default function App() {
     setComparison(null);
     setCurrentSystem(null);
     setView("galaxy");
+    cachedSnapshotRef.current = null;
     rendererRef.current?.exitSystemView();
 
     requestAnimationFrame(() => {
@@ -116,6 +119,10 @@ export default function App() {
         setSelectedBiosphere(null);
       });
       setIsGenerating(false);
+      // Pre-compute snapshot in idle time so button clicks are instant
+      setTimeout(() => {
+        cachedSnapshotRef.current = buildSnapshot(s, config, population);
+      }, 0);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [universeConfig]);
@@ -128,6 +135,20 @@ export default function App() {
     return () => renderer.dispose();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Global Escape key: close overlays in priority order, then navigate back
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (showGallery)      { setShowGallery(false);      return; }
+      if (showConfigPanel)  { setShowConfigPanel(false);  return; }
+      if (showHistoryPanel) { setShowHistoryPanel(false); return; }
+      if (showTimeline)     { setShowTimeline(false);     return; }
+      if (comparison)       { setComparison(null);        return; }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison]);
 
   const handleRandomize = () => {
     const s = randomSeed();
@@ -179,7 +200,8 @@ export default function App() {
 
   const handleSetBaseline = useCallback(() => {
     if (!populationRef.current) return;
-    const snap = buildSnapshot(currentSeed, universeConfig, populationRef.current);
+    const snap = cachedSnapshotRef.current ?? buildSnapshot(currentSeed, universeConfig, populationRef.current);
+    cachedSnapshotRef.current = snap;
     snapshotRef.current = snap;
     setBaselineSnapshot(snap);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -187,7 +209,8 @@ export default function App() {
 
   const handleCompare = useCallback(() => {
     if (!baselineSnapshot || !populationRef.current) return;
-    const expSnap = buildSnapshot(currentSeed, universeConfig, populationRef.current);
+    const expSnap = cachedSnapshotRef.current ?? buildSnapshot(currentSeed, universeConfig, populationRef.current);
+    cachedSnapshotRef.current = expSnap;
     const cmp = compareUniverses(baselineSnapshot, expSnap);
     setComparison(cmp);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -208,7 +231,8 @@ export default function App() {
 
   const handleSaveToGallery = useCallback(() => {
     if (!populationRef.current) return;
-    const snap = buildSnapshot(currentSeed, universeConfig, populationRef.current);
+    const snap = cachedSnapshotRef.current ?? buildSnapshot(currentSeed, universeConfig, populationRef.current);
+    cachedSnapshotRef.current = snap;
     const summaryText = generateUniverseSummary({
       seed: currentSeed,
       config: universeConfig,
@@ -277,6 +301,7 @@ export default function App() {
       const bio = generateBiosphere(planet, selectedStar, currentSeed, universeConfig);
       biospheres.set(planet.id, bio);
     }
+    systemBiosphereRef.current = biospheres;
 
     if (galaxyRef.current && populationRef.current) {
       const systemEntries = system.planets.map((planet) => {
@@ -306,7 +331,8 @@ export default function App() {
 
   const handleScanBiosphere = useCallback(() => {
     if (!selectedPlanet || !selectedStar) return;
-    const bio = generateBiosphere(selectedPlanet, selectedStar, currentSeed, universeConfig);
+    const bio = systemBiosphereRef.current.get(selectedPlanet.id)
+      ?? generateBiosphere(selectedPlanet, selectedStar, currentSeed, universeConfig);
     setSelectedBiosphere(bio);
     setSelectedCivilization(null);
     setSelectedSpecies(null);
@@ -331,6 +357,7 @@ export default function App() {
     setSelectedSpecies(null);
     setShowTimeline(false);
     setCurrentSystem(null);
+    systemBiosphereRef.current = new Map();
     rendererRef.current?.exitSystemView();
   };
 
@@ -392,6 +419,7 @@ export default function App() {
                 placeholder="Enter seed…"
                 value={inputSeed}
                 onChange={(e) => setInputSeed(e.target.value)}
+                aria-label="Universe seed"
               />
               <button className="btn" type="submit" disabled={isGenerating}>GO</button>
             </form>
@@ -444,7 +472,7 @@ export default function App() {
           </div>
         )}
 
-        {isGenerating && <div className="generating">Forging universe…</div>}
+        {isGenerating && <div className="generating" role="status" aria-live="polite">Forging universe…</div>}
         {!isGenerating && view === "galaxy"    && !selectedStar     && <div className="hint">Click a star to inspect it</div>}
         {view === "galaxy"    && selectedStar                        && <div className="hint">Click EXPLORE to enter its system</div>}
         {view === "system"    && !selectedPlanet                     && <div className="hint">Click a planet to inspect it</div>}

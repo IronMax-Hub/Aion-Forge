@@ -284,6 +284,16 @@
   margin: 0;
 }
 
+.civ-narrative {
+  font-size: 10px;
+  color: rgba(160, 180, 220, 0.75);
+  line-height: 1.65;
+  margin: 0 0 6px;
+  font-style: italic;
+  border-left: 2px solid rgba(100, 140, 200, 0.25);
+  padding-left: 8px;
+}
+
 .bio-pulse {
   animation: bio-pulse 2s ease-in-out infinite;
 }
@@ -812,4 +822,14 @@
 .import-zone:hover, .import-zone.drag-over {
   border-color: rgba(100, 160, 255, 0.55);
   color: rgba(150, 190, 255, 0.8);
+}
+
+/* ── Focus-visible ring for keyboard navigation ───────────────────────────── */
+:focus-visible {
+  outline: 2px solid rgba(100, 160, 255, 0.7);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
 }

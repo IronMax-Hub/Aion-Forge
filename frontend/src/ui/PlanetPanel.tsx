@@ -51,15 +51,15 @@ export function PlanetPanel({ planet, onClose, onBack, onScanBiosphere }: Props)
   const canScan = CAN_HAVE_LIFE[planet.type];
 
   return (
-    <div className="star-panel">
+    <div className="star-panel" role="dialog" aria-label={`Planet ${planet.id + 1} details`}>
       <div className="star-panel-header">
         <div className="star-dot" style={{ background: planetColor, boxShadow: `0 0 8px ${planetColor}` }} />
         <div className="star-panel-title">
           <span className="star-id">PLANET #{planet.id + 1}</span>
           {planet.isRare && <span className="star-rare">RARE</span>}
         </div>
-        <button className="panel-close" onClick={onBack} title="Back to star">←</button>
-        <button className="panel-close" onClick={onClose}>✕</button>
+        <button className="panel-close" onClick={onBack} aria-label="Back to star">←</button>
+        <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
       <div className="star-class">{TYPE_LABEL[planet.type]}</div>

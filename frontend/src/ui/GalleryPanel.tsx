@@ -50,10 +50,10 @@ export function GalleryPanel({ gallery, discoveries, onLoad, onGalleryChange, on
   const displayList = tab === "featured" ? featured : gallery;
 
   return (
-    <div className="timeline-panel gallery-panel">
+    <div className="timeline-panel gallery-panel" role="dialog" aria-label="Universe gallery">
       <div className="timeline-header">
         <span className="hud-title" style={{ fontSize: 10, marginBottom: 0 }}>UNIVERSE GALLERY</span>
-        <button className="panel-close" onClick={onClose}>✕</button>
+        <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
       {/* Tabs */}

@@ -441,29 +441,50 @@ export function buildUniverseTimeline(
 // ── AF-102: Historical summary ────────────────────────────────────────────────
 
 export function summarizeTimeline(timeline: UniverseTimeline): string {
-  const events = sortTimeline(timeline);
-  const legendary = events.filter((e) => e.importance === "legendary");
+  const events     = sortTimeline(timeline);
+  const legendary  = events.filter((e) => e.importance === "legendary");
+  const historic   = events.filter((e) => e.importance === "historic" || e.importance === "legendary");
   const civEvents  = events.filter((e) => e.category === "civilizational");
   const bioEvents  = events.filter((e) => e.category === "biological");
+  const stelEvents = events.filter((e) => e.category === "stellar");
   const lifePlanets = new Set(bioEvents.map((e) => e.subjectId)).size;
   const civPlanets  = new Set(civEvents.map((e) => e.subjectId)).size;
 
   const parts: string[] = [];
 
+  // Stellar opening
+  const deadStars = stelEvents.filter(
+    (e) => e.summary.includes("neutron star") || e.summary.includes("black hole")
+  ).length;
+  if (deadStars > 5) {
+    parts.push(`This universe burned through ${deadStars} stellar lives before quieting.`);
+  }
+
+  // Life
   if (lifePlanets === 0) {
-    parts.push("No life emerged in this universe.");
+    parts.push("No life emerged. This universe unfolded in silence, indifferent to its own existence.");
+    return parts.join(" ");
   } else if (lifePlanets === 1) {
-    parts.push("Life emerged on a single world.");
+    parts.push("Against all odds, life found purchase on a single world.");
   } else {
-    parts.push(`Life emerged on ${lifePlanets} worlds.`);
+    parts.push(`Life arose on ${lifePlanets} worlds — a chemistry repeated across the void.`);
   }
 
-  if (civPlanets > 0) {
-    parts.push(`${civPlanets === 1 ? "One civilization" : `${civPlanets} civilizations`} arose.`);
+  // Civilization
+  if (civPlanets === 0) {
+    parts.push("Intelligence never emerged. The biospheres flourished without witness.");
+  } else if (civPlanets === 1) {
+    parts.push("From one of these worlds, a civilization looked up and asked why.");
+  } else {
+    parts.push(`${civPlanets} civilizations arose — each independently discovering fire, language, and the stars.`);
   }
 
+  // Significance
   if (legendary.length > 0) {
-    parts.push(`${legendary.length} legendary event${legendary.length > 1 ? "s" : ""} unfolded.`);
+    const noun = legendary.length === 1 ? "A legendary moment" : `${legendary.length} legendary moments`;
+    parts.push(`${noun} marked the record.`);
+  } else if (historic.length > 0) {
+    parts.push(`${historic.length} historic event${historic.length > 1 ? "s" : ""} shaped its story.`);
   }
 
   return parts.join(" ");

@@ -1,5 +1,5 @@
 import type { Civilization, Species } from "../simulation/civilization";
-import { TECH_STAGE_LABEL, MILESTONE_LABEL } from "../simulation/civilization";
+import { TECH_STAGE_LABEL, MILESTONE_LABEL, describeCivilization } from "../simulation/civilization";
 
 interface Props {
   civilization: Civilization;
@@ -56,22 +56,25 @@ function Bar({ value, color }: { value: number; color: string }) {
 
 export function CivilizationPanel({ civilization: civ, species, onBack, onClose }: Props) {
   const stageColor = STAGE_COLOR[civ.techStage];
+  const narrative  = describeCivilization(civ, species);
 
   return (
-    <div className="star-panel bio-panel civ-panel">
+    <div className="star-panel bio-panel civ-panel" role="dialog" aria-label={`Civilization ${civ.id + 1} details`}>
       <div className="star-panel-header">
         <div className="star-dot civ-dot" style={{ background: stageColor, boxShadow: `0 0 10px ${stageColor}` }} />
         <div className="star-panel-title">
           <span className="star-id">CIVILIZATION #{civ.id + 1}</span>
           {civ.isRare && <span className="star-rare">REMARKABLE</span>}
         </div>
-        <button className="panel-close" onClick={onBack} title="Back to biosphere">←</button>
-        <button className="panel-close" onClick={onClose}>✕</button>
+        <button className="panel-close" onClick={onBack} aria-label="Back to biosphere">←</button>
+        <button className="panel-close" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
       <div className="star-class" style={{ color: stageColor }}>
         {TECH_STAGE_LABEL[civ.techStage]}
       </div>
+
+      <p className="civ-narrative">{narrative}</p>
 
       <div className="star-stats">
         <span className="meta-label">AGE</span>

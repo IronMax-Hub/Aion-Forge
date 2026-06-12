@@ -1,5 +1,7 @@
 import { createRNG } from "./rng";
 import type { GalaxyConfig } from "./galaxy";
+import { makeConfig } from "./config";
+import type { UniverseConfig } from "./config";
 
 // ── Data model (AF-018) ───────────────────────────────────────────────────────
 
@@ -158,13 +160,21 @@ export interface StellarPopulation {
 const STAR_SALT = 0x5E3D57A2;
 const STAR_COUNT = 2000;
 
-export function generateStarsFor(galaxy: GalaxyConfig, universeAgeBY = 13.7): StellarPopulation {
+export function generateStarsFor(
+  galaxy: GalaxyConfig,
+  universeAgeBY = 13.7,
+  cfg?: UniverseConfig
+): StellarPopulation {
+  const config = cfg ?? makeConfig(galaxy.seed);
   const rng = createRNG((galaxy.seed ^ STAR_SALT) >>> 0);
   const stars: Star[] = [];
 
   for (let i = 0; i < STAR_COUNT; i++) {
-    const mass = generateMass(rng());
-    const lifespan = calcLifespan(mass);
+    // stellarIgnitionThreshold > 1 shifts distribution toward heavier stars
+    const massRoll = Math.min(0.9999, rng() * (1 / config.stellarIgnitionThreshold));
+    const mass = generateMass(Math.max(0, massRoll));
+    // entropyRate > 1 = faster decay = shorter lifespans
+    const lifespan = calcLifespan(mass) / config.entropyRate;
     const age = rng() * Math.min(lifespan, universeAgeBY);
     const cls = classify(mass, age, lifespan);
     const isRare =

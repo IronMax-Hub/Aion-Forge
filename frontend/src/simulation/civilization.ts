@@ -1,6 +1,8 @@
 import { createRNG } from "./rng";
 import type { Biosphere } from "./biosphere";
 import type { Planet } from "./planet";
+import { makeConfig } from "./config";
+import type { UniverseConfig } from "./config";
 
 // ── Species data model (AF-073) ───────────────────────────────────────────────
 
@@ -215,12 +217,20 @@ function collapseNote(species: Species, rng: () => number): string {
 export function generateCivilization(
   bio: Biosphere,
   planet: Planet,
-  galaxySeed: number
+  galaxySeed: number,
+  cfg?: UniverseConfig
 ): CivilizationResult {
+  const config = cfg ?? makeConfig(galaxySeed);
   const rng = createRNG(((galaxySeed ^ bio.planetId ^ bio.hostStarId) ^ CIV_SALT) >>> 0);
 
-  // Intelligence must emerge first
-  if (!intelligenceEmerges(bio, rng)) return { species: null, civilization: null };
+  // intelligenceModifier scales the emergence probability
+  const originalRng = rng;
+  const scaledRng = () => {
+    const v = originalRng();
+    // Higher modifier = higher effective probability = lower roll needed
+    return v / Math.max(0.01, config.intelligenceModifier);
+  };
+  if (!intelligenceEmerges(bio, scaledRng)) return { species: null, civilization: null };
 
   const species = generateSpecies(bio, planet, rng);
 

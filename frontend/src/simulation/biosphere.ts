@@ -1,6 +1,8 @@
 import { createRNG } from "./rng";
 import type { Planet } from "./planet";
 import type { Star } from "./star";
+import { makeConfig } from "./config";
+import type { UniverseConfig } from "./config";
 
 // ── Data model ────────────────────────────────────────────────────────────────
 
@@ -63,8 +65,10 @@ const BIO_SALT = 0xB105F33D;
 export function generateBiosphere(
   planet: Planet,
   star: Star,
-  galaxySeed: number
+  galaxySeed: number,
+  cfg?: UniverseConfig
 ): Biosphere {
+  const config = cfg ?? makeConfig(galaxySeed);
   const rng = createRNG(((galaxySeed ^ planet.hostStarId ^ planet.id) ^ BIO_SALT) >>> 0);
 
   const empty: Biosphere = {
@@ -82,8 +86,8 @@ export function generateBiosphere(
     planet.atmosphere === "crushing"
   ) return empty;
 
-  // Probability of life seeding — driven by habitability + some randomness
-  const lifeProbability = Math.pow(planet.habitabilityScore, 0.6) * 0.85;
+  // emergenceSensitivity scales life probability — higher = more likely
+  const lifeProbability = Math.min(0.99, Math.pow(planet.habitabilityScore, 0.6) * 0.85 * config.emergenceSensitivity);
   if (rng() > lifeProbability) return empty;
 
   // Life has emerged. How long has it had to evolve?

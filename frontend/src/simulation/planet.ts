@@ -1,5 +1,7 @@
 import { createRNG } from "./rng";
 import type { Star } from "./star";
+import { makeConfig } from "./config";
+import type { UniverseConfig } from "./config";
 
 // ── Data model (AF-037) ───────────────────────────────────────────────────────
 
@@ -175,7 +177,8 @@ function calcHabitability(p: {
 
 const PLANET_SALT = 0x914E7A3C;
 
-export function generatePlanetsFor(star: Star, galaxySeed: number): PlanetarySystem {
+export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: UniverseConfig): PlanetarySystem {
+  const config = cfg ?? makeConfig(galaxySeed);
   const rng = createRNG(((galaxySeed ^ star.id) ^ PLANET_SALT) >>> 0);
 
   // Dead stars don't have planets
@@ -192,7 +195,9 @@ export function generatePlanetsFor(star: Star, galaxySeed: number): PlanetarySys
   const planets: Planet[] = orbits.map((orbitalRadius, idx) => {
     const mass = Math.pow(10, (rng() - 0.5) * 3.5); // 0.03–32 Earth masses (log spread)
     const atmosphere = pickAtmosphere(mass, 0, rng);  // rough pass, temp recalculated below
-    const tempK = surfaceTemp(star.luminosity, orbitalRadius, atmosphere);
+    // gravityStrength > 1 compresses orbits slightly, affecting temperature
+    const effectiveRadius = orbitalRadius / Math.sqrt(config.gravityStrength);
+    const tempK = surfaceTemp(star.luminosity, effectiveRadius, atmosphere);
     const type = pickType(tempK, mass, rng);
     const size = Math.pow(mass, 0.27) * (0.8 + rng() * 0.4);
     const resourceAbundance = rng();

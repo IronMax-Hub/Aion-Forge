@@ -1412,3 +1412,400 @@ Sound Design is complete when:
 The universe should not announce itself loudly.
 
 It should breathe quietly in the background, inviting observers to stay just a little longer.
+
+
+# Enhancement V – Celestial Rendering
+
+## Theme
+
+**From Simulation to Cosmic Art**
+
+Aion Forge already simulates universes.
+
+This enhancement focuses on how those universes are perceived.
+
+The goal is not realism for realism's sake.
+
+The goal is to evoke awe.
+
+Transform the visual presentation from:
+
+> "A technically impressive particle simulation."
+
+into
+
+> "A breathtaking astronomical experience."
+
+The universe should feel alive, immense, and beautiful before users ever inspect a star or discover a civilization.
+
+---
+
+# ENH-501
+
+## Title
+
+Replace Square Particles with Circular Star Sprites
+
+### Tasks
+
+* Audit all particle systems using default square point rendering.
+* Design a soft circular star sprite texture.
+* Implement texture-based point rendering.
+* Support transparency.
+* Enable additive blending.
+* Tune sprite size and sharpness.
+* Validate appearance across all zoom levels.
+
+### Status
+
+Not Started
+
+---
+
+# ENH-502
+
+## Title
+
+Implement Gaussian Star Rendering
+
+### Tasks
+
+* Create Gaussian glow textures.
+* Prototype shader-based glow rendering.
+* Tune brightness falloff.
+* Compare texture and shader approaches.
+* Optimize glow appearance.
+* Validate visual consistency.
+
+### Status
+
+Not Started
+
+---
+
+# ENH-503
+
+## Title
+
+Separate Dust and Stellar Rendering Layers
+
+### Tasks
+
+#### Galactic Dust
+
+* Create dedicated dust rendering layer.
+* Reduce particle size.
+* Lower opacity.
+* Introduce subtle color variation.
+* Minimize glow.
+
+#### Stellar Bodies
+
+* Create dedicated stellar rendering layer.
+* Increase brightness.
+* Increase sprite size.
+* Support variable intensities.
+* Enable additive blending.
+
+### Status
+
+Not Started
+
+---
+
+# ENH-504
+
+## Title
+
+Implement Stellar Classification Visuals
+
+### Tasks
+
+Support distinct rendering profiles for:
+
+* O-Type Stars
+* B-Type Stars
+* A-Type Stars
+* F-Type Stars
+* G-Type Stars
+* K-Type Stars
+* M-Type Stars
+
+Adjust:
+
+* Color
+* Glow Radius
+* Brightness
+* Apparent Size
+
+### Status
+
+Not Started
+
+---
+
+# ENH-505
+
+## Title
+
+Implement Dynamic Star Size Scaling
+
+### Tasks
+
+* Scale stars based on luminosity.
+* Apply distance attenuation.
+* Prevent excessive shrinking.
+* Prevent oversized nearby stars.
+* Validate behavior during zoom transitions.
+
+### Status
+
+Not Started
+
+---
+
+# ENH-506
+
+## Title
+
+Overhaul Background Starfield
+
+### Tasks
+
+Implement multiple starfield layers:
+
+### Layer 1
+
+* Extremely distant stars.
+
+### Layer 2
+
+* Brighter stellar clusters.
+
+### Layer 3
+
+* Sparse large stars.
+
+### Layer 4
+
+* Rare highlight stars.
+
+Tune density and brightness independently.
+
+### Status
+
+Not Started
+
+---
+
+# ENH-507
+
+## Title
+
+Introduce Nebula and Volumetric Accents
+
+### Tasks
+
+* Add subtle nebula overlays.
+* Support procedural nebula placement.
+* Experiment with volumetric effects.
+* Maintain readability.
+* Preserve galaxy prominence.
+
+### Status
+
+Not Started
+
+---
+
+# ENH-508
+
+## Title
+
+Implement Stellar Twinkling System
+
+### Tasks
+
+* Introduce randomized twinkle phases.
+* Apply subtle intensity fluctuations.
+* Support user configuration.
+* Tune amplitudes conservatively.
+* Validate comfort during prolonged use.
+
+### Status
+
+Not Started
+
+---
+
+# ENH-509
+
+## Title
+
+Develop GPU Shader-Based Star Renderer
+
+### Tasks
+
+* Prototype custom star shaders.
+* Implement circular fragment masking.
+* Implement smooth edge falloff.
+* Support vertex coloring.
+* Support brightness variation.
+* Benchmark against PointsMaterial.
+* Validate browser compatibility.
+
+### Status
+
+Not Started
+
+---
+
+# ENH-510
+
+## Title
+
+Improve Camera Cinematography
+
+### Tasks
+
+* Improve orbit damping.
+* Refine zoom transitions.
+* Smooth focus movements.
+* Introduce cinematic interpolation.
+* Improve inspection transitions.
+* Validate responsiveness.
+
+### Status
+
+Not Started
+
+---
+
+# ENH-511
+
+## Title
+
+Implement Exposure and Tone Mapping Controls
+
+### Tasks
+
+* Evaluate tone mapping operators.
+* Implement exposure controls.
+* Tune bloom thresholds.
+* Balance bright and dark regions.
+* Preserve visibility across environments.
+
+### Status
+
+Not Started
+
+---
+
+# ENH-512
+
+## Title
+
+Optimize High-Density Rendering
+
+### Tasks
+
+Benchmark and optimize rendering for:
+
+* 60,000 particles
+* 100,000 particles
+* 250,000 particles
+
+Optimize:
+
+* GPU memory usage.
+* Overdraw.
+* Rendering throughput.
+* Frame stability.
+
+### Status
+
+Not Started
+
+---
+
+# ENH-513
+
+## Title
+
+Conduct Visual Benchmark Review
+
+### Tasks
+
+Compare Aion Forge against:
+
+* Space Engine
+* Universe Sandbox
+* Stellarium
+* Elite Dangerous Galaxy Map
+* No Man's Sky Galaxy Presentation
+
+Document:
+
+* Strengths
+* Weaknesses
+* Opportunities
+* Distinguishing characteristics
+
+### Status
+
+Not Started
+
+---
+
+# ENH-514
+
+## Title
+
+Celestial Rendering Final Review
+
+### Tasks
+
+Evaluate whether Aion Forge feels:
+
+* Beautiful
+* Vast
+* Premium
+* Astronomical
+* Timeless
+
+Confirm that observers no longer perceive:
+
+* Pixelation
+* Square particles
+* Flatness
+* Prototype-quality rendering
+
+### Acceptance Criteria
+
+At least one independent observer says:
+
+> "I can't believe this is running in a browser."
+
+### Status
+
+Not Started
+
+---
+
+# Enhancement V Completion Criteria
+
+Celestial Rendering is complete when:
+
+* Square particles have been eliminated.
+* Stars appear luminous rather than geometric.
+* Dust and stellar layers create convincing depth.
+* Backgrounds feel infinite.
+* Camera movement feels cinematic.
+* Visual quality scales gracefully.
+* Performance remains excellent.
+
+The first emotion users should experience when opening Aion Forge should not be curiosity.
+
+It should be wonder.
+
+Only then should they begin discovering the universes hidden within.

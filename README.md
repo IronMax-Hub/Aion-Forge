@@ -196,9 +196,9 @@ The right panel contains contextual inspectors — Star, Planet, Biosphere, Civi
 
 ## Current Status
 
-**Version 1.0 + Enhancement I + Enhancement III**
+**Version 1.0 + Enhancement I + Enhancement III + Enhancement V**
 
-Aion Forge has completed its first mature release and two post-release enhancements.
+Aion Forge has completed its first mature release and three post-release enhancements.
 
 ### Simulation (Phases 0–9)
 
@@ -242,6 +242,21 @@ All sound is synthesized via the Web Audio API — no audio files.
 
 Every universe is fully reproducible from its seed.
 
+### Enhancement V — Celestial Rendering
+
+A complete visual transformation from particle simulation to astronomical experience.
+
+* Square particles eliminated — galaxy dust uses a custom GLSL shader with circular soft-edged fragments
+* Three-layer Gaussian star glow — bright core, inner ring, outer halo, with core pushed toward white
+* Stellar classification visuals — O through M spectral types each carry distinct size and glow multipliers
+* Dynamic star size scaling — luminosity log scale combined with spectral class; rare stars carry a 2.4× boost
+* Twinkling system — golden-ratio phase offsets per star, driven by a `uTime` uniform updated each frame
+* Four-layer seeded background starfield — 6,215 stars across depth layers with distinct densities, sizes, and tints; no `Math.random()`
+* Nebula sprite accents — three procedurally placed nebulae (emission, reflection, ionization) seeded by galaxy, using canvas radial gradient textures
+* ACES filmic tone mapping — eliminates hard white clipping on additive-blended regions; exposure tuned to 0.9
+* Cinematic camera — increased damping, slower auto-rotation, quintic ease-out focus tweens
+* Performance — star sprite canvas texture created once and reused; `THREE.Clock` for accurate delta time; full resource disposal on scene teardown
+
 ---
 
 ## Technology
@@ -252,8 +267,9 @@ Every universe is fully reproducible from its seed.
 * TypeScript
 * Vite
 * Web Audio API
-* Three.js (galaxy rendering)
-* Vitest (determinism test suite)
+* Three.js — galaxy, star, and system rendering
+* GLSL — custom vertex/fragment shaders for Gaussian star glow, circular dust particles, twinkling
+* Vitest — 22-test determinism suite
 
 ---
 

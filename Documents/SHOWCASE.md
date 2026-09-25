@@ -12,7 +12,7 @@ The simulation generated these outcomes from simple rules applied over deep time
 
 ## How to Use This Document
 
-Enter any seed number into the **SEED** field in Aion Forge and press **GO**.
+Enter any seed number into the seed field in Aion Forge and click **Generate**.
 
 The universe described will appear exactly as recorded.
 
@@ -124,7 +124,7 @@ These seeds become particularly interesting when laws are modified.
 
 Life overwhelms the galaxy.
 
-Adjust the slider in **LAWS OF REALITY** and observe the transformation.
+Adjust the slider under **Edit parameters…** and observe the transformation.
 
 ### Seed `9999` with Intelligence Modifier 0.1
 

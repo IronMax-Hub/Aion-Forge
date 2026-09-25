@@ -40,9 +40,9 @@ export function GalleryPanel({ gallery, discoveries, onLoad, onGalleryChange, on
   const displayList = tab === "featured" ? featured : gallery;
 
   return (
-    <div className="timeline-panel gallery-panel" role="dialog" aria-label="Library of Aion">
+    <div className="timeline-panel gallery-panel" role="dialog" aria-label="Library">
       <div className="timeline-header">
-        <div className="tl-panel-label">Library of Aion</div>
+        <div className="tl-panel-label">Library</div>
         <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
@@ -176,7 +176,7 @@ export function GalleryPanel({ gallery, discoveries, onLoad, onGalleryChange, on
 
               <div className="gallery-card-actions">
                 <button className="btn primary" style={{ flex: 1 }} onClick={() => onLoad(meta)}>
-                  Restore →
+                  Load
                 </button>
               </div>
             </div>

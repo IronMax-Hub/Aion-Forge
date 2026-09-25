@@ -55,9 +55,9 @@ export function RealityConfigPanel({ config, onChange, onClose }: Props) {
   }
 
   return (
-    <div className="config-panel" role="dialog" aria-label="Laws of reality — universe configuration">
+    <div className="config-panel" role="dialog" aria-label="Physical parameters">
       <div className="timeline-header">
-        <div className="tl-panel-label">Laws of Reality</div>
+        <div className="tl-panel-label">Physical parameters</div>
         <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
       </div>
 

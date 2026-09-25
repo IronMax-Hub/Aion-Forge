@@ -9,7 +9,7 @@ export function ExperimentHistoryPanel({ experiments, onClose }: Props) {
   return (
     <div className="compare-panel" role="dialog" aria-label="Experiment log">
       <div className="timeline-header">
-        <div className="tl-panel-label">Experiment Log</div>
+        <div className="tl-panel-label">Experiment log</div>
         <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
@@ -18,7 +18,7 @@ export function ExperimentHistoryPanel({ experiments, onClose }: Props) {
           <div className="empty-state">
             <div className="empty-state-icon">⊙</div>
             <div className="empty-state-title">No Experiments Yet</div>
-            <p className="empty-state-body">Establish a baseline, modify the laws of reality, then compare to record an experiment.</p>
+            <p className="empty-state-body">Set a baseline, change the physical parameters, then compare to record an experiment.</p>
           </div>
         )}
 

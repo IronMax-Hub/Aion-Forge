@@ -32,7 +32,7 @@ export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization 
 
   if (!biosphere.hasLife) {
     return (
-      <div className="inspector" role="dialog" aria-label="Biosphere scan — no life">
+      <div className="inspector" role="dialog" aria-label="Biosphere — no life">
         <div className="inspector-header">
           <div className="inspector-dot" style={{ background: STAGE_COLOR.none }} />
           <div className="inspector-title-block">
@@ -47,8 +47,8 @@ export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization 
         <div className="inspector-body">
           <div className="empty-state">
             <div className="empty-state-icon">○</div>
-            <div className="empty-state-title">No Life Detected</div>
-            <p className="empty-state-body">Conditions insufficient for life to emerge on this world.</p>
+            <div className="empty-state-title">No life detected</div>
+            <p className="empty-state-body">Conditions on this planet did not allow life to emerge.</p>
           </div>
         </div>
       </div>
@@ -127,7 +127,7 @@ export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization 
             title={CAN_HAVE_CIVILIZATION.has(biosphere.stage) ? undefined : "Biosphere not complex enough for intelligence"}
             style={{ flex: 1 }}
           >
-            Scan Civilization →
+            Check for civilization
           </button>
         </div>
       </div>

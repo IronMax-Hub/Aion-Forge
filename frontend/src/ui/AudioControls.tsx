@@ -23,19 +23,24 @@ export function AudioControls({ onFirstInteraction }: Props) {
       <button
         className={`audio-mute-btn${prefs.muted ? " muted" : ""}`}
         onClick={toggleMute}
-        title={prefs.muted ? "Unmute audio" : "Mute audio"}
-        aria-label={prefs.muted ? "Unmute" : "Mute"}
+        aria-pressed={!prefs.muted}
+        title={prefs.muted ? "Turn sound on" : "Turn sound off"}
       >
-        {prefs.muted ? "○" : "◎"}
+        {prefs.muted ? "Sound off" : "Sound on"}
       </button>
 
       <button
         className="audio-expand-btn"
         onClick={() => setExpanded((v) => !v)}
-        aria-label="Audio settings"
-        title="Audio settings"
+        aria-label="Sound settings"
+        aria-expanded={expanded}
+        title="Sound settings"
       >
-        ⊹
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+          <path d="M2 4h7M12 4h2M2 12h2M7 12h7" />
+          <circle cx="10.5" cy="4" r="1.6" />
+          <circle cx="5.5" cy="12" r="1.6" />
+        </svg>
       </button>
 
       {expanded && (

@@ -96,7 +96,7 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
             title={canExplore ? undefined : "No planetary system possible"}
             style={{ flex: 1 }}
           >
-            Explore System →
+            Open system
           </button>
           <button
             className={`inspector-btn${bookmarked ? " bookmarked" : ""}`}

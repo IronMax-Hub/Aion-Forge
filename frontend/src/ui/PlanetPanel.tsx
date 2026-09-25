@@ -84,7 +84,7 @@ export function PlanetPanel({ planet, onClose, onBack, onScanBiosphere }: Props)
             title={canScan ? undefined : "No life possible on this world"}
             style={{ flex: 1 }}
           >
-            Scan Biosphere →
+            Scan biosphere
           </button>
         </div>
       </div>

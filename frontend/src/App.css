@@ -1570,8 +1570,15 @@
   background: var(--col-hover);
 }
 
+.audio-mute-btn {
+  width: auto;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--col-text-3);
+}
+
 .audio-mute-btn.muted {
-  color: var(--col-text-5);
+  color: var(--col-text-3);
 }
 
 .audio-panel {

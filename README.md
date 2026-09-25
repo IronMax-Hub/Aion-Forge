@@ -102,9 +102,9 @@ npm run dev
 
 Open `http://localhost:5173` in your browser.
 
-Enter a seed and press **Enter**, or click **Forge Random** to generate a universe.
+Enter a seed and click **Generate**, or click **Random seed** to generate a universe.
 
-Sound begins on your first interaction.
+Sound is off by default; turn it on from the status bar.
 
 ---
 
@@ -128,21 +128,21 @@ For a contrasting experience, try seed `161803` — a sparse, quieter universe.
 ## Navigation
 
 ```
-Observatory (Galaxy View)
-  → click a star         → Star Inspector
-  → Explore System       → Planetary System
-  → click a planet       → Planet Inspector
-  → Scan Biosphere       → Biosphere Inspector
-  → Scan Civilization    → Civilization Inspector
-  → Chronicles (HUD)     → Universe Timeline
-  → ← Observatory        → Return to Galaxy View
+Galaxy view
+  → click a star             → Star inspector (right dock)
+  → Open system              → Planetary system + planet table
+  → click a planet or row    → Planet inspector
+  → Scan biosphere           → Biosphere inspector
+  → Check for civilization   → Civilization inspector
+  → Timeline (sidebar)       → Universe timeline
+  → breadcrumb (top bar)     → Back to any earlier level
 ```
 
 ---
 
 ## Experimenting with Reality
 
-Click **Laws of Reality** to adjust the six fundamental constants:
+Click **Edit parameters…** to adjust the six fundamental constants:
 
 * **Gravity Strength** — alters planetary orbital radii
 * **Expansion Rate** — scales the galaxy
@@ -153,7 +153,7 @@ Click **Laws of Reality** to adjust the six fundamental constants:
 
 Apply a **Preset** for curated configurations, or adjust sliders manually.
 
-Click **Establish Baseline**, modify the laws, then click **Compare Realities** to measure the consequences of changing the rules of existence.
+Click **Set as baseline**, change the parameters, then click **Compare with baseline** to measure the consequences of changing the rules of existence.
 
 ---
 
@@ -169,28 +169,25 @@ Each view has a distinct ambient atmosphere:
 * **Stellar systems** — lighter harmonic textures
 * **Biospheres** — warmer, living frequencies
 * **Civilizations** — abstract motifs that evolve with technological stage
-* **Chronicles** — slow, contemplative atmosphere
+* **Timeline** — slow, contemplative atmosphere
 
 Discoveries are acknowledged with restraint — a quiet tone, not a fanfare.
 
-Audio controls appear at the bottom of the console. Click **◎** to mute. Click **⊹** to adjust individual layer volumes.
+Sound is off by default. Use **Sound off / Sound on** in the status bar to toggle it, and the settings icon beside it to adjust individual layer volumes. Interface click sounds start at zero volume.
 
 ---
 
 ## The Observatory Interface
 
-Aion Forge presents as a premium observatory instrument.
+Aion Forge is laid out like scientific observatory software:
 
-The left console contains:
+* **Top bar** — the universe ID (AF-U-XXXX-XXXX), a clickable breadcrumb, and seed controls (Generate, Random seed, Regenerate)
+* **Left sidebar** — universe facts, current physical parameters, comparison and experiment log, saved universes (Save universe, Library, Import), and the timeline
+* **Centre** — the rendered galaxy or planetary system; tool panels open over it
+* **Right dock** — the selected star, planet table, planet, biosphere or civilization, with values in physical units (M☉, L☉, K, AU, Gyr) and spectral types
+* **Status bar** — hints, a scale bar (light-years in the galaxy, AU in a system), and sound controls
 
-* **Universe identity** — the unique universe ID (AF-U-XXXX-XXXX), galaxy type, and law modification state
-* **Observe** — seed input, Forge Random, Reforge
-* **Reality** — Laws of Reality panel, Experiment Log
-* **Archive** — Archive Reality, Library of Aion, Restore Universe
-* **Compare** — Establish Baseline, Compare Realities
-* **Sound** — ambient audio controls
-
-The right panel contains contextual inspectors — Star, Planet, Biosphere, Civilization — each presenting observatory-grade data.
+Distances in light-years use a display convention — the default galaxy radius of 120 simulation units is shown as about 50,000 ly — and do not affect the simulation.
 
 ---
 

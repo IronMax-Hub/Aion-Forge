@@ -460,12 +460,12 @@ export default function App() {
   };
 
   let statusText = "Ready";
-  if (isGenerating)                                                          statusText = "Forging reality…";
-  else if (view === "galaxy" && !selectedStar)                              statusText = "Select a star to begin observation";
-  else if (view === "galaxy" && selectedStar)                               statusText = "Enter the system to explore its worlds";
-  else if (view === "system" && !selectedPlanet)                            statusText = "Select a world to analyze it";
-  else if (view === "system" && selectedPlanet)                             statusText = "Analyze the biosphere to search for life";
-  else if (view === "biosphere" && selectedBiosphere?.hasLife)              statusText = "Analyze civilization if intelligence emerged";
+  if (isGenerating)                                                          statusText = "Generating…";
+  else if (view === "galaxy" && !selectedStar)                              statusText = "Select a star to inspect it";
+  else if (view === "galaxy" && selectedStar)                               statusText = "Open the system to see its planets";
+  else if (view === "system" && !selectedPlanet)                            statusText = "Select a planet to inspect it";
+  else if (view === "system" && selectedPlanet)                             statusText = "Scan the biosphere to check for life";
+  else if (view === "biosphere" && selectedBiosphere?.hasLife)              statusText = "Check whether a civilization has emerged";
 
   const starLabel = selectedStar ? starName(selectedStar.id) : null;
   const planetLabel = selectedPlanet ? planetName(selectedPlanet.hostStarId, selectedPlanet.orbitalIndex) : null;
@@ -531,9 +531,9 @@ export default function App() {
             onChange={(e) => setInputSeed(e.target.value)}
             aria-label="Universe seed"
           />
-          <button className="btn" type="submit" disabled={isGenerating} onClick={initAudio}>ENTER</button>
-          <button className="btn primary" type="button" onClick={() => { initAudio(); handleRandomize(); }} disabled={isGenerating}>FORGE RANDOM</button>
-          <button className="btn" type="button" onClick={() => { initAudio(); handleRegenerate(); }} disabled={isGenerating}>REFORGE</button>
+          <button className="btn" type="submit" disabled={isGenerating} onClick={initAudio}>Generate</button>
+          <button className="btn primary" type="button" onClick={() => { initAudio(); handleRandomize(); }} disabled={isGenerating}>Random seed</button>
+          <button className="btn" type="button" onClick={() => { initAudio(); handleRegenerate(); }} disabled={isGenerating} title="Generate the current seed again">Regenerate</button>
         </form>
       </header>
 
@@ -550,7 +550,7 @@ export default function App() {
 
         <section className="console-section">
           <div className="console-section-head">
-            <h2 className="console-section-label">Reality</h2>
+            <h2 className="console-section-label">Physical parameters</h2>
             <span className={`console-section-note${isDefaultConfig ? "" : " modified"}`}>{isDefaultConfig ? "Default" : "Modified"}</span>
           </div>
           <dl className="kv">
@@ -562,42 +562,42 @@ export default function App() {
           </dl>
           <div className="controls">
             <button className="btn" onClick={toggleConfigPanel} aria-pressed={showConfigPanel}>
-              {showConfigPanel ? "CLOSE LAWS" : "LAWS OF REALITY"}
+              {showConfigPanel ? "Close parameters" : "Edit parameters…"}
             </button>
           </div>
         </section>
 
         <section className="console-section">
-          <h2 className="console-section-label">Compare</h2>
+          <h2 className="console-section-label">Comparison</h2>
           <div className="controls">
             {baselineSnapshot ? (
               <>
-                <button className="btn primary" onClick={handleCompare} disabled={isGenerating}>COMPARE REALITIES</button>
+                <button className="btn primary" onClick={handleCompare} disabled={isGenerating}>Compare with baseline</button>
                 <span className="hint" style={{ alignSelf: "center" }}>baseline set</span>
               </>
             ) : (
-              <button className="btn" onClick={handleSetBaseline} disabled={isGenerating} title="Establish current universe as comparison baseline">
-                ESTABLISH BASELINE
+              <button className="btn" onClick={handleSetBaseline} disabled={isGenerating} title="Use this universe as the baseline for comparison">
+                Set as baseline
               </button>
             )}
             <button className="btn" onClick={toggleHistoryPanel} aria-pressed={showHistoryPanel}>
-              {showHistoryPanel ? "CLOSE LOG" : "EXPERIMENT LOG"}
+              {showHistoryPanel ? "Close log" : "Experiment log"}
             </button>
           </div>
         </section>
 
         <section className="console-section">
-          <h2 className="console-section-label">Archive</h2>
+          <h2 className="console-section-label">Saved universes</h2>
           <div className="controls">
-            <button className="btn primary" onClick={handleSaveToGallery} disabled={isGenerating} title="Archive this universe">
-              ARCHIVE REALITY
+            <button className="btn primary" onClick={handleSaveToGallery} disabled={isGenerating} title="Save this universe to the library">
+              Save universe
             </button>
             <button className="btn" onClick={toggleGallery} aria-pressed={showGallery}>
-              {showGallery ? "CLOSE LIBRARY" : `LIBRARY (${gallery.length})`}
+              {showGallery ? "Close library" : `Library (${gallery.length})`}
             </button>
           </div>
           <label className="import-zone">
-            RESTORE UNIVERSE
+            Import universe file…
             <input type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
           </label>
         </section>
@@ -607,7 +607,7 @@ export default function App() {
             <h2 className="console-section-label">History</h2>
             <div className="controls">
               <button className="btn timeline-open-btn" onClick={toggleTimeline} aria-pressed={showTimeline}>
-                {showTimeline ? "CLOSE CHRONICLES" : "CHRONICLES"}
+                {showTimeline ? "Close timeline" : "Timeline"}
               </button>
             </div>
           </section>

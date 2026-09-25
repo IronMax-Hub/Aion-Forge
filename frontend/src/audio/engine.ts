@@ -23,8 +23,8 @@ const DEFAULT_PREFS: AudioPreferences = {
   masterVolume:    0.6,
   ambientVolume:   0.7,
   discoveryVolume: 0.5,
-  interfaceVolume: 0.3,
-  muted:           false,
+  interfaceVolume: 0,      // interface click sounds off by default
+  muted:           true,   // silent until the viewer turns sound on
 };
 
 const PREFS_KEY = "aion-forge-audio-prefs";

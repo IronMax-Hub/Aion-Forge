@@ -153,10 +153,10 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
   const highlightedEventId = replayMode && replayIndex > 0 ? replayEvents[replayIndex - 1]?.id : null;
 
   return (
-    <div className="timeline-panel" role="dialog" aria-label="Universe chronicles">
+    <div className="timeline-panel" role="dialog" aria-label="Universe timeline">
       <div className="timeline-header">
         <div>
-          <div className="tl-panel-label">Chronicles</div>
+          <div className="tl-panel-label">Timeline</div>
           <div className="timeline-count">
             {replayMode
               ? `${replayIndex} / ${replayEvents.length}`

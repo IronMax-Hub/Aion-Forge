@@ -3,12 +3,123 @@
    Enhancement I: The Observatory
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── App shell ────────────────────────────────────────────────────────────── */
+/* ── App shell: top bar, sidebar | stage | dock, status bar ───────────────── */
 
 .app {
-  position: relative;
   width: 100vw;
   height: 100vh;
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--dock-w);
+  grid-template-rows: var(--topbar-h) minmax(0, 1fr) var(--statusbar-h);
+  grid-template-areas:
+    "top     top   top"
+    "sidebar stage dock"
+    "status  status status";
+  background: var(--col-void);
+}
+
+/* ── Top bar ──────────────────────────────────────────────────────────────── */
+
+.topbar {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-7);
+  padding: 0 var(--sp-5) 0 var(--sp-6);
+  background: var(--col-surface);
+  border-bottom: 1px solid var(--col-border-2);
+  min-width: 0;
+}
+
+.topbar-brand {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--col-text-1);
+  white-space: nowrap;
+}
+
+.breadcrumb {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-base);
+  color: var(--col-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.breadcrumb-id {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--col-text-1);
+}
+
+.breadcrumb-sep { color: var(--col-text-5); }
+.breadcrumb-current { color: var(--col-text-1); }
+
+.breadcrumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--col-text-3);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--col-border-4);
+  text-underline-offset: 3px;
+}
+
+.breadcrumb-link:hover { color: var(--col-text-1); }
+
+.topbar .seed-form { flex-shrink: 0; align-items: center; }
+.topbar .seed-input { width: 120px; flex: none; }
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
+
+.sidebar {
+  grid-area: sidebar;
+  background: var(--col-surface);
+  border-right: 1px solid var(--col-border-2);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--col-border-2) transparent;
+}
+
+.sidebar .controls { justify-content: flex-start; text-align: left; }
+.sidebar .import-zone { margin-top: var(--sp-3); }
+
+.kv {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  row-gap: var(--sp-2);
+  column-gap: var(--sp-5);
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-base);
+}
+
+.kv:last-child { margin-bottom: 0; }
+.kv-row { display: contents; }
+.kv dt { color: var(--col-text-3); }
+
+.kv dd {
+  margin: 0;
+  text-align: right;
+  color: var(--col-text-1);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.kv dd.kv-text { font-family: var(--font-sans); text-transform: capitalize; }
+
+/* ── Stage (canvas + floating tool panels) ────────────────────────────────── */
+
+.stage {
+  grid-area: stage;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .viewport {
@@ -19,81 +130,53 @@
   display: block;
 }
 
-/* ── Observatory Console (left sidebar) ───────────────────────────────────── */
+/* ── Dock (selection inspector) ───────────────────────────────────────────── */
 
-.hud {
-  position: absolute;
-  top: var(--sp-8);
-  left: var(--sp-8);
-  width: var(--panel-md);
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  pointer-events: none;
+.dock {
+  grid-area: dock;
   background: var(--col-surface);
-  border: 1px solid var(--col-border-1);
-  border-radius: var(--radius-lg);
-  backdrop-filter: var(--blur-md);
-  overflow: hidden;
+  border-left: 1px solid var(--col-border-2);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--col-border-2) transparent;
 }
 
-.hud > * { pointer-events: auto; }
-
-/* ── Observatory header ───────────────────────────────────────────────────── */
-
-.obs-header {
-  padding: var(--sp-5) var(--sp-6);
-  border-bottom: 1px solid var(--col-border-1);
-  background: none;
+.dock-empty {
+  padding: var(--sp-6);
 }
 
-.obs-instrument-name {
-  font-size: var(--fs-2xs);
-  letter-spacing: var(--ls-widest);
-  color: var(--col-text-4);
-  margin-bottom: var(--sp-2);
+.dock-empty-title {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--col-text-2);
 }
 
-.obs-universe-id {
-  font-size: var(--fs-xl);
-  letter-spacing: var(--ls-normal);
-  color: var(--col-text-1);
-  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-
-.obs-universe-id.generating {
-  color: var(--col-text-4);
-  animation: obs-pulse 1.6s ease-in-out infinite;
-}
-
-.obs-universe-meta {
-  margin-top: var(--sp-2);
-  display: flex;
-  gap: var(--sp-3);
-  align-items: center;
-}
-
-.obs-meta-chip {
-  font-size: var(--fs-2xs);
-  letter-spacing: var(--ls-wide);
+.dock-empty-body {
+  margin: 0;
+  font-size: var(--fs-base);
   color: var(--col-text-3);
-  background: var(--col-card);
-  border: 1px solid var(--col-border-1);
-  border-radius: var(--radius-sm);
-  padding: 2px var(--sp-2);
 }
 
-.obs-meta-chip.modified {
-  color: var(--col-amber);
-  border-color: var(--col-accent-dim);
-  background: var(--col-accent-glow);
+/* ── Status bar ───────────────────────────────────────────────────────────── */
+
+.statusbar {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-6);
+  padding: 0 var(--sp-5) 0 var(--sp-6);
+  background: var(--col-deep);
+  border-top: 1px solid var(--col-border-2);
+  font-size: var(--fs-sm);
+  color: var(--col-text-3);
 }
 
-/* ── Console section ──────────────────────────────────────────────────────── */
+/* ── Console section (sidebar groups) ─────────────────────────────────────── */
 
 .console-section {
-  padding: var(--sp-4) var(--sp-6);
+  padding: var(--sp-5) var(--sp-6);
   border-bottom: 1px solid var(--col-border-1);
 }
 
@@ -101,12 +184,25 @@
   border-bottom: none;
 }
 
-.console-section-label {
-  font-size: var(--fs-2xs);
-  letter-spacing: var(--ls-wider);
-  color: var(--col-text-5);
-  margin-bottom: var(--sp-3);
+.console-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
 }
+
+.console-section-label {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--col-text-3);
+}
+
+.console-section-note {
+  font-size: var(--fs-sm);
+  color: var(--col-text-3);
+}
+
+.console-section-note.modified { color: var(--col-amber); }
 
 /* ── Seed form ────────────────────────────────────────────────────────────── */
 
@@ -218,17 +314,6 @@
   line-height: 1.5;
 }
 
-/* ── Navigation strip ─────────────────────────────────────────────────────── */
-
-.nav-strip {
-  padding: var(--sp-3) var(--sp-6);
-  display: flex;
-  gap: var(--sp-2);
-  align-items: center;
-  background: var(--col-elevated);
-  border-bottom: 1px solid var(--col-border-1);
-}
-
 /* ── Import drop zone ─────────────────────────────────────────────────────── */
 
 .import-zone {
@@ -259,19 +344,9 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .inspector {
-  position: absolute;
-  top: var(--sp-8);
-  right: var(--sp-8);
-  width: var(--panel-md);
-  background: var(--col-surface);
-  border: 1px solid var(--col-border-2);
-  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  backdrop-filter: var(--blur-md);
-  box-shadow: var(--shadow-panel);
-  animation: inspector-in var(--dur-slow) var(--ease-out);
+  background: var(--col-surface);
 }
 
 @keyframes inspector-in {
@@ -371,7 +446,6 @@
   flex-direction: column;
   gap: var(--sp-4);
   overflow-y: auto;
-  max-height: calc(100vh - var(--sp-8) * 2 - 60px);
   scrollbar-width: thin;
   scrollbar-color: var(--col-border-2) transparent;
 }
@@ -837,7 +911,7 @@
   left: 50%;
   transform: translateX(-50%);
   width: var(--panel-timeline);
-  max-height: calc(100vh - var(--sp-8) * 2);
+  max-height: calc(100% - var(--sp-8) * 2);
   padding: 0;
   gap: 0;
 }
@@ -1011,9 +1085,9 @@
 
 .config-panel {
   bottom: var(--sp-8);
-  left: calc(var(--panel-md) + var(--sp-8) + var(--sp-5));
+  left: var(--sp-8);
   width: 300px;
-  max-height: calc(100vh - var(--sp-8) * 2);
+  max-height: calc(100% - var(--sp-8) * 2);
   padding: 0;
   gap: 0;
   overflow-y: auto;
@@ -1113,7 +1187,7 @@
   top: var(--sp-8);
   right: var(--sp-8);
   width: var(--panel-lg);
-  max-height: calc(100vh - var(--sp-8) * 2);
+  max-height: calc(100% - var(--sp-8) * 2);
   padding: 0;
   gap: 0;
   overflow-y: auto;
@@ -1211,7 +1285,7 @@
   left: auto;
   transform: none;
   width: var(--panel-lg);
-  max-height: calc(100vh - var(--sp-8) * 2);
+  max-height: calc(100% - var(--sp-8) * 2);
   padding: 0;
   gap: 0;
 }
@@ -1354,8 +1428,6 @@
   display: flex;
   align-items: center;
   gap: var(--sp-1);
-  margin-top: auto;
-  padding-top: var(--sp-4);
 }
 
 .audio-mute-btn,
@@ -1388,7 +1460,8 @@
 .audio-panel {
   position: absolute;
   bottom: calc(100% + var(--sp-2));
-  left: 0;
+  right: 0;
+  z-index: 10;
   background: var(--col-surface);
   border: 1px solid var(--col-border-2);
   border-radius: var(--radius-md);
@@ -1451,31 +1524,31 @@
 /* Laptop / smaller desktop */
 @media (max-width: 1280px) {
   :root {
-    --panel-md:       250px;
+    --sidebar-w:      250px;
+    --dock-w:         290px;
     --panel-lg:       300px;
     --panel-timeline: 460px;
   }
-
-  .hud { width: var(--panel-md); }
 }
 
 /* Tablet */
 @media (max-width: 900px) {
   :root {
-    --panel-md:       220px;
-    --panel-lg:       280px;
-    --panel-timeline: 360px;
+    --sidebar-w:      220px;
+    --dock-w:         260px;
+    --panel-lg:       260px;
+    --panel-timeline: 340px;
     --sp-8: 16px;
   }
 
-  .hud { width: var(--panel-md); }
-  .timeline-panel { width: var(--panel-timeline); left: var(--sp-8); transform: none; }
+  .topbar-brand { display: none; }
 }
 
 /* Ultrawide bonus spacing */
 @media (min-width: 2560px) {
   :root {
-    --panel-md:  310px;
+    --sidebar-w: 320px;
+    --dock-w:    380px;
     --panel-lg:  380px;
     --panel-xl:  440px;
     --sp-8:      36px;

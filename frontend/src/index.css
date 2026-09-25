@@ -1,59 +1,66 @@
 /* ── Aion Forge Design Tokens ─────────────────────────────────────────────── */
 
 :root {
-  /* Background layers */
-  --col-void:      #000008;
-  --col-deep:      rgba(3, 6, 16, 0.97);
-  --col-surface:   rgba(6, 10, 24, 0.93);
-  --col-elevated:  rgba(10, 16, 34, 0.85);
-  --col-card:      rgba(10, 16, 36, 0.72);
-  --col-hover:     rgba(22, 34, 70, 0.45);
-  --col-selected:  rgba(16, 28, 58, 0.55);
+  /* Fonts — interface text in Plex Sans, numbers and IDs in Plex Mono */
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
 
-  /* Text tiers */
-  --col-text-1:  rgba(210, 230, 255, 0.94);
-  --col-text-2:  rgba(165, 200, 245, 0.78);
-  --col-text-3:  rgba(120, 158, 215, 0.58);
-  --col-text-4:  rgba(80, 112, 175, 0.42);
-  --col-text-5:  rgba(55, 80, 135, 0.30);
+  /* Background layers — neutral graphite, opaque */
+  --col-void:      #07080A;
+  --col-deep:      #0B0D10;
+  --col-surface:   #111418;
+  --col-elevated:  #161A1F;
+  --col-card:      #1B1F25;
+  --col-hover:     #20252C;
+  --col-selected:  #242A32;
 
-  /* Accent — deep-field blue */
-  --col-accent:      rgba(100, 168, 255, 0.92);
-  --col-accent-dim:  rgba(100, 168, 255, 0.22);
-  --col-accent-glow: rgba(100, 168, 255, 0.06);
+  /* Text tiers — every tier is at least 4.5:1 on surface, card and selected */
+  --col-text-1:  #E8EAED;
+  --col-text-2:  #C5CBD3;
+  --col-text-3:  #A7AFB9;
+  --col-text-4:  #939BA6;
+  --col-text-5:  #8A939E;
 
-  /* Special colors */
-  --col-gold:       rgba(255, 205, 80, 0.92);
-  --col-gold-dim:   rgba(255, 205, 80, 0.13);
-  --col-life:       rgba(72, 220, 140, 0.88);
-  --col-life-dim:   rgba(72, 220, 140, 0.13);
-  --col-danger:     rgba(225, 85, 65, 0.88);
-  --col-danger-dim: rgba(225, 85, 65, 0.11);
-  --col-amber:      rgba(255, 170, 50, 0.88);
-  --col-purple:     rgba(195, 150, 255, 0.88);
+  /* Accent — used only for selection and the primary action */
+  --col-accent:      #E0A458;
+  --col-accent-dim:  rgba(224, 164, 88, 0.40);
+  --col-accent-glow: rgba(224, 164, 88, 0.10); /* faint accent wash (name kept for existing rules) */
+  --col-accent-hover: #E8B470;
+  --col-on-accent:   #141413;
+
+  /* Data colours */
+  --col-gold:       #D9BC6A;
+  --col-gold-dim:   rgba(217, 188, 106, 0.12);
+  --col-life:       #6FC49A;
+  --col-life-dim:   rgba(111, 196, 154, 0.12);
+  --col-danger:     #E27A68;
+  --col-danger-dim: rgba(226, 122, 104, 0.12);
+  --col-amber:      #E0A458;
+  --col-purple:     #B9A2E6;
 
   /* Borders */
-  --col-border-1:  rgba(70, 105, 190, 0.15);
-  --col-border-2:  rgba(85, 120, 205, 0.24);
-  --col-border-3:  rgba(100, 148, 230, 0.40);
-  --col-border-4:  rgba(120, 168, 250, 0.60);
+  --col-border-1:  #1D2127;
+  --col-border-2:  #262B32;
+  --col-border-3:  #333A43;
+  --col-border-4:  #4A525D;
 
-  /* Typography */
-  --fs-2xs:  8px;
-  --fs-xs:   9px;
-  --fs-sm:   10px;
-  --fs-md:   11px;
-  --fs-base: 12px;
-  --fs-lg:   13px;
-  --fs-xl:   15px;
+  /* Typography — 11px floor */
+  --fs-2xs:  11px;
+  --fs-xs:   11px;
+  --fs-sm:   12px;
+  --fs-md:   12px;
+  --fs-base: 13px;
+  --fs-lg:   14px;
+  --fs-xl:   16px;
   --fs-2xl:  18px;
   --fs-3xl:  22px;
 
-  --ls-tight:   0.03em;
-  --ls-normal:  0.08em;
-  --ls-wide:    0.16em;
-  --ls-wider:   0.22em;
-  --ls-widest:  0.32em;
+  /* Letter-spacing — near zero; sentence case needs no tracking */
+  --ls-tight:   0;
+  --ls-normal:  0;
+  --ls-wide:    0.01em;
+  --ls-wider:   0.02em;
+  --ls-widest:  0.03em;
 
   /* Spacing */
   --sp-1:  3px;
@@ -68,14 +75,15 @@
 
   /* Border radius */
   --radius-sm:  3px;
-  --radius-md:  6px;
-  --radius-lg:  10px;
-  --radius-xl:  14px;
+  --radius-md:  4px;
+  --radius-lg:  6px;
+  --radius-xl:  8px;
 
-  /* Effects */
-  --blur-sm:  blur(6px);
-  --blur-md:  blur(12px);
-  --blur-lg:  blur(20px);
+  /* Effects — panels are opaque, so no backdrop blur */
+  --blur-sm:  none;
+  --blur-md:  none;
+  --blur-lg:  none;
+  --shadow-panel: 0 4px 16px rgba(0, 0, 0, 0.35);
 
   /* Transitions */
   --dur-fast:    110ms;
@@ -85,11 +93,11 @@
   --ease-inout:  cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Panel widths */
-  --panel-sm:       230px;
-  --panel-md:       270px;
-  --panel-lg:       330px;
-  --panel-xl:       380px;
-  --panel-timeline: 520px;
+  --panel-sm:       250px;
+  --panel-md:       290px;
+  --panel-lg:       350px;
+  --panel-xl:       400px;
+  --panel-timeline: 560px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -98,7 +106,9 @@ body {
   margin: 0;
   background: var(--col-void);
   overflow: hidden;
-  font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--col-text-1);
   -webkit-font-smoothing: antialiased;
 }
 

@@ -56,19 +56,29 @@ function classify(mass: number, age: number, lifespan: number): StellarClass {
 
 const TEMP_RANGE: Record<StellarClass, [number, number]> = {
   protostar: [2000, 4000],
-  "main-sequence": [3000, 40000],
+  "main-sequence": [2300, 40000], // coolest red dwarfs to hottest O stars
   "red-giant": [3000, 5000],
   "white-dwarf": [8000, 80000],
   "neutron-star": [100000, 1000000],
   "black-hole": [0, 0],
 };
 
+const SOLAR_TEMPERATURE_K = 5772;
+
+// Main-sequence radius in solar radii (approximate mass–radius relation).
+function mainSequenceRadius(mass: number): number {
+  return Math.pow(mass, 0.8);
+}
+
 function calcTemperature(cls: StellarClass, mass: number, jitter: number): number {
   const [lo, hi] = TEMP_RANGE[cls];
   if (cls === "black-hole") return 0;
   if (cls === "main-sequence") {
-    const t = lo + (hi - lo) * Math.min(1, Math.pow(mass / 100, 0.4));
-    return t * (0.9 + jitter * 0.2);
+    // Stefan–Boltzmann in solar units: L = R²·T⁴, so T = T☉·(L / R²)^¼.
+    // Uses the same mass–luminosity relation as calcLuminosity, so colour and brightness agree.
+    const radius = mainSequenceRadius(mass);
+    const t = SOLAR_TEMPERATURE_K * Math.pow(Math.pow(mass, 3.5) / (radius * radius), 0.25);
+    return Math.min(hi, Math.max(lo, t * (0.9 + jitter * 0.2)));
   }
   return lo + (hi - lo) * jitter;
 }

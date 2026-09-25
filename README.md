@@ -114,12 +114,12 @@ These seeds produce universes worth exploring:
 
 | Seed | Galaxy Type | Notes |
 |------|-------------|-------|
-| `271828` | Elliptical | Rich in civilizations — 12 arose across the stellar population |
+| `271828` | Elliptical | Rich in civilizations — 13 arose across the stellar population |
 | `100000` | Spiral | Classic spiral, abundant life, 8 civilizations |
-| `3141592` | Spiral | Dense biosphere network, 8 civilizations |
-| `404040` | Elliptical | 8 civilizations; elliptical density at work |
-| `13579` | Spiral | 7 civilizations, balanced distribution |
-| `137035` | Irregular | Irregular galaxy yielding 7 civilizations — rare |
+| `3141592` | Spiral | Dense biosphere network, 9 civilizations |
+| `404040` | Elliptical | 12 civilizations; elliptical density at work |
+| `13579` | Spiral | 6 civilizations, balanced distribution |
+| `137035` | Irregular | Irregular galaxy yielding 6 civilizations — rare |
 
 For a contrasting experience, try seed `161803` — a sparse, quieter universe.
 

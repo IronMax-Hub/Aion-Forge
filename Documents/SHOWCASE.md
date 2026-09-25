@@ -24,7 +24,7 @@ This is determinism at work.
 
 **Seed:** `271828`
 **Galaxy Type:** Elliptical
-**Character:** Civilizations arose on 12 worlds within the first 100 stars surveyed.
+**Character:** Civilizations arose on 13 worlds within the first 100 stars surveyed.
 
 An elliptical galaxy with unusually favorable conditions for life emergence.
 
@@ -42,7 +42,7 @@ This is one of the most civilization-rich universes discovered so far.
 
 **Seed:** `100000`
 **Galaxy Type:** Spiral
-**Character:** Life on 76 worlds. Eight civilizations.
+**Character:** Life on 49 worlds. Eight civilizations.
 
 A balanced, archetypal spiral universe.
 
@@ -58,11 +58,11 @@ A good universe for understanding Aion Forge's normal range.
 
 **Seed:** `3141592`
 **Galaxy Type:** Spiral
-**Character:** 76 life-bearing worlds. Eight civilizations.
+**Character:** 55 life-bearing worlds. Nine civilizations.
 
-Shares its life count with seed `100000`, but explores different stars, different worlds, different stories.
+A close cousin of seed `100000` in its statistics, but with different stars, different worlds, different stories.
 
-Two universes with identical statistics but entirely different histories.
+Two universes with similar numbers but entirely different histories.
 
 A demonstration of why seeds matter.
 
@@ -72,13 +72,13 @@ A demonstration of why seeds matter.
 
 **Seed:** `404040`
 **Galaxy Type:** Elliptical
-**Character:** 63 life-bearing worlds. Eight civilizations.
+**Character:** 47 life-bearing worlds. Twelve civilizations.
 
 Elliptical galaxies are thought to be less favorable for life — less disk structure, more chaotic stellar distributions.
 
 This universe proves that assumption wrong.
 
-Eight civilizations arose within an elliptical framework.
+Twelve civilizations arose within an elliptical framework.
 
 Emergence does not require perfect conditions.
 
@@ -88,11 +88,11 @@ Emergence does not require perfect conditions.
 
 **Seed:** `137035`
 **Galaxy Type:** Irregular
-**Character:** 61 life-bearing worlds. Seven civilizations.
+**Character:** 44 life-bearing worlds. Six civilizations.
 
 Irregular galaxies are the rarest galaxy type and the most chaotic.
 
-That seven civilizations emerged here is unexpected.
+That six civilizations emerged here is unexpected.
 
 This universe invites the question: does chaos create opportunity?
 

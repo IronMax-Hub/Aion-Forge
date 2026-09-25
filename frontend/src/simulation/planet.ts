@@ -89,11 +89,14 @@ function planetCount(starMass: number, rng: () => number): number {
   return base + Math.floor(rng() * 5);               // normal–crowded
 }
 
+// Above this mass (Earth masses) a planet is a gas or ice giant with no solid surface.
+const GIANT_PLANET_MASS = 15;
+
 // ── Planet type from orbital position (AF-041) ────────────────────────────────
 // Temperature-driven: close → lava/desert, habitable zone → rocky/ocean, far → ice/gas
 
 function pickType(tempK: number, mass: number, rng: () => number): PlanetType {
-  if (mass > 15) return rng() < 0.8 ? "gas-giant" : "ice";
+  if (mass > GIANT_PLANET_MASS) return rng() < 0.8 ? "gas-giant" : "ice";
   if (tempK > 700) return rng() < 0.7 ? "lava" : "desert";
   if (tempK > 400) return rng() < 0.6 ? "desert" : "rocky";
   if (tempK > 200) {
@@ -106,16 +109,19 @@ function pickType(tempK: number, mass: number, rng: () => number): PlanetType {
 }
 
 // ── Surface temperature (AF-042) ──────────────────────────────────────────────
-// Simplified: stellar luminosity + orbital radius + greenhouse
+// Simplified: stellar luminosity + orbital radius + greenhouse.
+// Giant planets have no surface to warm, so they report the equilibrium (cloud-top) temperature.
 
 function surfaceTemp(
   stellarLuminosity: number,
   orbitalAU: number,
-  atmosphere: AtmosphereType
+  atmosphere: AtmosphereType,
+  mass: number
 ): number {
   const L = Math.max(0.0001, stellarLuminosity);
   // Effective temperature from inverse-square law (in K, rough)
   const tEff = 278 * Math.pow(L, 0.25) / Math.sqrt(orbitalAU);
+  if (mass > GIANT_PLANET_MASS) return tEff;
   const greenhouse: Record<AtmosphereType, number> = {
     none: 0, thin: 10, moderate: 40, thick: 100, crushing: 400,
   };
@@ -125,7 +131,7 @@ function surfaceTemp(
 // ── Atmosphere (AF-043) ───────────────────────────────────────────────────────
 
 function pickAtmosphere(mass: number, tempK: number, rng: () => number): AtmosphereType {
-  if (mass > 15) return "crushing";
+  if (mass > GIANT_PLANET_MASS) return "crushing";
   if (mass < 0.05) return "none";
   if (tempK > 700) return rng() < 0.5 ? "thin" : "none";
   const r = rng();
@@ -138,6 +144,24 @@ function pickAtmosphere(mass: number, tempK: number, rng: () => number): Atmosph
 
 // ── Habitability (AF-043) ─────────────────────────────────────────────────────
 
+// Liquid-water window: full credit inside the comfortable band, fading linearly
+// to zero at the frozen and boiling limits. Life is possible near the edges, but rare.
+const HABITABLE_TEMP_MIN_K     = 150;
+const HABITABLE_TEMP_COMFORT_LO = 260;
+const HABITABLE_TEMP_COMFORT_HI = 330;
+const HABITABLE_TEMP_MAX_K     = 450;
+
+function temperatureFactor(tempK: number): number {
+  if (tempK <= HABITABLE_TEMP_MIN_K || tempK >= HABITABLE_TEMP_MAX_K) return 0;
+  if (tempK < HABITABLE_TEMP_COMFORT_LO) {
+    return (tempK - HABITABLE_TEMP_MIN_K) / (HABITABLE_TEMP_COMFORT_LO - HABITABLE_TEMP_MIN_K);
+  }
+  if (tempK > HABITABLE_TEMP_COMFORT_HI) {
+    return (HABITABLE_TEMP_MAX_K - tempK) / (HABITABLE_TEMP_MAX_K - HABITABLE_TEMP_COMFORT_HI);
+  }
+  return 1;
+}
+
 function calcHabitability(p: {
   type: PlanetType;
   temperature: number;
@@ -148,13 +172,8 @@ function calcHabitability(p: {
   if (p.type === "gas-giant" || p.type === "lava") return 0;
   if (p.atmosphere === "none" || p.atmosphere === "crushing") return 0.02;
 
-  let score = 0;
-
-  // Temperature sweet spot 200–350 K
-  const tScore = p.temperature >= 200 && p.temperature <= 350
-    ? 1 - Math.abs(p.temperature - 275) / 75
-    : 0;
-  score += tScore * 0.45;
+  // Baseline credit for a workable climate; the temperature factor below scales everything
+  let score = 0.45;
 
   // Liquid water proxy
   if (p.type === "ocean") score += 0.25;
@@ -170,7 +189,7 @@ function calcHabitability(p: {
   // Resources
   score += p.resourceAbundance * 0.05;
 
-  return Math.min(1, Math.max(0, score));
+  return Math.min(1, Math.max(0, score * temperatureFactor(p.temperature)));
 }
 
 // ── Public API (AF-036) ───────────────────────────────────────────────────────
@@ -197,7 +216,7 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
     const atmosphere = pickAtmosphere(mass, 0, rng);  // rough pass, temp recalculated below
     // gravityStrength > 1 compresses orbits slightly, affecting temperature
     const effectiveRadius = orbitalRadius / Math.sqrt(config.gravityStrength);
-    const tempK = surfaceTemp(star.luminosity, effectiveRadius, atmosphere);
+    const tempK = surfaceTemp(star.luminosity, effectiveRadius, atmosphere, mass);
     const type = pickType(tempK, mass, rng);
     const size = Math.pow(mass, 0.27) * (0.8 + rng() * 0.4);
     const resourceAbundance = rng();

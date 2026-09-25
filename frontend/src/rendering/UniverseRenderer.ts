@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { CSS2DRenderer, CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { GalaxyParticles } from "../simulation/galaxy";
 import type { Star, StellarPopulation } from "../simulation/star";
 import { temperatureToColor } from "../simulation/star";
@@ -174,6 +175,36 @@ function stellarProfile(
   };
 }
 
+// A thin green ring drawn around each star system that holds life.
+function makeLifeRingTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 32;
+  const ctx = canvas.getContext("2d")!;
+  ctx.strokeStyle = "rgba(111, 196, 154, 0.9)";   // --col-life
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(16, 16, 12, 0, Math.PI * 2);
+  ctx.stroke();
+  return new THREE.CanvasTexture(canvas);
+}
+
+// ── Life markers ─────────────────────────────────────────────────────────────
+
+/** One star system with life, as the galaxy view should mark it. */
+export interface LifeMarker {
+  starId: number;
+  label: string;   // text for the bubble, e.g. "Complex ecosystems +1"
+}
+
+/** Only this many systems carry a text bubble at once, the ones nearest the camera; the rest keep just the ring. */
+const LABELLED_MARKER_LIMIT = 30;
+const LIFE_RING_SIZE_PX = 13;
+// Approximate bubble footprint on screen (10px monospace text plus padding and pointer),
+// used to skip a bubble that would cover a nearer one.
+const BUBBLE_CHAR_WIDTH_PX = 6.1;
+const BUBBLE_PADDING_PX    = 14;
+const BUBBLE_HEIGHT_PX     = 27;
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class UniverseRenderer {
@@ -192,6 +223,15 @@ export class UniverseRenderer {
 
   private starSprite:   THREE.CanvasTexture  | null = null;   // ENH-512: reuse texture
   private reticleTexture: THREE.CanvasTexture | null = null;
+
+  // Life markers: rings (WebGL points) on every system with life, plus HTML bubbles for the nearest few
+  private labelRenderer: CSS2DRenderer;
+  private lifeRingTexture: THREE.CanvasTexture | null = null;
+  private lifeRings:  THREE.Points | null = null;
+  private lifeLabels: THREE.Group  | null = null;
+  private lifeMarkersOn = false;
+  private labelsDirty   = true;
+  private lastLabelCamera = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion() };
 
   private onViewScale: ((scale: ViewScale) => void) | null = null;
   private lastReportedScale = 0;
@@ -229,6 +269,12 @@ export class UniverseRenderer {
     this.controls.autoRotateSpeed = 0.12;
 
     this.starSprite = makeStarSprite();   // ENH-512: create once, reuse
+
+    // HTML overlay for life bubbles, stacked directly above the canvas
+    this.labelRenderer = new CSS2DRenderer();
+    this.labelRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    this.labelRenderer.domElement.className = "life-overlay";
+    canvas.after(this.labelRenderer.domElement);
 
     this.buildStarfield();
     this.startLoop();
@@ -383,6 +429,7 @@ export class UniverseRenderer {
 
     this.clearMesh("starMesh");
     this.clearMesh("highlightMesh");
+    this.clearLifeMarkers();   // they belong to the previous population
 
     const stars  = population.stars;
     const pos    = new Float32Array(stars.length * 3);
@@ -439,6 +486,7 @@ export class UniverseRenderer {
     if (this.starMesh)      this.starMesh.visible      = false;
     if (this.highlightMesh) this.highlightMesh.visible = false;
     if (this.nebulaGroup)   this.nebulaGroup.visible   = false;
+    this.applyLifeMarkerVisibility();   // bubbles belong to the galaxy view only
 
     if (this.systemGroup) {
       this.scene.remove(this.systemGroup);
@@ -513,6 +561,7 @@ export class UniverseRenderer {
   exitSystemView() {
     this.mode = "galaxy";
     this.lastReportedScale = 0;
+    this.applyLifeMarkerVisibility();
     if (this.galaxyMesh)    this.galaxyMesh.visible    = true;
     if (this.starMesh)      this.starMesh.visible      = true;
     if (this.highlightMesh) this.highlightMesh.visible = true;
@@ -574,17 +623,140 @@ export class UniverseRenderer {
     this.raycaster.params.Points = { threshold: 3 };
     const hits = this.raycaster.intersectObject(this.starMesh);
     if (hits.length > 0) {
-      const star = this.starData[hits[0].index!];
-      this.onStarSelected?.(star);
-      this.highlightStar(star);
-      this.tweenCameraTo(new THREE.Vector3(...star.position));
-      this.controls.autoRotate = false;
+      this.selectStar(this.starData[hits[0].index!]);
     } else {
       this.onStarSelected?.(null);
       this.highlightStar(null);
       this.controls.autoRotate = true;
     }
   };
+
+  private selectStar(star: Star) {
+    this.onStarSelected?.(star);
+    this.highlightStar(star);
+    this.tweenCameraTo(new THREE.Vector3(...star.position));
+    this.controls.autoRotate = false;
+  }
+
+  // ── Life markers ──────────────────────────────────────────────────────────
+
+  /** Replace the marked systems. Call after renderStars, with markers for that population. */
+  setLifeMarkers(markers: LifeMarker[]) {
+    this.clearLifeMarkers();
+    const starsById = new Map(this.starData.map(star => [star.id, star]));
+    const marked = markers.flatMap(m => {
+      const star = starsById.get(m.starId);
+      return star ? [{ star, label: m.label }] : [];
+    });
+    if (marked.length === 0) return;
+
+    const positions = new Float32Array(marked.flatMap(m => m.star.position));
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    this.lifeRingTexture ??= makeLifeRingTexture();
+    const mat = new THREE.PointsMaterial({
+      map: this.lifeRingTexture, size: LIFE_RING_SIZE_PX, sizeAttenuation: false,
+      transparent: true, depthWrite: false, toneMapped: false,
+    });
+    this.lifeRings = new THREE.Points(geo, mat);
+    this.lifeRings.renderOrder = 5;
+    this.scene.add(this.lifeRings);
+
+    this.lifeLabels = new THREE.Group();
+    for (const { star, label } of marked) {
+      const bubble = document.createElement("button");
+      bubble.type = "button";
+      bubble.className = "life-bubble";
+      bubble.textContent = label;
+      bubble.setAttribute("aria-label", `${label}. Select this star system`);
+      bubble.addEventListener("click", () => this.selectStar(star));
+
+      const anchor = document.createElement("div");   // CSS2DRenderer owns this element's transform
+      anchor.className = "life-anchor";
+      anchor.append(bubble);
+
+      const object = new CSS2DObject(anchor);
+      object.center.set(0.5, 1);   // bottom-centre of the bubble's pointer sits on the star
+      object.position.set(...star.position);
+      object.visible = false;
+      this.lifeLabels.add(object);
+    }
+    this.scene.add(this.lifeLabels);
+
+    this.labelsDirty = true;
+    this.applyLifeMarkerVisibility();
+  }
+
+  setLifeMarkersVisible(on: boolean) {
+    this.lifeMarkersOn = on;
+    this.labelsDirty = true;
+    this.applyLifeMarkerVisibility();
+  }
+
+  private applyLifeMarkerVisibility() {
+    const show = this.lifeMarkersOn && this.mode === "galaxy";
+    if (this.lifeRings)  this.lifeRings.visible  = show;
+    if (this.lifeLabels) this.lifeLabels.visible = show;
+    this.labelsDirty = true;
+  }
+
+  private clearLifeMarkers() {
+    if (this.lifeRings) {
+      this.scene.remove(this.lifeRings);
+      this.lifeRings.geometry.dispose();
+      (this.lifeRings.material as THREE.Material).dispose();
+      this.lifeRings = null;
+    }
+    if (this.lifeLabels) {
+      this.scene.remove(this.lifeLabels);
+      for (const object of this.lifeLabels.children) (object as CSS2DObject).element.remove();
+      this.lifeLabels = null;
+    }
+  }
+
+  /**
+   * Give bubbles to the on-screen systems nearest the camera, skipping any that would
+   * overlap a nearer bubble. Recomputed only when the camera moves.
+   */
+  private updateLifeLabels() {
+    if (!this.lifeLabels?.visible) return;
+    const cam = this.lastLabelCamera;
+    if (!this.labelsDirty && cam.position.equals(this.camera.position) && cam.quaternion.equals(this.camera.quaternion)) return;
+    cam.position.copy(this.camera.position);
+    cam.quaternion.copy(this.camera.quaternion);
+    this.labelsDirty = false;
+
+    this.camera.updateMatrixWorld();
+    const projected = new THREE.Vector3();
+    const { clientWidth, clientHeight } = this.renderer.domElement;
+    type Box = { left: number; right: number; top: number; bottom: number };
+    const onScreen: { object: CSS2DObject; distance: number; box: Box }[] = [];
+    for (const child of this.lifeLabels.children) {
+      const object = child as CSS2DObject;
+      object.visible = false;
+      projected.copy(object.position).project(this.camera);
+      const inView = Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && projected.z >= -1 && projected.z <= 1;
+      if (!inView) continue;
+      const x = (projected.x + 1) / 2 * clientWidth;
+      const y = (1 - projected.y) / 2 * clientHeight;
+      const halfWidth = ((object.element.textContent?.length ?? 0) * BUBBLE_CHAR_WIDTH_PX + BUBBLE_PADDING_PX) / 2;
+      onScreen.push({
+        object,
+        distance: object.position.distanceTo(this.camera.position),
+        box: { left: x - halfWidth, right: x + halfWidth, top: y - BUBBLE_HEIGHT_PX, bottom: y },
+      });
+    }
+    onScreen.sort((a, b) => a.distance - b.distance);
+
+    const placed: Box[] = [];
+    for (const { object, box } of onScreen) {
+      if (placed.length >= LABELLED_MARKER_LIMIT) break;
+      const overlaps = placed.some(p => box.left < p.right && box.right > p.left && box.top < p.bottom && box.bottom > p.top);
+      if (overlaps) continue;
+      placed.push(box);
+      object.visible = true;
+    }
+  }
 
   // ── ENH-510: cinematic camera tween (quintic ease-out) ───────────────────
 
@@ -624,6 +796,8 @@ export class UniverseRenderer {
       this.reportViewScale();
 
       this.renderer.render(this.scene, this.camera);
+      this.updateLifeLabels();
+      this.labelRenderer.render(this.scene, this.camera);
     };
     tick();
   }
@@ -651,6 +825,8 @@ export class UniverseRenderer {
     this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+    this.labelRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    this.labelsDirty = true;
   };
 
   dispose() {
@@ -661,6 +837,9 @@ export class UniverseRenderer {
     // ENH-512: dispose all resources
     this.starSprite?.dispose();
     this.reticleTexture?.dispose();
+    this.clearLifeMarkers();
+    this.lifeRingTexture?.dispose();
+    this.labelRenderer.domElement.remove();
     for (const layer of this.starfieldLayers) {
       this.scene.remove(layer);
       layer.geometry.dispose();

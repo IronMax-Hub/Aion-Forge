@@ -14,6 +14,7 @@ import { generateBiosphere } from "./simulation/biosphere";
 import type { Biosphere } from "./simulation/biosphere";
 import { generateCivilization } from "./simulation/civilization";
 import type { Civilization, Species } from "./simulation/civilization";
+import { surveyLife } from "./simulation/lifeSurvey";
 import { buildUniverseTimeline, summarizeTimeline } from "./simulation/history";
 import type { UniverseTimeline } from "./simulation/history";
 import { makeConfig, DEFAULT_CONFIG, CONFIG_LABELS } from "./simulation/config";
@@ -31,7 +32,7 @@ import { ExperimentHistoryPanel } from "./ui/ExperimentHistoryPanel";
 import { GalleryPanel } from "./ui/GalleryPanel";
 import { SystemPanel } from "./ui/SystemPanel";
 import { ScaleBar } from "./ui/ScaleBar";
-import { starName, planetName } from "./ui/format";
+import { starName, planetName, lifeMarkerLabel } from "./ui/format";
 import { makeUniverseId, generateUniverseSummary, importUniverseFromFile } from "./simulation/persistence";
 import type { UniverseMeta, DiscoveryItem } from "./simulation/persistence";
 import { makeJournalEntry } from "./simulation/journal";
@@ -55,6 +56,13 @@ function buildGalaxyConfig(seed: number, universeConfig: UniverseConfig): Galaxy
 }
 
 type View = "galaxy" | "system" | "biosphere" | "civilization";
+
+// Whether life markers are on is a per-browser display preference, not saved data
+const LIFE_MARKERS_KEY = "aion-forge-life-markers";
+
+function readLifeMarkersPreference(): boolean {
+  try { return localStorage.getItem(LIFE_MARKERS_KEY) === "on"; } catch { return false; }
+}
 
 function storageErrorMessage(err: unknown): string {
   return err instanceof api.StorageError ? err.message : "Saving failed";
@@ -101,6 +109,7 @@ export default function App() {
   const [currentSeed,          setCurrentSeed]          = useState<number>(0);
   const [currentSystem, setCurrentSystem] = useState<PlanetarySystem | null>(null);
   const [viewScale,     setViewScale]     = useState<ViewScale | null>(null);
+  const [showLifeMarkers, setShowLifeMarkers] = useState<boolean>(readLifeMarkersPreference);
 
   // Audio — initialize on first user interaction (browser requirement)
   const audioInitRef = useRef(false);
@@ -148,9 +157,11 @@ export default function App() {
       setIsGenerating(false);
       ui.universeLoad();
       ambientLayer.setContext("galaxy");
-      // Pre-compute snapshot in idle time so button clicks are instant
+      // Survey life in idle time: it feeds the snapshot (so button clicks are instant) and the life markers
       setTimeout(() => {
-        cachedSnapshotRef.current = buildSnapshot(s, config, population);
+        const survey = surveyLife(population.stars, s, config);
+        cachedSnapshotRef.current = buildSnapshot(s, config, population, survey);
+        rendererRef.current?.setLifeMarkers(survey.systems.map(life => ({ starId: life.starId, label: lifeMarkerLabel(life) })));
       }, 0);
     });
   }, [universeConfig]);
@@ -164,6 +175,11 @@ export default function App() {
     return () => renderer.dispose();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    rendererRef.current?.setLifeMarkersVisible(showLifeMarkers);
+    try { localStorage.setItem(LIFE_MARKERS_KEY, showLifeMarkers ? "on" : "off"); } catch { /* preference not kept */ }
+  }, [showLifeMarkers]);
 
   // Global Escape key: close overlays in priority order, then navigate back
   useEffect(() => {
@@ -198,32 +214,15 @@ export default function App() {
   };
 
   // Build a snapshot of the current universe state for comparison
-  function buildSnapshot(s: number, cfg: UniverseConfig, pop: StellarPopulation): UniverseSnapshot {
-    let lifePlanets = 0;
-    let civCount    = 0;
-    let totalPlanets = 0;
-
-    for (const star of pop.stars) {
-      const system = generatePlanetsFor(star, s, cfg);
-      totalPlanets += system.planets.length;
-      for (const planet of system.planets) {
-        const bio = generateBiosphere(planet, star, s, cfg);
-        if (bio.hasLife) {
-          lifePlanets++;
-          const civResult = generateCivilization(bio, planet, s, cfg);
-          if (civResult.civilization) civCount++;
-        }
-      }
-    }
-
+  function buildSnapshot(s: number, cfg: UniverseConfig, pop: StellarPopulation, survey = surveyLife(pop.stars, s, cfg)): UniverseSnapshot {
     return {
       seed: s,
       config: cfg,
       starCount: pop.stars.length,
-      lifeBearingPlanets: lifePlanets,
-      civilizationCount: civCount,
+      lifeBearingPlanets: survey.lifeBearingPlanets,
+      civilizationCount: survey.civilizationCount,
       legendaryEvents: 0,   // filled in if timeline was built
-      totalPlanets,
+      totalPlanets: survey.totalPlanets,
     };
   }
 
@@ -621,6 +620,21 @@ export default function App() {
             <dt>Stars</dt><dd>{universeId ? starCount.toLocaleString() : "—"}</dd>
             <dt>Particles</dt><dd>{PARTICLE_COUNT.toLocaleString()}</dd>
           </dl>
+        </section>
+
+        <section className="console-section">
+          <h2 className="console-section-label">Overlays</h2>
+          <button
+            type="button"
+            className="switch"
+            role="switch"
+            aria-checked={showLifeMarkers}
+            onClick={() => setShowLifeMarkers(on => !on)}
+            title="Mark every star system that holds life"
+          >
+            <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
+            Life markers
+          </button>
         </section>
 
         <section className="console-section">

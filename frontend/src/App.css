@@ -130,6 +130,62 @@
   display: block;
 }
 
+/* Life markers: HTML bubbles pinned over the canvas by Three's CSS2DRenderer */
+.life-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;   /* drags and clicks on empty space reach the canvas */
+}
+
+.life-anchor {
+  padding-bottom: 9px;    /* room for the pointer; its tip lands just above the star's ring */
+  pointer-events: none;
+}
+
+.life-bubble {
+  position: relative;
+  display: block;
+  padding: 2px 6px;
+  border: 1px solid rgba(111, 196, 154, 0.55);
+  border-radius: 3px;
+  background: rgba(17, 20, 24, 0.86);
+  color: var(--col-text-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  animation: life-bubble-in 400ms ease-out;
+}
+
+.life-bubble::after {     /* short pointer down to the star */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: 8px;
+  background: rgba(111, 196, 154, 0.55);
+}
+
+.life-bubble:hover,
+.life-bubble:focus-visible {
+  border-color: var(--col-life);
+  color: var(--col-text-1);
+  outline: none;
+}
+
+@keyframes life-bubble-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .life-bubble { animation: none; }
+}
+
 /* ── Dock (selection inspector) ───────────────────────────────────────────── */
 
 .dock {
@@ -216,6 +272,45 @@
 .console-section:last-child {
   border-bottom: none;
 }
+
+/* On/off switch */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--col-text-2);
+  font: inherit;
+  font-size: var(--fs-base);
+  cursor: pointer;
+}
+
+.switch-track {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border: 1px solid var(--col-border-4);
+  border-radius: 7px;
+  background: var(--col-card);
+  transition: background 120ms, border-color 120ms;
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--col-text-4);
+  transition: transform 120ms, background 120ms;
+}
+
+.switch[aria-checked="true"] .switch-track { background: var(--col-life-dim); border-color: var(--col-life); }
+.switch[aria-checked="true"] .switch-thumb { transform: translateX(12px); background: var(--col-life); }
+.switch:focus-visible .switch-track { outline: 2px solid var(--col-accent); outline-offset: 2px; }
 
 .console-section-head {
   display: flex;

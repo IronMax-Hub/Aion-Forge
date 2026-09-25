@@ -3,6 +3,9 @@
 
 import type { StellarClass } from "../simulation/star";
 import type { PlanetType } from "../simulation/planet";
+import type { LifeStage } from "../simulation/biosphere";
+import { TECH_STAGE_LABEL } from "../simulation/civilization";
+import type { SystemLife } from "../simulation/lifeSurvey";
 
 const SUPERSCRIPT: Record<string, string> = {
   "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴",
@@ -117,4 +120,25 @@ export function niceScaleLength(max: number): number {
   const steps = [5, 2, 1];
   const step = steps.find((s) => s * magnitude <= max) ?? 1;
   return step * magnitude;
+}
+
+// ── Life markers ─────────────────────────────────────────────────────────────
+
+/** Short names for the life stages a galaxy marker can show. */
+export const LIFE_MARKER_STAGE: Record<LifeStage, string> = {
+  none:          "No life",
+  prebiotic:     "Prebiotic",
+  microbial:     "Microbial",
+  multicellular: "Multicellular",
+  complex:       "Complex ecosystems",
+  dominant:      "Dominant biosphere",
+};
+
+/** Bubble text for a system: its most notable life, plus how many other planets have life. */
+export function lifeMarkerLabel(life: SystemLife): string {
+  const main = life.civilizationStage
+    ? `Civilization · ${TECH_STAGE_LABEL[life.civilizationStage]}`
+    : LIFE_MARKER_STAGE[life.mostAdvancedStage];
+  const others = life.lifePlanetCount - 1;
+  return others > 0 ? `${main} +${others}` : main;
 }

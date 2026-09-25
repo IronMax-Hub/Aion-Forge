@@ -197,7 +197,7 @@ Sound is off by default. Use **Sound off / Sound on** in the status bar to toggl
 Aion Forge is laid out like scientific observatory software:
 
 * **Top bar** — the universe ID (AF-U-XXXX-XXXX), a clickable breadcrumb, and seed controls (Generate, Random seed, Regenerate)
-* **Left sidebar** — universe facts, current physical parameters, comparison and experiment log, saved universes (Save universe, Library, Import), and the timeline
+* **Left sidebar** — universe facts, the Life markers switch (rings every star system with life and labels the nearest ones with their most advanced life form or civilization), current physical parameters, comparison and experiment log, saved universes (Save universe, Library, Import), and the timeline
 * **Centre** — the rendered galaxy or planetary system; tool panels open over it
 * **Right dock** — the selected star, planet table, planet, biosphere or civilization, with values in physical units (M☉, L☉, K, AU, Gyr) and spectral types
 * **Status bar** — hints, a scale bar (light-years in the galaxy, AU in a system), and sound controls

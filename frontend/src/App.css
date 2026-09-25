@@ -160,6 +160,30 @@
 
 /* ── Status bar ───────────────────────────────────────────────────────────── */
 
+.statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-7);
+}
+
+.scale-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.scale-bar-line {
+  height: 5px;
+  border: 1px solid var(--col-text-3);
+  border-top: none;
+}
+
+.scale-bar-label {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--col-text-3);
+}
+
 .statusbar {
   grid-area: status;
   display: flex;
@@ -299,12 +323,6 @@
   font-size: var(--fs-xs);
   letter-spacing: var(--ls-wide);
   color: var(--col-text-4);
-  animation: obs-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes obs-pulse {
-  0%, 100% { opacity: 0.35; }
-  50%       { opacity: 1; }
 }
 
 .hint {
@@ -723,17 +741,6 @@
   padding: var(--sp-4) 0;
 }
 
-/* ── Biosphere animations ─────────────────────────────────────────────────── */
-
-.bio-pulse {
-  animation: bio-pulse 2.2s ease-in-out infinite;
-}
-
-@keyframes bio-pulse {
-  0%, 100% { opacity: 0.65; }
-  50%       { opacity: 1; }
-}
-
 /* ── Extinction log ───────────────────────────────────────────────────────── */
 
 .extinction-log {
@@ -938,12 +945,13 @@
   overflow: hidden;
   backdrop-filter: var(--blur-lg);
   box-shadow: var(--shadow-panel);
-  animation: overlay-in var(--dur-slow) var(--ease-out);
+  animation: overlay-in var(--dur-fast) var(--ease-out);
 }
 
+/* Panels simply fade in; no movement, so centred panels keep their transform */
 @keyframes overlay-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.975); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .overlay-header {
@@ -992,7 +1000,7 @@
   overflow: hidden;
   backdrop-filter: var(--blur-lg);
   box-shadow: var(--shadow-panel);
-  animation: overlay-in var(--dur-slow) var(--ease-out);
+  animation: overlay-in var(--dur-fast) var(--ease-out);
 }
 
 .timeline-header {
@@ -1580,7 +1588,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  animation: overlay-in var(--dur-normal) var(--ease-out);
+  animation: overlay-in var(--dur-fast) var(--ease-out);
   box-shadow: var(--shadow-panel);
 }
 

@@ -97,3 +97,24 @@ export const PLANET_TYPE_LABEL: Record<PlanetType, string> = {
   lava:        "Lava world",
   rogue:       "Rogue planet",
 };
+
+// ── Distances ────────────────────────────────────────────────────────────────
+
+/**
+ * Display assumption, not a simulation rule: the default galaxy radius (120 scene
+ * units) is shown as about 50,000 light-years, roughly the Milky Way's disc.
+ */
+export const LIGHT_YEARS_PER_UNIT = 50_000 / 120;
+
+/** A distance in light-years, switching to kly above 1,000 ly. */
+export function formatLightYears(ly: number): string {
+  return ly >= 1000 ? `${formatSig(ly / 1000)} kly` : `${formatSig(ly)} ly`;
+}
+
+/** The largest 1, 2 or 5 × 10ⁿ that does not exceed `max` — a tidy scale-bar length. */
+export function niceScaleLength(max: number): number {
+  const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
+  const steps = [5, 2, 1];
+  const step = steps.find((s) => s * magnitude <= max) ?? 1;
+  return step * magnitude;
+}

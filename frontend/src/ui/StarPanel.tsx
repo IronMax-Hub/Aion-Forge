@@ -3,7 +3,7 @@ import type { Star } from "../simulation/star";
 import { temperatureToColor } from "../simulation/star";
 import { bookmarkStar, removeBookmark, isBookmarked } from "../simulation/journal";
 import type { DiscoveryItem } from "../simulation/persistence";
-import { formatSig, formatInt, formatGyr, spectralType, starName, STELLAR_CLASS_NAME } from "./format";
+import { formatSig, formatInt, formatGyr, formatLightYears, spectralType, starName, STELLAR_CLASS_NAME, LIGHT_YEARS_PER_UNIT } from "./format";
 
 interface Props {
   star: Star;
@@ -32,6 +32,9 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
   const spectral   = spectralType(star.temperature, star.classification);
   const subtitle   = spectral ? `${spectral} · ${STELLAR_CLASS_NAME[star.classification]}` : STELLAR_CLASS_NAME[star.classification];
   const lifeUsed   = Math.min(1, star.age / star.lifespan);
+  const [x, y, z]  = star.position;
+  const galactocentricLy = Math.sqrt(x * x + z * z) * LIGHT_YEARS_PER_UNIT;
+  const discHeightLy     = Math.abs(y) * LIGHT_YEARS_PER_UNIT;
 
   return (
     <div className="inspector" role="dialog" aria-label={`Star ${star.id} details`}>
@@ -73,6 +76,16 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
             <div className="progress-fill" style={{ width: `${lifeUsed * 100}%` }} />
           </div>
           <div className="progress-scale"><span>Formation</span><span>End of life</span></div>
+        </div>
+
+        <div className="inspector-section">
+          <div className="section-title">Location</div>
+          <div className="data-grid">
+            <span className="data-label">Distance from galactic centre</span>
+            <span className="data-value">{formatLightYears(galactocentricLy)}</span>
+            <span className="data-label">Height above disc plane</span>
+            <span className="data-value">{formatLightYears(discHeightLy)}</span>
+          </div>
         </div>
 
         <div className="inspector-actions">

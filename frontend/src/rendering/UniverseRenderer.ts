@@ -36,6 +36,17 @@ function makeStarSprite(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(canvas);
 }
 
+function makeReticleTexture(): THREE.CanvasTexture {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  ctx.strokeStyle = "#E0A458";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(4, 4, size - 8, size - 8);
+  return new THREE.CanvasTexture(canvas);
+}
+
 function makeNebulaTexture(r: number, g: number, b: number): THREE.CanvasTexture {
   const size = 256;
   const canvas = document.createElement("canvas");
@@ -70,44 +81,73 @@ const DUST_FRAG = /* glsl */`
   void main() {
     float d = length(gl_PointCoord - 0.5);
     if (d > 0.5) discard;
-    float alpha = (1.0 - smoothstep(0.08, 0.5, d)) * 0.48;
+    float alpha = (1.0 - smoothstep(0.08, 0.5, d)) * 0.30;
     gl_FragColor = vec4(vColor, alpha);
   }
 `;
 
-// ENH-502 / ENH-504 / ENH-508 / ENH-509: Gaussian star renderer with twinkling
+// ENH-502 / ENH-504 / ENH-509: Gaussian star renderer (steady light — no twinkle)
 const STAR_VERT = /* glsl */`
   attribute float size;
-  attribute float twinkle;
-  uniform  float uTime;
   varying  vec3  vColor;
-  varying  float vIntensity;
   void main() {
     vColor = color;
-    float t = 0.88 + 0.12 * sin(uTime * 0.55 + twinkle);
-    vIntensity = t;
     vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = size * t * (300.0 / -mvPos.z);
+    gl_PointSize = size * (300.0 / -mvPos.z);
     gl_Position  = projectionMatrix * mvPos;
   }
 `;
 
-// Three-layer Gaussian: bright core → inner glow → outer halo
-// Core is pushed toward white for authentic stellar appearance
+// Three-layer Gaussian: bright core → inner glow → faint halo
+// Core is pushed slightly toward white, as a real point source saturates a detector
 const STAR_FRAG = /* glsl */`
-  varying vec3  vColor;
-  varying float vIntensity;
+  varying vec3 vColor;
   void main() {
     float d     = length(gl_PointCoord - 0.5);
     if (d > 0.5) discard;
-    float core  = exp(-d * d * 62.0) * 3.4;
-    float inner = exp(-d * d * 17.0) * 1.1;
-    float halo  = exp(-d * d *  4.8) * 0.32;
-    float alpha = (core + inner + halo) * vIntensity;
-    vec3  col   = vColor + vec3(core * 0.30);
+    float core  = exp(-d * d * 80.0) * 2.2;
+    float inner = exp(-d * d * 22.0) * 0.55;
+    float halo  = exp(-d * d *  6.0) * 0.10;
+    float alpha = core + inner + halo;
+    vec3  col   = vColor + vec3(core * 0.15);
     gl_FragColor = vec4(col, alpha);
   }
 `;
+
+// ── Dust colour ──────────────────────────────────────────────────────────────
+// The simulation's particle colours are stylised (blue-violet arms, magenta
+// irregulars). For display, keep each particle's brightness but tint it the way
+// real galaxies look: old, warm light in the core; young, blue-white light in the
+// disc. Elliptical galaxies are old throughout, irregulars young throughout.
+
+const DUST_WARM: [number, number, number] = [1.00, 0.86, 0.68];
+const DUST_COOL: [number, number, number] = [0.78, 0.86, 1.00];
+
+function realisticDustColors(particles: GalaxyParticles): Float32Array {
+  const { positions, colors, config } = particles;
+  const out = new Float32Array(colors.length);
+  const youngBias = config.type === "elliptical" ? 0.15 : config.type === "irregular" ? 0.85 : 1.0;
+  for (let i = 0; i < colors.length; i += 3) {
+    const x = positions[i], z = positions[i + 2];
+    const dist = Math.sqrt(x * x + z * z) / config.scale;
+    const young = config.type === "irregular" ? youngBias : Math.min(1, dist * 1.8) * youngBias;
+    const lum = 0.2126 * colors[i] + 0.7152 * colors[i + 1] + 0.0722 * colors[i + 2];
+    const k = 0.35 + 0.75 * lum;
+    for (let c = 0; c < 3; c++) {
+      out[i + c] = (DUST_WARM[c] + (DUST_COOL[c] - DUST_WARM[c]) * young) * k;
+    }
+  }
+  return out;
+}
+
+/** Planetary-system view draws orbits at this many scene units per AU. */
+export const SYSTEM_UNITS_PER_AU = 2.5;
+
+/** How large one screen pixel is at the orbit target, in scene units, and which view it applies to. */
+export interface ViewScale {
+  mode: "galaxy" | "system";
+  unitsPerPixel: number;
+}
 
 // ── ENH-504: Stellar classification visual profile ────────────────────────────
 
@@ -127,7 +167,7 @@ function stellarProfile(
 
   // ENH-505: luminosity log scale with floor and ceiling
   const lumSize  = 0.75 + Math.min(4.8, Math.log10(Math.max(1, luminosity)) * 0.7);
-  const rareBoost = isRare ? 2.4 : 1.0;
+  const rareBoost = isRare ? 1.3 : 1.0;
   return {
     baseSize: lumSize * classSize * rareBoost,
     glowMult: classSize,
@@ -141,8 +181,6 @@ export class UniverseRenderer {
   private scene:    THREE.Scene;
   private camera:   THREE.PerspectiveCamera;
   private controls: OrbitControls;
-  private clock     = new THREE.Clock();        // ENH-512: accurate delta time
-  private time      = 0;
   private animFrameId = 0;
 
   private galaxyMesh:      THREE.Points | null = null;
@@ -152,8 +190,11 @@ export class UniverseRenderer {
   private systemGroup:     THREE.Group  | null = null;
   private starfieldLayers: THREE.Points[]      = [];
 
-  private starMaterial: THREE.ShaderMaterial | null = null;   // ENH-508: uTime target
   private starSprite:   THREE.CanvasTexture  | null = null;   // ENH-512: reuse texture
+  private reticleTexture: THREE.CanvasTexture | null = null;
+
+  private onViewScale: ((scale: ViewScale) => void) | null = null;
+  private lastReportedScale = 0;
 
   private raycaster  = new THREE.Raycaster();
   private starData:   Star[]   = [];
@@ -169,7 +210,7 @@ export class UniverseRenderer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-    this.renderer.setClearColor(0x000005);
+    this.renderer.setClearColor(0x050608);
     this.renderer.toneMapping         = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.9;
 
@@ -288,7 +329,7 @@ export class UniverseRenderer {
       const tex = makeNebulaTexture(def.r, def.g, def.b);
       const mat = new THREE.SpriteMaterial({
         map: tex, transparent: true,
-        opacity: 0.08 + rng() * 0.07,
+        opacity: 0.03 + rng() * 0.03,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       });
@@ -317,7 +358,7 @@ export class UniverseRenderer {
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(particles.positions, 3));
-    geo.setAttribute("color",    new THREE.BufferAttribute(particles.colors, 3));
+    geo.setAttribute("color",    new THREE.BufferAttribute(realisticDustColors(particles), 3));
 
     // ENH-501: ShaderMaterial replaces PointsMaterial — circular soft dust
     const mat = new THREE.ShaderMaterial({
@@ -347,7 +388,6 @@ export class UniverseRenderer {
     const pos    = new Float32Array(stars.length * 3);
     const col    = new Float32Array(stars.length * 3);
     const sizes  = new Float32Array(stars.length);
-    const twinkle = new Float32Array(stars.length);  // ENH-508
 
     for (let i = 0; i < stars.length; i++) {
       const s = stars[i];
@@ -363,27 +403,21 @@ export class UniverseRenderer {
       // ENH-504 / ENH-505: classification-aware size
       const { baseSize } = stellarProfile(s.temperature, s.luminosity, s.isRare);
       sizes[i] = Math.max(0.5, Math.min(12, baseSize));
-
-      // ENH-508: golden-ratio phase offset for natural twinkling spread
-      twinkle[i] = (i * 1.6180339887) % (Math.PI * 2);
     }
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     geo.setAttribute("color",    new THREE.BufferAttribute(col, 3));
     geo.setAttribute("size",     new THREE.BufferAttribute(sizes, 1));
-    geo.setAttribute("twinkle",  new THREE.BufferAttribute(twinkle, 1));
 
-    // ENH-502 / ENH-509: Gaussian three-layer glow + ENH-508 twinkling uniform
+    // ENH-502 / ENH-509: Gaussian three-layer glow
     const mat = new THREE.ShaderMaterial({
       vertexShader:   STAR_VERT,
       fragmentShader: STAR_FRAG,
-      uniforms: { uTime: { value: 0 } },
       transparent: true, depthWrite: false,
       blending: THREE.AdditiveBlending, vertexColors: true,
     });
 
-    this.starMaterial = mat;   // ENH-508: store ref for uTime updates
     this.starMesh = new THREE.Points(geo, mat);
     this.scene.add(this.starMesh);
   }
@@ -399,6 +433,7 @@ export class UniverseRenderer {
     this.onPlanetSelected = onPlanetSelected;
     this.planetData = system.planets;
     this.mode = "system";
+    this.lastReportedScale = 0;
 
     if (this.galaxyMesh)    this.galaxyMesh.visible    = false;
     if (this.starMesh)      this.starMesh.visible      = false;
@@ -429,11 +464,11 @@ export class UniverseRenderer {
     group.add(new THREE.Mesh(glowGeo, glowMat));
 
     for (const planet of system.planets) {
-      const orbitR = planet.orbitalRadius * 2.5;
+      const orbitR = planet.orbitalRadius * SYSTEM_UNITS_PER_AU;
 
       const ringGeo = new THREE.RingGeometry(orbitR - 0.005, orbitR + 0.005, 128);
       const ringMat = new THREE.MeshBasicMaterial({
-        color: 0x334466, transparent: true, opacity: 0.35, side: THREE.DoubleSide,
+        color: 0x4a525d, transparent: true, opacity: 0.45, side: THREE.DoubleSide,
       });
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.rotation.x = Math.PI / 2;
@@ -448,26 +483,17 @@ export class UniverseRenderer {
       pMesh.userData = { planetId: planet.id };
       group.add(pMesh);
 
-      if (planet.habitabilityScore > 0.4) {
-        const hGeo = new THREE.SphereGeometry(pSize * 1.8, 12, 12);
-        const hMat = new THREE.MeshBasicMaterial({
-          color: 0x44ff88, transparent: true, opacity: planet.habitabilityScore * 0.15,
-        });
-        const hMesh = new THREE.Mesh(hGeo, hMat);
-        hMesh.position.copy(pMesh.position);
-        group.add(hMesh);
-      }
-
+      // Life marker: a thin ring around the planet, stronger for more complex life
       const bio = biospheres.get(planet.id);
       if (bio?.hasLife) {
-        const lifeGeo = new THREE.SphereGeometry(pSize * 2.4, 12, 12);
-        const lifeIntensity = 0.15 + bio.complexity * 0.35;
+        const markerR = pSize * 2.2;
+        const lifeGeo = new THREE.RingGeometry(markerR, markerR + 0.008, 48);
         const lifeMat = new THREE.MeshBasicMaterial({
-          color: 0x55ff99, transparent: true, opacity: lifeIntensity,
+          color: 0x6fc49a, transparent: true, opacity: 0.35 + bio.complexity * 0.45, side: THREE.DoubleSide,
         });
         const lifeMesh = new THREE.Mesh(lifeGeo, lifeMat);
+        lifeMesh.rotation.x = Math.PI / 2;
         lifeMesh.position.copy(pMesh.position);
-        lifeMesh.userData = { lifeGlow: true, baseOpacity: lifeIntensity };
         group.add(lifeMesh);
       }
     }
@@ -477,6 +503,7 @@ export class UniverseRenderer {
     this.scene.add(group);
 
     const starPos = new THREE.Vector3(...hostStar.position);
+    this.tween = null;   // a galaxy-view camera glide must not keep steering the system view
     this.controls.target.copy(starPos);
     this.camera.position.copy(starPos.clone().add(new THREE.Vector3(0, 2, 5)));
     this.controls.autoRotate      = true;
@@ -485,6 +512,7 @@ export class UniverseRenderer {
 
   exitSystemView() {
     this.mode = "galaxy";
+    this.lastReportedScale = 0;
     if (this.galaxyMesh)    this.galaxyMesh.visible    = true;
     if (this.starMesh)      this.starMesh.visible      = true;
     if (this.highlightMesh) this.highlightMesh.visible = true;
@@ -500,17 +528,19 @@ export class UniverseRenderer {
 
   // ── Star highlight ────────────────────────────────────────────────────────
 
+  // A thin square frame drawn at constant screen size, like a telescope's target marker.
   private highlightStar(star: Star | null) {
     this.clearMesh("highlightMesh");
     if (!star) return;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(star.position), 3));
+    this.reticleTexture ??= makeReticleTexture();
     const mat = new THREE.PointsMaterial({
-      color: 0xffffff, size: 6.5, sizeAttenuation: true,
-      transparent: true, opacity: 0.55, depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      map: this.reticleTexture, size: 28, sizeAttenuation: false,
+      transparent: true, depthTest: false, depthWrite: false,
     });
     this.highlightMesh = new THREE.Points(geo, mat);
+    this.highlightMesh.renderOrder = 10;
     this.scene.add(this.highlightMesh);
   }
 
@@ -583,36 +613,37 @@ export class UniverseRenderer {
     }
   }
 
-  // ── Render loop (ENH-508: uTime, ENH-512: THREE.Clock) ───────────────────
+  // ── Render loop ───────────────────────────────────────────────────────────
 
   private startLoop() {
     const tick = () => {
       this.animFrameId = requestAnimationFrame(tick);
-      const delta = this.clock.getDelta();
-      this.time  += delta;
-
       this.stepTween();
       this.controls.update();
 
-      // ENH-508: drive twinkling uniform
-      if (this.starMaterial) {
-        this.starMaterial.uniforms.uTime.value = this.time;
-      }
-
-      // Pulse life glows in system view
-      if (this.systemGroup) {
-        this.systemGroup.traverse(obj => {
-          if (obj.userData.lifeGlow) {
-            const m = obj as THREE.Mesh;
-            (m.material as THREE.MeshBasicMaterial).opacity =
-              obj.userData.baseOpacity * (0.7 + 0.3 * Math.sin(this.time * 1.8));
-          }
-        });
-      }
+      this.reportViewScale();
 
       this.renderer.render(this.scene, this.camera);
     };
     tick();
+  }
+
+  /** Register a listener for the on-screen scale; called when zoom or view changes noticeably. */
+  setViewScaleListener(listener: ((scale: ViewScale) => void) | null) {
+    this.onViewScale = listener;
+    this.lastReportedScale = 0;
+  }
+
+  private reportViewScale() {
+    if (!this.onViewScale) return;
+    const canvasHeight = this.renderer.domElement.clientHeight;
+    if (canvasHeight === 0) return;
+    const distance = this.camera.position.distanceTo(this.controls.target);
+    const visibleHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const unitsPerPixel = visibleHeight / canvasHeight;
+    if (Math.abs(unitsPerPixel - this.lastReportedScale) / unitsPerPixel < 0.02) return;
+    this.lastReportedScale = unitsPerPixel;
+    this.onViewScale({ mode: this.mode, unitsPerPixel });
   }
 
   private onResize = () => {
@@ -629,6 +660,7 @@ export class UniverseRenderer {
 
     // ENH-512: dispose all resources
     this.starSprite?.dispose();
+    this.reticleTexture?.dispose();
     for (const layer of this.starfieldLayers) {
       this.scene.remove(layer);
       layer.geometry.dispose();

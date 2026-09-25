@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { spectralType, planetName, starName, formatSig, formatGyr, formatInt } from "../ui/format";
+import { spectralType, planetName, starName, formatSig, formatGyr, formatInt, niceScaleLength, formatLightYears } from "../ui/format";
 
 describe("spectralType", () => {
   it("types the Sun as G2 V", () => {
@@ -48,5 +48,19 @@ describe("number formatting", () => {
   it("shows short durations in Myr", () => {
     expect(formatGyr(0.05)).toBe("50 Myr");
     expect(formatGyr(10.656)).toBe("10.7 Gyr");
+  });
+});
+
+describe("scale bar", () => {
+  it("rounds down to 1, 2 or 5 × 10ⁿ", () => {
+    expect(niceScaleLength(7300)).toBe(5000);
+    expect(niceScaleLength(0.34)).toBe(0.2);
+    expect(niceScaleLength(1)).toBe(1);
+    expect(niceScaleLength(19.9)).toBe(10);
+  });
+
+  it("labels distances in ly or kly", () => {
+    expect(formatLightYears(500)).toBe("500 ly");
+    expect(formatLightYears(20000)).toBe("20 kly");
   });
 });

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { audioEngine, ambientLayer, discovery, ui, lab, civLayer } from "./audio";
 import { AudioControls } from "./ui/AudioControls";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
+import type { ViewScale } from "./rendering/UniverseRenderer";
 import { generateGalaxy, pickGalaxyType } from "./simulation/galaxy";
 import type { GalaxyType, GalaxyConfig, GalaxyParticles } from "./simulation/galaxy";
 import { createRNG } from "./simulation/rng";
@@ -29,6 +30,7 @@ import { ComparisonPanel } from "./ui/ComparisonPanel";
 import { ExperimentHistoryPanel } from "./ui/ExperimentHistoryPanel";
 import { GalleryPanel } from "./ui/GalleryPanel";
 import { SystemPanel } from "./ui/SystemPanel";
+import { ScaleBar } from "./ui/ScaleBar";
 import { starName, planetName } from "./ui/format";
 import {
   makeUniverseId, generateUniverseSummary,
@@ -91,6 +93,7 @@ export default function App() {
   const [showTimeline,         setShowTimeline]         = useState(false);
   const [currentSeed,          setCurrentSeed]          = useState<number>(0);
   const [currentSystem, setCurrentSystem] = useState<PlanetarySystem | null>(null);
+  const [viewScale,     setViewScale]     = useState<ViewScale | null>(null);
 
   // Audio — initialize on first user interaction (browser requirement)
   const audioInitRef = useRef(false);
@@ -149,6 +152,7 @@ export default function App() {
     if (!canvasRef.current) return;
     const renderer = new UniverseRenderer(canvasRef.current);
     rendererRef.current = renderer;
+    renderer.setViewScaleListener(setViewScale);
     generate(seed);
     return () => renderer.dispose();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -705,7 +709,10 @@ export default function App() {
       {/* ── Status bar ── */}
       <footer className="statusbar">
         <span className={isGenerating ? "generating" : undefined} role="status" aria-live="polite">{statusText}</span>
-        <AudioControls onFirstInteraction={initAudio} />
+        <div className="statusbar-right">
+          <ScaleBar scale={viewScale} />
+          <AudioControls onFirstInteraction={initAudio} />
+        </div>
       </footer>
     </div>
   );

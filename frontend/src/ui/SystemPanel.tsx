@@ -57,7 +57,7 @@ export function SystemPanel({ system, star, onSelectPlanet }: Props) {
         </table>
       )}
 
-      <p className="system-table-hint">Select a planet in the table or in the view to inspect it.</p>
+      {count > 0 && <p className="system-table-hint">Select a planet in the table or in the view to inspect it.</p>}
     </div>
   );
 }

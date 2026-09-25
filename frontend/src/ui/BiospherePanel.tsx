@@ -58,7 +58,7 @@ export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization 
   return (
     <div className="inspector" role="dialog" aria-label="Biosphere details">
       <div className="inspector-header">
-        <div className="inspector-dot bio-pulse" style={{ background: stageColor }} />
+        <div className="inspector-dot" style={{ background: stageColor }} />
         <div className="inspector-title-block">
           <span className="inspector-id">Biosphere</span>
           <span className="inspector-subtitle">{STAGE_LABEL[biosphere.stage]} · emerged {formatGyr(biosphere.ageGyr)} ago</span>

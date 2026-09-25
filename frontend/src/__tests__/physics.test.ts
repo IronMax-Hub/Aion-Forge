@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { createRNG } from "../simulation/rng";
-import { pickGalaxyType } from "../simulation/galaxy";
+import { pickGalaxyType, generateGalaxy } from "../simulation/galaxy";
 import { generateStarsFor } from "../simulation/star";
 import { generatePlanetsFor } from "../simulation/planet";
 import { generateBiosphere } from "../simulation/biosphere";
+import { generateCivilization } from "../simulation/civilization";
+import { buildUniverseTimeline } from "../simulation/history";
 import type { GalaxyConfig } from "../simulation/galaxy";
 
 // Physical-consistency checks: loose bounds that catch rules drifting apart,
@@ -43,6 +45,16 @@ describe("Stellar physics", () => {
   });
 });
 
+describe("Stellar life phases", () => {
+  it("never labels a star older than 0.5 Gyr a protostar", () => {
+    for (const seed of SEEDS) {
+      for (const s of generateStarsFor(makeGalaxyConfig(seed)).stars) {
+        if (s.classification === "protostar") expect(s.age).toBeLessThanOrEqual(0.5);
+      }
+    }
+  });
+});
+
 describe("Planetary physics", () => {
   it("reports gas giant temperature without a surface greenhouse", () => {
     for (const seed of SEEDS) {
@@ -65,6 +77,50 @@ describe("Planetary physics", () => {
             expect(p.habitabilityScore).toBeLessThanOrEqual(0.02);
             expect(generateBiosphere(p, star, seed).hasLife).toBe(false);
           }
+        }
+      }
+    }
+  });
+
+  it("lets strongly irradiated rocky planets keep at most a thin atmosphere", () => {
+    for (const seed of SEEDS) {
+      const { stars } = generateStarsFor(makeGalaxyConfig(seed));
+      for (const star of stars.slice(0, 300)) {
+        for (const p of generatePlanetsFor(star, seed).planets) {
+          if (p.mass > 0.05 && p.mass <= 15 && equilibriumTemp(star.luminosity, p.orbitalRadius) > 700) {
+            expect(["none", "thin"]).toContain(p.atmosphere);
+          }
+        }
+      }
+    }
+  });
+});
+
+describe("Timeline chronology", () => {
+  it("dates no event before the universe began, and no life before its planet formed", () => {
+    // The app builds one timeline per explored system, so check it the same way
+    const seed = 100000;
+    const galaxyCfg = makeGalaxyConfig(seed);
+    const galaxy = generateGalaxy(galaxyCfg);
+    const population = generateStarsFor(galaxyCfg);
+    for (const star of population.stars.slice(0, 60)) {
+      const entries = generatePlanetsFor(star, seed).planets.map((planet) => {
+        const bio = generateBiosphere(planet, star, seed);
+        const civ = bio.hasLife ? generateCivilization(bio, planet, seed) : null;
+        return { planet, star, bio, civ: civ?.civilization ?? undefined, species: civ?.species ?? undefined };
+      });
+      if (entries.length === 0) continue;
+      const timeline = buildUniverseTimeline(seed, galaxy, population, entries);
+
+      for (const e of timeline.events) expect(e.timestampGyr).toBeLessThanOrEqual(13.7);
+
+      const formedAgo = new Map<string, number>();
+      for (const e of timeline.events) {
+        if (e.category === "planetary" && e.summary.includes("coalesced")) formedAgo.set(e.subjectId, e.timestampGyr);
+      }
+      for (const e of timeline.events) {
+        if (e.category === "biological" && formedAgo.has(e.subjectId)) {
+          expect(e.timestampGyr).toBeLessThanOrEqual(formedAgo.get(e.subjectId)!);
         }
       }
     }

@@ -1,9 +1,13 @@
 import { createRNG } from "./rng";
 import type { GalaxyParticles } from "./galaxy";
 import type { StellarPopulation, Star } from "./star";
+import { MAIN_SEQUENCE_END_FRACTION, REMNANT_FRACTION } from "./star";
 import type { Planet } from "./planet";
 import type { Biosphere } from "./biosphere";
 import type { Civilization, Species } from "./civilization";
+
+/** Delay between a star's birth and its innermost planet finishing assembly, in Gyr. */
+const PLANET_FORMATION_DELAY_GYR = 0.05;
 
 // ── Event importance (AF-098) ─────────────────────────────────────────────────
 
@@ -110,7 +114,7 @@ export function recordCosmicEvents(
     const bh = blackHoles[0];
     events.push({
       id: nextId(), universeSeed: seed,
-      timestampGyr: bh.age,
+      timestampGyr: Math.max(0.001, bh.age - bh.lifespan * REMNANT_FRACTION),
       category: "cosmic",
       subjectId: `star-${bh.id}`,
       summary: `A massive star collapsed into a stellar black hole, warping spacetime in its vicinity.`,
@@ -152,10 +156,14 @@ export function recordStellarEvents(
 ): HistoricalEvent[] {
   const events: HistoricalEvent[] = [];
 
+  // Timestamps are "Gyr before present": a star born `age` ago passed a phase
+  // boundary at fraction f of its lifespan (age − f·lifespan) Gyr ago.
+  const phaseStartedAgo = (fraction: number) => Math.max(0.001, star.age - star.lifespan * fraction);
+
   // Birth
   events.push({
     id: nextId(), universeSeed: seed,
-    timestampGyr: star.age + star.lifespan * 0.9,
+    timestampGyr: star.age,
     category: "stellar",
     subjectId: `star-${star.id}`,
     summary: `A ${star.isRare ? "remarkable " : ""}${star.classification.replace("-", " ")} ignited with a mass of ${star.mass.toFixed(2)} M☉.`,
@@ -166,7 +174,7 @@ export function recordStellarEvents(
   if (star.classification === "red-giant") {
     events.push({
       id: nextId(), universeSeed: seed,
-      timestampGyr: star.age * 0.3,
+      timestampGyr: phaseStartedAgo(MAIN_SEQUENCE_END_FRACTION),
       category: "stellar",
       subjectId: `star-${star.id}`,
       summary: `The star exhausted its hydrogen fuel and expanded into a red giant, engulfing inner orbits.`,
@@ -177,7 +185,7 @@ export function recordStellarEvents(
   if (star.classification === "white-dwarf") {
     events.push({
       id: nextId(), universeSeed: seed,
-      timestampGyr: star.age * 0.15,
+      timestampGyr: phaseStartedAgo(REMNANT_FRACTION),
       category: "stellar",
       subjectId: `star-${star.id}`,
       summary: `After shedding its outer layers, the star cooled into a white dwarf — an ember of spent fusion.`,
@@ -188,7 +196,7 @@ export function recordStellarEvents(
   if (star.classification === "neutron-star") {
     events.push({
       id: nextId(), universeSeed: seed,
-      timestampGyr: star.age * 0.1,
+      timestampGyr: phaseStartedAgo(REMNANT_FRACTION),
       category: "stellar",
       subjectId: `star-${star.id}`,
       summary: `A violent supernova compressed the stellar core into a neutron star of extraordinary density.`,
@@ -199,7 +207,7 @@ export function recordStellarEvents(
   if (star.classification === "black-hole") {
     events.push({
       id: nextId(), universeSeed: seed,
-      timestampGyr: star.age * 0.08,
+      timestampGyr: phaseStartedAgo(REMNANT_FRACTION),
       category: "stellar",
       subjectId: `star-${star.id}`,
       summary: `The star's collapse exceeded the neutron degeneracy limit — a black hole formed where a star once burned.`,
@@ -218,12 +226,16 @@ export function recordPlanetaryEvents(
   seed: number
 ): HistoricalEvent[] {
   const events: HistoricalEvent[] = [];
-  const baseAge = hostStar.age * (0.6 + planet.orbitalIndex * 0.05);
+  // Planets assemble within the star's first ~100 Myr, outer ones slightly later.
+  // Later milestones are dated as time elapsed after formation, so they always
+  // follow it — and precede the earliest possible life (0.5 Gyr after the star, see biosphere.ts).
+  const formedAgo = Math.max(0.001, hostStar.age - (PLANET_FORMATION_DELAY_GYR + planet.orbitalIndex * 0.01));
+  const afterFormation = (gyr: number) => Math.max(0.001, formedAgo - gyr);
 
   // Formation
   events.push({
     id: nextId(), universeSeed: seed,
-    timestampGyr: baseAge,
+    timestampGyr: formedAgo,
     category: "planetary",
     subjectId: `planet-${planet.id}`,
     summary: `${planet.isRare ? "A rare " : "A "}${planet.type.replace("-", " ")} world coalesced at ${planet.orbitalRadius.toFixed(2)} AU from its host star.`,
@@ -234,7 +246,7 @@ export function recordPlanetaryEvents(
   if (planet.habitabilityScore > 0.7) {
     events.push({
       id: nextId(), universeSeed: seed,
-      timestampGyr: baseAge * 0.8,
+      timestampGyr: afterFormation(0.3),
       category: "planetary",
       subjectId: `planet-${planet.id}`,
       summary: `Conditions stabilized into a remarkably hospitable environment — liquid water, temperate atmosphere, abundant resources.`,
@@ -245,7 +257,7 @@ export function recordPlanetaryEvents(
   if (planet.type === "ocean") {
     events.push({
       id: nextId(), universeSeed: seed,
-      timestampGyr: baseAge * 0.7,
+      timestampGyr: afterFormation(0.2),
       category: "planetary",
       subjectId: `planet-${planet.id}`,
       summary: `Global oceans formed, covering the entire surface in liquid water.`,
@@ -256,7 +268,7 @@ export function recordPlanetaryEvents(
   if (planet.type === "lava") {
     events.push({
       id: nextId(), universeSeed: seed,
-      timestampGyr: baseAge * 0.9,
+      timestampGyr: afterFormation(0.1),
       category: "planetary",
       subjectId: `planet-${planet.id}`,
       summary: `Intense volcanic activity kept the surface molten — a world perpetually reshaped by its own interior.`,

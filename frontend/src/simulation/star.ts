@@ -44,12 +44,28 @@ function calcLifespan(mass: number): number {
 
 // ── Classification (AF-023) ───────────────────────────────────────────────────
 
+// Life phases as fractions of a star's lifespan. Shared with history.ts so the
+// timeline dates transitions at the same moments the classification uses.
+export const MAIN_SEQUENCE_END_FRACTION = 0.85;   // hydrogen exhausted → red giant
+export const REMNANT_FRACTION          = 0.95;   // envelope lost / core collapse → remnant
+
+// Pre-main-sequence contraction: a small share of the lifespan, but capped in
+// absolute time — even the lightest red dwarfs settle onto the main sequence
+// within a few hundred million years.
+const PROTOSTAR_FRACTION = 0.01;
+const PROTOSTAR_MAX_GYR  = 0.5;
+
+/** How long a star spends as a protostar before reaching the main sequence, in Gyr. */
+export function protostarDuration(lifespan: number): number {
+  return Math.min(lifespan * PROTOSTAR_FRACTION, PROTOSTAR_MAX_GYR);
+}
+
 function classify(mass: number, age: number, lifespan: number): StellarClass {
   const maturity = age / lifespan;
-  if (maturity < 0.05) return "protostar";
-  if (maturity < 0.85) return "main-sequence";
-  if (mass < 8) return maturity < 0.95 ? "red-giant" : "white-dwarf";
-  return maturity < 0.95 ? "red-giant" : mass > 25 ? "black-hole" : "neutron-star";
+  if (age < protostarDuration(lifespan)) return "protostar";
+  if (maturity < MAIN_SEQUENCE_END_FRACTION) return "main-sequence";
+  if (mass < 8) return maturity < REMNANT_FRACTION ? "red-giant" : "white-dwarf";
+  return maturity < REMNANT_FRACTION ? "red-giant" : mass > 25 ? "black-hole" : "neutron-star";
 }
 
 // ── Temperature (AF-024) ──────────────────────────────────────────────────────

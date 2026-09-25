@@ -130,10 +130,13 @@ function surfaceTemp(
 
 // ── Atmosphere (AF-043) ───────────────────────────────────────────────────────
 
+// Above this equilibrium temperature, stellar heating strips most of an atmosphere away.
+const ATMOSPHERE_LOSS_TEMP_K = 700;
+
 function pickAtmosphere(mass: number, tempK: number, rng: () => number): AtmosphereType {
   if (mass > GIANT_PLANET_MASS) return "crushing";
   if (mass < 0.05) return "none";
-  if (tempK > 700) return rng() < 0.5 ? "thin" : "none";
+  if (tempK > ATMOSPHERE_LOSS_TEMP_K) return rng() < 0.5 ? "thin" : "none";
   const r = rng();
   if (r < 0.15) return "none";
   if (r < 0.35) return "thin";
@@ -213,9 +216,11 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
 
   const planets: Planet[] = orbits.map((orbitalRadius, idx) => {
     const mass = Math.pow(10, (rng() - 0.5) * 3.5); // 0.03–32 Earth masses (log spread)
-    const atmosphere = pickAtmosphere(mass, 0, rng);  // rough pass, temp recalculated below
     // gravityStrength > 1 compresses orbits slightly, affecting temperature
     const effectiveRadius = orbitalRadius / Math.sqrt(config.gravityStrength);
+    // Stellar heating decides what atmosphere a planet can keep; greenhouse warming then follows from it
+    const equilibriumK = surfaceTemp(star.luminosity, effectiveRadius, "none", mass);
+    const atmosphere = pickAtmosphere(mass, equilibriumK, rng);
     const tempK = surfaceTemp(star.luminosity, effectiveRadius, atmosphere, mass);
     const type = pickType(tempK, mass, rng);
     const size = Math.pow(mass, 0.27) * (0.8 + rng() * 0.4);

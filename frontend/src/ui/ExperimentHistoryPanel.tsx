@@ -32,7 +32,7 @@ export function ExperimentHistoryPanel({ experiments, onClose }: Props) {
             )}
             <span className="experiment-note">{exp.comparisonSummary}</span>
             {exp.surprises.length > 0 && (
-              <span style={{ fontSize: 9, color: "rgba(255,200,80,0.7)" }}>
+              <span style={{ fontSize: "var(--fs-sm)", color: "var(--col-gold)" }}>
                 {exp.surprises.length} surprise{exp.surprises.length > 1 ? "s" : ""}
               </span>
             )}

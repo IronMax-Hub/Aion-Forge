@@ -26,19 +26,19 @@ const CATEGORY_ICON: Record<EventCategory, string> = {
 };
 
 const CATEGORY_COLOR: Record<EventCategory, string> = {
-  cosmic:         "rgba(200, 160, 255, 0.85)",
-  stellar:        "rgba(255, 220, 100, 0.85)",
-  planetary:      "rgba(100, 200, 160, 0.85)",
-  biological:     "rgba(80, 220, 120, 0.85)",
-  civilizational: "rgba(100, 180, 255, 0.85)",
+  cosmic:         "var(--col-purple)",
+  stellar:        "var(--col-gold)",
+  planetary:      "var(--col-blue)",
+  biological:     "var(--col-life)",
+  civilizational: "var(--col-amber)",
 };
 
 const IMPORTANCE_COLOR: Record<Importance, string> = {
-  minor:       "rgba(100, 120, 160, 0.5)",
-  significant: "rgba(140, 170, 220, 0.7)",
-  major:       "rgba(180, 210, 255, 0.85)",
-  historic:    "rgba(255, 200, 80, 0.9)",
-  legendary:   "rgba(255, 140, 80, 1.0)",
+  minor:       "var(--col-text-4)",
+  significant: "var(--col-text-3)",
+  major:       "var(--col-text-2)",
+  historic:    "var(--col-text-1)",
+  legendary:   "var(--col-accent)",
 };
 
 const IMPORTANCE_OPTIONS: Importance[] = ["minor", "significant", "major", "historic", "legendary"];
@@ -92,7 +92,7 @@ function EventRow({
         {expanded && (
           <div className="tl-event-detail">
             <span className="data-label">Subject</span>
-            <span className="data-value" style={{ fontSize: 9 }}>{event.subjectId}</span>
+            <span className="data-value" style={{ fontSize: "var(--fs-sm)" }}>{event.subjectId}</span>
           </div>
         )}
       </div>

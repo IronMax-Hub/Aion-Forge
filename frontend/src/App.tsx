@@ -28,6 +28,8 @@ import { RealityConfigPanel } from "./ui/RealityConfigPanel";
 import { ComparisonPanel } from "./ui/ComparisonPanel";
 import { ExperimentHistoryPanel } from "./ui/ExperimentHistoryPanel";
 import { GalleryPanel } from "./ui/GalleryPanel";
+import { SystemPanel } from "./ui/SystemPanel";
+import { starName, planetName } from "./ui/format";
 import {
   makeUniverseId, generateUniverseSummary,
   saveToGallery, loadGallery, importUniverseFromFile,
@@ -88,7 +90,7 @@ export default function App() {
   const [timelineSummary,      setTimelineSummary]      = useState<string>("");
   const [showTimeline,         setShowTimeline]         = useState(false);
   const [currentSeed,          setCurrentSeed]          = useState<number>(0);
-  const [, setCurrentSystem] = useState<PlanetarySystem | null>(null);
+  const [currentSystem, setCurrentSystem] = useState<PlanetarySystem | null>(null);
 
   // Audio — initialize on first user interaction (browser requirement)
   const audioInitRef = useRef(false);
@@ -461,7 +463,14 @@ export default function App() {
   else if (view === "system" && selectedPlanet)                             statusText = "Analyze the biosphere to search for life";
   else if (view === "biosphere" && selectedBiosphere?.hasLife)              statusText = "Analyze civilization if intelligence emerged";
 
-  const starLabel = selectedStar ? `Star #${selectedStar.id.toString().padStart(4, "0")}` : null;
+  const starLabel = selectedStar ? starName(selectedStar.id) : null;
+  const planetLabel = selectedPlanet ? planetName(selectedPlanet.hostStarId, selectedPlanet.orbitalIndex) : null;
+
+  const handleSelectPlanetFromTable = (planet: Planet) => {
+    setSelectedPlanet(planet);
+    setSelectedBiosphere(null);
+    ui.inspect();
+  };
 
   return (
     <div className="app">
@@ -489,8 +498,8 @@ export default function App() {
             <>
               <span className="breadcrumb-sep" aria-hidden="true">/</span>
               {view === "biosphere" || view === "civilization"
-                ? <button className="breadcrumb-link" onClick={handleBackToPlanet}>Planet {selectedPlanet.id + 1}</button>
-                : <span className="breadcrumb-current">Planet {selectedPlanet.id + 1}</span>}
+                ? <button className="breadcrumb-link" onClick={handleBackToPlanet}>{planetLabel}</button>
+                : <span className="breadcrumb-current">{planetLabel}</span>}
             </>
           )}
           {selectedBiosphere && (
@@ -679,10 +688,16 @@ export default function App() {
             onBack={handleBackToBiosphere}
             onClose={handleExitSystem}
           />
+        ) : view === "system" && currentSystem && selectedStar ? (
+          <SystemPanel
+            system={currentSystem}
+            star={selectedStar}
+            onSelectPlanet={handleSelectPlanetFromTable}
+          />
         ) : (
           <div className="dock-empty">
             <p className="dock-empty-title">Nothing selected</p>
-            <p className="dock-empty-body">{view === "galaxy" ? "Click a star in the galaxy to inspect it." : "Click a world in the system to inspect it."}</p>
+            <p className="dock-empty-body">Click a star in the galaxy to inspect it.</p>
           </div>
         )}
       </aside>

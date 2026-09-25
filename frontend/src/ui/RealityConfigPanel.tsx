@@ -20,12 +20,9 @@ const SLIDER_KEYS: ConfigKey[] = [
   "intelligenceModifier",
 ];
 
+/** Neutral at the default value; accent once a law has been changed. */
 function sliderColor(val: number): string {
-  if (val < 0.5)  return "#ef4444";
-  if (val < 0.8)  return "#f97316";
-  if (val <= 1.2) return "#22d3ee";
-  if (val <= 1.6) return "#a855f7";
-  return "#ec4899";
+  return Math.abs(val - 1) < 0.005 ? "var(--col-text-1)" : "var(--col-accent)";
 }
 
 function fmtVal(v: number): string { return v.toFixed(2) + "×"; }

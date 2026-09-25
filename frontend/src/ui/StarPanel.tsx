@@ -3,6 +3,7 @@ import type { Star } from "../simulation/star";
 import { temperatureToColor } from "../simulation/star";
 import { bookmarkStar, removeBookmark, isBookmarked } from "../simulation/journal";
 import type { DiscoveryItem } from "../simulation/persistence";
+import { formatSig, formatInt, formatGyr, spectralType, starName, STELLAR_CLASS_NAME } from "./format";
 
 interface Props {
   star: Star;
@@ -10,21 +11,6 @@ interface Props {
   onClose: () => void;
   onExplore: () => void;
   onSaveDiscovery?: (item: DiscoveryItem) => void;
-}
-
-const CLASS_LABEL: Record<string, string> = {
-  protostar:        "Protostar",
-  "main-sequence":  "Main Sequence",
-  "red-giant":      "Red Giant",
-  "white-dwarf":    "White Dwarf",
-  "neutron-star":   "Neutron Star",
-  "black-hole":     "Black Hole",
-};
-
-function fmt(n: number, decimals = 2) {
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + "k";
-  return n.toFixed(decimals);
 }
 
 const CAN_HAVE_PLANETS: Record<string, boolean> = {
@@ -43,14 +29,17 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
   const [r, g, b] = temperatureToColor(star.temperature);
   const starColor  = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
   const canExplore = CAN_HAVE_PLANETS[star.classification];
+  const spectral   = spectralType(star.temperature, star.classification);
+  const subtitle   = spectral ? `${spectral} · ${STELLAR_CLASS_NAME[star.classification]}` : STELLAR_CLASS_NAME[star.classification];
+  const lifeUsed   = Math.min(1, star.age / star.lifespan);
 
   return (
     <div className="inspector" role="dialog" aria-label={`Star ${star.id} details`}>
       <div className="inspector-header">
-        <div className="inspector-dot" style={{ background: starColor, boxShadow: `0 0 8px ${starColor}` }} />
+        <div className="inspector-dot" style={{ background: starColor }} />
         <div className="inspector-title-block">
-          <span className="inspector-id">Star #{star.id.toString().padStart(4, "0")}</span>
-          <span className="inspector-subtitle">{CLASS_LABEL[star.classification]}</span>
+          <span className="inspector-id">{starName(star.id)}</span>
+          <span className="inspector-subtitle">{subtitle}</span>
         </div>
         {star.isRare && <span className="inspector-badge">Rare</span>}
         <div className="inspector-controls">
@@ -59,17 +48,31 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
       </div>
 
       <div className="inspector-body">
-        <div className="data-grid">
-          <span className="data-label">Mass</span>
-          <span className="data-value">{fmt(star.mass)} M☉</span>
-          <span className="data-label">Age</span>
-          <span className="data-value">{fmt(star.age, 1)} Gyr</span>
-          <span className="data-label">Lifespan</span>
-          <span className="data-value">{fmt(star.lifespan, 1)} Gyr</span>
-          <span className="data-label">Temperature</span>
-          <span className="data-value">{star.temperature > 0 ? `${fmt(star.temperature, 0)} K` : "—"}</span>
-          <span className="data-label">Luminosity</span>
-          <span className="data-value">{star.luminosity > 0 ? `${fmt(star.luminosity, 2)} L☉` : "—"}</span>
+        <div className="inspector-section">
+          <div className="section-title">Physical properties</div>
+          <div className="data-grid">
+            <span className="data-label">Mass</span>
+            <span className="data-value">{formatSig(star.mass)} M☉</span>
+            <span className="data-label">Luminosity</span>
+            <span className="data-value">{star.luminosity > 0 ? `${formatSig(star.luminosity)} L☉` : "—"}</span>
+            <span className="data-label">Effective temperature</span>
+            <span className="data-value">{star.temperature > 0 ? `${formatInt(star.temperature)} K` : "—"}</span>
+            <span className="data-label">Age</span>
+            <span className="data-value">{formatGyr(star.age)}</span>
+            <span className="data-label">Lifetime</span>
+            <span className="data-value">{formatGyr(star.lifespan)}</span>
+          </div>
+        </div>
+
+        <div className="inspector-section">
+          <div className="section-head">
+            <span className="section-title">Evolutionary state</span>
+            <span className="section-note">{Math.round(lifeUsed * 100)}% of lifetime</span>
+          </div>
+          <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(lifeUsed * 100)} aria-label="Share of lifetime elapsed">
+            <div className="progress-fill" style={{ width: `${lifeUsed * 100}%` }} />
+          </div>
+          <div className="progress-scale"><span>Formation</span><span>End of life</span></div>
         </div>
 
         <div className="inspector-actions">
@@ -98,8 +101,8 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
                 category: "favorite-stars",
                 universeSeed: galaxySeed,
                 subjectId: `star-${star.id}`,
-                label: `Star #${star.id.toString().padStart(4, "0")}`,
-                description: `${star.classification.replace("-", " ")} — ${star.mass.toFixed(2)} M☉, ${Math.round(star.temperature)} K`,
+                label: starName(star.id),
+                description: `${subtitle} — ${formatSig(star.mass)} M☉, ${formatInt(star.temperature)} K`,
                 savedAt: Date.now(),
               })}
             >

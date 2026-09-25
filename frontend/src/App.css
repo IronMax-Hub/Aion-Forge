@@ -462,25 +462,27 @@
 /* Inspector data grid */
 .data-grid {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
   column-gap: var(--sp-5);
   row-gap: var(--sp-2);
   align-items: baseline;
 }
 
 .data-label {
-  font-size: var(--fs-2xs);
-  letter-spacing: var(--ls-wider);
-  color: var(--col-text-4);
-  text-align: right;
-  white-space: nowrap;
+  font-size: var(--fs-base);
+  color: var(--col-text-3);
 }
 
 .data-value {
   font-size: var(--fs-base);
-  color: var(--col-text-2);
+  color: var(--col-text-1);
+  text-align: right;
+  white-space: nowrap;
   font-family: var(--font-mono); font-variant-numeric: tabular-nums;
 }
+
+.data-value.data-text { font-family: var(--font-sans); }
+.data-value.adverse   { color: var(--col-danger); }
 
 /* Inspector section header */
 .inspector-section {
@@ -490,11 +492,115 @@
 }
 
 .section-title {
-  font-size: var(--fs-2xs);
-  letter-spacing: var(--ls-wider);
-  color: var(--col-text-4);
-  padding-bottom: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--col-text-3);
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.section-note {
+  font-size: var(--fs-sm);
+  color: var(--col-text-3);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
+
+/* Progress and stage tracks */
+.progress-track {
+  height: 6px;
+  background: var(--col-card);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--col-text-2);
+  border-radius: 3px;
+}
+
+.progress-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-sm);
+  color: var(--col-text-3);
+}
+
+.stage-track {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.stage-step          { height: 6px; border-radius: 1px; background: var(--col-card); }
+.stage-step.passed   { background: var(--col-text-4); }
+.stage-step.current  { background: var(--col-accent); }
+
+/* System table */
+.system-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-base);
+}
+
+.system-table th,
+.system-table td {
+  padding: var(--sp-3) var(--sp-2);
   border-bottom: 1px solid var(--col-border-1);
+  text-align: left;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.system-table td:nth-child(2) { white-space: normal; }
+
+.system-table th:first-child,
+.system-table td:first-child { padding-left: var(--sp-5); }
+.system-table th:last-child,
+.system-table td:last-child  { padding-right: var(--sp-5); }
+
+.system-table thead th {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--col-text-3);
+}
+
+.system-table td { color: var(--col-text-2); }
+
+.system-table .num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--col-text-1);
+}
+
+.system-table tbody tr:hover { background: var(--col-hover); }
+
+.system-table-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-family: var(--font-mono);
+  color: var(--col-text-1);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--col-border-4);
+  text-underline-offset: 3px;
+}
+
+.system-table-link:hover { text-decoration-color: var(--col-text-2); }
+
+.system-table-hint {
+  margin: 0;
+  padding: var(--sp-5) var(--sp-6);
+  font-size: var(--fs-sm);
+  color: var(--col-text-3);
 }
 
 /* Inspector actions */
@@ -529,14 +635,13 @@
 }
 
 .trait-label {
-  font-size: var(--fs-2xs);
-  letter-spacing: var(--ls-wider);
-  color: var(--col-text-4);
+  font-size: var(--fs-base);
+  color: var(--col-text-2);
   white-space: nowrap;
 }
 
 .trait-bar-track {
-  height: 2px;
+  height: 4px;
   background: var(--col-border-2);
   border-radius: 2px;
   overflow: hidden;
@@ -544,13 +649,14 @@
 
 .trait-bar-fill {
   height: 100%;
+  background: var(--col-text-2);
   border-radius: 2px;
   transition: width var(--dur-slow) var(--ease-out);
 }
 
 .trait-value {
-  font-size: var(--fs-xs);
-  color: var(--col-text-3);
+  font-size: var(--fs-base);
+  color: var(--col-text-1);
   font-family: var(--font-mono); font-variant-numeric: tabular-nums;
   text-align: right;
   min-width: 30px;
@@ -659,8 +765,9 @@
 .bio-ext-title    { font-size: var(--fs-2xs); letter-spacing: var(--ls-wider); color: var(--col-text-4); margin-bottom: var(--sp-1); }
 .bio-ext-row      { display: grid; grid-template-columns: 1fr auto auto; column-gap: var(--sp-3); align-items: baseline; font-size: var(--fs-sm); }
 .bio-ext-cause    { color: var(--col-text-3); }
-.bio-ext-severity { font-size: var(--fs-sm); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.bio-ext-time     { font-size: var(--fs-xs); color: var(--col-text-4); }
+.bio-ext-severity { font-size: var(--fs-sm); color: var(--col-text-2); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.bio-ext-severity.severe { color: var(--col-danger); }
+.bio-ext-time     { font-size: var(--fs-sm); color: var(--col-text-3); }
 
 /* ── Civilization milestones ──────────────────────────────────────────────── */
 
@@ -687,8 +794,10 @@
 .civ-traits-title   { font-size: var(--fs-2xs); letter-spacing: var(--ls-wider); color: var(--col-text-4); margin-top: var(--sp-2); margin-bottom: 0; }
 .civ-pct            { font-size: var(--fs-xs); width: 30px; text-align: right; flex-shrink: 0; color: var(--col-text-3); }
 .civ-milestone-row  { display: grid; grid-template-columns: 12px 1fr auto; column-gap: var(--sp-2); align-items: baseline; font-size: var(--fs-sm); }
-.civ-milestone-icon { font-size: var(--fs-2xs); text-align: center; }
-.civ-milestone-label{ font-size: var(--fs-xs); letter-spacing: var(--ls-tight); }
+.civ-milestone-icon { font-size: var(--fs-2xs); text-align: center; color: var(--col-text-4); }
+.civ-milestone-label{ font-size: var(--fs-sm); color: var(--col-text-2); }
+.civ-milestone-icon.adverse,
+.civ-milestone-label.adverse { color: var(--col-danger); }
 
 /* ── Panel close / back buttons (backward compat) ────────────────────────── */
 .panel-close {

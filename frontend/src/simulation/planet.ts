@@ -90,7 +90,7 @@ function planetCount(starMass: number, rng: () => number): number {
 }
 
 // Above this mass (Earth masses) a planet is a gas or ice giant with no solid surface.
-const GIANT_PLANET_MASS = 15;
+export const GIANT_PLANET_MASS = 15;
 
 // ── Planet type from orbital position (AF-041) ────────────────────────────────
 // Temperature-driven: close → lava/desert, habitable zone → rocky/ocean, far → ice/gas

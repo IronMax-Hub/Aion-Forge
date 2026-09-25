@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { UniverseConfig, ConfigWarning } from "../simulation/config";
 import { CONFIG_LABELS, CONFIG_DESCRIPTIONS, PRESETS, validateConfig } from "../simulation/config";
 import { lab } from "../audio";
@@ -32,7 +32,11 @@ function fmtVal(v: number): string { return v.toFixed(2) + "×"; }
 
 export function RealityConfigPanel({ config, onChange, onClose }: Props) {
   const [draft, setDraft] = useState<UniverseConfig>(config);
-  useEffect(() => { setDraft(config); }, [config]);
+  const [syncedConfig, setSyncedConfig] = useState<UniverseConfig>(config);
+  if (config !== syncedConfig) {
+    setSyncedConfig(config);
+    setDraft(config);
+  }
 
   const warnings: ConfigWarning[] = validateConfig(draft);
 

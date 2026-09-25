@@ -80,7 +80,7 @@ function generateElliptical(rng: RNG, count: number, scale: number): GalaxyParti
 
   for (let i = 0; i < count; i++) {
     // Reject sampling for spherical shell distribution
-    let x = 0, y = 0, z = 0;
+    let x: number, y: number, z: number;
     do {
       x = (rng() - 0.5) * 2;
       y = (rng() - 0.5) * 2;

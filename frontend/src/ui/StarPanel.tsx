@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { Star } from "../simulation/star";
 import { temperatureToColor } from "../simulation/star";
 import { bookmarkStar, removeBookmark, isBookmarked } from "../simulation/journal";
@@ -34,10 +34,6 @@ const CAN_HAVE_PLANETS: Record<string, boolean> = {
 
 export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscovery }: Props) {
   const [bookmarked, setBookmarked] = useState(() => isBookmarked(star.id, galaxySeed));
-
-  useEffect(() => {
-    setBookmarked(isBookmarked(star.id, galaxySeed));
-  }, [star.id, galaxySeed]);
 
   const toggleBookmark = () => {
     if (bookmarked) { removeBookmark(star.id, galaxySeed); setBookmarked(false); }

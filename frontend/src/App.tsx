@@ -139,7 +139,6 @@ export default function App() {
         cachedSnapshotRef.current = buildSnapshot(s, config, population);
       }, 0);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [universeConfig]);
 
   useEffect(() => {
@@ -220,7 +219,6 @@ export default function App() {
     snapshotRef.current = snap;
     setBaselineSnapshot(snap);
     ui.baseline();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSeed, universeConfig]);
 
   const handleCompare = useCallback(() => {
@@ -231,7 +229,6 @@ export default function App() {
     const cmp = compareUniverses(baselineSnapshot, expSnap);
     setComparison(cmp);
     lab.compareReveal();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baselineSnapshot, currentSeed, universeConfig]);
 
   const handleSaveExperiment = useCallback(() => {
@@ -280,7 +277,6 @@ export default function App() {
     };
     saveToGallery(meta);
     refreshGallery();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSeed, universeConfig, galaxyType, refreshGallery]);
 
   const handleLoadFromGallery = useCallback((meta: UniverseMeta) => {
@@ -289,7 +285,6 @@ export default function App() {
     setShowGallery(false);
     ui.restore();
     generate(meta.seed, meta.config);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generate]);
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -490,7 +485,7 @@ export default function App() {
                   initAudio();
                   const opening = !showHistoryPanel;
                   setShowHistoryPanel((v) => !v); setShowConfigPanel(false); setShowGallery(false);
-                  opening ? ui.panelOpen() : ui.panelClose();
+                  if (opening) ui.panelOpen(); else ui.panelClose();
                 }}>
                   {showHistoryPanel ? "CLOSE LOG" : "EXPERIMENT LOG"}
                 </button>
@@ -507,7 +502,7 @@ export default function App() {
                   initAudio();
                   const opening = !showGallery;
                   setShowGallery((v) => !v); setShowConfigPanel(false); setShowHistoryPanel(false);
-                  opening ? ui.panelOpen() : ui.panelClose();
+                  if (opening) ui.panelOpen(); else ui.panelClose();
                 }}>
                   {showGallery ? "CLOSE LIBRARY" : `LIBRARY (${gallery.length})`}
                 </button>
@@ -605,6 +600,7 @@ export default function App() {
 
       {view === "galaxy" && selectedStar && (
         <StarPanel
+          key={`${currentSeed}-${selectedStar.id}`}
           star={selectedStar}
           galaxySeed={currentSeed}
           onClose={() => setSelectedStar(null)}

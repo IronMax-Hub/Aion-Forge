@@ -120,20 +120,20 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
   events = events.filter((e) => IMPORTANCE_RANK[e.importance] >= IMPORTANCE_RANK[minImportance]);
 
   const replayEvents = [...events].reverse();
+  // A replay whose filtered list has run out is treated as paused.
+  const replayActive = replayPlaying && replayIndex < replayEvents.length;
 
   useEffect(() => {
-    if (!replayMode || !replayPlaying) return;
-    if (replayIndex >= replayEvents.length) {
-      setReplayPlaying(false);
-      return;
-    }
+    if (!replayMode || !replayActive) return;
     const delay = 1000 / replaySpeed;
     replayRef.current = setTimeout(() => {
-      setReplayIndex((i) => i + 1);
+      const next = replayIndex + 1;
+      setReplayIndex(next);
+      if (next >= replayEvents.length) setReplayPlaying(false);
       tlAudio.replayTick();
     }, delay);
     return () => { if (replayRef.current) clearTimeout(replayRef.current); };
-  }, [replayMode, replayPlaying, replayIndex, replayEvents.length, replaySpeed]);
+  }, [replayMode, replayActive, replayIndex, replayEvents.length, replaySpeed]);
 
   function startReplay() {
     setReplayMode(true);
@@ -174,9 +174,9 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
                 className="tl-filter-btn"
                 onClick={() => setReplayPlaying((p) => !p)}
                 disabled={replayIndex >= replayEvents.length}
-                aria-label={replayPlaying ? "Pause replay" : "Play replay"}
+                aria-label={replayActive ? "Pause replay" : "Play replay"}
               >
-                {replayPlaying ? "⏸" : "▶"}
+                {replayActive ? "⏸" : "▶"}
               </button>
               {SPEEDS.map((s) => (
                 <button
@@ -237,7 +237,7 @@ export function TimelinePanel({ timeline, summary, onClose }: Props) {
       )}
 
       <div className="timeline-events">
-        {displayedEvents.length === 0 && !replayPlaying && (
+        {displayedEvents.length === 0 && !replayActive && (
           <div className="empty-state">
             <div className="empty-state-icon">∅</div>
             <div className="empty-state-title">

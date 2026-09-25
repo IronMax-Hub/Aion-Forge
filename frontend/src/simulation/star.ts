@@ -131,7 +131,7 @@ function posSpiral(rng: () => number, scale: number): [number, number, number] {
 }
 
 function posElliptical(rng: () => number, scale: number): [number, number, number] {
-  let x = 0, y = 0, z = 0;
+  let x: number, y: number, z: number;
   do { x = (rng() - 0.5) * 2; y = (rng() - 0.5) * 2; z = (rng() - 0.5) * 2; }
   while (x * x + y * y + z * z > 1);
   const r = Math.pow(rng(), 0.6) * scale;

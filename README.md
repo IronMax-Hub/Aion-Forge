@@ -94,13 +94,28 @@ Aion Forge is about discovery, not domination.
 
 ## Getting Started
 
+Aion Forge has two parts: the frontend (the app itself) and a small local API that saves your Library, discoveries, experiment log and star bookmarks to MySQL.
+
+**1. Database and API** (needs a running MySQL server and a database named `Aion-Forge`):
+
+```bash
+cd backend
+cp .env.example .env    # then set DB_USER and DB_PASSWORD in .env
+npm install
+npm run dev             # API on http://127.0.0.1:4000; tables are created on first start
+```
+
+**2. Frontend**, in a second terminal:
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:5173` in your browser. The frontend forwards `/api` requests to the backend. If the backend is not running, the universe still generates and explores normally, but the status bar reports that saving is unavailable.
+
+Saved universes store the seed and physical parameters rather than every star and planet, since those regenerate identically from the seed. Data saved in the browser by earlier versions is copied to the database once, on first start.
 
 Enter a seed and click **Generate**, or click **Random seed** to generate a universe.
 
@@ -265,8 +280,10 @@ A complete visual transformation from particle simulation to astronomical experi
 * Vite
 * Web Audio API
 * Three.js — galaxy, star, and system rendering
-* GLSL — custom vertex/fragment shaders for Gaussian star glow, circular dust particles, twinkling
-* Vitest — 22-test determinism suite
+* GLSL — custom vertex/fragment shaders for Gaussian star glow and circular dust particles
+* Node.js + Express + mysql2 — local API for saved data (`backend/`)
+* MySQL — Library, discoveries, experiment log, star bookmarks
+* Vitest — determinism, physics and formatting tests (frontend); record validation tests (backend)
 
 ---
 

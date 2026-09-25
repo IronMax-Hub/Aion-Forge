@@ -196,23 +196,6 @@ export interface ExperimentRecord {
   note: string;
 }
 
-const STORAGE_KEY = "aion-forge-experiments";
-
-export function saveExperiment(record: ExperimentRecord): void {
-  const existing = loadExperiments();
-  existing.unshift(record);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(existing.slice(0, 20)));
-}
-
-export function loadExperiments(): ExperimentRecord[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as ExperimentRecord[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 export function makeExperimentRecord(
   cmp: UniverseComparison,
   note = ""

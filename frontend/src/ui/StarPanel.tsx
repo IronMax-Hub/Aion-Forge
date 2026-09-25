@@ -1,7 +1,5 @@
-import { useState } from "react";
 import type { Star } from "../simulation/star";
 import { temperatureToColor } from "../simulation/star";
-import { bookmarkStar, removeBookmark, isBookmarked } from "../simulation/journal";
 import type { DiscoveryItem } from "../simulation/persistence";
 import { formatSig, formatInt, formatGyr, formatLightYears, spectralType, starName, STELLAR_CLASS_NAME, LIGHT_YEARS_PER_UNIT } from "./format";
 
@@ -11,6 +9,8 @@ interface Props {
   onClose: () => void;
   onExplore: () => void;
   onSaveDiscovery?: (item: DiscoveryItem) => void;
+  bookmarked: boolean;
+  onToggleBookmark: () => void;
 }
 
 const CAN_HAVE_PLANETS: Record<string, boolean> = {
@@ -18,13 +18,7 @@ const CAN_HAVE_PLANETS: Record<string, boolean> = {
   "white-dwarf": true, "neutron-star": false, "black-hole": false,
 };
 
-export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscovery }: Props) {
-  const [bookmarked, setBookmarked] = useState(() => isBookmarked(star.id, galaxySeed));
-
-  const toggleBookmark = () => {
-    if (bookmarked) { removeBookmark(star.id, galaxySeed); setBookmarked(false); }
-    else            { bookmarkStar(star, galaxySeed);      setBookmarked(true);  }
-  };
+export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscovery, bookmarked, onToggleBookmark }: Props) {
 
   const [r, g, b] = temperatureToColor(star.temperature);
   const starColor  = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
@@ -100,7 +94,7 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
           </button>
           <button
             className={`inspector-btn${bookmarked ? " bookmarked" : ""}`}
-            onClick={toggleBookmark}
+            onClick={onToggleBookmark}
             aria-label={bookmarked ? "Remove bookmark" : "Bookmark star"}
           >
             {bookmarked ? "★" : "☆"}

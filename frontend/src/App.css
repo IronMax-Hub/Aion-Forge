@@ -160,6 +160,15 @@
 
 /* ── Status bar ───────────────────────────────────────────────────────────── */
 
+.statusbar-error {
+  flex: 1;
+  min-width: 0;
+  color: var(--col-danger);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .statusbar-right {
   display: flex;
   align-items: center;

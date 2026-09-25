@@ -1,0 +1,25 @@
+{
+  "name": "aion-forge-backend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Local API that stores Aion Forge's saved data in MySQL",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "start": "tsx --env-file=.env src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "mysql2": "^3.24.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.4",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.11"
+  }
+}

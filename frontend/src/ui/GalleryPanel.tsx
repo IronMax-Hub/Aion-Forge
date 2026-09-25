@@ -1,16 +1,15 @@
 import { useState } from "react";
 import type { UniverseMeta, DiscoveryItem } from "../simulation/persistence";
-import {
-  removeFromGallery, toggleFavorite, exportUniverse,
-  getFeaturedUniverses, COLLECTION_LABEL, removeDiscovery,
-  saveToGallery,
-} from "../simulation/persistence";
+import { exportUniverse, getFeaturedUniverses, COLLECTION_LABEL } from "../simulation/persistence";
 
 interface Props {
   gallery: UniverseMeta[];
   discoveries: DiscoveryItem[];
   onLoad: (meta: UniverseMeta) => void;
-  onGalleryChange: () => void;
+  onToggleFavorite: (meta: UniverseMeta) => void;
+  onRename: (snapshotId: string, name: string) => void;
+  onRemove: (snapshotId: string) => void;
+  onRemoveDiscovery: (id: string) => void;
   onClose: () => void;
 }
 
@@ -26,16 +25,14 @@ function timeSince(ts: number): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export function GalleryPanel({ gallery, discoveries, onLoad, onGalleryChange, onClose }: Props) {
+export function GalleryPanel({ gallery, discoveries, onLoad, onToggleFavorite, onRename, onRemove, onRemoveDiscovery, onClose }: Props) {
   const [tab, setTab]       = useState<Tab>("gallery");
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
   const featured = getFeaturedUniverses(gallery);
 
-  function handleToggleFavorite(id: string) { toggleFavorite(id); onGalleryChange(); }
-  function handleRemove(id: string)          { removeFromGallery(id); onGalleryChange(); }
-  function handleExport(meta: UniverseMeta)  { exportUniverse(meta); }
+  function handleExport(meta: UniverseMeta) { exportUniverse(meta); }
 
   const displayList = tab === "featured" ? featured : gallery;
 
@@ -84,7 +81,7 @@ export function GalleryPanel({ gallery, discoveries, onLoad, onGalleryChange, on
                     <span className="discovery-meta">{timeSince(item.savedAt)}</span>
                     <button
                       className="discovery-del"
-                      onClick={() => { removeDiscovery(item.id); onGalleryChange(); }}
+                      onClick={() => onRemoveDiscovery(item.id)}
                       aria-label="Remove discovery"
                     >✕</button>
                   </div>
@@ -124,11 +121,8 @@ export function GalleryPanel({ gallery, discoveries, onLoad, onGalleryChange, on
                       autoFocus
                       onChange={(e) => setEditName(e.target.value)}
                       onBlur={() => {
-                        if (editName.trim()) {
-                          meta.name = editName.trim();
-                          saveToGallery(meta);
-                          onGalleryChange();
-                        }
+                        const name = editName.trim();
+                        if (name && name !== meta.name) onRename(meta.snapshotId, name);
                         setEditId(null);
                       }}
                       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
@@ -146,7 +140,7 @@ export function GalleryPanel({ gallery, discoveries, onLoad, onGalleryChange, on
                 <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
                   <button
                     className={`gallery-icon-btn${meta.isFavorite ? " active" : ""}`}
-                    onClick={() => handleToggleFavorite(meta.snapshotId)}
+                    onClick={() => onToggleFavorite(meta)}
                     title={meta.isFavorite ? "Remove from favorites" : "Mark as favorite"}
                     aria-label="Toggle favorite"
                   >★</button>
@@ -158,7 +152,7 @@ export function GalleryPanel({ gallery, discoveries, onLoad, onGalleryChange, on
                   >↓</button>
                   <button
                     className="gallery-icon-btn danger"
-                    onClick={() => handleRemove(meta.snapshotId)}
+                    onClick={() => onRemove(meta.snapshotId)}
                     title="Remove from library"
                     aria-label="Remove"
                   >✕</button>

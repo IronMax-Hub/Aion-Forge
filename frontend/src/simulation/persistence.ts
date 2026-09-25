@@ -113,66 +113,6 @@ export function generateUniverseSummary(meta: Omit<UniverseMeta, "summary" | "na
   return `${galaxyDesc}${planetDesc}. ${lifeDesc}, and ${civDesc}. ${legacyDesc}`;
 }
 
-// ── localStorage persistence ──────────────────────────────────────────────────
-
-const GALLERY_KEY    = "aion-forge-gallery";
-const DISCOVERY_KEY  = "aion-forge-discoveries";
-
-export function saveToGallery(meta: UniverseMeta): void {
-  const existing = loadGallery();
-  const idx = existing.findIndex((m) => m.snapshotId === meta.snapshotId);
-  if (idx >= 0) existing[idx] = meta;
-  else existing.unshift(meta);
-  localStorage.setItem(GALLERY_KEY, JSON.stringify(existing.slice(0, 50)));
-}
-
-export function loadGallery(): UniverseMeta[] {
-  try {
-    const raw = localStorage.getItem(GALLERY_KEY);
-    return raw ? (JSON.parse(raw) as UniverseMeta[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function removeFromGallery(snapshotId: string): void {
-  const existing = loadGallery().filter((m) => m.snapshotId !== snapshotId);
-  localStorage.setItem(GALLERY_KEY, JSON.stringify(existing));
-}
-
-export function toggleFavorite(snapshotId: string): void {
-  const gallery = loadGallery();
-  const entry = gallery.find((m) => m.snapshotId === snapshotId);
-  if (entry) {
-    entry.isFavorite = !entry.isFavorite;
-    localStorage.setItem(GALLERY_KEY, JSON.stringify(gallery));
-  }
-}
-
-// ── Discovery collection persistence ─────────────────────────────────────────
-
-export function saveDiscovery(item: DiscoveryItem): void {
-  const existing = loadDiscoveries();
-  if (!existing.find((d) => d.id === item.id)) {
-    existing.unshift(item);
-    localStorage.setItem(DISCOVERY_KEY, JSON.stringify(existing.slice(0, 100)));
-  }
-}
-
-export function loadDiscoveries(): DiscoveryItem[] {
-  try {
-    const raw = localStorage.getItem(DISCOVERY_KEY);
-    return raw ? (JSON.parse(raw) as DiscoveryItem[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function removeDiscovery(id: string): void {
-  const existing = loadDiscoveries().filter((d) => d.id !== id);
-  localStorage.setItem(DISCOVERY_KEY, JSON.stringify(existing));
-}
-
 // ── Export / import (AF-137, AF-138) ─────────────────────────────────────────
 
 export function exportUniverse(meta: UniverseMeta): void {

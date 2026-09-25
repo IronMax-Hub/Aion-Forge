@@ -18,7 +18,7 @@ import { buildUniverseTimeline, summarizeTimeline } from "./simulation/history";
 import type { UniverseTimeline } from "./simulation/history";
 import { makeConfig, DEFAULT_CONFIG, CONFIG_LABELS } from "./simulation/config";
 import type { UniverseConfig } from "./simulation/config";
-import { compareUniverses, makeExperimentRecord, saveExperiment, loadExperiments } from "./simulation/experiment";
+import { compareUniverses, makeExperimentRecord } from "./simulation/experiment";
 import type { UniverseSnapshot, UniverseComparison, ExperimentRecord } from "./simulation/experiment";
 import { StarPanel } from "./ui/StarPanel";
 import { PlanetPanel } from "./ui/PlanetPanel";
@@ -32,12 +32,12 @@ import { GalleryPanel } from "./ui/GalleryPanel";
 import { SystemPanel } from "./ui/SystemPanel";
 import { ScaleBar } from "./ui/ScaleBar";
 import { starName, planetName } from "./ui/format";
-import {
-  makeUniverseId, generateUniverseSummary,
-  saveToGallery, loadGallery, importUniverseFromFile,
-  saveDiscovery, loadDiscoveries,
-} from "./simulation/persistence";
+import { makeUniverseId, generateUniverseSummary, importUniverseFromFile } from "./simulation/persistence";
 import type { UniverseMeta, DiscoveryItem } from "./simulation/persistence";
+import { makeJournalEntry } from "./simulation/journal";
+import type { JournalEntry } from "./simulation/journal";
+import * as api from "./api/client";
+import { importLocalDataOnce } from "./api/importLocalData";
 import "./App.css";
 
 const PARTICLE_COUNT = 60000;
@@ -55,6 +55,10 @@ function buildGalaxyConfig(seed: number, universeConfig: UniverseConfig): Galaxy
 }
 
 type View = "galaxy" | "system" | "biosphere" | "civilization";
+
+function storageErrorMessage(err: unknown): string {
+  return err instanceof api.StorageError ? err.message : "Saving failed";
+}
 
 export default function App() {
   const canvasRef          = useRef<HTMLCanvasElement>(null);
@@ -78,9 +82,12 @@ export default function App() {
   const [showHistoryPanel,  setShowHistoryPanel]  = useState(false);
   const [baselineSnapshot,  setBaselineSnapshot]  = useState<UniverseSnapshot | null>(null);
   const [comparison,        setComparison]        = useState<UniverseComparison | null>(null);
-  const [experiments,       setExperiments]       = useState<ExperimentRecord[]>(() => loadExperiments());
-  const [gallery,           setGallery]           = useState<UniverseMeta[]>(() => loadGallery());
-  const [discoveries,       setDiscoveries]       = useState<DiscoveryItem[]>(() => loadDiscoveries());
+  // Saved data lives in MySQL behind the local API; these hold the latest copy
+  const [experiments,       setExperiments]       = useState<ExperimentRecord[]>([]);
+  const [gallery,           setGallery]           = useState<UniverseMeta[]>([]);
+  const [discoveries,       setDiscoveries]       = useState<DiscoveryItem[]>([]);
+  const [bookmarks,         setBookmarks]         = useState<JournalEntry[]>([]);
+  const [storageError,      setStorageError]      = useState<string | null>(null);
   const [showGallery,       setShowGallery]       = useState(false);
 
   const [selectedStar,         setSelectedStar]         = useState<Star | null>(null);
@@ -239,18 +246,48 @@ export default function App() {
     lab.compareReveal();
   }, [baselineSnapshot, currentSeed, universeConfig]);
 
+  /** Run a database operation; on failure show why in the status bar instead of saving. */
+  const withStorage = useCallback(async (operation: () => Promise<void>) => {
+    try {
+      await operation();
+      setStorageError(null);
+    } catch (err) {
+      setStorageError(storageErrorMessage(err));
+    }
+  }, []);
+
+  const refreshGallery = useCallback(async () => {
+    const [universes, found] = await Promise.all([api.fetchUniverses(), api.fetchDiscoveries()]);
+    setGallery(universes);
+    setDiscoveries(found);
+  }, []);
+
+  // Load saved data once, after importing any data this browser saved before the database existed
+  useEffect(() => {
+    let cancelled = false;
+    importLocalDataOnce()
+      .then(() => Promise.all([api.fetchUniverses(), api.fetchDiscoveries(), api.fetchExperiments(), api.fetchBookmarks()]))
+      .then(([universes, found, log, marks]) => {
+        if (cancelled) return;
+        setGallery(universes);
+        setDiscoveries(found);
+        setExperiments(log);
+        setBookmarks(marks);
+        setStorageError(null);
+      })
+      .catch((err) => { if (!cancelled) setStorageError(storageErrorMessage(err)); });
+    return () => { cancelled = true; };
+  }, []);
+
   const handleSaveExperiment = useCallback(() => {
     if (!comparison) return;
     const record = makeExperimentRecord(comparison);
-    saveExperiment(record);
-    setExperiments(loadExperiments());
-    setComparison(null);
-  }, [comparison]);
-
-  const refreshGallery = useCallback(() => {
-    setGallery(loadGallery());
-    setDiscoveries(loadDiscoveries());
-  }, []);
+    void withStorage(async () => {
+      await api.saveExperiment(record);
+      setExperiments(await api.fetchExperiments());
+      setComparison(null);
+    });
+  }, [comparison, withStorage]);
 
   const handleSaveToGallery = useCallback(() => {
     if (!populationRef.current) return;
@@ -283,9 +320,11 @@ export default function App() {
       notes: "",
       isFavorite: false,
     };
-    saveToGallery(meta);
-    refreshGallery();
-  }, [currentSeed, universeConfig, galaxyType, refreshGallery]);
+    void withStorage(async () => {
+      await api.saveUniverse(meta);
+      await refreshGallery();
+    });
+  }, [currentSeed, universeConfig, galaxyType, refreshGallery, withStorage]);
 
   const handleLoadFromGallery = useCallback((meta: UniverseMeta) => {
     setUniverseConfig(meta.config);
@@ -299,17 +338,53 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
     const meta = await importUniverseFromFile(file);
-    if (meta) {
-      saveToGallery(meta);
-      refreshGallery();
-    }
     e.target.value = "";
-  }, [refreshGallery]);
+    if (!meta) { setStorageError("That file is not a saved Aion Forge universe"); return; }
+    await withStorage(async () => {
+      await api.saveUniverse(meta);
+      await refreshGallery();
+    });
+  }, [refreshGallery, withStorage]);
 
   const handleSaveDiscovery = useCallback((item: DiscoveryItem) => {
-    saveDiscovery(item);
-    refreshGallery();
-  }, [refreshGallery]);
+    void withStorage(async () => {
+      await api.saveDiscovery(item);
+      await refreshGallery();
+    });
+  }, [refreshGallery, withStorage]);
+
+  const handleToggleFavorite = (meta: UniverseMeta) => void withStorage(async () => {
+    await api.updateUniverse(meta.snapshotId, { isFavorite: !meta.isFavorite });
+    await refreshGallery();
+  });
+
+  const handleRenameUniverse = (snapshotId: string, name: string) => void withStorage(async () => {
+    await api.updateUniverse(snapshotId, { name });
+    await refreshGallery();
+  });
+
+  const handleRemoveUniverse = (snapshotId: string) => void withStorage(async () => {
+    await api.deleteUniverse(snapshotId);
+    await refreshGallery();
+  });
+
+  const handleRemoveDiscovery = (id: string) => void withStorage(async () => {
+    await api.deleteDiscovery(id);
+    await refreshGallery();
+  });
+
+  const isSelectedStarBookmarked = !!selectedStar
+    && bookmarks.some((b) => b.starId === selectedStar.id && b.galaxySeed === currentSeed);
+
+  const handleToggleBookmark = () => {
+    if (!selectedStar) return;
+    const star = selectedStar;
+    void withStorage(async () => {
+      if (isSelectedStarBookmarked) await api.deleteBookmark(currentSeed, star.id);
+      else                          await api.saveBookmark(makeJournalEntry(star, currentSeed));
+      setBookmarks(await api.fetchBookmarks());
+    });
+  };
 
   const handleApplyConfig = useCallback((next: UniverseConfig) => {
     setUniverseConfig(next);
@@ -638,7 +713,10 @@ export default function App() {
             gallery={gallery}
             discoveries={discoveries}
             onLoad={handleLoadFromGallery}
-            onGalleryChange={refreshGallery}
+            onToggleFavorite={handleToggleFavorite}
+            onRename={handleRenameUniverse}
+            onRemove={handleRemoveUniverse}
+            onRemoveDiscovery={handleRemoveDiscovery}
             onClose={() => setShowGallery(false)}
           />
         )}
@@ -670,6 +748,8 @@ export default function App() {
             onClose={() => setSelectedStar(null)}
             onExplore={handleExploreSystem}
             onSaveDiscovery={handleSaveDiscovery}
+            bookmarked={isSelectedStarBookmarked}
+            onToggleBookmark={handleToggleBookmark}
           />
         ) : view === "system" && selectedPlanet && !selectedBiosphere ? (
           <PlanetPanel
@@ -709,6 +789,9 @@ export default function App() {
       {/* ── Status bar ── */}
       <footer className="statusbar">
         <span className={isGenerating ? "generating" : undefined} role="status" aria-live="polite">{statusText}</span>
+        {storageError && (
+          <span className="statusbar-error" role="alert">Database: {storageError}</span>
+        )}
         <div className="statusbar-right">
           <ScaleBar scale={viewScale} />
           <AudioControls onFirstInteraction={initAudio} />

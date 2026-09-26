@@ -18,7 +18,7 @@ The universe described will appear exactly as recorded.
 
 This is determinism at work.
 
-Figures below are for the default parameters under simulation rules v4 (planets read from their climate histories, and their air classed by the pressure it has today). Rules change between versions, so a seed's numbers are only exact for the version they were counted under. "Worlds with organisms" counts planets with microbial or more advanced life.
+Figures below are for the default parameters under simulation rules v5 (planets read from their climate histories, their air classed by the pressure it has today, and their orbits formed beyond their star's heat). Rules change between versions, so a seed's numbers are only exact for the version they were counted under. "Worlds with organisms" counts planets with microbial or more advanced life.
 
 ---
 
@@ -26,7 +26,7 @@ Figures below are for the default parameters under simulation rules v4 (planets 
 
 **Seed:** `271828`
 **Galaxy Type:** Elliptical
-**Character:** 693 worlds with organisms. 141 civilizations, the most of any seed here; 67 systems host one that got past farming.
+**Character:** 748 worlds with organisms. 133 civilizations, the most of any seed here; 44 systems host one that got past farming.
 
 An elliptical galaxy with unusually favorable conditions for life emergence.
 
@@ -42,7 +42,7 @@ This is the most civilization-rich universe recorded here.
 
 **Seed:** `100000`
 **Galaxy Type:** Spiral
-**Character:** 647 worlds with organisms. 107 civilizations.
+**Character:** 682 worlds with organisms. 97 civilizations.
 
 A balanced, archetypal spiral universe.
 
@@ -58,7 +58,7 @@ A good universe for understanding Aion Forge's normal range.
 
 **Seed:** `3141592`
 **Galaxy Type:** Spiral
-**Character:** 670 worlds with organisms. 101 civilizations.
+**Character:** 713 worlds with organisms. 113 civilizations.
 
 A close cousin of seed `100000` in its statistics, but with different stars, different worlds, different stories.
 
@@ -72,7 +72,7 @@ A demonstration of why seeds matter.
 
 **Seed:** `404040`
 **Galaxy Type:** Elliptical
-**Character:** 706 worlds with organisms. 128 civilizations.
+**Character:** 725 worlds with organisms. 130 civilizations.
 
 Elliptical galaxies are thought to be less favorable for life — less disk structure, more chaotic stellar distributions.
 
@@ -88,7 +88,7 @@ Emergence does not require perfect conditions.
 
 **Seed:** `137035`
 **Galaxy Type:** Irregular
-**Character:** 720 worlds with organisms. 128 civilizations.
+**Character:** 726 worlds with organisms. 120 civilizations.
 
 Irregular galaxies are the rarest galaxy type and the most chaotic.
 
@@ -102,9 +102,9 @@ This universe invites the question: does chaos create opportunity?
 
 **Seed:** `161803`
 **Galaxy Type:** Elliptical
-**Character:** 718 worlds with organisms. 128 civilizations.
+**Character:** 711 worlds with organisms. 108 civilizations.
 
-Under the first rules this was the quiet universe, kept here for contrast. Once planets were read from their climate histories (rules v3) it became one of the richest.
+Under the first rules this was the quiet universe, kept here for contrast. Once planets were read from their climate histories (rules v3) it became as rich as any other.
 
 With 2,000 stars, default parameters now give every seed a similar amount of life. A quiet universe comes from the laws instead: apply the **Fragile Life** preset, and about a sixth as many systems hold organisms.
 

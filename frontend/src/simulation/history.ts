@@ -1,4 +1,4 @@
-import { createRNG } from "./rng";
+import { createRNG, SALT } from "./rng";
 import type { GalaxyParticles } from "./galaxy";
 import type { StellarPopulation, Star } from "./star";
 import { MAIN_SEQUENCE_END_FRACTION, REMNANT_FRACTION } from "./star";
@@ -93,7 +93,7 @@ export function recordCosmicEvents(
   seed: number
 ): HistoricalEvent[] {
   const events: HistoricalEvent[] = [];
-  const rng = createRNG((seed ^ 0xC051C000) >>> 0);
+  const rng = createRNG((seed ^ SALT.COSMIC_HISTORY) >>> 0);
 
   // Galaxy formation
   const formationAge = 10 + rng() * 3;

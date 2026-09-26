@@ -1,4 +1,4 @@
-import { createRNG } from "./rng";
+import { createRNG, SALT } from "./rng";
 import type { Star } from "./star";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
@@ -197,11 +197,10 @@ function calcHabitability(p: {
 
 // ── Public API (AF-036) ───────────────────────────────────────────────────────
 
-const PLANET_SALT = 0x914E7A3C;
 
 export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: UniverseConfig): PlanetarySystem {
   const config = cfg ?? makeConfig(galaxySeed);
-  const rng = createRNG(((galaxySeed ^ star.id) ^ PLANET_SALT) >>> 0);
+  const rng = createRNG(((galaxySeed ^ star.id) ^ SALT.PLANET) >>> 0);
 
   // Dead stars don't have planets
   if (star.classification === "neutron-star" || star.classification === "black-hole") {

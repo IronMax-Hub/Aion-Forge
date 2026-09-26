@@ -1,4 +1,4 @@
-import { createRNG } from "./rng";
+import { createRNG, mixSeed, SALT } from "./rng";
 import type { Biosphere } from "./biosphere";
 import type { Planet } from "./planet";
 import { makeConfig } from "./config";
@@ -94,10 +94,6 @@ export interface CivilizationResult {
   species: Species | null;
   civilization: Civilization | null;
 }
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const CIV_SALT = 0xC1A35A2E;
 
 // ── Intelligence emergence (AF-074) ───────────────────────────────────────────
 // Requires: complex biosphere, sufficient time, some luck
@@ -221,7 +217,7 @@ export function generateCivilization(
   cfg?: UniverseConfig
 ): CivilizationResult {
   const config = cfg ?? makeConfig(galaxySeed);
-  const rng = createRNG(((galaxySeed ^ bio.planetId ^ bio.hostStarId) ^ CIV_SALT) >>> 0);
+  const rng = createRNG(mixSeed(galaxySeed, bio.hostStarId, bio.planetId, SALT.CIV));
 
   // intelligenceModifier scales the emergence probability
   const originalRng = rng;

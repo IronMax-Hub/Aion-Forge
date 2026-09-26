@@ -1,4 +1,4 @@
-import { createRNG } from "./rng";
+import { createRNG, mixSeed, SALT } from "./rng";
 import type { Planet } from "./planet";
 import type { Star } from "./star";
 import { makeConfig } from "./config";
@@ -60,8 +60,6 @@ const EXTINCTION_CAUSES = [
 
 // ── Main generator ────────────────────────────────────────────────────────────
 
-const BIO_SALT = 0xB105F33D;
-
 export function generateBiosphere(
   planet: Planet,
   star: Star,
@@ -69,7 +67,7 @@ export function generateBiosphere(
   cfg?: UniverseConfig
 ): Biosphere {
   const config = cfg ?? makeConfig(galaxySeed);
-  const rng = createRNG(((galaxySeed ^ planet.hostStarId ^ planet.id) ^ BIO_SALT) >>> 0);
+  const rng = createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.BIO));
 
   const empty: Biosphere = {
     planetId: planet.id, hostStarId: planet.hostStarId,

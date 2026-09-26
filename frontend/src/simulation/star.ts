@@ -1,4 +1,4 @@
-import { createRNG } from "./rng";
+import { createRNG, SALT } from "./rng";
 import type { GalaxyConfig } from "./galaxy";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
@@ -182,8 +182,6 @@ export interface StellarPopulation {
   galaxySeed: number;
 }
 
-// Salt keeps star RNG independent from galaxy particle RNG
-const STAR_SALT = 0x5E3D57A2;
 const STAR_COUNT = 2000;
 
 /** Age of every universe, in billion years; no star is older. */
@@ -195,7 +193,8 @@ export function generateStarsFor(
   cfg?: UniverseConfig
 ): StellarPopulation {
   const config = cfg ?? makeConfig(galaxy.seed);
-  const rng = createRNG((galaxy.seed ^ STAR_SALT) >>> 0);
+  // The salt keeps the star stream independent of the galaxy particle stream
+  const rng = createRNG((galaxy.seed ^ SALT.STAR) >>> 0);
   const stars: Star[] = [];
 
   for (let i = 0; i < STAR_COUNT; i++) {

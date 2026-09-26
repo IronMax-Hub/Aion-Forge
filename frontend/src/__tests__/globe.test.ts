@@ -6,7 +6,10 @@ import {
   atlasCoordinates, atlasDirection, faceOf, faceTile,
 } from "../rendering/planet/cubeFaces";
 import { GlobeTextureCache, GLOBE_CACHE_SIZE, drawsSurface, noiseOffsetOf } from "../rendering/planet/globe";
-import { PlanetView, globeOrientation, starlightIntensity } from "../rendering/planet/PlanetView";
+import { PlanetView, SECONDS_PER_ROTATION, globeOrientation, spinAngle, starlightIntensity } from "../rendering/planet/PlanetView";
+import { axisFrame } from "../rendering/planet/surfaceMap";
+import { derivePhysics } from "../simulation/planetPhysics";
+import { surfaceGrid } from "../simulation/geography";
 import { generatePlanetsFor, solidWorldOf, GIANT_PLANET_MASS } from "../simulation/planet";
 import type { Planet } from "../simulation/planet";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
@@ -161,5 +164,65 @@ describe("globe view", () => {
     expect(starlightIntensity(16)).toBeCloseTo(2.6 * 1.6, 12);   // 16^¼ = 2, held at 1.6
     expect(starlightIntensity(0.5)).toBeCloseTo(2.6 * Math.pow(0.5, 0.25), 12);
     expect(starlightIntensity(1e-4)).toBeCloseTo(2.6 * 0.35, 12);
+  });
+});
+
+// Worlds Up Close A8: free planets turn, locked planets keep one face to their star.
+describe("rotation", () => {
+  const withPhysics = all.filter(({ planet }) => drawsSurface(planet))
+    .map((entry) => ({ ...entry, physics: derivePhysics(entry.planet, entry.star, seed, config) }));
+  const free = withPhysics.find(({ physics }) => !physics.tidallyLocked)!;
+  const locked = withPhysics.find(({ physics }) => physics.tidallyLocked)!;
+  const cache = new GlobeTextureCache();
+  const surfaceOf = ({ star, planet }: { star: Star; planet: Planet }) => {
+    const world = solidWorldOf(planet, star, seed, config);
+    return { world, surface: cache.globeFor(planet, world, world.physics, seed) };
+  };
+
+  it("compresses one rotation into a minute on screen", () => {
+    expect(SECONDS_PER_ROTATION).toBe(60);
+    expect(spinAngle(60_000)).toBeCloseTo(2 * Math.PI, 12);
+    expect(spinAngle(15_000)).toBeCloseTo(Math.PI / 2, 12);
+  });
+
+  it("turns a free planet about its pole, and holds it still under reduced motion", () => {
+    const { surface } = surfaceOf(free);
+    expect(surface.spins).toBe(true);
+    const toward = new THREE.Vector3(1, 0, 0);
+    const turning = new PlanetView(free.planet, free.star, toward, true, 0, { surface });
+    turning.update(15_000);
+    expect(turning.globeTurn).toBeCloseTo(Math.PI / 2, 6);
+    // The spin axis itself stays put
+    const pole = new THREE.Vector3(0, 1, 0).applyQuaternion(globeOrientation(surface, toward));
+    expect(turning.worldDirectionOf(new THREE.Vector3(0, 1, 0)).distanceTo(pole)).toBeLessThan(1e-9);
+    // The clouds turn with the ground: only their slow drift separates them
+    expect(turning.cloudTurn).toBeLessThan(0.2);
+
+    const still = new PlanetView(free.planet, free.star, toward, false, 0, { surface });
+    still.update(15_000);
+    expect(still.globeTurn).toBeCloseTo(0, 6);
+  });
+
+  it("keeps a locked planet's warmest cell facing its star from every direction and at every moment", () => {
+    const { world, surface } = surfaceOf(locked);
+    expect(surface.spins).toBe(false);
+    const temperatures = world.history.present.cellTemperatureK;
+    let warmest = 0;
+    for (let i = 1; i < temperatures.length; i++) if (temperatures[i] > temperatures[warmest]) warmest = i;
+    // The cell's direction in the globe's own frame: (east, axis, third) → (x, y, z)
+    const cell = surfaceGrid().positions[warmest];
+    const { east, axis, third } = axisFrame();
+    const d = (v: number[]) => v[0] * cell[0] + v[1] * cell[1] + v[2] * cell[2];
+    const local = new THREE.Vector3(d(east), d(axis), d(third));
+
+    for (const toward of [[1, 0, 0], [0, 0, -1], [-3, 1, 4], [0.2, -1, 0.5]].map(([x, y, z]) => new THREE.Vector3(x, y, z).normalize())) {
+      const view = new PlanetView(locked.planet, locked.star, toward, true, 0, { surface });
+      for (const nowMs of [0, 15_000, 40_000]) {
+        view.update(nowMs);
+        expect(view.globeTurn).toBeCloseTo(0, 6);
+        // Within 20°: the substellar band is 10° wide, and land and sea shift the warmest cell within it
+        expect(THREE.MathUtils.radToDeg(view.worldDirectionOf(local).angleTo(toward))).toBeLessThan(20);
+      }
+    }
   });
 });

@@ -1,11 +1,11 @@
-// Planet view (Worlds Up Close, phases A4–A7): the third level of zoom, from a
+// Planet view (Worlds Up Close, phases A4–A8): the third level of zoom, from a
 // planetary system down to one planet seen from orbit.
 //
 // Why it exists: the simulation gives every solid planet a surface, a climate
 // and a history. This is the scene they are drawn in. A4 built the scene and
 // the way into and out of it; A5 draws solid planets from their surface grid;
-// A6 adds air and clouds; A7 draws giants and molten ground. A8–A9 add
-// rotation and life.
+// A6 adds air and clouds; A7 draws giants and molten ground; A8 turns free
+// planets. A9 adds life.
 //
 // How: the view has its own THREE.Scene, drawn by the renderer the galaxy and
 // system views share, through the same camera and orbit controls. One scene
@@ -22,9 +22,14 @@
 //   the orbit's normal, or a locked solid planet's substellar point, which faces
 //   the star (a solid planet's grid band axis). Molten ground shimmers on the
 //   day side. A giant may have rings (rings.ts).
+// - Spin (A8): a planet not locked to its star turns about its pole, one
+//   rotation per SECONDS_PER_ROTATION whatever its real day, so a planet with a
+//   1,000-hour day still visibly turns. A locked planet does not turn: its
+//   substellar point, the warmest part of its climate grid, stays facing the
+//   star from every camera angle. Rings are round, so they need no turning.
 // - Air (A6): a scattering shell when the planet has air enough to see, and a
-//   cloud sphere over a drawn surface (atmosphere.ts). The clouds drift slowly,
-//   except under reduced motion.
+//   cloud sphere over a drawn surface (atmosphere.ts). The clouds turn with
+//   the ground and drift slowly over it; under reduced motion neither moves.
 // - Fade: in over 400 ms, or at once when the viewer prefers reduced motion.
 //
 // Presentation only: it reads a planet and a star and never writes to either.
@@ -63,6 +68,9 @@ const LIGHT_DISTANCE = 10;
 // tripled the globe's cost. At 32 the outline is within a pixel even at 1.15 radii.
 const GLOBE_SEGMENTS = 32;
 
+// One real rotation of a free planet, compressed to this many seconds on screen
+export const SECONDS_PER_ROTATION = 60;
+
 // The orbit's normal: "up" in the system view, which the planets circle in the x–z plane
 const ORBIT_NORMAL = new THREE.Vector3(0, 1, 0);
 
@@ -71,7 +79,7 @@ export interface PlanetViewOptions {
   starFlux?: number;
   /** A solid planet's surface, when the view draws it; otherwise a plain sphere. */
   surface?: GlobeSurface | null;
-  /** Whether the clouds drift and hot ground shimmers; defaults to `fade` (all off under reduced motion). */
+  /** Whether the planet turns, the clouds drift and hot ground shimmers; defaults to `fade` (all off under reduced motion). */
   drift?: boolean;
 }
 
@@ -113,6 +121,14 @@ export function globeOrientation(surface: GlobeSurface, towardStar: THREE.Vector
   return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), pole);
 }
 
+/** How far a free planet has turned about its pole after `elapsedMs` on screen, radians. */
+export function spinAngle(elapsedMs: number): number {
+  return (elapsedMs / 1000 / SECONDS_PER_ROTATION) * 2 * Math.PI;
+}
+
+// Turn about the globe's own pole (its local +y)
+const POLE = new THREE.Vector3(0, 1, 0);
+
 export class PlanetView {
   readonly scene = new THREE.Scene();
   /** Kilometres per scene unit: the planet's radius. */
@@ -124,7 +140,9 @@ export class PlanetView {
   private readonly shell: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> | null = null;
   private readonly clouds: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> | null = null;
   private readonly rings: THREE.Mesh<THREE.RingGeometry, THREE.ShaderMaterial> | null = null;
+  private readonly globeBase = new THREE.Quaternion();
   private readonly cloudBase = new THREE.Quaternion();
+  private readonly spins: boolean;
   private readonly openedMs: number;
   private readonly drift: boolean;
   private fadeStartMs: number | null;
@@ -144,9 +162,8 @@ export class PlanetView {
       const shimmer = (options.drift ?? fade) ? shimmerOf(planet) : 0;
       this.globe = new THREE.Mesh(cubeSphereGeometry(GLOBE_SEGMENTS),
         this.globeMaterial(options.surface, starColor, intensity, fade, glowColourOf(planet.temperature), shimmer));
-      this.globe.quaternion.copy(globeOrientation(options.surface, towardStar));
-      this.globe.updateMatrixWorld();
-      (this.globe.material as THREE.ShaderMaterial).uniforms.localToWorld.value.setFromMatrix4(this.globe.matrixWorld);
+      this.globeBase.copy(globeOrientation(options.surface, towardStar));
+      this.setGlobeTurn(0);
       this.starlight = null;
     } else {
       const [r, g, b] = PLANET_COLORS[planet.type];
@@ -167,7 +184,7 @@ export class PlanetView {
     };
     if (options.surface?.hasClouds) {
       this.clouds = cloudSphere(options.surface.bake.relief, light);
-      this.cloudBase.copy(this.globe.quaternion);
+      this.cloudBase.copy(this.globeBase);
       this.clouds.quaternion.copy(this.cloudBase);
       this.scene.add(this.clouds);
     }
@@ -182,6 +199,7 @@ export class PlanetView {
 
     this.openedMs = nowMs;
     this.drift = options.drift ?? fade;
+    this.spins = this.drift && (options.surface?.spins ?? false);
     this.fadeStartMs = fade ? nowMs : null;
   }
 
@@ -209,14 +227,24 @@ export class PlanetView {
     });
   }
 
-  /** Advances the fade-in and the cloud drift; call once per frame. */
+  /** Turns the globe about its pole, from its base orientation, and tells its shader. */
+  private setGlobeTurn(angle: number): void {
+    this.globe.quaternion.copy(this.globeBase).multiply(new THREE.Quaternion().setFromAxisAngle(POLE, angle));
+    this.globe.updateMatrixWorld();
+    (this.globe.material as THREE.ShaderMaterial).uniforms.localToWorld.value.setFromMatrix4(this.globe.matrixWorld);
+  }
+
+  /** Advances the fade-in, the spin and the cloud drift; call once per frame. */
   update(nowMs: number): void {
+    const elapsedMs = nowMs - this.openedMs;
     const globe = this.globe.material;
     if (globe instanceof THREE.ShaderMaterial && globe.uniforms.shimmer.value > 0) {
-      globe.uniforms.timeSeconds.value = (nowMs - this.openedMs) / 1000;
+      globe.uniforms.timeSeconds.value = elapsedMs / 1000;
     }
+    const spin = this.spins ? spinAngle(elapsedMs) : 0;
+    if (this.spins) this.setGlobeTurn(spin);
     if (this.clouds && this.drift) {
-      const turn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), cloudDriftAngle(nowMs - this.openedMs));
+      const turn = new THREE.Quaternion().setFromAxisAngle(POLE, spin + cloudDriftAngle(elapsedMs));
       this.clouds.quaternion.copy(this.cloudBase).multiply(turn);
     }
     if (this.fadeStartMs === null) return;
@@ -268,10 +296,20 @@ export class PlanetView {
     return this.shell !== null;
   }
 
-  /** The cloud sphere's turn about the planet's pole, radians. */
+  /** The globe's turn about its pole, radians (0–π). */
+  get globeTurn(): number {
+    return 2 * Math.acos(Math.min(1, Math.abs(this.globeBase.clone().invert().multiply(this.globe.quaternion).w)));
+  }
+
+  /** The direction, in the world, of a point given in the globe's own frame (where the surface map is laid out). */
+  worldDirectionOf(local: THREE.Vector3): THREE.Vector3 {
+    return local.clone().applyQuaternion(this.globe.quaternion).normalize();
+  }
+
+  /** How far the cloud sphere has drifted over the ground beneath it, about the pole, radians (0–π). */
   get cloudTurn(): number {
     if (!this.clouds) return 0;
-    return 2 * Math.acos(Math.min(1, Math.abs(this.cloudBase.clone().invert().multiply(this.clouds.quaternion).w)));
+    return 2 * Math.acos(Math.min(1, Math.abs(this.globe.quaternion.clone().invert().multiply(this.clouds.quaternion).w)));
   }
 
   /** Frees the view's GPU resources. The baked atlas belongs to its cache; objects added by others are left alone. */

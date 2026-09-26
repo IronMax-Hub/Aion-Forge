@@ -142,10 +142,13 @@ function peakPopulation(species: Species, planet: Planet, techLevel: number): nu
 
 // ── Tech stage from level (AF-079) ───────────────────────────────────────────
 
+// Tech levels from here up are industrial or beyond
+const INDUSTRIAL_TECH_LEVEL = 0.42;
+
 function techLevelToStage(level: number, collapsed: boolean): TechStage {
   if (collapsed) return "collapsed";
   if (level < 0.20) return "primitive";
-  if (level < 0.42) return "agricultural";
+  if (level < INDUSTRIAL_TECH_LEVEL) return "agricultural";
   if (level < 0.64) return "industrial";
   if (level < 0.85) return "information";
   return "space-age";
@@ -207,6 +210,26 @@ function collapseNote(_species: Species, rng: () => number): string {
     "Agricultural failure caused widespread famine",
   ];
   return causes[Math.floor(rng() * causes.length)];
+}
+
+// ── Fire (Worlds Up Close A3, R6) ─────────────────────────────────────────────
+//
+// Smelting and industry need open fire, and open fire needs exposed land and
+// air thick enough to burn in. A mind on a world without them can farm, but
+// cannot go further. The limit comes from the world, not from who evolved: an
+// aquatic mind is capped because it has no fire, and so is a land mind under
+// thin air. Fire also needs oxygen (at least 18% of the air); that condition
+// joins in C2.3, when life first makes oxygen inside the world history.
+
+const FIRE_MIN_LAND = 0.01;          // share of the surface that is exposed, ice-free land
+const FIRE_MIN_PRESSURE_BAR = 0.5;
+// Without fire, technology stops just short of industry
+const FIRELESS_TECH_CEILING = INDUSTRIAL_TECH_LEVEL - 1e-9;
+
+/** Whether the planet today has what open fire needs. */
+export function canSustainFire(planet: Planet): boolean {
+  const surface = planet.surface;
+  return surface !== null && surface.landFraction >= FIRE_MIN_LAND && surface.pressureBar >= FIRE_MIN_PRESSURE_BAR;
 }
 
 // ── Main generator (AF-077 + AF-078 + AF-080–083) ────────────────────────────
@@ -288,6 +311,7 @@ export function generateCivilization(
   }
 
   techLevel      = Math.min(1, Math.max(0, techLevel));
+  if (!canSustainFire(planet)) techLevel = Math.min(techLevel, FIRELESS_TECH_CEILING);
   socialCohesion = Math.min(1, Math.max(0, socialCohesion));
   const techStage = techLevelToStage(techLevel, finallyCollapsed);
 

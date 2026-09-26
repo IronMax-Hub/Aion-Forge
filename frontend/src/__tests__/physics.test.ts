@@ -68,13 +68,15 @@ describe("Planetary physics", () => {
     }
   });
 
-  it("only allows life within the liquid-water temperature window", () => {
+  it("only allows life where the surface holds liquid water somewhere", () => {
+    // Not the mean temperature: a locked world can be frozen on average and still
+    // keep a temperate ring (Worlds Up Close A3)
     for (const seed of SEEDS) {
       const { stars } = generateStarsFor(makeGalaxyConfig(seed));
       for (const star of stars.slice(0, 300)) {
         for (const p of generatePlanetsFor(star, seed).planets) {
-          if (p.temperature <= 150 || p.temperature >= 450) {
-            expect(p.habitabilityScore).toBeLessThanOrEqual(0.02);
+          if (!p.surface || p.surface.habitableFraction === 0) {
+            expect(p.habitabilityScore).toBe(0);
             expect(generateBiosphere(p, star, seed).hasLife).toBe(false);
           }
         }

@@ -1,8 +1,5 @@
 import type { UniverseConfig } from "./config";
 import { CONFIG_LABELS } from "./config";
-import { buildGalaxyConfig } from "./galaxy";
-import { generateStarsFor, UNIVERSE_AGE_GYR } from "./star";
-import { surveyLife } from "./lifeSurvey";
 import type { LifeSurvey } from "./lifeSurvey";
 import { SIMULATION_RULES_VERSION } from "./version";
 
@@ -29,12 +26,6 @@ export function buildSnapshot(seed: number, config: UniverseConfig, starCount: n
     legendaryEvents: 0,   // the timeline is built only on request, so snapshots do not count it
     totalPlanets: survey.totalPlanets,
   };
-}
-
-/** Regenerate a universe under the current rules and count it, without drawing anything. */
-export function measureUniverse(seed: number, config: UniverseConfig): UniverseSnapshot {
-  const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
-  return buildSnapshot(seed, config, stars.length, surveyLife(stars, seed, config));
 }
 
 // ── Comparison result (AF-123) ────────────────────────────────────────────────

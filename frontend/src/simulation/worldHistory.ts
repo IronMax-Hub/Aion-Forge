@@ -60,7 +60,7 @@
 import { createRNG, mixSeed, SALT } from "./rng";
 import { exp } from "./detmath";
 import type { Planet } from "./planet";
-import { effectiveOrbitAU } from "./planet";
+import { effectiveOrbitAU } from "./planetBasics";
 import type { PlanetPhysics } from "./planetPhysics";
 import { tectonicActivity } from "./planetPhysics";
 import type { Star } from "./star";

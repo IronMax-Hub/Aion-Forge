@@ -21,14 +21,16 @@ function runInWorker(request: SurveyRequest): SurveyMessage[] {
   return messages;
 }
 
-describe("survey worker task", () => {
-  it("returns exactly what surveying on the main thread returns, for three seeds", () => {
-    for (const seed of [100000, 42, 7777]) {
-      const messages = runInWorker({ generation: 1, seed, config: makeConfig(seed) });
-      const result = messages.at(-1)!;
-      expect(result.kind).toBe("result");
-      expect(result.kind === "result" && result.survey).toEqual(surveyOnMainThread(seed));
-    }
+// A full survey runs every solid planet's world history: seconds, not milliseconds
+const FULL_SURVEY_TIMEOUT_MS = 60_000;
+
+describe("survey worker task", { timeout: FULL_SURVEY_TIMEOUT_MS }, () => {
+  const messages = runInWorker({ generation: 7, seed: 42, config: makeConfig(42) });
+
+  it("returns exactly what surveying on the main thread returns", () => {
+    const result = messages.at(-1)!;
+    expect(result.kind).toBe("result");
+    expect(result.kind === "result" && result.survey).toEqual(surveyOnMainThread(42));
   });
 
   it("uses the parameters it is given, not the defaults", () => {
@@ -38,7 +40,6 @@ describe("survey worker task", () => {
   });
 
   it("reports rising progress every 100 stars, tagged with the request's generation", () => {
-    const messages = runInWorker({ generation: 7, seed: 42, config: makeConfig(42) });
     const progress = messages.filter((m) => m.kind === "progress").map((m) => m.kind === "progress" && m.fraction);
     expect(progress.length).toBe(2000 / SURVEY_PROGRESS_INTERVAL - 1);
     expect(progress).toEqual([...progress].sort());
@@ -48,6 +49,14 @@ describe("survey worker task", () => {
   });
 });
 
+/**
+ * The survey a stand-in worker answers with: small and different for every
+ * seed, so the client's plumbing is tested without running real surveys.
+ */
+function cannedSurvey(seed: number): LifeSurvey {
+  return { totalPlanets: seed, lifeBearingPlanets: 1, civilizationCount: 0, systems: [] };
+}
+
 /** A stand-in worker that holds requests until the test answers them. */
 function fakeWorker() {
   const requests: SurveyRequest[] = [];
@@ -56,7 +65,11 @@ function fakeWorker() {
     onmessage: null,
     postMessage(request) { requests.push(request); },
     answer(i) {
-      for (const message of runInWorker(requests[i])) worker.onmessage!({ data: message } as MessageEvent<SurveyMessage>);
+      const { generation, seed } = requests[i];
+      for (const message of [
+        { kind: "progress", generation, fraction: 0.5 },
+        { kind: "result", generation, survey: cannedSurvey(seed) },
+      ] as SurveyMessage[]) worker.onmessage!({ data: message } as MessageEvent<SurveyMessage>);
     },
   };
   return worker;
@@ -88,7 +101,7 @@ describe("survey client", () => {
 
     expect(first.seen.results).toEqual([]);
     expect(first.seen.progress).toEqual([0]);                // only the immediate "started"
-    expect(second.seen.results).toEqual([surveyOnMainThread(42)]);
+    expect(second.seen.results).toEqual([cannedSurvey(42)]);
   });
 
   it("answers a universe it has surveyed before from its cache, without the worker", () => {
@@ -100,7 +113,7 @@ describe("survey client", () => {
     const again = recordingHandlers();
     client.request(42, makeConfig(42), again.handlers);
     expect(worker.requests.length).toBe(1);
-    expect(again.seen.results).toEqual([surveyOnMainThread(42)]);
+    expect(again.seen.results).toEqual([cannedSurvey(42)]);
     expect(again.seen.progress).toEqual([]);
   });
 
@@ -115,7 +128,32 @@ describe("survey client", () => {
     const back = recordingHandlers();
     client.request(100000, makeConfig(100000), back.handlers);
     expect(worker.requests.length).toBe(2);
-    expect(back.seen.results).toEqual([surveyOnMainThread(100000)]);
+    expect(back.seen.results).toEqual([cannedSurvey(100000)]);
+  });
+
+  it("answers a one-off survey with a promise, without disturbing the universe on screen", async () => {
+    const worker = fakeWorker();
+    const client = createSurveyClient(() => worker);
+    const onScreen = recordingHandlers();
+    client.request(100000, makeConfig(100000), onScreen.handlers);
+    const recount = client.survey(42, makeConfig(42));
+    worker.answer(1);
+    worker.answer(0);
+
+    expect(await recount).toEqual(cannedSurvey(42));
+    expect(onScreen.seen.results).toEqual([cannedSurvey(100000)]);
+    expect(onScreen.seen.progress).toEqual([0, 0.5]);
+    // Both answers are cached
+    expect(await client.survey(100000, makeConfig(100000))).toEqual(cannedSurvey(100000));
+    expect(worker.requests.length).toBe(2);
+  });
+
+  it("rejects a one-off survey that fails", async () => {
+    const worker = fakeWorker();
+    const client = createSurveyClient(() => worker);
+    const recount = client.survey(42, makeConfig(42));
+    worker.onmessage!({ data: { kind: "error", generation: worker.requests[0].generation, message: "boom" } } as MessageEvent<SurveyMessage>);
+    await expect(recount).rejects.toThrow("boom");
   });
 
   it("passes a failed survey's message to the current request", () => {

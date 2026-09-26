@@ -18,13 +18,15 @@ The universe described will appear exactly as recorded.
 
 This is determinism at work.
 
+Figures below are for the default parameters under simulation rules v3 (planets read from their climate histories). Rules change between versions, so a seed's numbers are only exact for the version they were counted under. "Worlds with organisms" counts planets with microbial or more advanced life.
+
 ---
 
 ## The Abundant Universe
 
 **Seed:** `271828`
 **Galaxy Type:** Elliptical
-**Character:** Civilizations arose on 13 worlds within the first 100 stars surveyed.
+**Character:** 863 worlds with organisms. 179 civilizations, the most of any seed here; 70 systems host one that got past farming.
 
 An elliptical galaxy with unusually favorable conditions for life emergence.
 
@@ -32,9 +34,7 @@ The density of matter and favorable stellar distribution conspired to seed biolo
 
 Many of these biospheres independently reached the dominant stage.
 
-Several civilizations emerged.
-
-This is one of the most civilization-rich universes discovered so far.
+This is the most civilization-rich universe recorded here.
 
 ---
 
@@ -42,13 +42,13 @@ This is one of the most civilization-rich universes discovered so far.
 
 **Seed:** `100000`
 **Galaxy Type:** Spiral
-**Character:** Life on 49 worlds. Eight civilizations.
+**Character:** 770 worlds with organisms. 133 civilizations.
 
 A balanced, archetypal spiral universe.
 
 Stars distributed across well-defined arms, biospheres taking hold across a wide range of stellar types.
 
-Eight civilizations rose independently — curious, unaware of each other, each discovering the same fire beneath different suns.
+Its civilizations rose independently, unaware of each other. Fewer than half got past farming. Some never had the chance: their worlds offer no fire, with no exposed land or air too thin to burn in.
 
 A good universe for understanding Aion Forge's normal range.
 
@@ -58,7 +58,7 @@ A good universe for understanding Aion Forge's normal range.
 
 **Seed:** `3141592`
 **Galaxy Type:** Spiral
-**Character:** 55 life-bearing worlds. Nine civilizations.
+**Character:** 847 worlds with organisms. 136 civilizations.
 
 A close cousin of seed `100000` in its statistics, but with different stars, different worlds, different stories.
 
@@ -72,13 +72,13 @@ A demonstration of why seeds matter.
 
 **Seed:** `404040`
 **Galaxy Type:** Elliptical
-**Character:** 47 life-bearing worlds. Twelve civilizations.
+**Character:** 904 worlds with organisms. 159 civilizations.
 
 Elliptical galaxies are thought to be less favorable for life — less disk structure, more chaotic stellar distributions.
 
 This universe proves that assumption wrong.
 
-Twelve civilizations arose within an elliptical framework.
+More worlds with organisms arose here than in either spiral above.
 
 Emergence does not require perfect conditions.
 
@@ -88,27 +88,25 @@ Emergence does not require perfect conditions.
 
 **Seed:** `137035`
 **Galaxy Type:** Irregular
-**Character:** 44 life-bearing worlds. Six civilizations.
+**Character:** 892 worlds with organisms. 150 civilizations.
 
 Irregular galaxies are the rarest galaxy type and the most chaotic.
 
-That six civilizations emerged here is unexpected.
+That it holds more life than the classic spiral is unexpected.
 
 This universe invites the question: does chaos create opportunity?
 
 ---
 
-## The Sparse Witness
+## The Former Sparse Witness
 
 **Seed:** `161803`
 **Galaxy Type:** Elliptical
-**Character:** Fewer life-bearing worlds. Quieter.
+**Character:** 877 worlds with organisms. 169 civilizations.
 
-For contrast with the abundant universes above.
+Under the first rules this was the quiet universe, kept here for contrast. Once planets were read from their climate histories (rules v3) it became one of the richest.
 
-Not all seeds generate the richness of `271828`.
-
-This one exists as a reminder that silence is also an outcome.
+With 2,000 stars, default parameters now give every seed a similar amount of life. A quiet universe comes from the laws instead: apply the **Fragile Life** preset, and about a fifth as many systems hold organisms.
 
 Some universes age without any biology to witness them.
 

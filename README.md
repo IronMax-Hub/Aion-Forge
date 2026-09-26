@@ -125,18 +125,18 @@ Sound is off by default; turn it on from the status bar.
 
 ## Quick Start Seeds
 
-These seeds produce universes worth exploring:
+These seeds produce universes worth exploring. Figures are for the default parameters under simulation rules v3, as the life survey counts them: worlds with organisms (microbial or more advanced), civilizations, and how many systems host a civilization that got past farming.
 
-| Seed | Galaxy Type | Notes |
-|------|-------------|-------|
-| `271828` | Elliptical | Rich in civilizations — 13 arose across the stellar population |
-| `100000` | Spiral | Classic spiral, abundant life, 8 civilizations |
-| `3141592` | Spiral | Dense biosphere network, 9 civilizations |
-| `404040` | Elliptical | 12 civilizations; elliptical density at work |
-| `13579` | Spiral | 6 civilizations, balanced distribution |
-| `137035` | Irregular | Irregular galaxy yielding 6 civilizations — rare |
+| Seed | Galaxy Type | Worlds with organisms | Civilizations | Systems past agriculture |
+|------|-------------|---:|---:|---:|
+| `271828` | Elliptical | 863 | 179 | 70 |
+| `137035` | Irregular | 892 | 150 | 61 |
+| `404040` | Elliptical | 904 | 159 | 57 |
+| `13579` | Spiral | 848 | 164 | 61 |
+| `3141592` | Spiral | 847 | 136 | 49 |
+| `100000` | Spiral | 770 | 133 | 49 |
 
-For a contrasting experience, try seed `161803` — a sparse, quieter universe.
+With 2,000 stars per universe, default parameters give every seed a similar amount of life; what differs is where it arises and what becomes of it. Many civilizations stop at agriculture because their world has no fire: no exposed land, or air too thin to burn in. For a quiet universe, change the parameters instead: the **Fragile Life** preset leaves about a fifth as many systems with organisms.
 
 ---
 

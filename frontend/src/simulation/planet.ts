@@ -3,6 +3,14 @@ import { pow } from "./detmath";
 import type { Star } from "./star";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
+import { effectiveOrbitAU, GIANT_PLANET_MASS } from "./planetBasics";
+import { derivePhysics } from "./planetPhysics";
+import type { PlanetPhysics } from "./planetPhysics";
+import { buildGeography } from "./geography";
+import { runWorldHistory } from "./worldHistory";
+import type { PresentClimate } from "./climate";
+
+export { effectiveOrbitAU, GIANT_PLANET_MASS };
 
 // ── Data model (AF-037) ───────────────────────────────────────────────────────
 
@@ -36,6 +44,20 @@ export interface Planet {
   resourceAbundance: number; // 0–1
   habitabilityScore: number; // 0–1
   isRare: boolean;
+  /** Today's surface, from the planet's world history; null for giants, which have none. */
+  surface: PlanetSurface | null;
+}
+
+/** The present-day surface of a solid planet, as the world history left it (A3). */
+export interface PlanetSurface {
+  /** Shares of the planet's area: open water, ice, and ice-free land. They sum to 1. */
+  oceanFraction: number;
+  iceFraction: number;
+  landFraction: number;
+  /** Share with liquid-water temperatures: open water, and land by its moisture. */
+  habitableFraction: number;
+  surfaceGravity: number;   // g
+  pressureBar: number;      // total surface pressure today
 }
 
 export interface PlanetarySystem {
@@ -91,43 +113,44 @@ function planetCount(starMass: number, rng: () => number): number {
   return base + Math.floor(rng() * 5);               // normal–crowded
 }
 
-// Above this mass (Earth masses) a planet is a gas or ice giant with no solid surface.
-export const GIANT_PLANET_MASS = 15;
+// ── Planet type (Worlds Up Close A3) ──────────────────────────────────────────
+//
+// A type is a result, not a roll. A solid planet's type is read from its
+// present-day surface (R5, R7); a giant's from its temperature (owner decision:
+// ice giants are the cold ones). The single draw the old type roll took is
+// still taken, so every later draw in the system is unchanged.
 
-// ── Planet type from orbital position (AF-041) ────────────────────────────────
-// Temperature-driven: close → lava/desert, habitable zone → rocky/ocean, far → ice/gas
+// Giants colder than this are ice giants. With this model's equilibrium
+// temperatures the Sun's giants split as they should: Jupiter 122 K and Saturn
+// 90 K are gas giants, Uranus 64 K and Neptune 51 K ice giants.
+const ICE_GIANT_MAX_K = 75;
+// A solid planet this hot at its surface today is a lava world
+const LAVA_MIN_K = 1000;
+// Surface shares that name a world: mostly ocean, mostly ice, or a warm world with almost no water
+const OCEAN_WORLD_MIN_OCEAN = 0.9;
+const ICE_WORLD_MIN_ICE = 0.85;
+const DESERT_MAX_OCEAN = 0.03;
+const DESERT_MIN_K = 273;
 
-function pickType(tempK: number, mass: number, rng: () => number): PlanetType {
-  if (mass > GIANT_PLANET_MASS) return rng() < 0.8 ? "gas-giant" : "ice";
-  if (tempK > 700) return rng() < 0.7 ? "lava" : "desert";
-  if (tempK > 400) return rng() < 0.6 ? "desert" : "rocky";
-  if (tempK > 200) {
-    const r = rng();
-    if (r < 0.35) return "ocean";
-    if (r < 0.65) return "rocky";
-    return "desert";
-  }
-  return rng() < 0.6 ? "ice" : "rocky";
+function giantType(temperatureK: number): PlanetType {
+  return temperatureK < ICE_GIANT_MAX_K ? "ice" : "gas-giant";
 }
 
-// ── Surface temperature (AF-042) ──────────────────────────────────────────────
-// Simplified: stellar luminosity + orbital radius + greenhouse.
-// Giant planets have no surface to warm, so they report the equilibrium (cloud-top) temperature.
+function solidType(temperatureK: number, surface: PlanetSurface): PlanetType {
+  if (temperatureK > LAVA_MIN_K) return "lava";
+  if (surface.oceanFraction > OCEAN_WORLD_MIN_OCEAN) return "ocean";
+  if (surface.iceFraction > ICE_WORLD_MIN_ICE) return "ice";
+  if (surface.oceanFraction < DESERT_MAX_OCEAN && temperatureK > DESERT_MIN_K) return "desert";
+  return "rocky";
+}
 
-function surfaceTemp(
-  stellarLuminosity: number,
-  orbitalAU: number,
-  atmosphere: AtmosphereType,
-  mass: number
-): number {
-  const L = Math.max(0.0001, stellarLuminosity);
-  // Effective temperature from inverse-square law (in K, rough)
-  const tEff = 278 * pow(L, 0.25) / Math.sqrt(orbitalAU);
-  if (mass > GIANT_PLANET_MASS) return tEff;
-  const greenhouse: Record<AtmosphereType, number> = {
-    none: 0, thin: 10, moderate: 40, thick: 100, crushing: 400,
-  };
-  return tEff + greenhouse[atmosphere];
+// ── Equilibrium temperature (AF-042) ──────────────────────────────────────────
+// Blackbody temperature from the star's light alone. It decides which
+// atmosphere a planet can keep, and it is a giant's (cloud-top) temperature.
+// A solid planet's surface temperature comes from its world history.
+
+function equilibriumTemp(stellarLuminosity: number, orbitalAU: number): number {
+  return 278 * pow(Math.max(0.0001, stellarLuminosity), 0.25) / Math.sqrt(orbitalAU);
 }
 
 // ── Atmosphere (AF-043) ───────────────────────────────────────────────────────
@@ -147,65 +170,49 @@ function pickAtmosphere(mass: number, tempK: number, rng: () => number): Atmosph
   return "crushing";
 }
 
-// ── Habitability (AF-043) ─────────────────────────────────────────────────────
+// ── Habitability (AF-043, rewritten for A3) ───────────────────────────────────
+//
+// How much of the planet can hold liquid water today, weighed by a gravity
+// window, the atmosphere and resources. Giants and lava worlds score 0. Until
+// life lives inside the world history (C2.3), this score is what the single
+// emergence roll in biosphere.ts reads (R4).
 
-// Liquid-water window: full credit inside the comfortable band, fading linearly
-// to zero at the frozen and boiling limits. Life is possible near the edges, but rare.
-const HABITABLE_TEMP_MIN_K     = 150;
-const HABITABLE_TEMP_COMFORT_LO = 260;
-const HABITABLE_TEMP_COMFORT_HI = 330;
-const HABITABLE_TEMP_MAX_K     = 450;
+// A planet with this share of liquid-water surface or more gets full credit.
+// Earth's present-day solve gives 0.7–0.9.
+const FULL_HABITABLE_AREA = 0.5;
+// Gravity window: full credit inside, fading to nothing at half the lower edge and twice the upper one
+const GRAVITY_WINDOW = { min: 0.4, max: 2.5 };
+const ATMOSPHERE_FACTOR: Record<AtmosphereType, number> = {
+  none: 0.05, thin: 0.8, moderate: 1, thick: 0.9, crushing: 0.1,
+};
+const RESOURCE_WEIGHT = 0.1;
 
-function temperatureFactor(tempK: number): number {
-  if (tempK <= HABITABLE_TEMP_MIN_K || tempK >= HABITABLE_TEMP_MAX_K) return 0;
-  if (tempK < HABITABLE_TEMP_COMFORT_LO) {
-    return (tempK - HABITABLE_TEMP_MIN_K) / (HABITABLE_TEMP_COMFORT_LO - HABITABLE_TEMP_MIN_K);
-  }
-  if (tempK > HABITABLE_TEMP_COMFORT_HI) {
-    return (HABITABLE_TEMP_MAX_K - tempK) / (HABITABLE_TEMP_MAX_K - HABITABLE_TEMP_COMFORT_HI);
-  }
+function gravityFactor(g: number): number {
+  if (g < GRAVITY_WINDOW.min) return Math.max(0, (g - GRAVITY_WINDOW.min / 2) / (GRAVITY_WINDOW.min / 2));
+  if (g > GRAVITY_WINDOW.max) return Math.max(0, (2 * GRAVITY_WINDOW.max - g) / GRAVITY_WINDOW.max);
   return 1;
 }
 
-function calcHabitability(p: {
-  type: PlanetType;
-  temperature: number;
-  atmosphere: AtmosphereType;
-  mass: number;
-  resourceAbundance: number;
-}): number {
-  if (p.type === "gas-giant" || p.type === "lava") return 0;
-  if (p.atmosphere === "none" || p.atmosphere === "crushing") return 0.02;
+function calcHabitability(type: PlanetType, atmosphere: AtmosphereType, resourceAbundance: number, surface: PlanetSurface | null): number {
+  if (!surface || type === "lava") return 0;
+  const area = Math.min(1, surface.habitableFraction / FULL_HABITABLE_AREA);
+  return area * gravityFactor(surface.surfaceGravity) * ATMOSPHERE_FACTOR[atmosphere]
+    * (1 - RESOURCE_WEIGHT + RESOURCE_WEIGHT * resourceAbundance);
+}
 
-  // Baseline credit for a workable climate; the temperature factor below scales everything
-  let score = 0.45;
-
-  // Liquid water proxy
-  if (p.type === "ocean") score += 0.25;
-  if (p.type === "rocky") score += 0.15;
-
-  // Atmosphere
-  if (p.atmosphere === "moderate") score += 0.2;
-  if (p.atmosphere === "thin")     score += 0.1;
-
-  // Size / gravity proxy
-  if (p.mass > 0.4 && p.mass < 4) score += 0.1;
-
-  // Resources
-  score += p.resourceAbundance * 0.05;
-
-  return Math.min(1, Math.max(0, score * temperatureFactor(p.temperature)));
+/** A solid planet's present-day surface, from its geography and world history. */
+function presentSurface(present: PresentClimate, physics: PlanetPhysics, pressureBar: number): PlanetSurface {
+  return {
+    oceanFraction: present.oceanFraction,
+    iceFraction: present.iceFraction,
+    landFraction: present.landFraction,
+    habitableFraction: present.habitableFraction,
+    surfaceGravity: physics.surfaceGravity,
+    pressureBar,
+  };
 }
 
 // ── Public API (AF-036) ───────────────────────────────────────────────────────
-
-/**
- * The physical distance of an orbit from its star, in AU. gravityStrength > 1
- * compresses orbits slightly; temperature and physics both use this distance.
- */
-export function effectiveOrbitAU(orbitalRadius: number, config: UniverseConfig): number {
-  return orbitalRadius / Math.sqrt(config.gravityStrength);
-}
 
 /** A planet's identity in the galaxy, for caches, timeline subjects and discoveries. */
 export function planetKey(starId: number, index: number): string {
@@ -229,19 +236,12 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
 
   const planets: Planet[] = orbits.map((orbitalRadius, idx) => {
     const mass = pow(10, (rng() - 0.5) * 3.5); // 0.03–32 Earth masses (log spread)
-    const effectiveRadius = effectiveOrbitAU(orbitalRadius, config);
-    // Stellar heating decides what atmosphere a planet can keep; greenhouse warming then follows from it
-    const equilibriumK = surfaceTemp(star.luminosity, effectiveRadius, "none", mass);
+    // Stellar heating decides what atmosphere a planet can keep
+    const equilibriumK = equilibriumTemp(star.luminosity, effectiveOrbitAU(orbitalRadius, config));
     const atmosphere = pickAtmosphere(mass, equilibriumK, rng);
-    const tempK = surfaceTemp(star.luminosity, effectiveRadius, atmosphere, mass);
-    const type = pickType(tempK, mass, rng);
+    rng(); // the old type roll: still taken so the draws below stay aligned
     const size = pow(mass, 0.27) * (0.8 + rng() * 0.4);
     const resourceAbundance = rng();
-
-    const isRare =
-      type === "ocean" && tempK > 240 && tempK < 310 ||
-      type === "lava"  && mass < 0.5 ||
-      (type === "rocky" && tempK > 220 && tempK < 320 && atmosphere === "moderate");
 
     const planet: Planet = {
       id: idx,
@@ -249,16 +249,34 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
       hostStarId: star.id,
       orbitalRadius,
       orbitalIndex: idx,
-      type,
+      type: "gas-giant",
       size,
       mass,
-      temperature: tempK,
+      temperature: equilibriumK,
       atmosphere,
       resourceAbundance,
       habitabilityScore: 0,
-      isRare,
+      isRare: false,
+      surface: null,
     };
-    planet.habitabilityScore = calcHabitability(planet);
+
+    if (mass > GIANT_PLANET_MASS) {
+      planet.type = giantType(equilibriumK);
+    } else {
+      // A solid planet's surface is the end of its history
+      const physics = derivePhysics(planet, star, galaxySeed, config);
+      const history = runWorldHistory(planet, physics, buildGeography(planet, physics, galaxySeed), star, galaxySeed, config);
+      planet.surface = presentSurface(history.present, physics, history.final.pressureBar);
+      planet.temperature = history.present.meanK;
+      planet.type = solidType(planet.temperature, planet.surface);
+    }
+    planet.habitabilityScore = calcHabitability(planet.type, atmosphere, resourceAbundance, planet.surface);
+
+    const tempK = planet.temperature;
+    planet.isRare =
+      planet.type === "ocean" && tempK > 240 && tempK < 310 ||
+      planet.type === "lava"  && mass < 0.5 ||
+      (planet.type === "rocky" && tempK > 220 && tempK < 320 && atmosphere === "moderate");
     return planet;
   });
 

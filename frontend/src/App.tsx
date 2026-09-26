@@ -18,7 +18,7 @@ import { buildUniverseTimeline, summarizeTimeline } from "./simulation/history";
 import type { UniverseTimeline } from "./simulation/history";
 import { makeConfig, DEFAULT_CONFIG, CONFIG_LABELS } from "./simulation/config";
 import type { UniverseConfig } from "./simulation/config";
-import { compareUniverses, makeExperimentRecord, buildSnapshot, measureUniverse } from "./simulation/experiment";
+import { compareUniverses, makeExperimentRecord, buildSnapshot } from "./simulation/experiment";
 import { SIMULATION_RULES_VERSION } from "./simulation/version";
 import type { UniverseSnapshot, UniverseComparison, ExperimentRecord } from "./simulation/experiment";
 import { StarPanel } from "./ui/StarPanel";
@@ -326,7 +326,9 @@ export default function App() {
 
   // Regenerate a saved universe under the current rules and store its new counts
   const handleRecountUniverse = (meta: UniverseMeta) => void withStorage(async () => {
-    const snap = measureUniverse(meta.seed, meta.config);
+    // The survey runs on the worker; only the stars, which are cheap, are generated here
+    const stars = generateStarsFor(buildGalaxyConfig(meta.seed, meta.config), UNIVERSE_AGE_GYR, meta.config).stars;
+    const snap = buildSnapshot(meta.seed, meta.config, stars.length, await surveyClient.survey(meta.seed, meta.config));
     const summary = generateUniverseSummary({ ...snap, galaxyType: meta.galaxyType });
     await api.recountUniverse(meta.snapshotId, {
       summary,

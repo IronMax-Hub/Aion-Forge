@@ -6,6 +6,10 @@
 // Results are cached by rules version, seed and parameters, so returning to a
 // universe is instant. The cache lives for the session and holds the most
 // recently used surveys only.
+//
+// `survey` answers one-off questions (a Library recount) with a promise. It
+// shares the worker and the cache, but never takes over or cancels the
+// handlers of the universe on screen.
 
 import type { UniverseConfig } from "../simulation/config";
 import type { LifeSurvey } from "../simulation/lifeSurvey";
@@ -34,7 +38,9 @@ export function surveyCacheKey(seed: number, config: UniverseConfig): string {
 
 export function createSurveyClient(createWorker: () => SurveyWorkerLike) {
   let worker: SurveyWorkerLike | null = null;
+  let lastGeneration = 0;
   let latest = 0;
+  const waiting = new Map<number, { resolve(survey: LifeSurvey): void; reject(error: Error): void }>();
   let latestHandlers: SurveyHandlers | null = null;
   const pendingKeys = new Map<number, string>();
   const cache = new Map<string, LifeSurvey>();
@@ -50,7 +56,13 @@ export function createSurveyClient(createWorker: () => SurveyWorkerLike) {
       const key = pendingKeys.get(message.generation);
       if (key) remember(key, message.survey);
     }
-    if (message.kind !== "progress") pendingKeys.delete(message.generation);
+    if (message.kind !== "progress") {
+      pendingKeys.delete(message.generation);
+      const promise = waiting.get(message.generation);
+      waiting.delete(message.generation);
+      if (promise && message.kind === "result") promise.resolve(message.survey);
+      if (promise && message.kind === "error") promise.reject(new Error(message.message));
+    }
     if (message.generation !== latest || !latestHandlers) return;
 
     if (message.kind === "progress") latestHandlers.onProgress(message.fraction);
@@ -58,9 +70,19 @@ export function createSurveyClient(createWorker: () => SurveyWorkerLike) {
     else latestHandlers.onError(message.message);
   }
 
+  /** Sends a request to the worker, starting the worker if needed. */
+  function post(generation: number, seed: number, config: UniverseConfig, key: string): void {
+    if (!worker) {
+      worker = createWorker();
+      worker.onmessage = receive;
+    }
+    pendingKeys.set(generation, key);
+    worker.postMessage({ generation, seed, config });
+  }
+
   /** Survey a universe. Handlers of any earlier request stop being called. */
   function request(seed: number, config: UniverseConfig, handlers: SurveyHandlers): void {
-    latest += 1;
+    latest = ++lastGeneration;
     latestHandlers = handlers;
     const key = surveyCacheKey(seed, config);
 
@@ -71,14 +93,24 @@ export function createSurveyClient(createWorker: () => SurveyWorkerLike) {
       return;
     }
 
-    if (!worker) {
-      worker = createWorker();
-      worker.onmessage = receive;
-    }
-    pendingKeys.set(latest, key);
     handlers.onProgress(0);
-    worker.postMessage({ generation: latest, seed, config });
+    post(latest, seed, config, key);
   }
 
-  return { request };
+  /** Survey a universe off the main thread without touching the universe on screen. */
+  function survey(seed: number, config: UniverseConfig): Promise<LifeSurvey> {
+    const key = surveyCacheKey(seed, config);
+    const cached = cache.get(key);
+    if (cached) {
+      remember(key, cached);
+      return Promise.resolve(cached);
+    }
+    const generation = ++lastGeneration;
+    return new Promise((resolve, reject) => {
+      waiting.set(generation, { resolve, reject });
+      post(generation, seed, config, key);
+    });
+  }
+
+  return { request, survey };
 }

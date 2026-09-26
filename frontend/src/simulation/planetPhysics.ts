@@ -27,7 +27,7 @@
 import { createRNG, mixSeed, SALT } from "./rng";
 import { exp, pow } from "./detmath";
 import type { Planet, AtmosphereType } from "./planet";
-import { effectiveOrbitAU } from "./planet";
+import { effectiveOrbitAU } from "./planetBasics";
 import type { Star } from "./star";
 import { luminosityAt } from "./star";
 import { makeConfig } from "./config";

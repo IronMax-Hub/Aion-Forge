@@ -44,7 +44,7 @@
 import { createRNG, mixSeed, SALT } from "./rng";
 import { cos, sin } from "./detmath";
 import type { Planet } from "./planet";
-import { GIANT_PLANET_MASS } from "./planet";
+import { GIANT_PLANET_MASS } from "./planetBasics";
 import type { PlanetPhysics } from "./planetPhysics";
 import { tectonicActivity } from "./planetPhysics";
 

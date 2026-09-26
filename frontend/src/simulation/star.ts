@@ -186,9 +186,12 @@ export interface StellarPopulation {
 const STAR_SALT = 0x5E3D57A2;
 const STAR_COUNT = 2000;
 
+/** Age of every universe, in billion years; no star is older. */
+export const UNIVERSE_AGE_GYR = 13.7;
+
 export function generateStarsFor(
   galaxy: GalaxyConfig,
-  universeAgeBY = 13.7,
+  universeAgeBY = UNIVERSE_AGE_GYR,
   cfg?: UniverseConfig
 ): StellarPopulation {
   const config = cfg ?? makeConfig(galaxy.seed);

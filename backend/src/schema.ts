@@ -26,6 +26,7 @@ export const SCHEMA: string[] = [
     total_planets               INT UNSIGNED    NOT NULL,
     notes                       TEXT            NOT NULL,
     is_favorite                 BOOLEAN         NOT NULL DEFAULT FALSE,
+    rules_version               SMALLINT UNSIGNED NOT NULL DEFAULT 1,  -- simulation rules that produced the counts
     created_at                  DATETIME(3)     NOT NULL,
     updated_at                  DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     INDEX idx_universes_created (created_at)
@@ -49,6 +50,7 @@ export const SCHEMA: string[] = [
     comparison_summary  TEXT            NOT NULL,
     surprises           JSON            NOT NULL,
     note                TEXT            NOT NULL,
+    rules_version       SMALLINT UNSIGNED NOT NULL DEFAULT 1,
     INDEX idx_experiments_recorded (recorded_at)
   )`,
   `CREATE TABLE IF NOT EXISTS star_bookmarks (
@@ -62,3 +64,24 @@ export const SCHEMA: string[] = [
     PRIMARY KEY (galaxy_seed, star_id)
   )`,
 ];
+
+// Columns added after a table was first created. CREATE TABLE IF NOT EXISTS
+// leaves existing tables alone, so each one is added only where it is missing.
+// Rows that predate a column take its default.
+export interface ColumnMigration {
+  table: string;
+  column: string;
+  definition: string;
+}
+
+export const COLUMN_MIGRATIONS: ColumnMigration[] = [
+  // Rows saved before rules versions existed were produced by rules version 1
+  { table: "universes",   column: "rules_version", definition: "SMALLINT UNSIGNED NOT NULL DEFAULT 1" },
+  { table: "experiments", column: "rules_version", definition: "SMALLINT UNSIGNED NOT NULL DEFAULT 1" },
+];
+
+/** The migrations whose column is not among a table's existing columns. */
+export function pendingMigrations(existing: { table: string; column: string }[]): ColumnMigration[] {
+  const present = new Set(existing.map((c) => `${c.table}.${c.column}`));
+  return COLUMN_MIGRATIONS.filter((m) => !present.has(`${m.table}.${m.column}`));
+}

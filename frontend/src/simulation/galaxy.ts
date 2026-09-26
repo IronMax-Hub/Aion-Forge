@@ -1,5 +1,6 @@
 import { createRNG } from "./rng";
 import type { RNG } from "./rng";
+import type { UniverseConfig } from "./config";
 
 export type GalaxyType = "spiral" | "elliptical" | "irregular";
 
@@ -172,4 +173,13 @@ export function pickGalaxyType(rng: RNG): GalaxyType {
   if (roll < 0.55) return "spiral";
   if (roll < 0.85) return "elliptical";
   return "irregular";
+}
+
+export const GALAXY_PARTICLE_COUNT = 60000;
+const GALAXY_SCALE = 120;
+
+/** The galaxy a seed and parameters produce: its type from the seed, its size from the expansion rate. */
+export function buildGalaxyConfig(seed: number, universeConfig: UniverseConfig): GalaxyConfig {
+  const type = pickGalaxyType(createRNG(seed));
+  return { type, particleCount: GALAXY_PARTICLE_COUNT, seed, scale: GALAXY_SCALE * universeConfig.expansionRate };
 }

@@ -27,6 +27,7 @@ export interface UniverseMeta {
   totalPlanets: number;
   notes: string;
   isFavorite: boolean;
+  rulesVersion: number;       // simulation rules that produced the counts (version.ts)
 }
 
 // ── Discovery collections (AF-143) ────────────────────────────────────────────
@@ -56,21 +57,26 @@ export interface DiscoveryItem {
 
 // ── Serialization (AF-132) ────────────────────────────────────────────────────
 
+// File format 2 adds `meta.rulesVersion`. Format 1 files predate rules versions,
+// so their counts were produced by rules version 1.
+
 export interface SerializedUniverse {
-  version: 1;
+  version: 2;
   meta: UniverseMeta;
 }
 
 export function serializeUniverse(meta: UniverseMeta): string {
-  const payload: SerializedUniverse = { version: 1, meta };
+  const payload: SerializedUniverse = { version: 2, meta };
   return JSON.stringify(payload, null, 2);
 }
 
 export function deserializeUniverse(raw: string): UniverseMeta | null {
   try {
-    const parsed = JSON.parse(raw) as SerializedUniverse;
-    if (parsed.version !== 1 || !parsed.meta?.seed) return null;
-    return parsed.meta;
+    const parsed = JSON.parse(raw) as { version?: unknown; meta?: Partial<UniverseMeta> };
+    if (!parsed.meta?.seed) return null;
+    if (parsed.version === 1) return { ...parsed.meta, rulesVersion: 1 } as UniverseMeta;
+    if (parsed.version === 2 && typeof parsed.meta.rulesVersion === "number") return parsed.meta as UniverseMeta;
+    return null;
   } catch {
     return null;
   }
@@ -78,7 +84,7 @@ export function deserializeUniverse(raw: string): UniverseMeta | null {
 
 // ── Snapshot summary generator (AF-142) ───────────────────────────────────────
 
-export function generateUniverseSummary(meta: Omit<UniverseMeta, "summary" | "name" | "notes" | "isFavorite" | "snapshotId" | "createdAt">): string {
+export function generateUniverseSummary(meta: Omit<UniverseMeta, "summary" | "name" | "notes" | "isFavorite" | "snapshotId" | "createdAt" | "rulesVersion">): string {
   const { lifeBearingPlanets, civilizationCount, legendaryEvents, galaxyType, starCount, totalPlanets } = meta;
 
   const density = starCount < 1000 ? "sparse" : starCount > 1800 ? "dense" : "mid-sized";

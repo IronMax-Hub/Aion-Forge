@@ -24,7 +24,7 @@ export function ExperimentHistoryPanel({ experiments, onClose }: Props) {
 
         {experiments.map((exp) => (
           <div key={exp.id} className="experiment-row">
-            <span className="experiment-id">{exp.id}</span>
+            <span className="experiment-id">{exp.id} · rules v{exp.rulesVersion}</span>
             {exp.modifiedConstants.length > 0 && (
               <span className="experiment-changes">
                 Changed: {exp.modifiedConstants.join(", ")}

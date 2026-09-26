@@ -3,10 +3,9 @@ import { audioEngine, ambientLayer, discovery, ui, lab, civLayer } from "./audio
 import { AudioControls } from "./ui/AudioControls";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
 import type { ViewScale } from "./rendering/UniverseRenderer";
-import { generateGalaxy, pickGalaxyType } from "./simulation/galaxy";
-import type { GalaxyType, GalaxyConfig, GalaxyParticles } from "./simulation/galaxy";
-import { createRNG } from "./simulation/rng";
-import { generateStarsFor } from "./simulation/star";
+import { generateGalaxy, buildGalaxyConfig, GALAXY_PARTICLE_COUNT } from "./simulation/galaxy";
+import type { GalaxyType, GalaxyParticles } from "./simulation/galaxy";
+import { generateStarsFor, UNIVERSE_AGE_GYR } from "./simulation/star";
 import type { Star, StellarPopulation } from "./simulation/star";
 import { generatePlanetsFor } from "./simulation/planet";
 import type { Planet, PlanetarySystem } from "./simulation/planet";
@@ -19,7 +18,8 @@ import { buildUniverseTimeline, summarizeTimeline } from "./simulation/history";
 import type { UniverseTimeline } from "./simulation/history";
 import { makeConfig, DEFAULT_CONFIG, CONFIG_LABELS } from "./simulation/config";
 import type { UniverseConfig } from "./simulation/config";
-import { compareUniverses, makeExperimentRecord } from "./simulation/experiment";
+import { compareUniverses, makeExperimentRecord, buildSnapshot, measureUniverse } from "./simulation/experiment";
+import { SIMULATION_RULES_VERSION } from "./simulation/version";
 import type { UniverseSnapshot, UniverseComparison, ExperimentRecord } from "./simulation/experiment";
 import { StarPanel } from "./ui/StarPanel";
 import { PlanetPanel } from "./ui/PlanetPanel";
@@ -41,18 +41,8 @@ import * as api from "./api/client";
 import { importLocalDataOnce } from "./api/importLocalData";
 import "./App.css";
 
-const PARTICLE_COUNT = 60000;
-const SCALE = 120;
-
 function randomSeed(): number {
   return Math.floor(Math.random() * 1_000_000_000);
-}
-
-function buildGalaxyConfig(seed: number, universeConfig: UniverseConfig): GalaxyConfig {
-  const rng = createRNG(seed);
-  const type = pickGalaxyType(rng);
-  // expansionRate scales the galaxy spread
-  return { type, particleCount: PARTICLE_COUNT, seed, scale: SCALE * universeConfig.expansionRate };
 }
 
 type View = "galaxy" | "system" | "biosphere" | "civilization";
@@ -140,7 +130,7 @@ export default function App() {
     requestAnimationFrame(() => {
       const galaxyCfg  = buildGalaxyConfig(s, config);
       const particles  = generateGalaxy(galaxyCfg);
-      const population = generateStarsFor(galaxyCfg, 13.7, config);
+      const population = generateStarsFor(galaxyCfg, UNIVERSE_AGE_GYR, config);
       galaxyRef.current     = particles;
       populationRef.current = population;
       setGalaxyType(galaxyCfg.type);
@@ -160,7 +150,7 @@ export default function App() {
       // Survey life in idle time: it feeds the snapshot (so button clicks are instant) and the life markers
       setTimeout(() => {
         const survey = surveyLife(population.stars, s, config);
-        cachedSnapshotRef.current = buildSnapshot(s, config, population, survey);
+        cachedSnapshotRef.current = buildSnapshot(s, config, population.stars.length, survey);
         rendererRef.current?.setLifeMarkers(survey.systems.map(life => ({ starId: life.starId, label: lifeMarkerLabel(life) })));
       }, 0);
     });
@@ -213,22 +203,14 @@ export default function App() {
     }
   };
 
-  // Build a snapshot of the current universe state for comparison
-  function buildSnapshot(s: number, cfg: UniverseConfig, pop: StellarPopulation, survey = surveyLife(pop.stars, s, cfg)): UniverseSnapshot {
-    return {
-      seed: s,
-      config: cfg,
-      starCount: pop.stars.length,
-      lifeBearingPlanets: survey.lifeBearingPlanets,
-      civilizationCount: survey.civilizationCount,
-      legendaryEvents: 0,   // filled in if timeline was built
-      totalPlanets: survey.totalPlanets,
-    };
+  // Snapshot of the universe on screen, for comparison and saving
+  function snapshotOf(s: number, cfg: UniverseConfig, pop: StellarPopulation): UniverseSnapshot {
+    return buildSnapshot(s, cfg, pop.stars.length, surveyLife(pop.stars, s, cfg));
   }
 
   const handleSetBaseline = useCallback(() => {
     if (!populationRef.current) return;
-    const snap = cachedSnapshotRef.current ?? buildSnapshot(currentSeed, universeConfig, populationRef.current);
+    const snap = cachedSnapshotRef.current ?? snapshotOf(currentSeed, universeConfig, populationRef.current);
     cachedSnapshotRef.current = snap;
     snapshotRef.current = snap;
     setBaselineSnapshot(snap);
@@ -238,7 +220,7 @@ export default function App() {
   const handleCompare = useCallback(() => {
     if (!baselineSnapshot || !populationRef.current) return;
     lab.compareBegin();
-    const expSnap = cachedSnapshotRef.current ?? buildSnapshot(currentSeed, universeConfig, populationRef.current);
+    const expSnap = cachedSnapshotRef.current ?? snapshotOf(currentSeed, universeConfig, populationRef.current);
     cachedSnapshotRef.current = expSnap;
     const cmp = compareUniverses(baselineSnapshot, expSnap);
     setComparison(cmp);
@@ -291,7 +273,7 @@ export default function App() {
   const handleSaveToGallery = useCallback(() => {
     if (!populationRef.current) return;
     ui.save();
-    const snap = cachedSnapshotRef.current ?? buildSnapshot(currentSeed, universeConfig, populationRef.current);
+    const snap = cachedSnapshotRef.current ?? snapshotOf(currentSeed, universeConfig, populationRef.current);
     cachedSnapshotRef.current = snap;
     const summaryText = generateUniverseSummary({
       seed: currentSeed,
@@ -318,12 +300,29 @@ export default function App() {
       totalPlanets: snap.totalPlanets,
       notes: "",
       isFavorite: false,
+      rulesVersion: SIMULATION_RULES_VERSION,
     };
     void withStorage(async () => {
       await api.saveUniverse(meta);
       await refreshGallery();
     });
   }, [currentSeed, universeConfig, galaxyType, refreshGallery, withStorage]);
+
+  // Regenerate a saved universe under the current rules and store its new counts
+  const handleRecountUniverse = (meta: UniverseMeta) => void withStorage(async () => {
+    const snap = measureUniverse(meta.seed, meta.config);
+    const summary = generateUniverseSummary({ ...snap, galaxyType: meta.galaxyType });
+    await api.recountUniverse(meta.snapshotId, {
+      summary,
+      starCount: snap.starCount,
+      lifeBearingPlanets: snap.lifeBearingPlanets,
+      civilizationCount: snap.civilizationCount,
+      legendaryEvents: snap.legendaryEvents,
+      totalPlanets: snap.totalPlanets,
+      rulesVersion: SIMULATION_RULES_VERSION,
+    });
+    await refreshGallery();
+  });
 
   const handleLoadFromGallery = useCallback((meta: UniverseMeta) => {
     setUniverseConfig(meta.config);
@@ -618,7 +617,7 @@ export default function App() {
           <dl className="kv">
             <dt>Morphology</dt><dd className="kv-text">{universeId ? galaxyType : "—"}</dd>
             <dt>Stars</dt><dd>{universeId ? starCount.toLocaleString() : "—"}</dd>
-            <dt>Particles</dt><dd>{PARTICLE_COUNT.toLocaleString()}</dd>
+            <dt>Particles</dt><dd>{GALAXY_PARTICLE_COUNT.toLocaleString()}</dd>
           </dl>
         </section>
 
@@ -729,6 +728,7 @@ export default function App() {
             onLoad={handleLoadFromGallery}
             onToggleFavorite={handleToggleFavorite}
             onRename={handleRenameUniverse}
+            onRecount={handleRecountUniverse}
             onRemove={handleRemoveUniverse}
             onRemoveDiscovery={handleRemoveDiscovery}
             onClose={() => setShowGallery(false)}

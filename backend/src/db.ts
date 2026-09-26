@@ -1,9 +1,9 @@
 // MySQL connection pool and schema setup.
 
 import mysql from "mysql2/promise";
-import type { Pool } from "mysql2/promise";
+import type { Pool, RowDataPacket } from "mysql2/promise";
 import type { Settings } from "./env.js";
-import { SCHEMA } from "./schema.js";
+import { SCHEMA, COLUMN_MIGRATIONS, pendingMigrations } from "./schema.js";
 
 export function createPool(settings: Settings["db"]): Pool {
   const pool = mysql.createPool({
@@ -20,7 +20,17 @@ export function createPool(settings: Settings["db"]): Pool {
   return pool;
 }
 
-/** Create any missing tables. Safe to run on every start. */
+/** Create any missing tables and columns. Safe to run on every start. */
 export async function ensureSchema(pool: Pool): Promise<void> {
   for (const statement of SCHEMA) await pool.query(statement);
+
+  const tables = [...new Set(COLUMN_MIGRATIONS.map((m) => m.table))];
+  const [existing] = await pool.query<RowDataPacket[]>(
+    `SELECT TABLE_NAME AS \`table\`, COLUMN_NAME AS \`column\` FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (?)`, [tables]);
+  for (const m of pendingMigrations(existing as { table: string; column: string }[])) {
+    // Identifiers are escaped with ??; the definition is a constant from schema.ts
+    await pool.query(`ALTER TABLE ?? ADD COLUMN ?? ${m.definition}`, [m.table, m.column]);
+    console.log(`Added column ${m.table}.${m.column}`);
+  }
 }

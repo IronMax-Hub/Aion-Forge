@@ -7,6 +7,7 @@ import type { Pool, RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { z } from "zod";
 import {
   universeSchema, universePatchSchema, universeToRow, rowToUniverse,
+  recountSchema, recountToColumns,
   discoverySchema, discoveryToRow, rowToDiscovery,
   experimentSchema, experimentToRow, rowToExperiment,
   bookmarkSchema, bookmarkToRow, rowToBookmark,
@@ -63,6 +64,18 @@ export function apiRouter(pool: Pool): Router {
     }
     const [result] = await pool.query<ResultSetHeader>(
       "UPDATE universes SET ? WHERE snapshot_id = ?", [columns, req.params.snapshotId]);
+    if (result.affectedRows === 0) { res.status(404).json({ error: "Universe not found" }); return; }
+    const [rows] = await pool.query<(UniverseRow & RowDataPacket)[]>(
+      "SELECT * FROM universes WHERE snapshot_id = ?", [req.params.snapshotId]);
+    res.json(rowToUniverse(rows[0]));
+  }));
+
+  // Recount: the counts from regenerating the universe under newer rules. Kept apart
+  // from the ordinary PATCH so that editing a name or note can never touch counts.
+  router.patch("/universes/:snapshotId/counts", route(async (req, res) => {
+    const recount = recountSchema.parse(req.body);
+    const [result] = await pool.query<ResultSetHeader>(
+      "UPDATE universes SET ? WHERE snapshot_id = ?", [recountToColumns(recount), req.params.snapshotId]);
     if (result.affectedRows === 0) { res.status(404).json({ error: "Universe not found" }); return; }
     const [rows] = await pool.query<(UniverseRow & RowDataPacket)[]>(
       "SELECT * FROM universes WHERE snapshot_id = ?", [req.params.snapshotId]);

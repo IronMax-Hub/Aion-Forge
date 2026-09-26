@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createRNG } from "../simulation/rng";
-import { generateGalaxy, pickGalaxyType } from "../simulation/galaxy";
-import { generateStarsFor } from "../simulation/star";
+import { generateGalaxy, pickGalaxyType, buildGalaxyConfig } from "../simulation/galaxy";
+import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
+import { surveyLife } from "../simulation/lifeSurvey";
+import { buildSnapshot, measureUniverse } from "../simulation/experiment";
+import { SIMULATION_RULES_VERSION, countedUnderOlderRules } from "../simulation/version";
 import { generatePlanetsFor } from "../simulation/planet";
 import { generateBiosphere } from "../simulation/biosphere";
 import { generateCivilization, describeCivilization } from "../simulation/civilization";
@@ -246,19 +249,41 @@ describe("Serialization", () => {
       totalPlanets: 10000,
       notes: "test",
       isFavorite: false,
+      rulesVersion: 2,
     };
     const json = serializeUniverse(meta);
-    const restored = deserializeUniverse(json);
-    expect(restored).not.toBeNull();
-    expect(restored!.seed).toBe(meta.seed);
-    expect(restored!.config.gravityStrength).toBe(meta.config.gravityStrength);
-    expect(restored!.lifeBearingPlanets).toBe(meta.lifeBearingPlanets);
-    expect(restored!.summary).toBe(meta.summary);
+    expect(JSON.parse(json).version).toBe(2);
+    expect(deserializeUniverse(json)).toEqual(meta);
   });
 
-  it("returns null for malformed JSON", () => {
+  it("reads a format-1 file, written before rules versions, as rules version 1", () => {
+    const legacy = JSON.stringify({ version: 1, meta: { snapshotId: makeUniverseId(7), seed: 7, name: "Old save" } });
+    expect(deserializeUniverse(legacy)).toMatchObject({ seed: 7, name: "Old save", rulesVersion: 1 });
+  });
+
+  it("returns null for malformed JSON, unknown formats, and format 2 without a rules version", () => {
     expect(deserializeUniverse("not json")).toBeNull();
     expect(deserializeUniverse('{"version":1}')).toBeNull();
+    expect(deserializeUniverse('{"version":3,"meta":{"seed":7,"rulesVersion":1}}')).toBeNull();
+    expect(deserializeUniverse('{"version":2,"meta":{"seed":7}}')).toBeNull();
+  });
+});
+
+// ── Recount ───────────────────────────────────────────────────────────────────
+
+describe("Recount", () => {
+  it("measures a saved universe exactly as generating it on screen does", () => {
+    const seed = 100000;
+    const config = makeConfig(seed);
+    const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
+    const onScreen = buildSnapshot(seed, config, stars.length, surveyLife(stars, seed, config));
+    expect(measureUniverse(seed, config)).toEqual(onScreen);
+  });
+
+  it("flags only records counted under rules older than the current ones", () => {
+    expect(countedUnderOlderRules(SIMULATION_RULES_VERSION)).toBe(false);
+    expect(countedUnderOlderRules(SIMULATION_RULES_VERSION + 1)).toBe(false);
+    expect(countedUnderOlderRules(SIMULATION_RULES_VERSION - 1)).toBe(true);
   });
 });
 

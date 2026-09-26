@@ -1,5 +1,10 @@
 import type { UniverseConfig } from "./config";
 import { CONFIG_LABELS } from "./config";
+import { buildGalaxyConfig } from "./galaxy";
+import { generateStarsFor, UNIVERSE_AGE_GYR } from "./star";
+import { surveyLife } from "./lifeSurvey";
+import type { LifeSurvey } from "./lifeSurvey";
+import { SIMULATION_RULES_VERSION } from "./version";
 
 // ── Universe snapshot (AF-123) ────────────────────────────────────────────────
 
@@ -11,6 +16,25 @@ export interface UniverseSnapshot {
   civilizationCount: number;
   legendaryEvents: number;
   totalPlanets: number;
+}
+
+/** The counts that describe a universe, from its star count and life survey. */
+export function buildSnapshot(seed: number, config: UniverseConfig, starCount: number, survey: LifeSurvey): UniverseSnapshot {
+  return {
+    seed,
+    config,
+    starCount,
+    lifeBearingPlanets: survey.lifeBearingPlanets,
+    civilizationCount: survey.civilizationCount,
+    legendaryEvents: 0,   // the timeline is built only on request, so snapshots do not count it
+    totalPlanets: survey.totalPlanets,
+  };
+}
+
+/** Regenerate a universe under the current rules and count it, without drawing anything. */
+export function measureUniverse(seed: number, config: UniverseConfig): UniverseSnapshot {
+  const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
+  return buildSnapshot(seed, config, stars.length, surveyLife(stars, seed, config));
 }
 
 // ── Comparison result (AF-123) ────────────────────────────────────────────────
@@ -194,6 +218,7 @@ export interface ExperimentRecord {
   comparisonSummary: string;
   surprises: string[];
   note: string;
+  rulesVersion: number;   // rules that produced both universes; experiments are never recounted
 }
 
 export function makeExperimentRecord(
@@ -212,5 +237,6 @@ export function makeExperimentRecord(
     comparisonSummary: cmp.summary,
     surprises: cmp.surprises,
     note,
+    rulesVersion: SIMULATION_RULES_VERSION,
   };
 }

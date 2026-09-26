@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   universeSchema, universeToRow, rowToUniverse, universePatchSchema,
+  recountSchema, recountToColumns,
   discoverySchema, discoveryToRow, rowToDiscovery,
   experimentSchema, experimentToRow, rowToExperiment,
   bookmarkSchema, bookmarkToRow, rowToBookmark,
   importSchema,
 } from "../src/records.js";
 import type { UniverseRow, ExperimentRow } from "../src/records.js";
+import { COLUMN_MIGRATIONS, pendingMigrations } from "../src/schema.js";
 
 const universe = {
   snapshotId: "AF-U-0001-86A0",
@@ -22,6 +24,7 @@ const universe = {
   starCount: 2000, lifeBearingPlanets: 968, civilizationCount: 100,
   legendaryEvents: 0, totalPlanets: 9000,
   notes: "", isFavorite: true,
+  rulesVersion: 2,
 };
 
 describe("universes", () => {
@@ -39,6 +42,55 @@ describe("universes", () => {
   it("allows only name, notes and favourite to be patched", () => {
     expect(universePatchSchema.parse({ name: "Renamed" })).toEqual({ name: "Renamed" });
     expect(() => universePatchSchema.parse({ seed: 5 })).toThrow();
+    expect(() => universePatchSchema.parse({ civilizationCount: 5 })).toThrow();
+    expect(() => universePatchSchema.parse({ rulesVersion: 2 })).toThrow();
+  });
+
+  it("treats a universe saved without a rules version as rules version 1", () => {
+    const { rulesVersion: _omitted, ...legacy } = universe;
+    expect(universeSchema.parse(legacy).rulesVersion).toBe(1);
+  });
+
+  it("rejects a rules version below 1", () => {
+    expect(() => universeSchema.parse({ ...universe, rulesVersion: 0 })).toThrow();
+  });
+});
+
+describe("recounts", () => {
+  const recount = {
+    summary: "Recounted.", starCount: 2000, lifeBearingPlanets: 900,
+    civilizationCount: 90, legendaryEvents: 0, totalPlanets: 8700, rulesVersion: 2,
+  };
+
+  it("maps every counted field and the rules version to its column", () => {
+    expect(recountToColumns(recountSchema.parse(recount))).toEqual({
+      summary: "Recounted.", star_count: 2000, life_bearing_planets: 900,
+      civilization_count: 90, legendary_events: 0, total_planets: 8700, rules_version: 2,
+    });
+  });
+
+  it("requires a rules version and refuses anything that is not a count", () => {
+    const { rulesVersion: _omitted, ...withoutVersion } = recount;
+    expect(() => recountSchema.parse(withoutVersion)).toThrow();
+    expect(() => recountSchema.parse({ ...recount, name: "Renamed" })).toThrow();
+    expect(() => recountSchema.parse({ ...recount, seed: 5 })).toThrow();
+  });
+});
+
+describe("column migrations", () => {
+  it("are all pending on tables that predate them", () => {
+    expect(pendingMigrations([{ table: "universes", column: "seed" }])).toEqual(COLUMN_MIGRATIONS);
+  });
+
+  it("are none once every column exists, so a second run does nothing", () => {
+    const existing = COLUMN_MIGRATIONS.map(({ table, column }) => ({ table, column }));
+    expect(pendingMigrations(existing)).toEqual([]);
+  });
+
+  it("add rules_version to universes and experiments with default 1", () => {
+    const added = COLUMN_MIGRATIONS.filter((m) => m.column === "rules_version");
+    expect(added.map((m) => m.table).sort()).toEqual(["experiments", "universes"]);
+    for (const m of added) expect(m.definition).toMatch(/NOT NULL DEFAULT 1$/);
   });
 });
 
@@ -56,6 +108,7 @@ describe("discoveries, experiments, bookmarks", () => {
       id: "EXP-ABC", timestamp: 1_790_000_000_000, baselineSeed: 1, experimentSeed: 1,
       modifiedConstants: ["Gravity"], comparisonSummary: "More stars.", surprises: ["None"], note: "",
     });
+    expect(e.rulesVersion).toBe(1);   // logged before rules versions existed
     const row = experimentToRow(e);
     const asText: ExperimentRow = row;
     const asParsed: ExperimentRow = { ...row, modified_constants: ["Gravity"], surprises: ["None"] };

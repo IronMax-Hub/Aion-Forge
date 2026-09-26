@@ -1597,6 +1597,13 @@
   align-items: center;
 }
 
+/* Counts stored under older simulation rules: a plain note, not an alarm */
+.gallery-card-rules {
+  font-size: var(--fs-xs);
+  color: var(--col-text-3);
+  margin-top: var(--sp-3);
+}
+
 .gallery-icon-btn {
   background: none;
   border: none;

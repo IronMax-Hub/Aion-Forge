@@ -36,6 +36,11 @@ export const saveUniverse   = (meta: UniverseMeta) =>
   request<UniverseMeta>("PUT", `/universes/${encodeURIComponent(meta.snapshotId)}`, meta);
 export const updateUniverse = (snapshotId: string, patch: Partial<Pick<UniverseMeta, "name" | "notes" | "isFavorite">>) =>
   request<UniverseMeta>("PATCH", `/universes/${encodeURIComponent(snapshotId)}`, patch);
+/** New counts from regenerating a saved universe under the current rules. */
+export type UniverseRecount = Pick<UniverseMeta,
+  "summary" | "starCount" | "lifeBearingPlanets" | "civilizationCount" | "legendaryEvents" | "totalPlanets" | "rulesVersion">;
+export const recountUniverse = (snapshotId: string, recount: UniverseRecount) =>
+  request<UniverseMeta>("PATCH", `/universes/${encodeURIComponent(snapshotId)}/counts`, recount);
 export const deleteUniverse = (snapshotId: string) =>
   request<void>("DELETE", `/universes/${encodeURIComponent(snapshotId)}`);
 

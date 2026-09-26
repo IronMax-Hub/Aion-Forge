@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { UniverseMeta, DiscoveryItem } from "../simulation/persistence";
 import { exportUniverse, getFeaturedUniverses, COLLECTION_LABEL } from "../simulation/persistence";
+import { countedUnderOlderRules } from "../simulation/version";
 
 interface Props {
   gallery: UniverseMeta[];
@@ -8,6 +9,7 @@ interface Props {
   onLoad: (meta: UniverseMeta) => void;
   onToggleFavorite: (meta: UniverseMeta) => void;
   onRename: (snapshotId: string, name: string) => void;
+  onRecount: (meta: UniverseMeta) => void;
   onRemove: (snapshotId: string) => void;
   onRemoveDiscovery: (id: string) => void;
   onClose: () => void;
@@ -25,7 +27,7 @@ function timeSince(ts: number): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export function GalleryPanel({ gallery, discoveries, onLoad, onToggleFavorite, onRename, onRemove, onRemoveDiscovery, onClose }: Props) {
+export function GalleryPanel({ gallery, discoveries, onLoad, onToggleFavorite, onRename, onRecount, onRemove, onRemoveDiscovery, onClose }: Props) {
   const [tab, setTab]       = useState<Tab>("gallery");
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -168,10 +170,23 @@ export function GalleryPanel({ gallery, discoveries, onLoad, onToggleFavorite, o
 
               <div className="gallery-card-summary">{meta.summary}</div>
 
+              {countedUnderOlderRules(meta.rulesVersion) && (
+                <div className="gallery-card-rules">Counted under rules v{meta.rulesVersion}</div>
+              )}
+
               <div className="gallery-card-actions">
                 <button className="btn primary" style={{ flex: 1 }} onClick={() => onLoad(meta)}>
                   Load
                 </button>
+                {countedUnderOlderRules(meta.rulesVersion) && (
+                  <button
+                    className="btn"
+                    onClick={() => onRecount(meta)}
+                    title="Regenerate this universe under the current rules and update its counts"
+                  >
+                    Recount
+                  </button>
+                )}
               </div>
             </div>
           ))}

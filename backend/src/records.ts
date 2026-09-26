@@ -9,6 +9,9 @@ const factor    = z.number().finite().positive();
 const epochMs   = z.number().int().nonnegative();
 const shortText = (max: number) => z.string().max(max);
 const longText  = z.string().max(20_000);
+// Which simulation rules produced a record's numbers. Records made before rules
+// versions existed (legacy browser data, version-1 files) were made by rules 1.
+const rulesVersion = z.number().int().min(1).max(65_535);
 
 // ── Universes ────────────────────────────────────────────────────────────────
 
@@ -37,16 +40,40 @@ export const universeSchema = z.object({
   totalPlanets:       count,
   notes:              longText,
   isFavorite:         z.boolean(),
+  rulesVersion:       rulesVersion.default(1),
 });
 export type Universe = z.infer<typeof universeSchema>;
 
-/** Fields the Library lets a viewer edit after saving. */
+/** Fields the Library lets a viewer edit after saving. Counts are not among them. */
 export const universePatchSchema = z.object({
   name:       shortText(200).min(1).optional(),
   notes:      longText.optional(),
   isFavorite: z.boolean().optional(),
 }).strict();
 export type UniversePatch = z.infer<typeof universePatchSchema>;
+
+/**
+ * A recount: the universe regenerated under newer rules. Replaces every number
+ * the rules produce, the summary that states them, and the rules version.
+ */
+export const recountSchema = z.object({
+  summary:            longText,
+  starCount:          count,
+  lifeBearingPlanets: count,
+  civilizationCount:  count,
+  legendaryEvents:    count,
+  totalPlanets:       count,
+  rulesVersion,
+}).strict();
+export type Recount = z.infer<typeof recountSchema>;
+
+export function recountToColumns(r: Recount) {
+  return {
+    summary: r.summary, star_count: r.starCount, life_bearing_planets: r.lifeBearingPlanets,
+    civilization_count: r.civilizationCount, legendary_events: r.legendaryEvents,
+    total_planets: r.totalPlanets, rules_version: r.rulesVersion,
+  };
+}
 
 export interface UniverseRow {
   snapshot_id: string; seed: number; name: string; galaxy_type: string;
@@ -55,7 +82,7 @@ export interface UniverseRow {
   emergence_sensitivity: number; intelligence_modifier: number;
   summary: string; star_count: number; life_bearing_planets: number;
   civilization_count: number; legendary_events: number; total_planets: number;
-  notes: string; is_favorite: number | boolean; created_at: Date;
+  notes: string; is_favorite: number | boolean; rules_version: number; created_at: Date;
 }
 
 export function universeToRow(u: Universe): Omit<UniverseRow, "is_favorite"> & { is_favorite: boolean } {
@@ -71,7 +98,7 @@ export function universeToRow(u: Universe): Omit<UniverseRow, "is_favorite"> & {
     summary: u.summary, star_count: u.starCount, life_bearing_planets: u.lifeBearingPlanets,
     civilization_count: u.civilizationCount, legendary_events: u.legendaryEvents,
     total_planets: u.totalPlanets, notes: u.notes, is_favorite: u.isFavorite,
-    created_at: new Date(u.createdAt),
+    rules_version: u.rulesVersion, created_at: new Date(u.createdAt),
   };
 }
 
@@ -92,6 +119,7 @@ export function rowToUniverse(r: UniverseRow): Universe {
     starCount: r.star_count, lifeBearingPlanets: r.life_bearing_planets,
     civilizationCount: r.civilization_count, legendaryEvents: r.legendary_events,
     totalPlanets: r.total_planets, notes: r.notes, isFavorite: Boolean(r.is_favorite),
+    rulesVersion: r.rules_version,
   };
 }
 
@@ -138,13 +166,14 @@ export const experimentSchema = z.object({
   comparisonSummary: longText,
   surprises:         z.array(shortText(2000)).max(100),
   note:              longText,
+  rulesVersion:      rulesVersion.default(1),
 });
 export type Experiment = z.infer<typeof experimentSchema>;
 
 export interface ExperimentRow {
   id: string; recorded_at: Date; baseline_seed: number; experiment_seed: number;
   modified_constants: string[] | string; comparison_summary: string;
-  surprises: string[] | string; note: string;
+  surprises: string[] | string; note: string; rules_version: number;
 }
 
 export function experimentToRow(e: Experiment) {
@@ -152,6 +181,7 @@ export function experimentToRow(e: Experiment) {
     id: e.id, recorded_at: new Date(e.timestamp), baseline_seed: e.baselineSeed,
     experiment_seed: e.experimentSeed, modified_constants: JSON.stringify(e.modifiedConstants),
     comparison_summary: e.comparisonSummary, surprises: JSON.stringify(e.surprises), note: e.note,
+    rules_version: e.rulesVersion,
   };
 }
 
@@ -165,6 +195,7 @@ export function rowToExperiment(r: ExperimentRow): Experiment {
     id: r.id, timestamp: r.recorded_at.getTime(), baselineSeed: Number(r.baseline_seed),
     experimentSeed: Number(r.experiment_seed), modifiedConstants: jsonArray(r.modified_constants),
     comparisonSummary: r.comparison_summary, surprises: jsonArray(r.surprises), note: r.note,
+    rulesVersion: r.rules_version,
   };
 }
 

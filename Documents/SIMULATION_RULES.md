@@ -13,6 +13,8 @@ Instead, it establishes the principles, constraints, and causal relationships fr
 
 Whenever implementation conflicts with these rules, these rules take precedence.
 
+The concrete mechanics that follow these laws live in the code and in the plans that introduced them (`Worlds-Up-Close.md` and its revision, for planets and their histories). Whenever a change to those mechanics alters what a seed produces, the simulation rules version (`frontend/src/simulation/version.ts`) rises, so figures measured under older rules can be recognised.
+
 ---
 
 # 1. First Principle

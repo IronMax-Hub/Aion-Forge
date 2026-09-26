@@ -11,6 +11,8 @@ This is not an implementation guide.
 
 It is a specification of reality.
 
+It was written before the code and remains the design intent. Where the current implementation differs, a note says so. How planets, their histories and the planet view actually work is set out in `Worlds-Up-Close.md` and `Worlds-Up-Close-Revision-1.md` (the revision takes precedence).
+
 ---
 
 # 1. System Philosophy
@@ -131,6 +133,8 @@ Example:
 * Large
 * Custom
 
+Not built: a universe is one galaxy of 2,000 stars; its extent is set by the Expansion Rate.
+
 ---
 
 ### Laws
@@ -208,6 +212,14 @@ Influences:
 Influences:
 
 * how easily complexity develops.
+
+---
+
+### Intelligence Modifier
+
+Influences:
+
+* how readily complex biospheres give rise to intelligence and civilization.
 
 ---
 
@@ -297,7 +309,7 @@ Examples:
 * Spiral
 * Elliptical
 * Irregular
-* Ring
+* Ring (not built)
 
 ---
 
@@ -316,6 +328,8 @@ Elapsed time since formation.
 ### Stellar Population
 
 Collection of stars.
+
+Implementation note: each universe currently holds a single galaxy, so position and mass are not modelled; the galaxy is described by its type and scale.
 
 ---
 
@@ -429,6 +443,7 @@ Examples:
 
 * Compact
 * Distributed
+* Resonant
 * Chaotic
 
 ---
@@ -490,6 +505,30 @@ Potential developmental support.
 ### Habitability Score
 
 General measure of life's viability.
+
+---
+
+### Physical Properties
+
+Mass, surface gravity, escape velocity, orbital period, axial tilt, rotation period, and whether the planet is tidally locked to its star. Water is set by where the planet formed relative to the snow line.
+
+---
+
+### Geography (solid planets)
+
+Continents, ocean basins and elevation on a grid of cells covering the sphere.
+
+---
+
+### World History (solid planets)
+
+Climate over billions of years: the star brightens, volcanoes outgas CO₂ while tectonics lasts, land and seafloor weathering draw it down, and oceans may freeze over or boil away in a runaway greenhouse. Today's surface (ocean, ice and land shares), surface pressure, temperature and atmosphere class are what that history leaves. Life reads from it.
+
+---
+
+### Formation and Fate
+
+Planets form beyond the distance at which the young star's light would boil away dust. A star that swells into a red giant engulfs any planet inside its radius; those planets no longer exist.
 
 ---
 
@@ -679,6 +718,8 @@ Events document meaningful change.
 
 ## Event Categories
 
+Some examples below are design intent and are not yet generated: galaxy mergers, impact events and climate shifts.
+
 ### Cosmic
 
 Examples:
@@ -805,6 +846,8 @@ Historical Events
 ↓
 Stories
 ```
+
+Presentation sits outside this flow. The views that draw the universe, down to a planet seen from orbit, read it and never write to it.
 
 The ultimate output of Aion Forge is not data.
 

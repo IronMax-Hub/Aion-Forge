@@ -147,6 +147,8 @@ Galaxy view
   → click a star             → Star inspector (right dock)
   → Open system              → Planetary system + planet table
   → click a planet or row    → Planet inspector
+  → Approach (or double-click the planet) → Planet view, in orbit
+  → Leave orbit              → Back to the planetary system
   → Scan biosphere           → Biosphere inspector
   → Check for civilization   → Civilization inspector
   → Timeline (sidebar)       → Universe timeline
@@ -198,9 +200,9 @@ Aion Forge is laid out like scientific observatory software:
 
 * **Top bar** — the universe ID (AF-U-XXXX-XXXX), a clickable breadcrumb, and seed controls (Generate, Random seed, Regenerate)
 * **Left sidebar** — universe facts, the Life markers switch (rings every star system with life and labels the nearest ones with their most advanced life form or civilization), current physical parameters, comparison and experiment log, saved universes (Save universe, Library, Import), and the timeline
-* **Centre** — the rendered galaxy or planetary system; tool panels open over it
+* **Centre** — the rendered galaxy, planetary system or planet seen from orbit; tool panels open over it
 * **Right dock** — the selected star, planet table, planet, biosphere or civilization, with values in physical units (M☉, L☉, K, AU, Gyr) and spectral types
-* **Status bar** — hints, a scale bar (light-years in the galaxy, AU in a system), and sound controls
+* **Status bar** — hints, a scale bar (light-years in the galaxy, AU in a system, kilometres around a planet), and sound controls
 
 Distances in light-years use a display convention — the default galaxy radius of 120 simulation units is shown as about 50,000 ly — and do not affect the simulation.
 
@@ -208,21 +210,25 @@ Distances in light-years use a display convention — the default galaxy radius 
 
 ## Current Status
 
-**Version 1.0 + Enhancement I + Enhancement III + Enhancement V**
+**Version 1.0, Enhancements I, III and V, and Worlds Up Close phases A1–A7 (simulation rules v5)**
 
-Aion Forge has completed its first mature release and three post-release enhancements.
-
-### Simulation (Phases 0–9)
+### Simulation
 
 * Deterministic galaxy generation — spiral, elliptical, irregular
-* 2,000-star stellar populations with full lifecycle simulation
-* Planetary system generation with habitability assessment
-* Probability-driven biosphere emergence and evolutionary progression
+* 2,000-star stellar populations with full lifecycle simulation; red giants swell and engulf their innermost planets
+* Planetary systems that form beyond the young star's heat, with planet types and resource abundance
+* Physical planets — gravity, escape velocity, orbital period, axial tilt, rotation, tidal locking, and water set by the snow line
+* Geography of solid planets — continents, oceans and elevation on a grid of cells
+* World histories over billions of years — the star brightens, volcanoes outgas CO₂, land and seafloor weather it away, oceans can boil off in a runaway greenhouse, and today's climate, pressure and atmosphere class are what that history leaves
+* Probability-driven biosphere emergence and evolution, read from each world's history
 * Civilization formation, technological progression, collapse and recovery
 * Historical event recording and timeline replay
 * Configurable laws of physics with experiment comparison
 * Universe persistence, library, export/import, and discovery collections
-* 22 determinism tests covering every simulation layer
+* Life survey run in a background worker; saved counts are marked when they were made under older simulation rules
+* Determinism tests for every simulation layer, among some 236 tests
+
+The simulation rules carry a version number (`frontend/src/simulation/version.ts`). It rises whenever a change alters what a seed produces, so older saved figures can be recognised.
 
 ### Enhancement I — The Observatory
 
@@ -230,7 +236,7 @@ A complete visual and experiential transformation.
 
 * Unified design system — CSS custom properties covering color, typography, spacing, motion
 * Premium observatory interface — universe identity header with unique ID, console section grouping, observatory language throughout
-* Contextual inspector system — all six panel types rebuilt with the inspector vocabulary
+* Contextual inspector system — all panel types built on the inspector vocabulary
 * Enhanced timeline — category icons, importance-scaled cues, improved replay
 * Gallery and discovery journal — universe cards, browsing, discovery collections
 * Empty state design — intentional experiences for every unloaded state
@@ -252,22 +258,33 @@ All sound is synthesized via the Web Audio API — no audio files.
 * Adaptive mixing — ambient remains dominant at all times
 * Per-layer volume controls with persistent preferences
 
-Every universe is fully reproducible from its seed.
-
 ### Enhancement V — Celestial Rendering
 
-A complete visual transformation from particle simulation to astronomical experience.
+A visual transformation from particle simulation to astronomical experience.
 
-* Square particles eliminated — galaxy dust uses a custom GLSL shader with circular soft-edged fragments
-* Three-layer Gaussian star glow — bright core, inner ring, outer halo, with core pushed toward white
-* Stellar classification visuals — O through M spectral types each carry distinct size and glow multipliers
-* Dynamic star size scaling — luminosity log scale combined with spectral class; rare stars carry a 2.4× boost
-* Twinkling system — golden-ratio phase offsets per star, driven by a `uTime` uniform updated each frame
-* Four-layer seeded background starfield — 6,215 stars across depth layers with distinct densities, sizes, and tints; no `Math.random()`
-* Nebula sprite accents — three procedurally placed nebulae (emission, reflection, ionization) seeded by galaxy, using canvas radial gradient textures
-* ACES filmic tone mapping — eliminates hard white clipping on additive-blended regions; exposure tuned to 0.9
-* Cinematic camera — increased damping, slower auto-rotation, quintic ease-out focus tweens
-* Performance — star sprite canvas texture created once and reused; `THREE.Clock` for accurate delta time; full resource disposal on scene teardown
+* Galaxy dust drawn by a custom GLSL shader with circular soft-edged fragments
+* Three-layer Gaussian star glow — bright core, inner ring, outer halo — in steady light, without twinkling
+* Stellar classification visuals — O through M spectral types each carry distinct size and glow
+* Star size from luminosity and spectral class; rare stars stand out
+* A real night sky behind the galaxy — 5,000 fixed foreground stars and a few hundred faint distant galaxies chosen by the seed, on a sky that stays infinitely far away; it never reads or feeds the simulation
+* Nebula accents placed by the galaxy's seed
+* ACES filmic tone mapping
+* Cinematic camera — damping, slow auto-rotation, eased focus tweens
+
+### Worlds Up Close — the planet view
+
+A third level of zoom: from a planetary system down to a single planet seen from orbit. Everything drawn comes from the simulated world; presentation choices (fine detail, cloud patterns, storms, rings) come from each planet's own seeded visual stream, so the same planet always looks the same, and nothing drawn feeds back into the simulation.
+
+* Approach glides the camera into orbit; Leave orbit returns to the system
+* Solid planets drawn from their surface grid — oceans, ice, dry and wet land, and relief, lit by their star's colour and a day–night terminator
+* Tidally locked worlds keep one face to their star; free planets are tilted by their axial tilt
+* Air and clouds — a scattering rim coloured by the star's spectrum and the air's actual pressure, and clouds that thicken to full overcast on crushing worlds and drift slowly
+* Gas and ice giants — bands that multiply with faster spin, a palette by cloud-top temperature (methane blue, ammonia cream and brown, cloudless azure, dark glowing hot Jupiters), storms and sometimes rings
+* Molten ground — glowing cracks and heat shimmer where the surface is hot enough to melt
+* Each globe is baked once on the GPU during the approach and cached for the last five planets visited, so older graphics cards stay responsive
+* Reduced motion is respected
+
+Still to come: planets turning on screen (A8) and signs of life seen from orbit (A9).
 
 ---
 
@@ -279,11 +296,12 @@ A complete visual transformation from particle simulation to astronomical experi
 * TypeScript
 * Vite
 * Web Audio API
-* Three.js — galaxy, star, and system rendering
-* GLSL — custom vertex/fragment shaders for Gaussian star glow and circular dust particles
+* Web Workers — the life survey runs off the main thread
+* Three.js — galaxy, system and planet rendering
+* GLSL — custom shaders for star glow, dust, the night sky, and the planet view (globe baking and lighting, atmosphere, clouds, rings)
 * Node.js + Express + mysql2 — local API for saved data (`backend/`)
 * MySQL — Library, discoveries, experiment log, star bookmarks
-* Vitest — determinism, physics and formatting tests (frontend); record validation tests (backend)
+* Vitest — determinism, physics, climate, rendering-data and formatting tests (frontend); record validation tests (backend)
 
 ---
 
@@ -293,9 +311,12 @@ Begin by reading:
 
 * `CLAUDE.md` — engineering philosophy and contributor guidelines
 * `Documents/PROJECT_CHARTER.md` — the vision and purpose
-* `Documents/SYSTEM_SPEC.md` — technical specification
-* `Documents/SIMULATION_RULES.md` — simulation layer rules
+* `Documents/SYSTEM_SPEC.md` — the design specification: what exists in a universe and how the layers relate
+* `Documents/SIMULATION_RULES.md` — the laws of behaviour every simulation layer follows (determinism, causality, thresholds, feedback)
 * `Documents/ROADMAP.md` — development phases
+* `Worlds-Up-Close.md` and `Worlds-Up-Close-Revision-1.md` — the plan for planets, their histories and the planet view (the revision takes precedence)
+* `Documents/stats.md` — life counts and timings recorded after each change to the rules
+* `Documents/SHOWCASE.md` — notable seeds and what to look for in them
 
 Contributions must preserve determinism, understandability, emergence, and wonder.
 

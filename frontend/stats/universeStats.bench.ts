@@ -24,6 +24,7 @@ import type { Star } from "../src/simulation/star";
 import { surveyLife, ORGANISM_STAGES } from "../src/simulation/lifeSurvey";
 import { generatePlanetsFor } from "../src/simulation/planet";
 import { derivePhysics } from "../src/simulation/planetPhysics";
+import { buildGeography, hasSolidSurface } from "../src/simulation/geography";
 import type { LifeSurvey } from "../src/simulation/lifeSurvey";
 import { SIMULATION_RULES_VERSION } from "../src/simulation/version";
 
@@ -31,11 +32,20 @@ const SEEDS = [100000, 42, 7777];
 const TIMING_RUNS = 5;
 const STATS_FILE = fileURLToPath(new URL("../../Documents/stats.md", import.meta.url));
 
+interface Geographies {
+  solidPlanets: number;
+  medianOcean: number;     // ocean cover at formation, median over solid planets
+  oceanWorldShare: number; // solid planets more than 90% ocean
+  dryShare: number;        // solid planets less than 3% ocean
+  ms: number;              // one pass over every solid planet
+}
+
 interface Row {
   preset: string;
   seed: number;
   survey: LifeSurvey;
   lockedShare: number;   // tidally locked planets, share of all planets
+  geography: Geographies;
   surveyMs: number;
 }
 
@@ -53,6 +63,24 @@ function lockedShare(stars: Star[], seed: number, config: UniverseConfig): numbe
     }
   }
   return planets === 0 ? 0 : locked / planets;
+}
+
+function geographies(stars: Star[], seed: number, config: UniverseConfig): Geographies {
+  const solid = stars.flatMap((star) => generatePlanetsFor(star, seed, config).planets
+    .filter(hasSolidSurface)
+    .map((planet) => ({ planet, physics: derivePhysics(planet, star, seed, config) })));
+  const start = performance.now();
+  const oceans = solid.map(({ planet, physics }) => buildGeography(planet, physics, seed).oceanFraction);
+  const ms = performance.now() - start;
+  oceans.sort((a, b) => a - b);
+  const share = (inClass: (ocean: number) => boolean) => oceans.filter(inClass).length / Math.max(1, oceans.length);
+  return {
+    solidPlanets: solid.length,
+    medianOcean: oceans.length === 0 ? 0 : oceans[Math.floor(oceans.length / 2)],
+    oceanWorldShare: share((o) => o > 0.9),
+    dryShare: share((o) => o < 0.03),
+    ms,
+  };
 }
 
 /** Median wall-clock time of the survey alone, in ms. */
@@ -74,7 +102,8 @@ function measure(): Row[] {
       const stars = starsOf(seed, config);
       rows.push({
         preset: preset.name, seed, survey: surveyLife(stars, seed, config),
-        lockedShare: lockedShare(stars, seed, config), surveyMs: medianSurveyMs(stars, seed, config),
+        lockedShare: lockedShare(stars, seed, config), geography: geographies(stars, seed, config),
+        surveyMs: medianSurveyMs(stars, seed, config),
       });
     }
   }
@@ -87,11 +116,12 @@ function stageMix(survey: LifeSurvey): string {
 
 function table(rows: Row[]): string {
   const lines = [
-    "| Preset | Seed | Planets | Tidally locked | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Survey (ms) |",
-    "|---|---:|---:|---:|---:|---:|---|---:|---:|",
+    "| Preset | Seed | Planets | Tidally locked | Solid planets | Median ocean cover at formation | Ocean worlds (> 90%) | Dry (< 3%) | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Survey (ms) | Geography (ms) |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|",
   ];
-  for (const { preset, seed, survey, lockedShare: locked, surveyMs } of rows) {
-    lines.push(`| ${preset} | ${seed} | ${survey.totalPlanets} | ${(locked * 100).toFixed(1)}% | ${survey.lifeBearingPlanets} | ${survey.systems.length} | ${stageMix(survey)} | ${survey.civilizationCount} | ${surveyMs.toFixed(1)} |`);
+  const percent = (share: number) => `${(share * 100).toFixed(1)}%`;
+  for (const { preset, seed, survey, lockedShare: locked, geography: g, surveyMs } of rows) {
+    lines.push(`| ${preset} | ${seed} | ${survey.totalPlanets} | ${percent(locked)} | ${g.solidPlanets} | ${percent(g.medianOcean)} | ${percent(g.oceanWorldShare)} | ${percent(g.dryShare)} | ${survey.lifeBearingPlanets} | ${survey.systems.length} | ${stageMix(survey)} | ${survey.civilizationCount} | ${surveyMs.toFixed(1)} | ${g.ms.toFixed(0)} |`);
   }
   return lines.join("\n");
 }

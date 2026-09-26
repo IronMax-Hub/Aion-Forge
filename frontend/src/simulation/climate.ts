@@ -248,6 +248,12 @@ export interface PresentClimate {
   cellSurface: Uint8Array;
   /** 0–1: falls with distance from open water, rises with warmth. */
   cellMoisture: Float64Array;
+  /** Cells that hold water, open or frozen: below sea level, unless the water is steam. */
+  cellSubmerged: Uint8Array;
+  /** The sea level the oceans were filled to, km. */
+  seaLevelKm: number;
+  /** The wetness the climate was solved for: how much of frozen land is snow. */
+  wetness: number;
 }
 
 // Moisture halves with every cell (~1,100 km on Earth) from open water
@@ -370,5 +376,8 @@ export function solvePresentClimate(
     cellTemperatureK: temperatureK,
     cellSurface: surface,
     cellMoisture: moisture,
+    cellSubmerged: ocean,
+    seaLevelKm,
+    wetness: inputs.wetness,
   };
 }

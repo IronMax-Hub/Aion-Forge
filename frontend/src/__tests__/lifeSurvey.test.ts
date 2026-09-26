@@ -17,7 +17,7 @@ const stars = generateStarsFor(
 const survey = surveyLife(stars, SEED, config);
 
 describe("life survey", () => {
-  it("gives the same result for the same seed", () => {
+  it("gives the same result for the same seed", { timeout: 30_000 }, () => {   // a full survey: ~4 s alone, more in the full suite
     expect(surveyLife(stars, SEED, config)).toEqual(survey);
   });
 

@@ -122,7 +122,7 @@ function bandOf(cosAngle: number): number {
 // symmetry axes: along them, whole rings of cells sit exactly on a band edge
 // (the equator band came out 45% too large); here every band is within 4% of
 // its true area.
-const BAND_AXIS: Vec3 = normalize([0.21, 0.37, 1]);
+export const BAND_AXIS: Vec3 = normalize([0.21, 0.37, 1]);
 
 function buildIcosphere(level: number): Grid {
   const phi = (1 + Math.sqrt(5)) / 2;

@@ -34,7 +34,7 @@ function universe(seed: number) {
 const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 
 describe("stellar luminosity through time", () => {
-  it("returns today's luminosity today, for any kind of star", () => {
+  it("returns today's luminosity today, for any kind of star", { timeout: 30_000 }, () => {   // builds a whole universe's planets
     for (const s of universe(42).map((e) => e.star).slice(0, 400)) {
       expect(luminosityAt(s, s.age)).toBe(s.luminosity);
     }

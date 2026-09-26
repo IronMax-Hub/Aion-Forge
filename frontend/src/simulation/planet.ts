@@ -7,7 +7,9 @@ import { effectiveOrbitAU, GIANT_PLANET_MASS } from "./planetBasics";
 import { derivePhysics } from "./planetPhysics";
 import type { PlanetPhysics } from "./planetPhysics";
 import { buildGeography } from "./geography";
+import type { Geography } from "./geography";
 import { runWorldHistory } from "./worldHistory";
+import type { WorldHistory } from "./worldHistory";
 import type { PresentClimate } from "./climate";
 
 export { effectiveOrbitAU, GIANT_PLANET_MASS };
@@ -214,6 +216,26 @@ function presentSurface(present: PresentClimate, physics: PlanetPhysics, pressur
 
 // ── Public API (AF-036) ───────────────────────────────────────────────────────
 
+/** What a solid planet's surface is made from: its physics, its geography and its history. */
+export interface SolidWorld {
+  physics: PlanetPhysics;
+  geography: Geography;
+  history: WorldHistory;
+}
+
+/**
+ * A solid planet's physics, geography and world history. Reads only the
+ * planet's orbit, mass, size and atmosphere, so it gives the same world for a
+ * planet before and after generatePlanetsFor fills in its type and surface;
+ * the planet view uses it to draw the surface the simulation made.
+ */
+export function solidWorldOf(planet: Planet, star: Star, galaxySeed: number, cfg?: UniverseConfig): SolidWorld {
+  const config = cfg ?? makeConfig(galaxySeed);
+  const physics = derivePhysics(planet, star, galaxySeed, config);
+  const geography = buildGeography(planet, physics, galaxySeed);
+  return { physics, geography, history: runWorldHistory(planet, physics, geography, star, galaxySeed, config) };
+}
+
 /** A planet's identity in the galaxy, for caches, timeline subjects and discoveries. */
 export function planetKey(starId: number, index: number): string {
   return `${starId}-${index}`;
@@ -264,8 +286,7 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
       planet.type = giantType(equilibriumK);
     } else {
       // A solid planet's surface is the end of its history
-      const physics = derivePhysics(planet, star, galaxySeed, config);
-      const history = runWorldHistory(planet, physics, buildGeography(planet, physics, galaxySeed), star, galaxySeed, config);
+      const { physics, history } = solidWorldOf(planet, star, galaxySeed, config);
       planet.surface = presentSurface(history.present, physics, history.final.pressureBar);
       planet.temperature = history.present.meanK;
       planet.type = solidType(planet.temperature, planet.surface);

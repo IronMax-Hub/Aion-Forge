@@ -4,11 +4,12 @@ import { CSS2DRenderer, CSS2DObject } from "three/examples/jsm/renderers/CSS2DRe
 import type { GalaxyParticles } from "../simulation/galaxy";
 import type { Star, StellarPopulation } from "../simulation/star";
 import { temperatureToColor } from "../simulation/star";
-import type { Planet, PlanetarySystem } from "../simulation/planet";
+import type { Planet, PlanetarySystem, SolidWorld } from "../simulation/planet";
 import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
 import { SkyBackground } from "./background";
 import { PlanetView, ORBIT_DISTANCE } from "./planet/PlanetView";
+import { GlobeTextureCache, drawsSurface } from "./planet/globe";
 
 // ── Visual seeded PRNG (ENH-506) ──────────────────────────────────────────────
 // Used for the nebula accents — purely visual, does not affect
@@ -146,6 +147,14 @@ function realisticDustColors(particles: GalaxyParticles): Float32Array {
 /** Planetary-system view draws orbits at this many scene units per AU. */
 export const SYSTEM_UNITS_PER_AU = 2.5;
 
+/** What the planet view is given about a planet besides the planet itself. */
+export interface PlanetSight {
+  /** The planet's solid world, when it has one to draw; null for giants. */
+  world: SolidWorld | null;
+  /** Starlight at the planet, relative to Earth's. */
+  starFlux: number;
+}
+
 export type ViewMode = "galaxy" | "system" | "planet";
 
 /**
@@ -273,6 +282,8 @@ export class UniverseRenderer {
 
   // Planet view: its scene, and the system view's camera to return to
   private planetView: PlanetView | null = null;
+  private readonly globeTextures = new GlobeTextureCache();
+  private systemGalaxySeed = 0;
   private systemHostStar: Star | null = null;
   private systemCameraPose: { position: THREE.Vector3; target: THREE.Vector3 } | null = null;
 
@@ -387,6 +398,8 @@ export class UniverseRenderer {
     this.buildNebula(particles.config.seed, particles.config.scale);
     // The distant galaxies behind this universe (presentation only, see background.ts)
     this.sky.setUniverse(particles.config.seed);
+    // A new universe reuses planet keys for different planets
+    this.globeTextures.clear();
   }
 
   // ── Stellar population (ENH-502–509) ─────────────────────────────────────
@@ -450,6 +463,7 @@ export class UniverseRenderer {
     this.onPlanetSelected = onPlanetSelected;
     this.onPlanetApproach = onPlanetApproach;
     this.planetData = system.planets;
+    this.systemGalaxySeed = system.galaxySeed;
     this.systemHostStar = hostStar;
     this.mode = "system";
     this.lastReportedScale = 0;
@@ -550,13 +564,15 @@ export class UniverseRenderer {
     this.controls.autoRotate = false;
   }
 
-  // ── Planet view (Worlds Up Close A4) ──────────────────────────────────────
+  // ── Planet view (Worlds Up Close A4–A5) ───────────────────────────────────
 
   /**
    * Glide to a planet in the system view, then switch to its planet view.
    * Does nothing outside the system view or for a planet not in the system.
+   * `sight.world` is the planet's solid world (solidWorldOf), for drawing its
+   * surface; `sight.starFlux` its starlight relative to Earth's.
    */
-  approachPlanet(planet: Planet) {
+  approachPlanet(planet: Planet, sight: PlanetSight = { world: null, starFlux: 1 }) {
     if (this.mode !== "system" || !this.systemGroup || !this.systemHostStar) return;
     const marker = this.systemGroup.children.find(
       c => c instanceof THREE.Mesh && c.userData.planetId === planet.id,
@@ -574,7 +590,7 @@ export class UniverseRenderer {
     this.tween = {
       from: this.controls.target.clone(), to: planetWorld, t: 0,
       camera: { from: this.camera.position.clone(), to: planetWorld.clone().addScaledVector(fromPlanet, markerRadius * APPROACH_END_DISTANCE) },
-      onDone: () => this.openPlanetView(planet, star, towardStar, fromPlanet),
+      onDone: () => this.openPlanetView(planet, star, towardStar, fromPlanet, sight),
     };
   }
 
@@ -594,8 +610,13 @@ export class UniverseRenderer {
     this.controls.autoRotateSpeed = SYSTEM_AUTO_ROTATE_SPEED;
   }
 
-  private openPlanetView(planet: Planet, star: Star, towardStar: THREE.Vector3, cameraDirection: THREE.Vector3) {
-    this.planetView = new PlanetView(planet, star, towardStar, !prefersReducedMotion(), performance.now());
+  private openPlanetView(planet: Planet, star: Star, towardStar: THREE.Vector3, cameraDirection: THREE.Vector3, sight: PlanetSight) {
+    const surface = sight.world && drawsSurface(planet)
+      ? this.globeTextures.surfaceFor(planet, sight.world, this.systemGalaxySeed)
+      : null;
+    this.planetView = new PlanetView(planet, star, towardStar, !prefersReducedMotion(), performance.now(), {
+      starFlux: sight.starFlux, surface,
+    });
     this.planetView.scene.add(this.sky.group);   // the night sky moves with the viewer
     this.mode = "planet";
     this.lastReportedScale = 0;
@@ -916,6 +937,7 @@ export class UniverseRenderer {
     this.renderer.domElement.removeEventListener("click", this.onClick);
     this.renderer.domElement.removeEventListener("dblclick", this.onDoubleClick);
     this.closePlanetView();
+    this.globeTextures.clear();
     window.removeEventListener("resize", this.onResize);
 
     // ENH-512: dispose all resources

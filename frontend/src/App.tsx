@@ -7,7 +7,7 @@ import { generateGalaxy, buildGalaxyConfig, GALAXY_PARTICLE_COUNT } from "./simu
 import type { GalaxyType, GalaxyParticles } from "./simulation/galaxy";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "./simulation/star";
 import type { Star, StellarPopulation } from "./simulation/star";
-import { generatePlanetsFor } from "./simulation/planet";
+import { generatePlanetsFor, solidWorldOf, effectiveOrbitAU, GIANT_PLANET_MASS } from "./simulation/planet";
 import type { Planet, PlanetarySystem } from "./simulation/planet";
 import { generateBiosphere } from "./simulation/biosphere";
 import type { Biosphere } from "./simulation/biosphere";
@@ -412,6 +412,25 @@ export default function App() {
     generate(seed, next);
   }, [seed, generate]);
 
+  // Glide to a planet and go into orbit around it; also what double-clicking a planet does
+  const approachPlanet = useCallback((planet: Planet) => {
+    setSelectedPlanet(planet);
+    setSelectedBiosphere(null);
+    setSelectedCivilization(null);
+    setSelectedSpecies(null);
+    setView("system");
+    setOrbiting(true);
+    if (selectedStar) {
+      // What the planet view draws: the planet's own world, rebuilt from the seed, lit by its star
+      const orbitAU = effectiveOrbitAU(planet.orbitalRadius, universeConfig);
+      rendererRef.current?.approachPlanet(planet, {
+        world: planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, selectedStar, currentSeed, universeConfig) : null,
+        starFlux: selectedStar.luminosity / (orbitAU * orbitAU),
+      });
+    }
+    ui.inspect();
+  }, [selectedStar, currentSeed, universeConfig]);
+
   const handleExploreSystem = useCallback(() => {
     if (!selectedStar || !rendererRef.current) return;
     const system = generatePlanetsFor(selectedStar, currentSeed, universeConfig);
@@ -450,7 +469,7 @@ export default function App() {
       setSelectedBiosphere(null);
       ui.inspect();
     }, biospheres, approachPlanet);
-  }, [selectedStar, currentSeed, universeConfig]);
+  }, [selectedStar, currentSeed, universeConfig, approachPlanet]);
 
   const handleScanBiosphere = useCallback(() => {
     if (!selectedPlanet || !selectedStar) return;
@@ -477,18 +496,6 @@ export default function App() {
       else discovery.civilizationMilestone();
     }
   }, [selectedBiosphere, selectedPlanet, currentSeed, universeConfig]);
-
-  // Glide to a planet and go into orbit around it; also what double-clicking a planet does
-  function approachPlanet(planet: Planet) {
-    setSelectedPlanet(planet);
-    setSelectedBiosphere(null);
-    setSelectedCivilization(null);
-    setSelectedSpecies(null);
-    setView("system");
-    setOrbiting(true);
-    rendererRef.current?.approachPlanet(planet);
-    ui.inspect();
-  }
 
   function leaveOrbit() {
     setOrbiting(false);

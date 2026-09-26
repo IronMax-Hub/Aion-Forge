@@ -81,9 +81,9 @@ describe("baked globe atlas", () => {
 });
 
 describe("which planets get a globe", () => {
-  it("draws solid planets except lava worlds; giants stay plain", () => {
+  it("draws every solid planet's surface, lava worlds included; giants get bands instead", () => {
     for (const { planet } of all) {
-      expect(drawsSurface(planet)).toBe(planet.mass <= GIANT_PLANET_MASS && planet.type !== "lava");
+      expect(drawsSurface(planet)).toBe(planet.mass <= GIANT_PLANET_MASS);
     }
     expect(drawn.length).toBeGreaterThan(GLOBE_CACHE_SIZE);
   });
@@ -101,7 +101,8 @@ describe("globe texture cache", () => {
     const cache = new GlobeTextureCache();
     const freed: string[] = [];
     const bakes = drawn.map(({ star, planet }) => {
-      const { bake } = cache.surfaceFor(planet, solidWorldOf(planet, star, seed, config), seed);
+      const world = solidWorldOf(planet, star, seed, config);
+      const { bake } = cache.globeFor(planet, world, world.physics, seed);
       bake.target.addEventListener("dispose", () => freed.push(planet.key));
       return bake;
     });
@@ -110,7 +111,8 @@ describe("globe texture cache", () => {
 
     // A revisit reuses the bake it already has
     const last = drawn[drawn.length - 1];
-    expect(cache.surfaceFor(last.planet, solidWorldOf(last.planet, last.star, seed, config), seed).bake).toBe(bakes[bakes.length - 1]);
+    const lastWorld = solidWorldOf(last.planet, last.star, seed, config);
+    expect(cache.globeFor(last.planet, lastWorld, lastWorld.physics, seed).bake).toBe(bakes[bakes.length - 1]);
 
     cache.clear();
     expect(cache.size).toBe(0);
@@ -122,7 +124,7 @@ describe("globe view", () => {
   const { star, planet } = drawn[0];
   const world = solidWorldOf(planet, star, seed, config);
   const cache = new GlobeTextureCache();
-  const surface = cache.surfaceFor(planet, world, seed);
+  const surface = cache.globeFor(planet, world, world.physics, seed);
   const towardStar = new THREE.Vector3(0, 0, 1);
 
   it("draws a solid planet with the globe shader and a plain sphere without a surface", () => {

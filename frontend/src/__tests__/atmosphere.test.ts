@@ -119,7 +119,8 @@ describe("clouds", () => {
   });
 
   const { star, planet } = drawn[0];
-  const surface = new GlobeTextureCache().surfaceFor(planet, solidWorldOf(planet, star, seed, config), seed);
+  const world = solidWorldOf(planet, star, seed, config);
+  const surface = new GlobeTextureCache().globeFor(planet, world, world.physics, seed);
 
   it("turn with time, unless the viewer prefers reduced motion", () => {
     const moving = new PlanetView(planet, star, towardStar, true, 0, { surface });

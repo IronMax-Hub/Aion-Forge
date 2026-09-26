@@ -5,6 +5,7 @@ import type { GalaxyParticles } from "../simulation/galaxy";
 import type { Star, StellarPopulation } from "../simulation/star";
 import { temperatureToColor } from "../simulation/star";
 import type { Planet, PlanetarySystem, SolidWorld } from "../simulation/planet";
+import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
 import { SkyBackground } from "./background";
@@ -153,6 +154,8 @@ export const SYSTEM_UNITS_PER_AU = 2.5;
 export interface PlanetSight {
   /** The planet's solid world, when it has one to draw; null for giants. */
   world: SolidWorld | null;
+  /** The planet's physics (spin, tilt, locking); null draws a plain sphere. */
+  physics: PlanetPhysics | null;
   /** Starlight at the planet, relative to Earth's. */
   starFlux: number;
 }
@@ -574,9 +577,10 @@ export class UniverseRenderer {
    * Glide to a planet in the system view, then switch to its planet view.
    * Does nothing outside the system view or for a planet not in the system.
    * `sight.world` is the planet's solid world (solidWorldOf), for drawing its
-   * surface; `sight.starFlux` its starlight relative to Earth's.
+   * surface; `sight.physics` its spin and tilt; `sight.starFlux` its starlight
+   * relative to Earth's.
    */
-  approachPlanet(planet: Planet, sight: PlanetSight = { world: null, starFlux: 1 }) {
+  approachPlanet(planet: Planet, sight: PlanetSight = { world: null, physics: null, starFlux: 1 }) {
     if (this.mode !== "system" || !this.systemGroup || !this.systemHostStar) return;
     const marker = this.systemGroup.children.find(
       c => c instanceof THREE.Mesh && c.userData.planetId === planet.id,
@@ -592,8 +596,8 @@ export class UniverseRenderer {
     const star = this.systemHostStar;
     const towardStar = new THREE.Vector3(...star.position).sub(planetWorld);
     // The globe is baked a face per frame while the camera glides in
-    const surface = sight.world && drawsSurface(planet)
-      ? this.globeTextures.surfaceFor(planet, sight.world, this.systemGalaxySeed)
+    const surface = sight.physics
+      ? this.globeTextures.globeFor(planet, drawsSurface(planet) ? sight.world : null, sight.physics, this.systemGalaxySeed)
       : null;
     this.pendingBake = surface?.bake ?? null;
     this.tween = {

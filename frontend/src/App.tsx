@@ -8,6 +8,7 @@ import type { GalaxyType, GalaxyParticles } from "./simulation/galaxy";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "./simulation/star";
 import type { Star, StellarPopulation } from "./simulation/star";
 import { generatePlanetsFor, solidWorldOf, effectiveOrbitAU, GIANT_PLANET_MASS } from "./simulation/planet";
+import { derivePhysics } from "./simulation/planetPhysics";
 import type { Planet, PlanetarySystem } from "./simulation/planet";
 import { generateBiosphere } from "./simulation/biosphere";
 import type { Biosphere } from "./simulation/biosphere";
@@ -423,8 +424,10 @@ export default function App() {
     if (selectedStar) {
       // What the planet view draws: the planet's own world, rebuilt from the seed, lit by its star
       const orbitAU = effectiveOrbitAU(planet.orbitalRadius, universeConfig);
+      const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, selectedStar, currentSeed, universeConfig) : null;
       rendererRef.current?.approachPlanet(planet, {
-        world: planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, selectedStar, currentSeed, universeConfig) : null,
+        world,
+        physics: world?.physics ?? derivePhysics(planet, selectedStar, currentSeed, universeConfig),
         starFlux: selectedStar.luminosity / (orbitAU * orbitAU),
       });
     }

@@ -78,8 +78,9 @@ export function faceTile(face: number): [number, number, number, number] {
 const vec3 = ([x, y, z]: THREE.Vector3Tuple) => `vec3(${x}.0, ${y}.0, ${z}.0)`;
 
 /**
- * The same table and mappings in GLSL: atlasCoordinates(direction) and
- * atlasDirection(pixel), for the shaders to include.
+ * The same table and mappings in GLSL: atlasCoordinates(direction[, u]) and
+ * atlasDirection(pixel, u), where u is the face's first axis; plus the relief
+ * tilt encoding, for the shaders to include.
  */
 export const CUBE_ATLAS_GLSL = `
 const float FACE_SIZE = ${FACE_SIZE}.0;
@@ -92,10 +93,10 @@ ${CUBE_FACES.map(([n, u, v], f) =>
   `  ${f === 0 ? "if" : "else if"} (face == ${f}) { normal = ${vec3(n)}; u = ${vec3(u)}; v = ${vec3(v)}; }`).join("\n")}
 }
 
-vec2 atlasCoordinates(vec3 d) {
+vec2 atlasCoordinates(vec3 d, out vec3 u) {
   vec3 m = abs(d);
   int face = m.x >= m.y && m.x >= m.z ? (d.x > 0.0 ? 0 : 1) : (m.y >= m.z ? (d.y > 0.0 ? 2 : 3) : (d.z > 0.0 ? 4 : 5));
-  vec3 normal, u, v;
+  vec3 normal, v;
   cubeFace(face, normal, u, v);
   float along = dot(d, normal);
   vec2 ab = vec2(dot(d, u), dot(d, v)) / along;
@@ -103,11 +104,41 @@ vec2 atlasCoordinates(vec3 d) {
   return (tile * TILE + FACE_BORDER + (ab + 1.0) * 0.5 * FACE_SIZE) / ATLAS_SIZE;
 }
 
-vec3 atlasDirection(vec2 pixel) {
+vec2 atlasCoordinates(vec3 d) {
+  vec3 u;
+  return atlasCoordinates(d, u);
+}
+
+vec3 atlasDirection(vec2 pixel, out vec3 u) {
   vec2 tile = min(floor(pixel / TILE), vec2(${ATLAS_COLUMNS - 1}.0, ${ATLAS_ROWS - 1}.0));
-  vec3 normal, u, v;
+  vec3 normal, v;
   cubeFace(int(tile.y) * ${ATLAS_COLUMNS} + int(tile.x), normal, u, v);
   vec2 ab = (pixel - tile * TILE - FACE_BORDER) / FACE_SIZE * 2.0 - 1.0;
   return normalize(normal + ab.x * u + ab.y * v);
+}
+
+// Relief is stored as the tilt of the surface normal along two tangent axes
+// built from the tile's own u axis, the same for every texel of a tile, border
+// included, so filtering never mixes two frames.
+void tiltAxes(vec3 p, vec3 u, out vec3 first, out vec3 second) {
+  first = normalize(u - dot(u, p) * p);
+  second = cross(p, first);
+}
+
+// Largest tilt the relief texture holds (the bake caps its tilt below this)
+const float TILT_RANGE = 0.75;
+
+vec2 encodeTilt(vec3 p, vec3 u, vec3 tilt) {
+  vec3 first, second;
+  tiltAxes(p, u, first, second);
+  return clamp(vec2(dot(tilt, first), dot(tilt, second)) / TILT_RANGE, -1.0, 1.0) * 0.5 + 0.5;
+}
+
+/** The surface normal for a stored tilt: p tipped by the tilt. */
+vec3 decodeNormal(vec3 p, vec3 u, vec2 stored) {
+  vec3 first, second;
+  tiltAxes(p, u, first, second);
+  vec2 tilt = (stored * 2.0 - 1.0) * TILT_RANGE;
+  return normalize(p - tilt.x * first - tilt.y * second);
 }
 `;

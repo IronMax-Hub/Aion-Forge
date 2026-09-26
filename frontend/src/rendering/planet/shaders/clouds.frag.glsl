@@ -1,9 +1,9 @@
 // Cloud sphere (Worlds Up Close A6): the cloud density baked with the surface
-// (relief atlas, alpha; globeBake.frag.glsl), drawn on a sphere just above the
+// (relief atlas, blue; globeBake.frag.glsl), drawn on a sphere just above the
 // ground and lit by the star. The sphere turns slowly about the planet's pole:
 // the drift is presentation only. Prefixed with the cube atlas GLSL.
 
-uniform sampler2D reliefAtlas;  // alpha: cloud density
+uniform sampler2D reliefAtlas;  // blue: cloud density
 uniform vec3 toStar;
 uniform vec3 starColor;
 uniform float starIntensity;
@@ -20,7 +20,7 @@ const float TEXEL_ANGLE = 2.0 / FACE_SIZE;
 void main() {
   vec3 p = normalize(vLocal);
   float lod = max(0.0, log2(length(fwidth(p)) / TEXEL_ANGLE));
-  float density = textureLod(reliefAtlas, atlasCoordinates(p), lod).a;
+  float density = textureLod(reliefAtlas, atlasCoordinates(p), lod).b;
   if (density < 0.01) discard;
 
   float facing = dot(normalize(vWorldPosition), toStar);

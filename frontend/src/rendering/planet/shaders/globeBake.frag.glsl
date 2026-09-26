@@ -4,8 +4,15 @@
 // and the cube atlas GLSL; GLSL 3, writing two textures:
 //   albedo  surface colour (square root, so 8 bits keep the dark oceans smooth)
 //           and, in alpha, how much of the star's glint open water reflects
-//   relief  the surface normal in the planet's own frame, tilted by the relief,
-//           and, in alpha, cloud density (A6), which the cloud sphere reads
+//   relief  RG: the relief's tilt of the surface normal (cube atlas GLSL,
+//           encodeTilt); B: cloud density (A6), which the cloud sphere reads;
+//           A: glow of molten ground (A7), 0–1
+//
+// Molten ground (A7) follows local temperature, with no special case by planet
+// type (owner decision): from ~900 K rock darkens to basalt and cracks open,
+// wider and brighter the hotter it is, so a lava world glows all over and a hot
+// day side or substellar point can glow on its own. Condensation clouds cannot
+// form over ground that hot (owner decision), so they fade out from 900 to 1,100 K.
 //
 // The map carries the simulation's present day: R elevation above sea level
 // (km), G temperature (K), B moisture (0–1), A submerged (1 under water). The
@@ -34,6 +41,17 @@ const float COAST_SHIFT = 0.45;       // below 0.5, so no cell centre ever chang
 const float RELIEF_NOISE_KM = 1.2;
 const float ICE_EDGE_NOISE_K = 3.0;   // wobble of the freeze line
 const float MAX_TILT = 0.6;           // steepest the exaggerated relief may tilt a normal
+
+// Molten ground (A7)
+const float MOLTEN_FROM_K = 900.0;
+const float MOLTEN_FULL_K = 1300.0;
+const vec3 BASALT = vec3(0.035, 0.03, 0.028);
+const float CRACK_FREQUENCY = 9.0;
+const vec2 CRACK_WIDTH = vec2(0.03, 0.12);     // share of the ridge that glows, cool to fully molten
+const float GLOW_REFERENCE_K = 2000.0;         // glow is 1 here, and falls as T⁴ below it
+const vec2 MAGMA_SEA_K = vec2(1500.0, 2200.0); // beyond cracks, the whole ground starts to glow
+const float MAGMA_SEA_GLOW = 0.25;             // that glow, against the cracks' 1
+const vec2 CLOUDS_GONE_K = vec2(900.0, 1100.0);
 
 // Clouds (A6): cover follows moisture, which already rises with warmth and falls away from open water
 const float CLOUD_COVER_PER_MOISTURE = 0.65;   // warm open ocean: about two-thirds cloud, as on Earth
@@ -97,6 +115,14 @@ float cloudDensity(vec3 p, float moisture) {
   return max(density, overcast);
 }
 
+/** Ridges of simplex noise, 0–1, sharpest (1) along thin lines: the crack network. */
+float cracks(vec3 p) {
+  vec3 unused;
+  float coarse = 1.0 - abs(snoiseGradient(p * CRACK_FREQUENCY + noiseOffset.yzx, unused));
+  float fine = 1.0 - abs(snoiseGradient(p * CRACK_FREQUENCY * 2.3 + noiseOffset.zxy, unused));
+  return max(coarse, 0.85 * fine);
+}
+
 vec2 mapCoordinates(vec3 p) {
   float latitude = asin(clamp(p.y, -1.0, 1.0));
   float longitude = atan(p.z, p.x);
@@ -104,7 +130,8 @@ vec2 mapCoordinates(vec3 p) {
 }
 
 void main() {
-  vec3 p = atlasDirection(gl_FragCoord.xy);
+  vec3 faceU;
+  vec3 p = atlasDirection(gl_FragCoord.xy, faceU);
   // East and north along the map, except at its poles, where any tangent pair does
   vec3 east = normalize(cross(p, abs(p.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));   // longitude rises
   vec3 north = cross(east, p);                                                                        // latitude rises
@@ -131,6 +158,8 @@ void main() {
   ground = mix(ground, HOT_ROCK, smoothstep(330.0, 500.0, surface.g));
   ground = mix(ground, SCORCHED_ROCK, smoothstep(600.0, 1000.0, surface.g));
   ground = mix(ground, HIGHLAND_ROCK, smoothstep(1.5, 5.0, heightKm));
+  float molten = smoothstep(MOLTEN_FROM_K, MOLTEN_FULL_K, surface.g);
+  ground = mix(ground, BASALT, smoothstep(MOLTEN_FROM_K - 150.0, MOLTEN_FROM_K + 100.0, surface.g));
   ground *= 0.85 + 0.3 * (0.5 + 0.5 * strong);
   vec3 land = mix(ground, SNOW, frozen * wetness);
 
@@ -138,6 +167,11 @@ void main() {
   vec3 sea = mix(mix(SHALLOW_WATER, DEEP_WATER, smoothstep(0.0, 4.0, depthKm)), SEA_ICE, frozen);
 
   vec3 albedo = mix(land, sea, water);
+
+  // Glow of molten ground: along the cracks, and over all of it once hot enough
+  float crack = smoothstep(1.0 - mix(CRACK_WIDTH.x, CRACK_WIDTH.y, molten), 1.0, cracks(p));
+  float heat = clamp(pow(surface.g / GLOW_REFERENCE_K, 4.0), 0.0, 1.0);
+  float glow = molten * heat * max(crack, MAGMA_SEA_GLOW * smoothstep(MAGMA_SEA_K.x, MAGMA_SEA_K.y, surface.g)) * (1.0 - water);
 
   // Relief: the slope of the land, km per radian, east and north: the map's from its
   // neighbouring texels (a quarter texel away; slopes between neighbouring pixels
@@ -150,8 +184,8 @@ void main() {
   vec3 slope = slopeKm.x * east + slopeKm.y * north;
   vec3 tilt = bumpScale * (1.0 - water) * (1.0 - frozen * wetness * 0.7) * slope;
   tilt *= min(1.0, MAX_TILT / max(length(tilt), 1e-6));
-  vec3 normalLocal = normalize(p - tilt);
+  float clouds = cloudDensity(p, surface.b) * (1.0 - smoothstep(CLOUDS_GONE_K.x, CLOUDS_GONE_K.y, surface.g));
 
   albedoOut = vec4(sqrt(albedo), water * (1.0 - frozen));
-  reliefOut = vec4(normalLocal * 0.5 + 0.5, cloudDensity(p, surface.b));
+  reliefOut = vec4(encodeTilt(p, faceU, tilt), clouds, glow);
 }

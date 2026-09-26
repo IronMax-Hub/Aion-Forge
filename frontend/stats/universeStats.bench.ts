@@ -9,8 +9,8 @@
 // Documents/stats.md with the commit it was measured at. The counts are
 // deterministic; only the timings vary between runs.
 //
-// Later phases add their own columns (tidally locked planets, ocean fraction,
-// climate history and evolution measures) when the simulation produces them.
+// Later phases add their own columns (ocean fraction, climate history and
+// evolution measures) when the simulation produces them.
 
 import { execSync } from "node:child_process";
 import { appendFileSync, existsSync, writeFileSync } from "node:fs";
@@ -22,6 +22,8 @@ import { buildGalaxyConfig } from "../src/simulation/galaxy";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "../src/simulation/star";
 import type { Star } from "../src/simulation/star";
 import { surveyLife, ORGANISM_STAGES } from "../src/simulation/lifeSurvey";
+import { generatePlanetsFor } from "../src/simulation/planet";
+import { derivePhysics } from "../src/simulation/planetPhysics";
 import type { LifeSurvey } from "../src/simulation/lifeSurvey";
 import { SIMULATION_RULES_VERSION } from "../src/simulation/version";
 
@@ -33,11 +35,24 @@ interface Row {
   preset: string;
   seed: number;
   survey: LifeSurvey;
+  lockedShare: number;   // tidally locked planets, share of all planets
   surveyMs: number;
 }
 
 function starsOf(seed: number, config: UniverseConfig): Star[] {
   return generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
+}
+
+function lockedShare(stars: Star[], seed: number, config: UniverseConfig): number {
+  let planets = 0;
+  let locked = 0;
+  for (const star of stars) {
+    for (const planet of generatePlanetsFor(star, seed, config).planets) {
+      planets++;
+      if (derivePhysics(planet, star, seed, config).tidallyLocked) locked++;
+    }
+  }
+  return planets === 0 ? 0 : locked / planets;
 }
 
 /** Median wall-clock time of the survey alone, in ms. */
@@ -57,7 +72,10 @@ function measure(): Row[] {
     for (const seed of SEEDS) {
       const config = makeConfig(seed, preset.values);
       const stars = starsOf(seed, config);
-      rows.push({ preset: preset.name, seed, survey: surveyLife(stars, seed, config), surveyMs: medianSurveyMs(stars, seed, config) });
+      rows.push({
+        preset: preset.name, seed, survey: surveyLife(stars, seed, config),
+        lockedShare: lockedShare(stars, seed, config), surveyMs: medianSurveyMs(stars, seed, config),
+      });
     }
   }
   return rows;
@@ -69,11 +87,11 @@ function stageMix(survey: LifeSurvey): string {
 
 function table(rows: Row[]): string {
   const lines = [
-    "| Preset | Seed | Planets | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Survey (ms) |",
-    "|---|---:|---:|---:|---:|---|---:|---:|",
+    "| Preset | Seed | Planets | Tidally locked | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Survey (ms) |",
+    "|---|---:|---:|---:|---:|---:|---|---:|---:|",
   ];
-  for (const { preset, seed, survey, surveyMs } of rows) {
-    lines.push(`| ${preset} | ${seed} | ${survey.totalPlanets} | ${survey.lifeBearingPlanets} | ${survey.systems.length} | ${stageMix(survey)} | ${survey.civilizationCount} | ${surveyMs.toFixed(1)} |`);
+  for (const { preset, seed, survey, lockedShare: locked, surveyMs } of rows) {
+    lines.push(`| ${preset} | ${seed} | ${survey.totalPlanets} | ${(locked * 100).toFixed(1)}% | ${survey.lifeBearingPlanets} | ${survey.systems.length} | ${stageMix(survey)} | ${survey.civilizationCount} | ${surveyMs.toFixed(1)} |`);
   }
   return lines.join("\n");
 }

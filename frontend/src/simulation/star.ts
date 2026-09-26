@@ -94,7 +94,7 @@ function calcTemperature(cls: StellarClass, mass: number, jitter: number): numbe
     // Stefan–Boltzmann in solar units: L = R²·T⁴, so T = T☉·(L / R²)^¼.
     // Uses the same mass–luminosity relation as calcLuminosity, so colour and brightness agree.
     const radius = mainSequenceRadius(mass);
-    const t = SOLAR_TEMPERATURE_K * pow(pow(mass, 3.5) / (radius * radius), 0.25);
+    const t = SOLAR_TEMPERATURE_K * pow(mainSequenceLuminosity(mass) / (radius * radius), 0.25);
     return Math.min(hi, Math.max(lo, t * (0.9 + jitter * 0.2)));
   }
   return lo + (hi - lo) * jitter;
@@ -102,12 +102,58 @@ function calcTemperature(cls: StellarClass, mass: number, jitter: number): numbe
 
 // ── Luminosity (AF-025) ───────────────────────────────────────────────────────
 
+/** Mass–luminosity relation for a main-sequence star, in solar luminosities. */
+function mainSequenceLuminosity(mass: number): number {
+  return pow(mass, 3.5);
+}
+
 function calcLuminosity(cls: StellarClass, mass: number, temp: number): number {
   if (cls === "black-hole") return 0;
   if (cls === "neutron-star") return 0.00001;
   if (cls === "white-dwarf") return 0.001 + (temp / 80000) * 0.05;
-  if (cls === "red-giant") return pow(mass, 3.5) * 500;
-  return pow(mass, 3.5);
+  if (cls === "red-giant") return mainSequenceLuminosity(mass) * 500;
+  return mainSequenceLuminosity(mass);
+}
+
+// ── Luminosity through time (Worlds Up Close A1) ──────────────────────────────
+//
+// Stars brighten as they burn hydrogen: the Sun began at about 70% of today's
+// output. A planet's climate history (A2b) reads the star's luminosity at each
+// moment of its life from here.
+//
+//   main sequence:  L(t) = L_ref · (1 + k·t/t_ms) / (1 + k·t_ref/t_ms),  k = 0.8
+//   afterwards:     today's luminosity (red giant, white dwarf or remnant)
+//
+// t_ms is when the main sequence ends (MAIN_SEQUENCE_END_FRACTION of the lifespan).
+// A star still on the main sequence is anchored to today (t_ref = age,
+// L_ref = its luminosity), so the present never changes. A star that has left it
+// has no main-sequence "today", so its track is anchored at mid main sequence
+// (t_ref = t_ms / 2, L_ref = mass–luminosity relation), the typical age at which
+// main-sequence stars are seen, which matches its main-sequence siblings.
+//
+// Limits: the brightening is linear in time and the jump to the giant phase is
+// instant; subgiant growth and the helium flash are not modelled.
+
+/** Fractional brightening over the main sequence (the Sun: ~0.7 → 1.25 of today). */
+export const MAIN_SEQUENCE_BRIGHTENING = 0.8;
+
+/** Time after the star formed when it leaves the main sequence, in Gyr. */
+export function mainSequenceEndGyr(star: Star): number {
+  return star.lifespan * MAIN_SEQUENCE_END_FRACTION;
+}
+
+/** The star's luminosity t Gyr after it formed, in solar luminosities. */
+export function luminosityAt(star: Star, tGyr: number): number {
+  const msEnd = mainSequenceEndGyr(star);
+  const leftMainSequence = star.age >= msEnd;
+  if (leftMainSequence && tGyr >= msEnd) return star.luminosity;
+
+  const [tRef, lRef] = leftMainSequence
+    ? [msEnd / 2, mainSequenceLuminosity(star.mass)]
+    : [star.age, star.luminosity];
+  const k = MAIN_SEQUENCE_BRIGHTENING;
+  // Ratio first: at t = t_ref it is exactly 1, so today's luminosity is returned unchanged
+  return lRef * ((1 + k * tGyr / msEnd) / (1 + k * tRef / msEnd));
 }
 
 // ── Temperature → RGB (AF-027) ────────────────────────────────────────────────

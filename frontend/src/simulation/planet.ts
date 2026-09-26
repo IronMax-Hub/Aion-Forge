@@ -199,6 +199,14 @@ function calcHabitability(p: {
 
 // ── Public API (AF-036) ───────────────────────────────────────────────────────
 
+/**
+ * The physical distance of an orbit from its star, in AU. gravityStrength > 1
+ * compresses orbits slightly; temperature and physics both use this distance.
+ */
+export function effectiveOrbitAU(orbitalRadius: number, config: UniverseConfig): number {
+  return orbitalRadius / Math.sqrt(config.gravityStrength);
+}
+
 /** A planet's identity in the galaxy, for caches, timeline subjects and discoveries. */
 export function planetKey(starId: number, index: number): string {
   return `${starId}-${index}`;
@@ -221,8 +229,7 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
 
   const planets: Planet[] = orbits.map((orbitalRadius, idx) => {
     const mass = pow(10, (rng() - 0.5) * 3.5); // 0.03–32 Earth masses (log spread)
-    // gravityStrength > 1 compresses orbits slightly, affecting temperature
-    const effectiveRadius = orbitalRadius / Math.sqrt(config.gravityStrength);
+    const effectiveRadius = effectiveOrbitAU(orbitalRadius, config);
     // Stellar heating decides what atmosphere a planet can keep; greenhouse warming then follows from it
     const equilibriumK = surfaceTemp(star.luminosity, effectiveRadius, "none", mass);
     const atmosphere = pickAtmosphere(mass, equilibriumK, rng);

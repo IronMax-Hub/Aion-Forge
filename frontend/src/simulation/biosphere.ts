@@ -1,4 +1,5 @@
 import { createRNG, mixSeed, SALT } from "./rng";
+import { exp, pow } from "./detmath";
 import type { Planet } from "./planet";
 import type { Star } from "./star";
 import { makeConfig } from "./config";
@@ -85,7 +86,7 @@ export function generateBiosphere(
   ) return empty;
 
   // emergenceSensitivity scales life probability — higher = more likely
-  const lifeProbability = Math.min(0.99, Math.pow(planet.habitabilityScore, 0.6) * 0.85 * config.emergenceSensitivity);
+  const lifeProbability = Math.min(0.99, pow(planet.habitabilityScore, 0.6) * 0.85 * config.emergenceSensitivity);
   if (rng() > lifeProbability) return empty;
 
   // Life has emerged. How long has it had to evolve?
@@ -97,7 +98,7 @@ export function generateBiosphere(
 
   // Base complexity grows with time (logistic-like) and habitability
   const growthRate    = 0.4 + planet.habitabilityScore * 0.5 + rng() * 0.2;
-  const timeSignal    = 1 - Math.exp(-growthRate * lifeAgeGyr);
+  const timeSignal    = 1 - exp(-growthRate * lifeAgeGyr);
   let complexity      = timeSignal * (0.5 + planet.habitabilityScore * 0.5);
 
   // Diversity, stability, adaptability — correlated but with individual variation
@@ -129,7 +130,7 @@ export function generateBiosphere(
   // Recovery: life rebounds after each extinction given enough time
   for (const evt of extinctions) {
     const recoveryTime = lifeAgeGyr - evt.timeAgo;
-    const recovery     = 1 - Math.exp(-growthRate * recoveryTime * 0.5);
+    const recovery     = 1 - exp(-growthRate * recoveryTime * 0.5);
     complexity   += (evt.severityLoss * 0.6) * recovery * planet.habitabilityScore;
     diversity    += (evt.severityLoss * 0.4) * recovery * planet.habitabilityScore;
   }

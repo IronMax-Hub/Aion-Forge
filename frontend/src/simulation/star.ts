@@ -1,4 +1,5 @@
 import { createRNG, SALT } from "./rng";
+import { pow, log, sin, cos } from "./detmath";
 import type { GalaxyConfig } from "./galaxy";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
@@ -39,7 +40,7 @@ function generateMass(r: number): number {
 // t ∝ M^-2.5
 
 function calcLifespan(mass: number): number {
-  return Math.max(0.003, 10 / Math.pow(mass, 2.5));
+  return Math.max(0.003, 10 / pow(mass, 2.5));
 }
 
 // ── Classification (AF-023) ───────────────────────────────────────────────────
@@ -83,7 +84,7 @@ const SOLAR_TEMPERATURE_K = 5772;
 
 // Main-sequence radius in solar radii (approximate mass–radius relation).
 function mainSequenceRadius(mass: number): number {
-  return Math.pow(mass, 0.8);
+  return pow(mass, 0.8);
 }
 
 function calcTemperature(cls: StellarClass, mass: number, jitter: number): number {
@@ -93,7 +94,7 @@ function calcTemperature(cls: StellarClass, mass: number, jitter: number): numbe
     // Stefan–Boltzmann in solar units: L = R²·T⁴, so T = T☉·(L / R²)^¼.
     // Uses the same mass–luminosity relation as calcLuminosity, so colour and brightness agree.
     const radius = mainSequenceRadius(mass);
-    const t = SOLAR_TEMPERATURE_K * Math.pow(Math.pow(mass, 3.5) / (radius * radius), 0.25);
+    const t = SOLAR_TEMPERATURE_K * pow(pow(mass, 3.5) / (radius * radius), 0.25);
     return Math.min(hi, Math.max(lo, t * (0.9 + jitter * 0.2)));
   }
   return lo + (hi - lo) * jitter;
@@ -105,8 +106,8 @@ function calcLuminosity(cls: StellarClass, mass: number, temp: number): number {
   if (cls === "black-hole") return 0;
   if (cls === "neutron-star") return 0.00001;
   if (cls === "white-dwarf") return 0.001 + (temp / 80000) * 0.05;
-  if (cls === "red-giant") return Math.pow(mass, 3.5) * 500;
-  return Math.pow(mass, 3.5);
+  if (cls === "red-giant") return pow(mass, 3.5) * 500;
+  return pow(mass, 3.5);
 }
 
 // ── Temperature → RGB (AF-027) ────────────────────────────────────────────────
@@ -119,14 +120,14 @@ export function temperatureToColor(temp: number): [number, number, number] {
   if (t <= 66) {
     r = 1;
   } else {
-    r = Math.max(0, Math.min(1, Math.pow(t - 60, -0.1332) * 3.29));
+    r = Math.max(0, Math.min(1, pow(t - 60, -0.1332) * 3.29));
   }
 
   let g: number;
   if (t <= 66) {
-    g = Math.max(0, Math.min(1, Math.log(t) * 0.3909 - 0.5516));
+    g = Math.max(0, Math.min(1, log(t) * 0.3909 - 0.5516));
   } else {
-    g = Math.max(0, Math.min(1, Math.pow(t - 60, -0.0755) * 2.88));
+    g = Math.max(0, Math.min(1, pow(t - 60, -0.0755) * 2.88));
   }
 
   let b: number;
@@ -135,7 +136,7 @@ export function temperatureToColor(temp: number): [number, number, number] {
   } else if (t <= 19) {
     b = 0;
   } else {
-    b = Math.max(0, Math.min(1, Math.log(t - 10) * 0.5432 - 1.196));
+    b = Math.max(0, Math.min(1, log(t - 10) * 0.5432 - 1.196));
   }
 
   return [r, g, b];
@@ -145,14 +146,14 @@ export function temperatureToColor(temp: number): [number, number, number] {
 
 function posSpiral(rng: () => number, scale: number): [number, number, number] {
   const arm = Math.floor(rng() * 2);
-  const t = Math.pow(rng(), 0.7);
+  const t = pow(rng(), 0.7);
   const radius = t * scale;
   const angle = (arm / 2) * Math.PI * 2 + t * Math.PI * 2 * 1.2;
   const scatter = (rng() - 0.5) * 0.25 * radius;
   return [
-    Math.cos(angle) * radius + scatter,
+    cos(angle) * radius + scatter,
     (rng() - 0.5) * scale * 0.05 * (1 - t * 0.8),
-    Math.sin(angle) * radius + scatter,
+    sin(angle) * radius + scatter,
   ];
 }
 
@@ -160,18 +161,20 @@ function posElliptical(rng: () => number, scale: number): [number, number, numbe
   let x: number, y: number, z: number;
   do { x = (rng() - 0.5) * 2; y = (rng() - 0.5) * 2; z = (rng() - 0.5) * 2; }
   while (x * x + y * y + z * z > 1);
-  const r = Math.pow(rng(), 0.6) * scale;
+  const r = pow(rng(), 0.6) * scale;
   return [x * r, y * r * 0.5, z * r];
 }
 
 function posIrregular(rng: () => number, scale: number): [number, number, number] {
-  const r = Math.pow(rng(), 0.5) * scale;
+  const r = Math.sqrt(rng()) * scale;
   const theta = rng() * Math.PI * 2;
-  const phi = Math.acos(2 * rng() - 1);
+  // A uniform direction: cos φ uniform in [−1, 1], so sin φ = √(1 − cos²φ) needs no acos
+  const cosPhi = 2 * rng() - 1;
+  const sinPhi = Math.sqrt(1 - cosPhi * cosPhi);
   return [
-    r * Math.sin(phi) * Math.cos(theta),
-    r * Math.sin(phi) * Math.sin(theta) * 0.3,
-    r * Math.cos(phi),
+    r * sinPhi * cos(theta),
+    r * sinPhi * sin(theta) * 0.3,
+    r * cosPhi,
   ];
 }
 

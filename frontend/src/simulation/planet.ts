@@ -1,4 +1,5 @@
 import { createRNG, SALT } from "./rng";
+import { pow } from "./detmath";
 import type { Star } from "./star";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
@@ -120,7 +121,7 @@ function surfaceTemp(
 ): number {
   const L = Math.max(0.0001, stellarLuminosity);
   // Effective temperature from inverse-square law (in K, rough)
-  const tEff = 278 * Math.pow(L, 0.25) / Math.sqrt(orbitalAU);
+  const tEff = 278 * pow(L, 0.25) / Math.sqrt(orbitalAU);
   if (mass > GIANT_PLANET_MASS) return tEff;
   const greenhouse: Record<AtmosphereType, number> = {
     none: 0, thin: 10, moderate: 40, thick: 100, crushing: 400,
@@ -214,7 +215,7 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
   const orbits = generateOrbits(arch, count, rng);
 
   const planets: Planet[] = orbits.map((orbitalRadius, idx) => {
-    const mass = Math.pow(10, (rng() - 0.5) * 3.5); // 0.03–32 Earth masses (log spread)
+    const mass = pow(10, (rng() - 0.5) * 3.5); // 0.03–32 Earth masses (log spread)
     // gravityStrength > 1 compresses orbits slightly, affecting temperature
     const effectiveRadius = orbitalRadius / Math.sqrt(config.gravityStrength);
     // Stellar heating decides what atmosphere a planet can keep; greenhouse warming then follows from it
@@ -222,7 +223,7 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
     const atmosphere = pickAtmosphere(mass, equilibriumK, rng);
     const tempK = surfaceTemp(star.luminosity, effectiveRadius, atmosphere, mass);
     const type = pickType(tempK, mass, rng);
-    const size = Math.pow(mass, 0.27) * (0.8 + rng() * 0.4);
+    const size = pow(mass, 0.27) * (0.8 + rng() * 0.4);
     const resourceAbundance = rng();
 
     const isRare =

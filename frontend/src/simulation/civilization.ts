@@ -1,4 +1,5 @@
 import { createRNG, mixSeed, SALT } from "./rng";
+import { exp, pow } from "./detmath";
 import type { Biosphere } from "./biosphere";
 import type { Planet } from "./planet";
 import { makeConfig } from "./config";
@@ -103,7 +104,7 @@ function intelligenceEmerges(bio: Biosphere, rng: () => number): boolean {
   if (bio.ageGyr < 0.8) return false;
 
   // Base probability from complexity + adaptability
-  const base = Math.pow(bio.complexity, 1.5) * bio.adaptability * 0.55;
+  const base = pow(bio.complexity, 1.5) * bio.adaptability * 0.55;
   return rng() < base;
 }
 
@@ -238,7 +239,7 @@ export function generateCivilization(
   // ── Technology ───────────────────────────────────────────────────────────
   // Growth driven by curiosity and cooperation; slowed by aggression
   const growthDriver = species.curiosity * 0.6 + species.cooperation * 0.3 - species.aggression * 0.15;
-  const rawTech = 1 - Math.exp(-growthDriver * civAgeGyr * 3.5);
+  const rawTech = 1 - exp(-growthDriver * civAgeGyr * 3.5);
   let techLevel = rawTech * (0.7 + rng() * 0.3);
 
   // ── Social cohesion (AF-080) ──────────────────────────────────────────────
@@ -272,7 +273,7 @@ export function generateCivilization(
       // Recovery (AF-083)
       const recoveryTime  = civAgeGyr - (i / maxCollapseChecks) * civAgeGyr;
       const recoveryFactor = species.resilience * 0.7 + species.cooperation * 0.3;
-      const recovery = 1 - Math.exp(-recoveryFactor * recoveryTime * 2);
+      const recovery = 1 - exp(-recoveryFactor * recoveryTime * 2);
       techLevel      += severity * 0.4 * recovery;
       socialCohesion += severity * 0.3 * recovery;
     }

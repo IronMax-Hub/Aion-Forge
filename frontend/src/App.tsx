@@ -39,7 +39,11 @@ import { makeJournalEntry } from "./simulation/journal";
 import type { JournalEntry } from "./simulation/journal";
 import * as api from "./api/client";
 import { importLocalDataOnce } from "./api/importLocalData";
+import { createSurveyClient } from "./workers/surveyClient";
+import SurveyWorker from "./workers/survey.worker?worker";
 import "./App.css";
+
+const surveyClient = createSurveyClient(() => new SurveyWorker());
 
 function randomSeed(): number {
   return Math.floor(Math.random() * 1_000_000_000);
@@ -72,6 +76,10 @@ export default function App() {
   const [galaxyType, setGalaxyType] = useState<GalaxyType>("spiral");
   const [starCount, setStarCount]   = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [surveyProgress, setSurveyProgress] = useState<number | null>(null);   // null when no survey is running
+  const [surveyError, setSurveyError] = useState<string | null>(null);
+  // Snapshots are built from the life survey, so their buttons wait for it
+  const snapshotPending = isGenerating || surveyProgress !== null;
   const [view, setView]             = useState<View>("galaxy");
 
   // Universe config (laws of reality)
@@ -125,6 +133,7 @@ export default function App() {
     setCurrentSystem(null);
     setView("galaxy");
     cachedSnapshotRef.current = null;
+    setSurveyError(null);
     rendererRef.current?.exitSystemView();
 
     requestAnimationFrame(() => {
@@ -147,12 +156,19 @@ export default function App() {
       setIsGenerating(false);
       ui.universeLoad();
       ambientLayer.setContext("galaxy");
-      // Survey life in idle time: it feeds the snapshot (so button clicks are instant) and the life markers
-      setTimeout(() => {
-        const survey = surveyLife(population.stars, s, config);
-        cachedSnapshotRef.current = buildSnapshot(s, config, population.stars.length, survey);
-        rendererRef.current?.setLifeMarkers(survey.systems.map(life => ({ starId: life.starId, label: lifeMarkerLabel(life) })));
-      }, 0);
+      // Survey life off the main thread: it feeds the snapshot and the life markers
+      surveyClient.request(s, config, {
+        onProgress: setSurveyProgress,
+        onResult: (survey) => {
+          setSurveyProgress(null);
+          cachedSnapshotRef.current = buildSnapshot(s, config, population.stars.length, survey);
+          rendererRef.current?.setLifeMarkers(survey.systems.map(life => ({ starId: life.starId, label: lifeMarkerLabel(life) })));
+        },
+        onError: (message) => {
+          setSurveyProgress(null);
+          setSurveyError(message);
+        },
+      });
     });
   }, [universeConfig]);
 
@@ -534,6 +550,7 @@ export default function App() {
 
   let statusText = "Ready";
   if (isGenerating)                                                          statusText = "Generating…";
+  else if (surveyProgress !== null)                                         statusText = `Surveying life… ${Math.round(surveyProgress * 100)}%`;
   else if (view === "galaxy" && !selectedStar)                              statusText = "Select a star to inspect it";
   else if (view === "galaxy" && selectedStar)                               statusText = "Open the system to see its planets";
   else if (view === "system" && !selectedPlanet)                            statusText = "Select a planet to inspect it";
@@ -660,11 +677,11 @@ export default function App() {
           <div className="controls">
             {baselineSnapshot ? (
               <>
-                <button className="btn primary" onClick={handleCompare} disabled={isGenerating}>Compare with baseline</button>
+                <button className="btn primary" onClick={handleCompare} disabled={snapshotPending}>Compare with baseline</button>
                 <span className="hint" style={{ alignSelf: "center" }}>baseline set</span>
               </>
             ) : (
-              <button className="btn" onClick={handleSetBaseline} disabled={isGenerating} title="Use this universe as the baseline for comparison">
+              <button className="btn" onClick={handleSetBaseline} disabled={snapshotPending} title="Use this universe as the baseline for comparison">
                 Set as baseline
               </button>
             )}
@@ -677,7 +694,7 @@ export default function App() {
         <section className="console-section">
           <h2 className="console-section-label">Saved universes</h2>
           <div className="controls">
-            <button className="btn primary" onClick={handleSaveToGallery} disabled={isGenerating} title="Save this universe to the library">
+            <button className="btn primary" onClick={handleSaveToGallery} disabled={snapshotPending} title="Save this universe to the library">
               Save universe
             </button>
             <button className="btn" onClick={toggleGallery} aria-pressed={showGallery}>
@@ -805,6 +822,9 @@ export default function App() {
         <span className={isGenerating ? "generating" : undefined} role="status" aria-live="polite">{statusText}</span>
         {storageError && (
           <span className="statusbar-error" role="alert">Database: {storageError}</span>
+        )}
+        {surveyError && (
+          <span className="statusbar-error" role="alert">Life survey failed: {surveyError}</span>
         )}
         <div className="statusbar-right">
           <ScaleBar scale={viewScale} />

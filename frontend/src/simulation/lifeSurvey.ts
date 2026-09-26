@@ -33,13 +33,22 @@ export interface LifeSurvey {
   systems: SystemLife[];        // only systems with organisms, in star order
 }
 
-export function surveyLife(stars: Star[], seed: number, cfg: UniverseConfig): LifeSurvey {
+/** How often, in stars, the survey reports its progress. */
+export const SURVEY_PROGRESS_INTERVAL = 100;
+
+export function surveyLife(
+  stars: Star[],
+  seed: number,
+  cfg: UniverseConfig,
+  onProgress?: (starsSurveyed: number, starsTotal: number) => void,
+): LifeSurvey {
   let totalPlanets = 0;
   let lifeBearingPlanets = 0;
   let civilizationCount = 0;
   const systems: SystemLife[] = [];
 
-  for (const star of stars) {
+  for (const [index, star] of stars.entries()) {
+    if (onProgress && index > 0 && index % SURVEY_PROGRESS_INTERVAL === 0) onProgress(index, stars.length);
     const system = generatePlanetsFor(star, seed, cfg);
     totalPlanets += system.planets.length;
 

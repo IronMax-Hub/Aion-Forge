@@ -10,6 +10,8 @@ import type { Biosphere } from "../simulation/biosphere";
 import { SkyBackground } from "./background";
 import { PlanetView, ORBIT_DISTANCE } from "./planet/PlanetView";
 import { GlobeTextureCache, drawsSurface } from "./planet/globe";
+import type { GlobeSurface } from "./planet/globe";
+import type { GlobeBake } from "./planet/globeBake";
 
 // ── Visual seeded PRNG (ENH-506) ──────────────────────────────────────────────
 // Used for the nebula accents — purely visual, does not affect
@@ -283,6 +285,7 @@ export class UniverseRenderer {
   // Planet view: its scene, and the system view's camera to return to
   private planetView: PlanetView | null = null;
   private readonly globeTextures = new GlobeTextureCache();
+  private pendingBake: GlobeBake | null = null;
   private systemGalaxySeed = 0;
   private systemHostStar: Star | null = null;
   private systemCameraPose: { position: THREE.Vector3; target: THREE.Vector3 } | null = null;
@@ -399,6 +402,7 @@ export class UniverseRenderer {
     // The distant galaxies behind this universe (presentation only, see background.ts)
     this.sky.setUniverse(particles.config.seed);
     // A new universe reuses planet keys for different planets
+    this.pendingBake = null;
     this.globeTextures.clear();
   }
 
@@ -587,10 +591,15 @@ export class UniverseRenderer {
 
     const star = this.systemHostStar;
     const towardStar = new THREE.Vector3(...star.position).sub(planetWorld);
+    // The globe is baked a face per frame while the camera glides in
+    const surface = sight.world && drawsSurface(planet)
+      ? this.globeTextures.surfaceFor(planet, sight.world, this.systemGalaxySeed)
+      : null;
+    this.pendingBake = surface?.bake ?? null;
     this.tween = {
       from: this.controls.target.clone(), to: planetWorld, t: 0,
       camera: { from: this.camera.position.clone(), to: planetWorld.clone().addScaledVector(fromPlanet, markerRadius * APPROACH_END_DISTANCE) },
-      onDone: () => this.openPlanetView(planet, star, towardStar, fromPlanet, sight),
+      onDone: () => this.openPlanetView(planet, star, towardStar, fromPlanet, sight.starFlux, surface),
     };
   }
 
@@ -610,12 +619,14 @@ export class UniverseRenderer {
     this.controls.autoRotateSpeed = SYSTEM_AUTO_ROTATE_SPEED;
   }
 
-  private openPlanetView(planet: Planet, star: Star, towardStar: THREE.Vector3, cameraDirection: THREE.Vector3, sight: PlanetSight) {
-    const surface = sight.world && drawsSurface(planet)
-      ? this.globeTextures.surfaceFor(planet, sight.world, this.systemGalaxySeed)
-      : null;
+  private openPlanetView(
+    planet: Planet, star: Star, towardStar: THREE.Vector3, cameraDirection: THREE.Vector3,
+    starFlux: number, surface: GlobeSurface | null,
+  ) {
+    surface?.bake.finish(this.renderer);   // whatever the glide left unbaked
+    this.pendingBake = null;
     this.planetView = new PlanetView(planet, star, towardStar, !prefersReducedMotion(), performance.now(), {
-      starFlux: sight.starFlux, surface,
+      starFlux, surface,
     });
     this.planetView.scene.add(this.sky.group);   // the night sky moves with the viewer
     this.mode = "planet";
@@ -634,6 +645,7 @@ export class UniverseRenderer {
   /** Disposes the planet view, if any, and cancels an approach under way. */
   private closePlanetView() {
     if (this.tween?.onDone) this.tween = null;
+    this.pendingBake = null;   // a half-baked globe stays cached and resumes on the next approach
     if (!this.planetView) return;
     this.scene.add(this.sky.group);
     this.planetView.dispose();
@@ -882,6 +894,10 @@ export class UniverseRenderer {
   private startLoop() {
     const tick = () => {
       this.animFrameId = requestAnimationFrame(tick);
+      if (this.pendingBake) {
+        this.pendingBake.step(this.renderer);
+        if (this.pendingBake.done) this.pendingBake = null;
+      }
       this.stepTween();
       this.controls.update();
 

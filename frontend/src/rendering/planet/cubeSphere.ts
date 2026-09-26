@@ -6,16 +6,7 @@
 // crowds its triangles at the poles and wastes them there.
 
 import * as THREE from "three";
-
-// Each face: the axis it faces, and two axes across it with u × v = normal, so the triangles face outwards
-const FACES: [THREE.Vector3Tuple, THREE.Vector3Tuple, THREE.Vector3Tuple][] = [
-  [[1, 0, 0], [0, 0, -1], [0, 1, 0]],
-  [[-1, 0, 0], [0, 0, 1], [0, 1, 0]],
-  [[0, 1, 0], [1, 0, 0], [0, 0, -1]],
-  [[0, -1, 0], [1, 0, 0], [0, 0, 1]],
-  [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
-  [[0, 0, -1], [-1, 0, 0], [0, 1, 0]],
-];
+import { CUBE_FACES } from "./cubeFaces";
 
 /** A unit sphere made of 6 × segments² quads. Normals point outwards and equal the positions. */
 export function cubeSphereGeometry(segments: number): THREE.BufferGeometry {
@@ -24,7 +15,7 @@ export function cubeSphereGeometry(segments: number): THREE.BufferGeometry {
   const indices = new Uint32Array(6 * segments * segments * 6);
   let v = 0;
   let t = 0;
-  FACES.forEach(([normal, u, w], face) => {
+  CUBE_FACES.forEach(([normal, u, w], face) => {
     const base = face * side * side;
     for (let j = 0; j < side; j++) {
       for (let i = 0; i < side; i++) {

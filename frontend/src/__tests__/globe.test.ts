@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import * as THREE from "three";
 import { cubeSphereGeometry } from "../rendering/planet/cubeSphere";
+import {
+  CUBE_FACES, CUBE_ATLAS_GLSL, ATLAS_WIDTH, ATLAS_HEIGHT, FACE_BORDER, FACE_SIZE,
+  atlasCoordinates, atlasDirection, faceOf, faceTile,
+} from "../rendering/planet/cubeFaces";
 import { GlobeTextureCache, GLOBE_CACHE_SIZE, drawsSurface, noiseOffsetOf } from "../rendering/planet/globe";
 import { PlanetView, globeOrientation, starlightIntensity } from "../rendering/planet/PlanetView";
 import { generatePlanetsFor, solidWorldOf, GIANT_PLANET_MASS } from "../simulation/planet";
@@ -44,6 +48,38 @@ describe("cube-sphere mesh", () => {
   });
 });
 
+describe("baked globe atlas", () => {
+  it("maps every face's texels back to the directions they were baked for", () => {
+    for (let face = 0; face < 6; face++) {
+      const [x0, y0] = faceTile(face);
+      for (const [i, j] of [[0, 0], [FACE_SIZE - 1, 0], [FACE_SIZE / 2, FACE_SIZE / 3], [7, FACE_SIZE - 1]]) {
+        const x = x0 + FACE_BORDER + i + 0.5;
+        const y = y0 + FACE_BORDER + j + 0.5;
+        const direction = atlasDirection(x, y);
+        expect(faceOf(direction)).toBe(face);
+        const [u, v] = atlasCoordinates(direction);
+        expect(u * ATLAS_WIDTH).toBeCloseTo(x, 6);
+        expect(v * ATLAS_HEIGHT).toBeCloseTo(y, 6);
+      }
+    }
+  });
+
+  it("bakes each face's border from just beyond its edge, so filtering across an edge reads the neighbour's surface", () => {
+    const [x0, y0] = faceTile(0);
+    const inside = atlasDirection(x0 + FACE_BORDER + 0.5, y0 + FACE_BORDER + FACE_SIZE / 2);
+    const border = atlasDirection(x0 + 0.5, y0 + FACE_BORDER + FACE_SIZE / 2);
+    expect(faceOf(inside)).toBe(0);
+    expect(faceOf(border)).not.toBe(0);
+    // Adjacent texels, about one texel apart on the sphere
+    const angle = Math.acos(inside[0] * border[0] + inside[1] * border[1] + inside[2] * border[2]);
+    expect(angle).toBeLessThan((FACE_BORDER + 1) * (2 / FACE_SIZE));
+  });
+
+  it("writes the same face table into the shaders", () => {
+    CUBE_FACES.forEach(([n], face) => expect(CUBE_ATLAS_GLSL).toContain(`face == ${face}) { normal = vec3(${n[0]}.0, ${n[1]}.0, ${n[2]}.0)`));
+  });
+});
+
 describe("which planets get a globe", () => {
   it("draws solid planets except lava worlds; giants stay plain", () => {
     for (const { planet } of all) {
@@ -61,20 +97,20 @@ describe("which planets get a globe", () => {
 });
 
 describe("globe texture cache", () => {
-  it("keeps the last five planets' maps and frees older ones", () => {
+  it("keeps the last five planets' baked globes and frees older ones", () => {
     const cache = new GlobeTextureCache();
     const freed: string[] = [];
-    const maps = drawn.map(({ star, planet }) => {
-      const { map } = cache.surfaceFor(planet, solidWorldOf(planet, star, seed, config), seed);
-      map.addEventListener("dispose", () => freed.push(planet.key));
-      return map;
+    const bakes = drawn.map(({ star, planet }) => {
+      const { bake } = cache.surfaceFor(planet, solidWorldOf(planet, star, seed, config), seed);
+      bake.target.addEventListener("dispose", () => freed.push(planet.key));
+      return bake;
     });
     expect(cache.size).toBe(GLOBE_CACHE_SIZE);
     expect(freed).toEqual(drawn.slice(0, drawn.length - GLOBE_CACHE_SIZE).map(({ planet }) => planet.key));
 
-    // A revisit reuses the map it already has
+    // A revisit reuses the bake it already has
     const last = drawn[drawn.length - 1];
-    expect(cache.surfaceFor(last.planet, solidWorldOf(last.planet, last.star, seed, config), seed).map).toBe(maps[maps.length - 1]);
+    expect(cache.surfaceFor(last.planet, solidWorldOf(last.planet, last.star, seed, config), seed).bake).toBe(bakes[bakes.length - 1]);
 
     cache.clear();
     expect(cache.size).toBe(0);
@@ -103,11 +139,11 @@ describe("globe view", () => {
     expect(view.opacity).toBe(1);
   });
 
-  it("leaves the cached surface map alone when it is disposed", () => {
-    let mapFreed = false;
-    surface.map.addEventListener("dispose", () => { mapFreed = true; });
+  it("leaves the cached bake alone when it is disposed", () => {
+    let bakeFreed = false;
+    surface.bake.target.addEventListener("dispose", () => { bakeFreed = true; });
     new PlanetView(planet, star, towardStar, false, 0, { surface }).dispose();
-    expect(mapFreed).toBe(false);
+    expect(bakeFreed).toBe(false);
   });
 
   it("turns a locked planet's substellar point to its star, and tilts a free planet's spin axis", () => {

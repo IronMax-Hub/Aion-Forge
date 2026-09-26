@@ -1,5 +1,5 @@
 // What the planet view needs to draw a solid planet's globe (Worlds Up Close, A5),
-// and the cache that keeps the last few planets' surface maps on the GPU.
+// and the cache that keeps the last few planets' baked globes on the GPU.
 //
 // Presentation only: it reads a planet's world and never writes it. The detail
 // noise is placed by the planet's VISUAL stream, so the same planet always looks
@@ -8,19 +8,20 @@
 import * as THREE from "three";
 import type { Planet, SolidWorld } from "../../simulation/planet";
 import { createRNG, mixSeed, SALT } from "../../simulation/rng";
-import { buildSurfaceMap, surfaceMapTexture } from "./surfaceMap";
+import { buildSurfaceMap } from "./surfaceMap";
+import { GlobeBake } from "./globeBake";
+import { EARTH_RADIUS_KM } from "./PlanetView";
 
 /** A solid planet's surface as the globe shader draws it. */
 export interface GlobeSurface {
-  /** The surface map; owned by the cache, never disposed by the view. */
-  map: THREE.DataTexture;
-  /** 0–1: how much of frozen land is snow. */
-  wetness: number;
+  /** The baked atlas; owned by the cache, never disposed by the view. Finish it before drawing. */
+  bake: GlobeBake;
   axialTiltDeg: number;
   tidallyLocked: boolean;
-  /** Where the detail noise is sampled from. */
-  noiseOffset: THREE.Vector3Tuple;
 }
+
+// Relief is drawn this many times steeper than it is, or mountains would not show from orbit
+const RELIEF_EXAGGERATION = 150;
 
 // Noise offsets are drawn in 0–NOISE_OFFSET_RANGE along each axis
 const NOISE_OFFSET_RANGE = 100;
@@ -39,45 +40,51 @@ export function noiseOffsetOf(planet: Planet, galaxySeed: number): THREE.Vector3
   return [rng() * NOISE_OFFSET_RANGE, rng() * NOISE_OFFSET_RANGE, rng() * NOISE_OFFSET_RANGE];
 }
 
-// How many planets' surface maps stay on the GPU (the plan's "last five planets")
+// How many planets' baked globes stay on the GPU (the plan's "last five planets")
 export const GLOBE_CACHE_SIZE = 5;
 
-/** Surface maps of the most recently visited planets, by planet key; the oldest is freed first. */
+/**
+ * Baked globes of the most recently visited planets, by planet key; the oldest
+ * is freed first. A new planet's bake starts unbaked: step it a face per frame,
+ * and finish it before drawing.
+ */
 export class GlobeTextureCache {
-  private readonly maps = new Map<string, THREE.DataTexture>();
+  private readonly bakes = new Map<string, GlobeBake>();
 
   constructor(private readonly capacity = GLOBE_CACHE_SIZE) {}
 
-  /** The planet's surface, building its map unless it is cached. */
+  /** The planet's surface, reusing its bake if it is cached. */
   surfaceFor(planet: Planet, world: SolidWorld, galaxySeed: number): GlobeSurface {
-    let map = this.maps.get(planet.key);
-    if (map) {
-      this.maps.delete(planet.key);   // re-inserted below as the newest
+    let bake = this.bakes.get(planet.key);
+    if (bake) {
+      this.bakes.delete(planet.key);   // re-inserted below as the newest
     } else {
-      map = surfaceMapTexture(buildSurfaceMap(world.geography, world.history.present));
+      bake = new GlobeBake(buildSurfaceMap(world.geography, world.history.present), {
+        wetness: world.history.present.wetness,
+        noiseOffset: noiseOffsetOf(planet, galaxySeed),
+        bumpScale: RELIEF_EXAGGERATION / (planet.size * EARTH_RADIUS_KM),
+      });
     }
-    this.maps.set(planet.key, map);
-    for (const [key, oldest] of this.maps) {
-      if (this.maps.size <= this.capacity) break;
+    this.bakes.set(planet.key, bake);
+    for (const [key, oldest] of this.bakes) {
+      if (this.bakes.size <= this.capacity) break;
       oldest.dispose();
-      this.maps.delete(key);
+      this.bakes.delete(key);
     }
     return {
-      map,
-      wetness: world.history.present.wetness,
+      bake,
       axialTiltDeg: world.physics.axialTiltDeg,
       tidallyLocked: world.physics.tidallyLocked,
-      noiseOffset: noiseOffsetOf(planet, galaxySeed),
     };
   }
 
   get size(): number {
-    return this.maps.size;
+    return this.bakes.size;
   }
 
-  /** Frees every cached map: for a new universe, where planet keys name different planets. */
+  /** Frees every cached bake: for a new universe, where planet keys name different planets. */
   clear(): void {
-    for (const map of this.maps.values()) map.dispose();
-    this.maps.clear();
+    for (const bake of this.bakes.values()) bake.dispose();
+    this.bakes.clear();
   }
 }

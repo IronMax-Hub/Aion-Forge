@@ -15,8 +15,9 @@
 //   colour. Its intensity follows the fourth root of the starlight the planet
 //   receives (as its temperature does), within limits, so a far, dim world looks
 //   dim without going black.
-// - Globe: a cube-sphere drawn by the globe shader from the planet's surface map
-//   (surfaceMap.ts). The map's pole is the grid's band axis: a rotating planet's
+// - Globe: a cube-sphere drawn from the planet's baked atlas (globeBake.ts),
+//   which was shaded once from its surface map (surfaceMap.ts); each frame only
+//   lights it. The map's pole is the grid's band axis: a rotating planet's
 //   spin axis, tilted by its axial tilt from the orbit's normal, or a locked
 //   planet's substellar point, which faces the star.
 // - Fade: in over 400 ms, or at once when the viewer prefers reduced motion.
@@ -28,10 +29,9 @@ import type { Planet } from "../../simulation/planet";
 import { PLANET_COLORS } from "../../simulation/planet";
 import type { Star } from "../../simulation/star";
 import { temperatureToColor } from "../../simulation/star";
-import { FREEZING_K } from "../../simulation/climate";
 import type { GlobeSurface } from "./globe";
 import { cubeSphereGeometry } from "./cubeSphere";
-import simplexNoise from "./shaders/simplexNoise.glsl?raw";
+import { CUBE_ATLAS_GLSL } from "./cubeFaces";
 import globeVertex from "./shaders/globe.vert.glsl?raw";
 import globeFragment from "./shaders/globe.frag.glsl?raw";
 
@@ -55,8 +55,6 @@ const LIGHT_DISTANCE = 10;
 // shade many pixels twice or more (they work in 2 × 2 blocks). At 6 × 128² that
 // tripled the globe's cost. At 32 the outline is within a pixel even at 1.15 radii.
 const GLOBE_SEGMENTS = 32;
-// Relief is drawn this many times steeper than it is, or mountains would not show from orbit
-const RELIEF_EXAGGERATION = 150;
 
 // The orbit's normal: "up" in the system view, which the planets circle in the x–z plane
 const ORBIT_NORMAL = new THREE.Vector3(0, 1, 0);
@@ -130,14 +128,11 @@ export class PlanetView {
   private globeMaterial(surface: GlobeSurface, starColor: THREE.Color, intensity: number, fade: boolean): THREE.ShaderMaterial {
     return new THREE.ShaderMaterial({
       vertexShader: globeVertex,
-      fragmentShader: simplexNoise + globeFragment,
+      fragmentShader: CUBE_ATLAS_GLSL + globeFragment,
       transparent: fade,
       uniforms: {
-        surfaceMap: { value: surface.map },
-        noiseOffset: { value: new THREE.Vector3(...surface.noiseOffset) },
-        wetness: { value: surface.wetness },
-        freezingK: { value: FREEZING_K },
-        bumpScale: { value: RELIEF_EXAGGERATION / this.kmPerUnit },
+        albedoAtlas: { value: surface.bake.albedo },
+        reliefAtlas: { value: surface.bake.relief },
         localToWorld: { value: new THREE.Matrix3() },
         toStar: { value: this.lightDirection.clone() },
         starColor: { value: starColor },

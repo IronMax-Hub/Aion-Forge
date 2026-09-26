@@ -39,6 +39,8 @@ export interface GlobeSurface {
   axialTiltDeg: number;
   /** Whether the atlas's pole faces the star (a locked solid planet) rather than being the spin axis. */
   tidallyLocked: boolean;
+  /** Whether the planet turns about its pole in the view: every planet not locked to its star. */
+  spins: boolean;
   /** Whether a cloud sphere belongs over it (solid planets). */
   hasClouds: boolean;
   rings: RingLook | null;
@@ -179,6 +181,8 @@ export class GlobeTextureCache {
       axialTiltDeg: physics.axialTiltDeg,
       // A giant's bands always run round its spin axis, locked or not
       tidallyLocked: world !== null && physics.tidallyLocked,
+      // A locked planet, giant or solid, keeps one face to its star
+      spins: !physics.tidallyLocked,
       hasClouds: world !== null,
       rings: giant?.rings ?? null,
     };

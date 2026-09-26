@@ -10,7 +10,8 @@
 //
 // The atlas: 6 faces of FACE_SIZE² texels plus borders (cubeFaces.ts), in two
 // RGBA8 textures: albedo (square-rooted colour, glint share) and relief
-// (surface normal in the planet's frame). Both have mipmaps for distant views.
+// (surface normal in the planet's frame, cloud density for the cloud sphere).
+// Both have mipmaps for distant views.
 //
 // Presentation only: it reads the planet's surface map and never writes to the simulation.
 
@@ -35,6 +36,10 @@ export interface BakeInputs {
   noiseOffset: THREE.Vector3Tuple;
   /** Relief exaggeration per km of elevation, in planet radii. */
   bumpScale: number;
+  /** Where the cloud pattern is sampled from (the planet's VISUAL stream). */
+  cloudOffset: THREE.Vector3Tuple;
+  /** 0–1: share of the sky thick air clouds over, whatever the moisture (atmosphere.ts). */
+  overcast: number;
 }
 
 export class GlobeBake {
@@ -70,6 +75,8 @@ export class GlobeBake {
         wetness: { value: inputs.wetness },
         freezingK: { value: FREEZING_K },
         bumpScale: { value: inputs.bumpScale },
+        cloudOffset: { value: new THREE.Vector3(...inputs.cloudOffset) },
+        overcast: { value: inputs.overcast },
       },
       depthTest: false,
       depthWrite: false,

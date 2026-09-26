@@ -20,6 +20,9 @@
 //   lights it. The map's pole is the grid's band axis: a rotating planet's
 //   spin axis, tilted by its axial tilt from the orbit's normal, or a locked
 //   planet's substellar point, which faces the star.
+// - Air (A6): a scattering shell when the planet has air enough to see, and a
+//   cloud sphere over a drawn surface (atmosphere.ts). The clouds drift slowly,
+//   except under reduced motion.
 // - Fade: in over 400 ms, or at once when the viewer prefers reduced motion.
 //
 // Presentation only: it reads a planet and a star and never writes to either.
@@ -32,6 +35,7 @@ import { temperatureToColor } from "../../simulation/star";
 import type { GlobeSurface } from "./globe";
 import { cubeSphereGeometry } from "./cubeSphere";
 import { CUBE_ATLAS_GLSL } from "./cubeFaces";
+import { atmosphereShell, cloudDriftAngle, cloudSphere, hasVisibleAtmosphere } from "./atmosphere";
 import globeVertex from "./shaders/globe.vert.glsl?raw";
 import globeFragment from "./shaders/globe.frag.glsl?raw";
 
@@ -64,6 +68,8 @@ export interface PlanetViewOptions {
   starFlux?: number;
   /** A solid planet's surface, when the view draws it; otherwise a plain sphere. */
   surface?: GlobeSurface | null;
+  /** Whether the clouds drift; defaults to `fade` (both off under reduced motion). */
+  drift?: boolean;
 }
 
 /** Light intensity for the starlight a planet receives. */
@@ -91,6 +97,11 @@ export class PlanetView {
   private readonly globe: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial | THREE.ShaderMaterial>;
   private readonly starlight: THREE.DirectionalLight | null;
   private readonly lightDirection: THREE.Vector3;
+  private readonly shell: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> | null = null;
+  private readonly clouds: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> | null = null;
+  private readonly cloudBase = new THREE.Quaternion();
+  private readonly openedMs: number;
+  private readonly drift: boolean;
   private fadeStartMs: number | null;
 
   /**
@@ -122,6 +133,24 @@ export class PlanetView {
       this.scene.add(this.starlight, new THREE.AmbientLight(0xffffff, NIGHT_FILL_INTENSITY));
     }
     this.scene.add(this.globe);
+
+    const light = {
+      toStar: this.lightDirection, starColor, starIntensity: intensity,
+      nightFill: NIGHT_FILL_INTENSITY, opacity: fade ? 0 : 1,
+    };
+    if (options.surface) {
+      this.clouds = cloudSphere(options.surface.bake.relief, light);
+      this.cloudBase.copy(this.globe.quaternion);
+      this.clouds.quaternion.copy(this.cloudBase);
+      this.scene.add(this.clouds);
+    }
+    if (hasVisibleAtmosphere(planet)) {
+      this.shell = atmosphereShell(planet.surface!.pressureBar, star.temperature, light);
+      this.scene.add(this.shell);
+    }
+
+    this.openedMs = nowMs;
+    this.drift = options.drift ?? fade;
     this.fadeStartMs = fade ? nowMs : null;
   }
 
@@ -143,8 +172,12 @@ export class PlanetView {
     });
   }
 
-  /** Advances the fade-in; call once per frame. */
+  /** Advances the fade-in and the cloud drift; call once per frame. */
   update(nowMs: number): void {
+    if (this.clouds && this.drift) {
+      const turn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), cloudDriftAngle(nowMs - this.openedMs));
+      this.clouds.quaternion.copy(this.cloudBase).multiply(turn);
+    }
     if (this.fadeStartMs === null) return;
     const progress = Math.min(1, (nowMs - this.fadeStartMs) / FADE_IN_MS);
     this.setOpacity(progress);
@@ -160,6 +193,7 @@ export class PlanetView {
     const material = this.globe.material;
     if (material instanceof THREE.ShaderMaterial) material.uniforms.opacity.value = opacity;
     else material.opacity = opacity;
+    for (const layer of [this.clouds, this.shell]) if (layer) layer.material.uniforms.opacity.value = opacity;
   }
 
   /** How visible the planet is, 0–1. */
@@ -178,10 +212,24 @@ export class PlanetView {
     return this.globe.material instanceof THREE.ShaderMaterial;
   }
 
-  /** Frees the view's GPU resources. The surface map belongs to its cache; objects added by others are left alone. */
+  /** Whether the view draws an atmosphere shell. */
+  get hasAtmosphere(): boolean {
+    return this.shell !== null;
+  }
+
+  /** The cloud sphere's turn about the planet's pole, radians. */
+  get cloudTurn(): number {
+    if (!this.clouds) return 0;
+    return 2 * Math.acos(Math.min(1, Math.abs(this.cloudBase.clone().invert().multiply(this.clouds.quaternion).w)));
+  }
+
+  /** Frees the view's GPU resources. The baked atlas belongs to its cache; objects added by others are left alone. */
   dispose(): void {
-    this.globe.geometry.dispose();
-    this.globe.material.dispose();
+    for (const mesh of [this.globe, this.clouds, this.shell]) {
+      if (!mesh) continue;
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+    }
     this.starlight?.dispose();
   }
 }

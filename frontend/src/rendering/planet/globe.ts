@@ -11,6 +11,7 @@ import { createRNG, mixSeed, SALT } from "../../simulation/rng";
 import { buildSurfaceMap } from "./surfaceMap";
 import { GlobeBake } from "./globeBake";
 import { EARTH_RADIUS_KM } from "./PlanetView";
+import { overcastShare } from "./atmosphere";
 
 /** A solid planet's surface as the globe shader draws it. */
 export interface GlobeSurface {
@@ -34,10 +35,22 @@ export function drawsSurface(planet: Planet): boolean {
   return planet.surface !== null && planet.type !== "lava";
 }
 
+/** The offsets of a planet's detail noise and cloud pattern, from its VISUAL stream, in that order. */
+function visualOffsets(planet: Planet, galaxySeed: number): { detail: THREE.Vector3Tuple; clouds: THREE.Vector3Tuple } {
+  const rng = createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.VISUAL));
+  const draw = (): THREE.Vector3Tuple => [rng() * NOISE_OFFSET_RANGE, rng() * NOISE_OFFSET_RANGE, rng() * NOISE_OFFSET_RANGE];
+  const detail = draw();
+  return { detail, clouds: draw() };
+}
+
 /** The offset of a planet's detail noise, from its VISUAL stream. */
 export function noiseOffsetOf(planet: Planet, galaxySeed: number): THREE.Vector3Tuple {
-  const rng = createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.VISUAL));
-  return [rng() * NOISE_OFFSET_RANGE, rng() * NOISE_OFFSET_RANGE, rng() * NOISE_OFFSET_RANGE];
+  return visualOffsets(planet, galaxySeed).detail;
+}
+
+/** The offset of a planet's cloud pattern, from its VISUAL stream (the three draws after the detail's). */
+export function cloudOffsetOf(planet: Planet, galaxySeed: number): THREE.Vector3Tuple {
+  return visualOffsets(planet, galaxySeed).clouds;
 }
 
 // How many planets' baked globes stay on the GPU (the plan's "last five planets")
@@ -63,6 +76,8 @@ export class GlobeTextureCache {
         wetness: world.history.present.wetness,
         noiseOffset: noiseOffsetOf(planet, galaxySeed),
         bumpScale: RELIEF_EXAGGERATION / (planet.size * EARTH_RADIUS_KM),
+        cloudOffset: cloudOffsetOf(planet, galaxySeed),
+        overcast: overcastShare(planet.surface?.pressureBar ?? 0),
       });
     }
     this.bakes.set(planet.key, bake);

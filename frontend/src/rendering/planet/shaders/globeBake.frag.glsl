@@ -4,7 +4,8 @@
 // and the cube atlas GLSL; GLSL 3, writing two textures:
 //   albedo  surface colour (square root, so 8 bits keep the dark oceans smooth)
 //           and, in alpha, how much of the star's glint open water reflects
-//   relief  the surface normal in the planet's own frame, tilted by the relief
+//   relief  the surface normal in the planet's own frame, tilted by the relief,
+//           and, in alpha, cloud density (A6), which the cloud sphere reads
 //
 // The map carries the simulation's present day: R elevation above sea level
 // (km), G temperature (K), B moisture (0–1), A submerged (1 under water). The
@@ -20,6 +21,8 @@ uniform vec3 noiseOffset;       // from the planet's VISUAL stream
 uniform float wetness;          // 0–1: how much of frozen land is snow
 uniform float freezingK;
 uniform float bumpScale;        // relief exaggeration per km of elevation, in planet radii
+uniform vec3 cloudOffset;       // from the planet's VISUAL stream
+uniform float overcast;         // 0–1: share of the sky a thick atmosphere clouds over (atmosphere.ts)
 
 const float PI = 3.141592653589793;
 
@@ -31,6 +34,14 @@ const float COAST_SHIFT = 0.45;       // below 0.5, so no cell centre ever chang
 const float RELIEF_NOISE_KM = 1.2;
 const float ICE_EDGE_NOISE_K = 3.0;   // wobble of the freeze line
 const float MAX_TILT = 0.6;           // steepest the exaggerated relief may tilt a normal
+
+// Clouds (A6): cover follows moisture, which already rises with warmth and falls away from open water
+const float CLOUD_COVER_PER_MOISTURE = 0.65;   // warm open ocean: about two-thirds cloud, as on Earth
+const float CLOUD_FREQUENCY = 2.5;
+const vec3 CLOUD_STRETCH = vec3(1.0, 2.5, 1.0); // finer north–south than east–west: clouds streak along latitudes
+const int CLOUD_OCTAVES = 4;
+const float CLOUD_CONTRAST = 1.8;
+const float CLOUD_EDGE = 0.15;                 // softness of cloud edges, in cover
 
 // Surface colours, linear
 const vec3 DRY_SOIL = vec3(0.42, 0.30, 0.17);
@@ -62,6 +73,28 @@ float fbm(vec3 p, out vec3 gradient) {
   }
   gradient /= total;
   return sum / total;
+}
+
+float cloudNoise(vec3 p) {
+  float sum = 0.0;
+  float amplitude = 0.5;
+  float total = 0.0;
+  vec3 unused;
+  for (int i = 0; i < CLOUD_OCTAVES; i++) {
+    sum += amplitude * snoiseGradient(p, unused);
+    total += amplitude;
+    p *= 2.0;
+    amplitude *= 0.5;
+  }
+  return sum / total;
+}
+
+/** Cloud density 0–1: a cloud pattern thresholded so it covers the local cover share. */
+float cloudDensity(vec3 p, float moisture) {
+  float cover = max(clamp(CLOUD_COVER_PER_MOISTURE * moisture, 0.0, 1.0), overcast);
+  float pattern = 0.5 + 0.5 * clamp(CLOUD_CONTRAST * cloudNoise(p * CLOUD_STRETCH * CLOUD_FREQUENCY + cloudOffset), -1.0, 1.0);
+  float density = (1.0 - smoothstep(cover - CLOUD_EDGE, cover + CLOUD_EDGE, pattern)) * smoothstep(0.0, 0.05, cover);
+  return max(density, overcast);
 }
 
 vec2 mapCoordinates(vec3 p) {
@@ -120,5 +153,5 @@ void main() {
   vec3 normalLocal = normalize(p - tilt);
 
   albedoOut = vec4(sqrt(albedo), water * (1.0 - frozen));
-  reliefOut = vec4(normalLocal * 0.5 + 0.5, 1.0);
+  reliefOut = vec4(normalLocal * 0.5 + 0.5, cloudDensity(p, surface.b));
 }

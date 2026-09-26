@@ -5,7 +5,7 @@ import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import { surveyLife } from "../simulation/lifeSurvey";
 import { buildSnapshot, measureUniverse } from "../simulation/experiment";
 import { SIMULATION_RULES_VERSION, countedUnderOlderRules } from "../simulation/version";
-import { generatePlanetsFor } from "../simulation/planet";
+import { generatePlanetsFor, planetKey } from "../simulation/planet";
 import { generateBiosphere } from "../simulation/biosphere";
 import { generateCivilization, describeCivilization } from "../simulation/civilization";
 import { makeConfig } from "../simulation/config";
@@ -133,6 +133,28 @@ describe("Planet generation determinism", () => {
 });
 
 // ── Biosphere ─────────────────────────────────────────────────────────────────
+
+describe("Planet keys", () => {
+  it("are unique across every planet in a full universe", () => {
+    for (const seed of [100000, 42]) {
+      const config = makeConfig(seed);
+      const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
+      const planets = stars.flatMap((star) => generatePlanetsFor(star, seed, config).planets);
+      expect(planets.length).toBeGreaterThan(8000);
+      expect(new Set(planets.map((p) => p.key)).size).toBe(planets.length);
+      // The index alone repeats from system to system, which is why the key exists
+      expect(new Set(planets.map((p) => p.id)).size).toBeLessThan(20);
+    }
+  });
+
+  it("combine the host star and the planet's index", () => {
+    expect(planetKey(1269, 2)).toBe("1269-2");
+    const star = generateStarsFor(makeGalaxyConfig(42)).stars.find((s) => generatePlanetsFor(s, 42).planets.length > 1)!;
+    for (const planet of generatePlanetsFor(star, 42).planets) {
+      expect(planet.key).toBe(planetKey(star.id, planet.id));
+    }
+  });
+});
 
 describe("Biosphere determinism", () => {
   it("generates identical biospheres for the same planet + seed", () => {

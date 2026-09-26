@@ -33,7 +33,7 @@ export interface HistoricalEvent {
   universeSeed: number;
   timestampGyr: number;     // time before present (positive = further in the past)
   category: EventCategory;
-  subjectId: string;        // e.g. "star-42", "planet-7", "civ-1"
+  subjectId: string;        // e.g. "galaxy-100000", "star-42", "planet-42-3" (planet key)
   summary: string;
   importance: Importance;
 }
@@ -237,7 +237,7 @@ export function recordPlanetaryEvents(
     id: nextId(), universeSeed: seed,
     timestampGyr: formedAgo,
     category: "planetary",
-    subjectId: `planet-${planet.id}`,
+    subjectId: `planet-${planet.key}`,
     summary: `${planet.isRare ? "A rare " : "A "}${planet.type.replace("-", " ")} world coalesced at ${planet.orbitalRadius.toFixed(2)} AU from its host star.`,
     importance: planet.isRare ? "historic" : "minor",
   });
@@ -248,7 +248,7 @@ export function recordPlanetaryEvents(
       id: nextId(), universeSeed: seed,
       timestampGyr: afterFormation(0.3),
       category: "planetary",
-      subjectId: `planet-${planet.id}`,
+      subjectId: `planet-${planet.key}`,
       summary: `Conditions stabilized into a remarkably hospitable environment — liquid water, temperate atmosphere, abundant resources.`,
       importance: "major",
     });
@@ -259,7 +259,7 @@ export function recordPlanetaryEvents(
       id: nextId(), universeSeed: seed,
       timestampGyr: afterFormation(0.2),
       category: "planetary",
-      subjectId: `planet-${planet.id}`,
+      subjectId: `planet-${planet.key}`,
       summary: `Global oceans formed, covering the entire surface in liquid water.`,
       importance: "significant",
     });
@@ -270,7 +270,7 @@ export function recordPlanetaryEvents(
       id: nextId(), universeSeed: seed,
       timestampGyr: afterFormation(0.1),
       category: "planetary",
-      subjectId: `planet-${planet.id}`,
+      subjectId: `planet-${planet.key}`,
       summary: `Intense volcanic activity kept the surface molten — a world perpetually reshaped by its own interior.`,
       importance: "significant",
     });
@@ -294,7 +294,7 @@ export function recordBiologicalEvents(
     id: nextId(), universeSeed: seed,
     timestampGyr: bio.ageGyr,
     category: "biological",
-    subjectId: `planet-${planet.id}`,
+    subjectId: `planet-${planet.key}`,
     summary: `The first self-replicating molecules emerged — life took hold on this world.`,
     importance: "legendary",
   });
@@ -319,7 +319,7 @@ export function recordBiologicalEvents(
         id: nextId(), universeSeed: seed,
         timestampGyr: Math.max(0.001, timeAgo),
         category: "biological",
-        subjectId: `planet-${planet.id}`,
+        subjectId: `planet-${planet.key}`,
         summary: ev.summary,
         importance: ev.importance,
       });
@@ -332,7 +332,7 @@ export function recordBiologicalEvents(
       id: nextId(), universeSeed: seed,
       timestampGyr: ext.timeAgo,
       category: "biological",
-      subjectId: `planet-${planet.id}`,
+      subjectId: `planet-${planet.key}`,
       summary: `Mass extinction: ${ext.cause}. ${Math.round(ext.severityLoss * 100)}% of biodiversity lost.`,
       importance: ext.severityLoss > 0.6 ? "historic" : "significant",
     });
@@ -346,6 +346,7 @@ export function recordBiologicalEvents(
 export function recordCivilizationalEvents(
   civ: Civilization,
   species: Species,
+  planet: Planet,
   seed: number
 ): HistoricalEvent[] {
   const events: HistoricalEvent[] = [];
@@ -355,7 +356,7 @@ export function recordCivilizationalEvents(
     id: nextId(), universeSeed: seed,
     timestampGyr: civ.ageGyr,
     category: "civilizational",
-    subjectId: `planet-${civ.planetId}`,
+    subjectId: `planet-${planet.key}`,
     summary: `An intelligent species evolved — curious, ${species.cooperation > 0.6 ? "cooperative" : "competitive"}, and aware of their own existence.`,
     importance: "legendary",
   });
@@ -378,7 +379,7 @@ export function recordCivilizationalEvents(
       id: nextId(), universeSeed: seed,
       timestampGyr: m.timeAgo,
       category: "civilizational",
-      subjectId: `planet-${civ.planetId}`,
+      subjectId: `planet-${planet.key}`,
       summary: m.note,
       importance: importanceMap[m.type] ?? "minor",
     });
@@ -390,7 +391,7 @@ export function recordCivilizationalEvents(
       id: nextId(), universeSeed: seed,
       timestampGyr: 0.001,
       category: "civilizational",
-      subjectId: `planet-${civ.planetId}`,
+      subjectId: `planet-${planet.key}`,
       summary: `The civilization collapsed terminally. ${Math.round(civ.population)}B survivors remain among the ruins.`,
       importance: "historic",
     });
@@ -399,7 +400,7 @@ export function recordCivilizationalEvents(
       id: nextId(), universeSeed: seed,
       timestampGyr: 0.001,
       category: "civilizational",
-      subjectId: `planet-${civ.planetId}`,
+      subjectId: `planet-${planet.key}`,
       summary: `This civilization stands at the threshold of the cosmos — the stars are within reach.`,
       importance: "legendary",
     });
@@ -441,7 +442,7 @@ export function buildUniverseTimeline(
     for (const e of recordPlanetaryEvents(planet, star, seed))         insertEvent(timeline, e);
     for (const e of recordBiologicalEvents(bio, planet, seed))         insertEvent(timeline, e);
     if (civ && species) {
-      for (const e of recordCivilizationalEvents(civ, species, seed))  insertEvent(timeline, e);
+      for (const e of recordCivilizationalEvents(civ, species, planet, seed)) insertEvent(timeline, e);
     }
   }
 

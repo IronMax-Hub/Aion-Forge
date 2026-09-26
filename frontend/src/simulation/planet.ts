@@ -23,7 +23,8 @@ export type AtmosphereType =
   | "crushing";
 
 export interface Planet {
-  id: number;
+  id: number;             // index within its system; unique only together with hostStarId
+  key: string;            // unique in the galaxy: "<starId>-<index>" (planetKey)
   hostStarId: number;
   orbitalRadius: number;  // AU
   orbitalIndex: number;   // position in system (0 = innermost)
@@ -198,6 +199,10 @@ function calcHabitability(p: {
 
 // ── Public API (AF-036) ───────────────────────────────────────────────────────
 
+/** A planet's identity in the galaxy, for caches, timeline subjects and discoveries. */
+export function planetKey(starId: number, index: number): string {
+  return `${starId}-${index}`;
+}
 
 export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: UniverseConfig): PlanetarySystem {
   const config = cfg ?? makeConfig(galaxySeed);
@@ -233,6 +238,7 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
 
     const planet: Planet = {
       id: idx,
+      key: planetKey(star.id, idx),
       hostStarId: star.id,
       orbitalRadius,
       orbitalIndex: idx,

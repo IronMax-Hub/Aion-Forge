@@ -98,30 +98,33 @@ describe("Planetary physics", () => {
 
 describe("Timeline chronology", () => {
   it("dates no event before the universe began, and no life before its planet formed", () => {
-    // The app builds one timeline per explored system, so check it the same way
+    // One timeline across many systems: planet keys keep each planet's events apart
     const seed = 100000;
     const galaxyCfg = makeGalaxyConfig(seed);
     const galaxy = generateGalaxy(galaxyCfg);
     const population = generateStarsFor(galaxyCfg);
-    for (const star of population.stars.slice(0, 60)) {
-      const entries = generatePlanetsFor(star, seed).planets.map((planet) => {
+    const entries = population.stars.slice(0, 60).flatMap((star) =>
+      generatePlanetsFor(star, seed).planets.map((planet) => {
         const bio = generateBiosphere(planet, star, seed);
         const civ = bio.hasLife ? generateCivilization(bio, planet, seed) : null;
         return { planet, star, bio, civ: civ?.civilization ?? undefined, species: civ?.species ?? undefined };
-      });
-      if (entries.length === 0) continue;
-      const timeline = buildUniverseTimeline(seed, galaxy, population, entries);
+      }));
+    const timeline = buildUniverseTimeline(seed, galaxy, population, entries);
 
-      for (const e of timeline.events) expect(e.timestampGyr).toBeLessThanOrEqual(13.7);
+    for (const e of timeline.events) expect(e.timestampGyr).toBeLessThanOrEqual(13.7);
 
-      const formedAgo = new Map<string, number>();
-      for (const e of timeline.events) {
-        if (e.category === "planetary" && e.summary.includes("coalesced")) formedAgo.set(e.subjectId, e.timestampGyr);
+    const formedAgo = new Map<string, number>();
+    for (const e of timeline.events) {
+      if (e.category === "planetary" && e.summary.includes("coalesced")) {
+        expect(formedAgo.has(e.subjectId)).toBe(false);   // each planet forms exactly once
+        formedAgo.set(e.subjectId, e.timestampGyr);
       }
-      for (const e of timeline.events) {
-        if (e.category === "biological" && formedAgo.has(e.subjectId)) {
-          expect(e.timestampGyr).toBeLessThanOrEqual(formedAgo.get(e.subjectId)!);
-        }
+    }
+    expect(formedAgo.size).toBe(entries.length);
+    for (const e of timeline.events) {
+      if (e.category === "biological" || e.category === "civilizational") {
+        expect(formedAgo.has(e.subjectId)).toBe(true);
+        expect(e.timestampGyr).toBeLessThanOrEqual(formedAgo.get(e.subjectId)!);
       }
     }
   });

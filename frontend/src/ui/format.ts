@@ -39,6 +39,63 @@ export function formatIndex(value: number): string {
   return value.toFixed(2);
 }
 
+// ── Surface (Worlds Up Close A10) ────────────────────────────────────────────
+
+/** Surface gravity, in Earth gravities. */
+export function formatGravity(g: number): string {
+  return `${formatSig(g)} g`;
+}
+
+/** Surface pressure in bar. */
+export function formatPressure(bar: number): string {
+  return `${formatSig(bar)} bar`;
+}
+
+/** Length of a day in hours, or "Tidally locked" when one face always points at the star. */
+export function formatRotation(hours: number, tidallyLocked: boolean): string {
+  return tidallyLocked ? "Tidally locked" : `${formatSig(hours)} h`;
+}
+
+/** Axial tilt in degrees, to a tenth. */
+export function formatTilt(deg: number): string {
+  return `${deg.toFixed(1)}°`;
+}
+
+/** A 0–1 share as a whole percentage; a share too small to round up shows as "<1%". */
+export function formatPercent(share: number): string {
+  if (share > 0 && share < 0.005) return "<1%";
+  return `${Math.round(share * 100)}%`;
+}
+
+/**
+ * Shares that make up a whole, as whole percentages that still sum to 100
+ * (largest remainder: the shares that lost most to rounding down gain a point).
+ */
+export function wholePercents(shares: number[]): number[] {
+  const total = shares.reduce((sum, x) => sum + x, 0);
+  if (total <= 0) return shares.map(() => 0);
+  const exact = shares.map((x) => (x / total) * 100);
+  const whole = exact.map(Math.floor);
+  let missing = 100 - whole.reduce((sum, x) => sum + x, 0);
+  const byRemainder = exact.map((_, i) => i).sort((a, b) => (exact[b] - whole[b]) - (exact[a] - whole[a]) || a - b);
+  for (const i of byRemainder) {
+    if (missing <= 0) break;
+    whole[i]++;
+    missing--;
+  }
+  return whole;
+}
+
+/** Ocean, land and ice shares, e.g. "71% / 26% / 3%". */
+export function formatSurfaceShares(ocean: number, land: number, ice: number): string {
+  return wholePercents([ocean, land, ice]).map((p) => `${p}%`).join(" / ");
+}
+
+/** Coldest to warmest surface temperature, e.g. "184–330 K". */
+export function formatTemperatureRange(minK: number, maxK: number): string {
+  return `${formatInt(minK)}–${formatInt(maxK)} K`;
+}
+
 // ── Stellar designations ─────────────────────────────────────────────────────
 
 /** Harvard spectral classes by effective temperature (K), hottest first. */

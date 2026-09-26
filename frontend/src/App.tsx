@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { audioEngine, ambientLayer, discovery, ui, lab, civLayer } from "./audio";
 import { AudioControls } from "./ui/AudioControls";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
@@ -510,6 +510,12 @@ export default function App() {
     ui.back();
   }
 
+  // The selected solid planet's world, for the planet panel's Surface section (Worlds Up Close A10)
+  const selectedWorld = useMemo(
+    () => (selectedPlanet?.surface && selectedStar ? solidWorldOf(selectedPlanet, selectedStar, currentSeed, universeConfig) : null),
+    [selectedPlanet, selectedStar, currentSeed, universeConfig],
+  );
+
   const handleApproach = () => { if (selectedPlanet) approachPlanet(selectedPlanet); };
 
   const handleExitSystem = () => {
@@ -839,6 +845,7 @@ export default function App() {
         ) : view === "system" && selectedPlanet && !selectedBiosphere ? (
           <PlanetPanel
             planet={selectedPlanet}
+            world={selectedWorld}
             orbiting={orbiting}
             onClose={handleExitSystem}
             onBack={orbiting ? leaveOrbit : handleBackToStar}

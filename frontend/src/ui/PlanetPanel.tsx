@@ -1,9 +1,14 @@
-import type { Planet } from "../simulation/planet";
+import type { Planet, SolidWorld } from "../simulation/planet";
 import { PLANET_COLORS, GIANT_PLANET_MASS } from "../simulation/planet";
-import { formatSig, formatInt, formatIndex, planetName, PLANET_TYPE_LABEL } from "./format";
+import {
+  formatSig, formatInt, formatIndex, planetName, PLANET_TYPE_LABEL,
+  formatGravity, formatPressure, formatRotation, formatTilt, formatPercent, formatSurfaceShares, formatTemperatureRange,
+} from "./format";
 
 interface Props {
   planet: Planet;
+  /** A solid planet's world (solidWorldOf), for its Surface section; null for giants. */
+  world: SolidWorld | null;
   /** Whether the view is in orbit around this planet (Worlds Up Close A4). */
   orbiting: boolean;
   onClose: () => void;
@@ -30,7 +35,7 @@ const CAN_HAVE_LIFE: Record<string, boolean> = {
   "gas-giant": false, lava: false, rogue: false,
 };
 
-export function PlanetPanel({ planet, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere }: Props) {
+export function PlanetPanel({ planet, world, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere }: Props) {
   const [r, g, b] = PLANET_COLORS[planet.type];
   const isGiant = planet.type === "gas-giant" || planet.mass > GIANT_PLANET_MASS;
   const planetColor = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
@@ -64,11 +69,33 @@ export function PlanetPanel({ planet, orbiting, onClose, onBack, onApproach, onL
             <span className="data-label">{isGiant ? "Equilibrium temperature" : "Mean surface temperature"}</span>
             <span className="data-value">{formatInt(planet.temperature)} K</span>
             <span className="data-label">Atmosphere</span>
-            <span className="data-value data-text">
-              {ATMO_LABEL[planet.atmosphere]}{planet.surface && ` · ${formatSig(planet.surface.pressureBar)} bar`}
-            </span>
+            <span className="data-value data-text">{ATMO_LABEL[planet.atmosphere]}</span>
           </div>
         </div>
+
+        {planet.surface && world && (
+          <div className="inspector-section">
+            <div className="section-title">Surface</div>
+            <div className="data-grid">
+              <span className="data-label">Gravity</span>
+              <span className="data-value">{formatGravity(planet.surface.surfaceGravity)}</span>
+              <span className="data-label">Pressure</span>
+              <span className="data-value">{formatPressure(planet.surface.pressureBar)}</span>
+              <span className="data-label">Rotation</span>
+              <span className="data-value data-text">{formatRotation(world.physics.rotationPeriodHours, world.physics.tidallyLocked)}</span>
+              <span className="data-label">Axial tilt</span>
+              <span className="data-value">{formatTilt(world.physics.axialTiltDeg)}</span>
+              <span className="data-label">Ocean / land / ice</span>
+              <span className="data-value">
+                {formatSurfaceShares(planet.surface.oceanFraction, planet.surface.landFraction, planet.surface.iceFraction)}
+              </span>
+              <span className="data-label">Habitable area</span>
+              <span className="data-value">{formatPercent(planet.surface.habitableFraction)}</span>
+              <span className="data-label">Temperature range</span>
+              <span className="data-value">{formatTemperatureRange(world.history.present.minK, world.history.present.maxK)}</span>
+            </div>
+          </div>
+        )}
 
         <div className="inspector-section">
           <div className="section-title">Indices (0–1)</div>

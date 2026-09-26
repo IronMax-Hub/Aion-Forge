@@ -86,6 +86,8 @@ export interface Grid {
   neighbours: number[][];
   /** Unit direction from each cell towards each of its neighbours, in the same order. */
   neighbourDirections: [number, number, number][][];
+  /** Cosine of each cell's angle to the band axis: sin(latitude), or cos(angle from the substellar point). */
+  axisCos: Float64Array;
   /** Band (0–17) of each cell, counted from the band axis. */
   bandOfCell: Uint8Array;
 }
@@ -179,6 +181,7 @@ function buildIcosphere(level: number): Grid {
     neighbourDirections: neighbours.map((list, i) => list.map((j) => normalize([
       positions[j][0] - positions[i][0], positions[j][1] - positions[i][1], positions[j][2] - positions[i][2],
     ]))),
+    axisCos: Float64Array.from(positions, (p) => dot(p, BAND_AXIS)),
     bandOfCell: Uint8Array.from(positions, (p) => bandOf(dot(p, BAND_AXIS))),
   };
 }

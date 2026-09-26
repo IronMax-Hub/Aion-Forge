@@ -7,9 +7,10 @@ import { temperatureToColor } from "../simulation/star";
 import type { Planet, PlanetarySystem } from "../simulation/planet";
 import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
+import { SkyBackground } from "./background";
 
 // ── Visual seeded PRNG (ENH-506) ──────────────────────────────────────────────
-// Used for background starfield and nebula — purely visual, does not affect
+// Used for the nebula accents — purely visual, does not affect
 // simulation determinism. Separate from simulation RNG by design.
 
 function mulberry32(seed: number): () => number {
@@ -219,7 +220,7 @@ export class UniverseRenderer {
   private highlightMesh:   THREE.Points | null = null;
   private nebulaGroup:     THREE.Group  | null = null;
   private systemGroup:     THREE.Group  | null = null;
-  private starfieldLayers: THREE.Points[]      = [];
+  private sky: SkyBackground;
 
   private starSprite:   THREE.CanvasTexture  | null = null;   // ENH-512: reuse texture
   private reticleTexture: THREE.CanvasTexture | null = null;
@@ -276,78 +277,12 @@ export class UniverseRenderer {
     this.labelRenderer.domElement.className = "life-overlay";
     canvas.after(this.labelRenderer.domElement);
 
-    this.buildStarfield();
+    this.sky = new SkyBackground(this.renderer.getPixelRatio(), this.renderer.getDrawingBufferSize(new THREE.Vector2()));
+    this.scene.add(this.sky.group);
     this.startLoop();
 
     canvas.addEventListener("click", this.onClick);
     window.addEventListener("resize", this.onResize);
-  }
-
-  // ── ENH-506: 4-layer seeded background starfield ──────────────────────────
-
-  private buildStarfield() {
-    // Fixed visual seed — background is invariant across universes
-    const rng = mulberry32(0xF7D3A291);
-    const tex  = this.starSprite!;
-
-    type LayerDef = {
-      count: number; rMin: number; rMax: number;
-      size: number; opacity: number;
-      tint: "white" | "blue" | "mixed";
-    };
-
-    const layers: LayerDef[] = [
-      { count: 4000, rMin: 3000, rMax: 5500, size: 0.7,  opacity: 0.28, tint: "white" },
-      { count: 1800, rMin: 2500, rMax: 4500, size: 1.2,  opacity: 0.44, tint: "blue"  },
-      { count:  360, rMin: 2000, rMax: 4000, size: 2.1,  opacity: 0.65, tint: "white" },
-      { count:   55, rMin: 2000, rMax: 4500, size: 3.4,  opacity: 0.88, tint: "mixed" },
-    ];
-
-    for (const layer of layers) {
-      const pos = new Float32Array(layer.count * 3);
-      const col = new Float32Array(layer.count * 3);
-
-      for (let i = 0; i < layer.count; i++) {
-        const theta = rng() * Math.PI * 2;
-        const phi   = Math.acos(2 * rng() - 1);
-        const r     = layer.rMin + rng() * (layer.rMax - layer.rMin);
-        pos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-        pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-        pos[i * 3 + 2] = r * Math.cos(phi);
-
-        if (layer.tint === "blue") {
-          col[i * 3]     = 0.72 + rng() * 0.18;
-          col[i * 3 + 1] = 0.84 + rng() * 0.12;
-          col[i * 3 + 2] = 1.0;
-        } else if (layer.tint === "mixed") {
-          if (rng() > 0.5) {
-            // warm highlight
-            col[i * 3] = 1.0; col[i * 3 + 1] = 0.85 + rng() * 0.1; col[i * 3 + 2] = 0.6 + rng() * 0.2;
-          } else {
-            // cool highlight
-            col[i * 3] = 0.65 + rng() * 0.2; col[i * 3 + 1] = 0.85 + rng() * 0.1; col[i * 3 + 2] = 1.0;
-          }
-        } else {
-          const v = 0.82 + rng() * 0.18;
-          col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = v;
-        }
-      }
-
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-      geo.setAttribute("color",    new THREE.BufferAttribute(col, 3));
-
-      const mat = new THREE.PointsMaterial({
-        map: tex, size: layer.size, sizeAttenuation: true,
-        transparent: true, opacity: layer.opacity,
-        depthWrite: false, blending: THREE.AdditiveBlending,
-        vertexColors: true, alphaTest: 0.001,
-      });
-
-      const points = new THREE.Points(geo, mat);
-      this.starfieldLayers.push(points);
-      this.scene.add(points);
-    }
   }
 
   // ── ENH-507: Nebula sprite accents seeded by galaxy ──────────────────────
@@ -419,6 +354,8 @@ export class UniverseRenderer {
 
     // ENH-507: rebuild nebula positioned within this galaxy's scale
     this.buildNebula(particles.config.seed, particles.config.scale);
+    // The distant galaxies behind this universe (presentation only, see background.ts)
+    this.sky.setUniverse(particles.config.seed);
   }
 
   // ── Stellar population (ENH-502–509) ─────────────────────────────────────
@@ -795,6 +732,7 @@ export class UniverseRenderer {
 
       this.reportViewScale();
 
+      this.sky.follow(this.camera);
       this.renderer.render(this.scene, this.camera);
       this.updateLifeLabels();
       this.labelRenderer.render(this.scene, this.camera);
@@ -825,6 +763,7 @@ export class UniverseRenderer {
     this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+    this.sky.setDrawingBufferSize(this.renderer.getDrawingBufferSize(new THREE.Vector2()));
     this.labelRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
     this.labelsDirty = true;
   };
@@ -840,11 +779,7 @@ export class UniverseRenderer {
     this.clearLifeMarkers();
     this.lifeRingTexture?.dispose();
     this.labelRenderer.domElement.remove();
-    for (const layer of this.starfieldLayers) {
-      this.scene.remove(layer);
-      layer.geometry.dispose();
-      (layer.material as THREE.Material).dispose();
-    }
+    this.sky.dispose();
     if (this.nebulaGroup) {
       for (const child of this.nebulaGroup.children) {
         const s = child as THREE.Sprite;

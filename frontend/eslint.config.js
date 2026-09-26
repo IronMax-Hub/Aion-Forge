@@ -20,6 +20,15 @@ export default defineConfig([
     },
   },
   {
+    // The sky backdrop is presentation only and must never read or feed the simulation
+    files: ['src/rendering/background.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{ group: ['**/simulation', '**/simulation/**'], message: 'The sky backdrop must not depend on the simulation.' }],
+      }],
+    },
+  },
+  {
     // Outcome-deciding code must give identical results in every browser, so it
     // uses simulation/detmath.ts instead of Math functions that engines may round
     // differently. Math.sqrt, floor, min, max, abs, round and imul are exact and allowed.

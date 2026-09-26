@@ -14,6 +14,10 @@
 // day side or substellar point can glow on its own. Condensation clouds cannot
 // form over ground that hot (owner decision), so they fade out from 900 to 1,100 K.
 //
+// Vegetation (A9) grows where the simulation counts the surface habitable:
+// liquid-water temperatures, on land where it is moist enough, and in shallow seas.
+// Its cover and pigment come from the biosphere and the star (life.ts).
+//
 // The map carries the simulation's present day: R elevation above sea level
 // (km), G temperature (K), B moisture (0–1), A submerged (1 under water). The
 // detail noise only works within limits on top of it: it moves the coastline by
@@ -30,6 +34,9 @@ uniform float freezingK;
 uniform float bumpScale;        // relief exaggeration per km of elevation, in planet radii
 uniform vec3 cloudOffset;       // from the planet's VISUAL stream
 uniform float overcast;         // 0–1: share of the sky a thick atmosphere clouds over (atmosphere.ts)
+uniform float vegetationCover;  // 0–1: cover of the most habitable ground; 0 without life (life.ts)
+uniform vec3 vegetationColour;  // pigment, linear
+uniform float boilingK;         // water's boiling point under the planet's air
 
 const float PI = 3.141592653589793;
 
@@ -60,6 +67,14 @@ const vec3 CLOUD_STRETCH = vec3(1.0, 2.5, 1.0); // finer north–south than east
 const int CLOUD_OCTAVES = 4;
 const float CLOUD_CONTRAST = 1.8;
 const float CLOUD_EDGE = 0.15;                 // softness of cloud edges, in cover
+
+// Vegetation (A9)
+// Moisture over land reaches ~0.5 at a coast and halves every cell inland, so cover
+// saturates early: bare below the first value, full from the second
+const vec2 VEGETATION_MOISTURE = vec2(0.02, 0.25);
+const float SHELF_KM = 0.2;         // seas this shallow let light reach the bottom: continental shelves
+const float SEA_COVER = 0.5;        // floating and seabed life tints the water at most this much
+const float SEA_PIGMENT = 0.35;     // pigment seen through water is darker
 
 // Surface colours, linear
 const vec3 DRY_SOIL = vec3(0.42, 0.30, 0.17);
@@ -161,10 +176,14 @@ void main() {
   float molten = smoothstep(MOLTEN_FROM_K, MOLTEN_FULL_K, surface.g);
   ground = mix(ground, BASALT, smoothstep(MOLTEN_FROM_K - 150.0, MOLTEN_FROM_K + 100.0, surface.g));
   ground *= 0.85 + 0.3 * (0.5 + 0.5 * strong);
+  float liquid = smoothstep(freezingK - 1.5, freezingK + 1.5, temperatureK) * (1.0 - smoothstep(boilingK - 5.0, boilingK, temperatureK));
+  ground = mix(ground, vegetationColour, vegetationCover * liquid * smoothstep(VEGETATION_MOISTURE.x, VEGETATION_MOISTURE.y, surface.b));
   vec3 land = mix(ground, SNOW, frozen * wetness);
 
   float depthKm = max(0.0, -heightKm);
-  vec3 sea = mix(mix(SHALLOW_WATER, DEEP_WATER, smoothstep(0.0, 4.0, depthKm)), SEA_ICE, frozen);
+  vec3 sea = mix(SHALLOW_WATER, DEEP_WATER, smoothstep(0.0, 4.0, depthKm));
+  sea = mix(sea, vegetationColour * SEA_PIGMENT, vegetationCover * SEA_COVER * liquid * (1.0 - smoothstep(0.0, SHELF_KM, depthKm)));
+  sea = mix(sea, SEA_ICE, frozen);
 
   vec3 albedo = mix(land, sea, water);
 

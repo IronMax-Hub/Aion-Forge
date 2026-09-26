@@ -8,11 +8,14 @@ import type { Planet, PlanetarySystem, SolidWorld } from "../simulation/planet";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
+import type { Civilization } from "../simulation/civilization";
 import { SkyBackground } from "./background";
 import { PlanetView, ORBIT_DISTANCE } from "./planet/PlanetView";
 import { GlobeTextureCache, drawsSurface } from "./planet/globe";
 import type { GlobeSurface } from "./planet/globe";
 import type { GlobeBake } from "./planet/globeBake";
+import { civilizationLightsOf, vegetationOf } from "./planet/life";
+import type { CivilizationLights } from "./planet/life";
 
 // ── Visual seeded PRNG (ENH-506) ──────────────────────────────────────────────
 // Used for the nebula accents — purely visual, does not affect
@@ -158,6 +161,9 @@ export interface PlanetSight {
   physics: PlanetPhysics | null;
   /** Starlight at the planet, relative to Earth's. */
   starFlux: number;
+  /** The planet's life and civilization, as the simulation generates them (A9); absent or null shows none. */
+  biosphere?: Biosphere | null;
+  civilization?: Civilization | null;
 }
 
 export type ViewMode = "galaxy" | "system" | "planet";
@@ -612,14 +618,17 @@ export class UniverseRenderer {
     const star = this.systemHostStar;
     const towardStar = new THREE.Vector3(...star.position).sub(planetWorld);
     // The globe is baked a face per frame while the camera glides in
+    const world = drawsSurface(planet) ? sight.world : null;
     const surface = sight.physics
-      ? this.globeTextures.globeFor(planet, drawsSurface(planet) ? sight.world : null, sight.physics, this.systemGalaxySeed)
+      ? this.globeTextures.globeFor(planet, world, sight.physics, this.systemGalaxySeed,
+        world ? vegetationOf(sight.biosphere ?? null, star.temperature) : null)
       : null;
+    const lights = civilizationLightsOf(planet, world, sight.civilization ?? null, this.systemGalaxySeed);
     this.pendingBake = surface?.bake ?? null;
     this.tween = {
       from: this.controls.target.clone(), to: planetWorld, t: 0,
       camera: { from: this.camera.position.clone(), to: planetWorld.clone().addScaledVector(fromPlanet, markerRadius * APPROACH_END_DISTANCE) },
-      onDone: () => this.openPlanetView(planet, star, towardStar, fromPlanet, sight.starFlux, surface),
+      onDone: () => this.openPlanetView(planet, star, towardStar, fromPlanet, sight.starFlux, surface, lights),
     };
   }
 
@@ -641,12 +650,12 @@ export class UniverseRenderer {
 
   private openPlanetView(
     planet: Planet, star: Star, towardStar: THREE.Vector3, cameraDirection: THREE.Vector3,
-    starFlux: number, surface: GlobeSurface | null,
+    starFlux: number, surface: GlobeSurface | null, lights: CivilizationLights | null,
   ) {
     surface?.bake.finish(this.renderer);   // whatever the glide left unbaked
     this.pendingBake = null;
     this.planetView = new PlanetView(planet, star, towardStar, !prefersReducedMotion(), performance.now(), {
-      starFlux, surface,
+      starFlux, surface, lights,
     });
     this.planetView.scene.add(this.sky.group);   // the night sky moves with the viewer
     this.mode = "planet";

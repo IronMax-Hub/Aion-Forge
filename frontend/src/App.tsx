@@ -425,10 +425,14 @@ export default function App() {
       // What the planet view draws: the planet's own world, rebuilt from the seed, lit by its star
       const orbitAU = effectiveOrbitAU(planet.orbitalRadius, universeConfig);
       const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, selectedStar, currentSeed, universeConfig) : null;
+      const biosphere = systemBiosphereRef.current.get(planet.id)
+        ?? generateBiosphere(planet, selectedStar, currentSeed, universeConfig);
       rendererRef.current?.approachPlanet(planet, {
         world,
         physics: world?.physics ?? derivePhysics(planet, selectedStar, currentSeed, universeConfig),
         starFlux: selectedStar.luminosity / (orbitAU * orbitAU),
+        biosphere,
+        civilization: generateCivilization(biosphere, planet, currentSeed, universeConfig).civilization,
       });
     }
     ui.inspect();

@@ -1,11 +1,11 @@
-// Planet view (Worlds Up Close, phases A4–A8): the third level of zoom, from a
+// Planet view (Worlds Up Close, phases A4–A9): the third level of zoom, from a
 // planetary system down to one planet seen from orbit.
 //
 // Why it exists: the simulation gives every solid planet a surface, a climate
 // and a history. This is the scene they are drawn in. A4 built the scene and
 // the way into and out of it; A5 draws solid planets from their surface grid;
 // A6 adds air and clouds; A7 draws giants and molten ground; A8 turns free
-// planets. A9 adds life.
+// planets; A9 shows life and civilization.
 //
 // How: the view has its own THREE.Scene, drawn by the renderer the galaxy and
 // system views share, through the same camera and orbit controls. One scene
@@ -30,6 +30,9 @@
 // - Air (A6): a scattering shell when the planet has air enough to see, and a
 //   cloud sphere over a drawn surface (atmosphere.ts). The clouds turn with
 //   the ground and drift slowly over it; under reduced motion neither moves.
+// - Life (A9, life.ts): vegetation is in the bake; city lights sit on the globe,
+//   turning with it, and show on the night side; a space-age world's orbital
+//   shell circles faster than the ground turns.
 // - Fade: in over 400 ms, or at once when the viewer prefers reduced motion.
 //
 // Presentation only: it reads a planet and a star and never writes to either.
@@ -44,6 +47,8 @@ import { cubeSphereGeometry } from "./cubeSphere";
 import { CUBE_ATLAS_GLSL } from "./cubeFaces";
 import { atmosphereShell, cloudDriftAngle, cloudSphere, hasVisibleAtmosphere } from "./atmosphere";
 import { ringMesh } from "./rings";
+import type { CivilizationLights } from "./life";
+import { cityLightsMesh, orbitalShellMesh } from "./life";
 import globeVertex from "./shaders/globe.vert.glsl?raw";
 import globeFragment from "./shaders/globe.frag.glsl?raw";
 
@@ -70,6 +75,8 @@ const GLOBE_SEGMENTS = 32;
 
 // One real rotation of a free planet, compressed to this many seconds on screen
 export const SECONDS_PER_ROTATION = 60;
+// The orbital shell circles faster than the ground turns, as low orbits do
+export const SECONDS_PER_ORBIT = 30;
 
 // The orbit's normal: "up" in the system view, which the planets circle in the x–z plane
 const ORBIT_NORMAL = new THREE.Vector3(0, 1, 0);
@@ -79,7 +86,9 @@ export interface PlanetViewOptions {
   starFlux?: number;
   /** A solid planet's surface, when the view draws it; otherwise a plain sphere. */
   surface?: GlobeSurface | null;
-  /** Whether the planet turns, the clouds drift and hot ground shimmers; defaults to `fade` (all off under reduced motion). */
+  /** A civilization's lights and orbital shell (A9), on a drawn surface. */
+  lights?: CivilizationLights | null;
+  /** Whether the planet turns, the orbital shell circles, the clouds drift and hot ground shimmers; defaults to `fade` (all off under reduced motion). */
   drift?: boolean;
 }
 
@@ -140,6 +149,8 @@ export class PlanetView {
   private readonly shell: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> | null = null;
   private readonly clouds: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> | null = null;
   private readonly rings: THREE.Mesh<THREE.RingGeometry, THREE.ShaderMaterial> | null = null;
+  private readonly cityLights: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial> | null = null;
+  private readonly orbitalShell: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial> | null = null;
   private readonly globeBase = new THREE.Quaternion();
   private readonly cloudBase = new THREE.Quaternion();
   private readonly spins: boolean;
@@ -192,6 +203,16 @@ export class PlanetView {
       this.rings = ringMesh(options.surface.rings, planet.temperature, this.globe.quaternion, light);
       this.scene.add(this.rings);
     }
+    const lights = options.surface ? options.lights : null;
+    if (lights?.cities) {
+      this.cityLights = cityLightsMesh(lights.cities, light);
+      this.globe.add(this.cityLights);
+    }
+    if (lights?.orbital) {
+      this.orbitalShell = orbitalShellMesh(lights.orbital, light);
+      this.orbitalShell.quaternion.copy(this.globeBase);
+      this.scene.add(this.orbitalShell);
+    }
     if (hasVisibleAtmosphere(planet)) {
       this.shell = atmosphereShell(planet.surface!.pressureBar, star.temperature, light);
       this.scene.add(this.shell);
@@ -243,6 +264,10 @@ export class PlanetView {
     }
     const spin = this.spins ? spinAngle(elapsedMs) : 0;
     if (this.spins) this.setGlobeTurn(spin);
+    if (this.orbitalShell && this.drift) {
+      const orbit = new THREE.Quaternion().setFromAxisAngle(POLE, (elapsedMs / 1000 / SECONDS_PER_ORBIT) * 2 * Math.PI);
+      this.orbitalShell.quaternion.copy(this.globeBase).multiply(orbit);
+    }
     if (this.clouds && this.drift) {
       const turn = new THREE.Quaternion().setFromAxisAngle(POLE, spin + cloudDriftAngle(elapsedMs));
       this.clouds.quaternion.copy(this.cloudBase).multiply(turn);
@@ -262,7 +287,9 @@ export class PlanetView {
     const material = this.globe.material;
     if (material instanceof THREE.ShaderMaterial) material.uniforms.opacity.value = opacity;
     else material.opacity = opacity;
-    for (const layer of [this.clouds, this.shell, this.rings]) if (layer) layer.material.uniforms.opacity.value = opacity;
+    for (const layer of [this.clouds, this.shell, this.rings, this.cityLights, this.orbitalShell]) {
+      if (layer) layer.material.uniforms.opacity.value = opacity;
+    }
   }
 
   /** How visible the planet is, 0–1. */
@@ -291,6 +318,16 @@ export class PlanetView {
     return this.clouds !== null;
   }
 
+  /** How many city lights the view draws. */
+  get cityLightCount(): number {
+    return this.cityLights?.geometry.getAttribute("position").count ?? 0;
+  }
+
+  /** Whether the view draws an orbital shell. */
+  get hasOrbitalShell(): boolean {
+    return this.orbitalShell !== null;
+  }
+
   /** Whether the view draws an atmosphere shell. */
   get hasAtmosphere(): boolean {
     return this.shell !== null;
@@ -314,7 +351,7 @@ export class PlanetView {
 
   /** Frees the view's GPU resources. The baked atlas belongs to its cache; objects added by others are left alone. */
   dispose(): void {
-    for (const mesh of [this.globe, this.clouds, this.shell, this.rings]) {
+    for (const mesh of [this.globe, this.clouds, this.shell, this.rings, this.cityLights, this.orbitalShell]) {
       if (!mesh) continue;
       mesh.geometry.dispose();
       mesh.material.dispose();

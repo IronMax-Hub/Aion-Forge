@@ -32,7 +32,8 @@ import type { LifeSurvey } from "../src/simulation/lifeSurvey";
 import { SIMULATION_RULES_VERSION } from "../src/simulation/version";
 
 const SEEDS = [100000, 42, 7777];
-const TIMING_RUNS = 5;
+// Each survey runs every solid planet's world history (~3 s), so three timed runs, one of which is counted
+const TIMING_RUNS = 3;
 const STATS_FILE = fileURLToPath(new URL("../../Documents/stats.md", import.meta.url));
 
 interface Geographies {
@@ -117,15 +118,16 @@ function solidWorlds(stars: Star[], seed: number, config: UniverseConfig): { geo
   };
 }
 
-/** Median wall-clock time of the survey alone, in ms. */
-function medianSurveyMs(stars: Star[], seed: number, config: UniverseConfig): number {
+/** The survey, and the median wall-clock time of the survey alone over TIMING_RUNS runs, in ms. */
+function timedSurvey(stars: Star[], seed: number, config: UniverseConfig): { survey: LifeSurvey; surveyMs: number } {
   const times: number[] = [];
+  let survey: LifeSurvey | undefined;
   for (let i = 0; i < TIMING_RUNS; i++) {
     const start = performance.now();
-    surveyLife(stars, seed, config);
+    survey = surveyLife(stars, seed, config);
     times.push(performance.now() - start);
   }
-  return times.sort((a, b) => a - b)[Math.floor(TIMING_RUNS / 2)];
+  return { survey: survey!, surveyMs: times.sort((a, b) => a - b)[Math.floor(TIMING_RUNS / 2)] };
 }
 
 function measure(): Row[] {
@@ -135,9 +137,8 @@ function measure(): Row[] {
       const config = makeConfig(seed, preset.values);
       const stars = starsOf(seed, config);
       rows.push({
-        preset: preset.name, seed, survey: surveyLife(stars, seed, config),
+        preset: preset.name, seed, ...timedSurvey(stars, seed, config),
         lockedShare: lockedShare(stars, seed, config), ...solidWorlds(stars, seed, config),
-        surveyMs: medianSurveyMs(stars, seed, config),
       });
     }
   }

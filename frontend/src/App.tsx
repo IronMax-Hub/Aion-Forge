@@ -515,6 +515,12 @@ export default function App() {
     () => (selectedPlanet?.surface && selectedStar ? solidWorldOf(selectedPlanet, selectedStar, currentSeed, universeConfig) : null),
     [selectedPlanet, selectedStar, currentSeed, universeConfig],
   );
+  // A giant's physics, for its Cloud tops section; a solid planet's come with its world
+  const selectedPhysics = useMemo(
+    () => selectedWorld?.physics
+      ?? (selectedPlanet && selectedStar ? derivePhysics(selectedPlanet, selectedStar, currentSeed, universeConfig) : null),
+    [selectedWorld, selectedPlanet, selectedStar, currentSeed, universeConfig],
+  );
 
   const handleApproach = () => { if (selectedPlanet) approachPlanet(selectedPlanet); };
 
@@ -846,6 +852,7 @@ export default function App() {
           <PlanetPanel
             planet={selectedPlanet}
             world={selectedWorld}
+            physics={selectedPhysics}
             orbiting={orbiting}
             onClose={handleExitSystem}
             onBack={orbiting ? leaveOrbit : handleBackToStar}

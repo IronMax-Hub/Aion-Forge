@@ -1,4 +1,5 @@
 import type { Planet, SolidWorld } from "../simulation/planet";
+import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { PLANET_COLORS, GIANT_PLANET_MASS } from "../simulation/planet";
 import {
   formatSig, formatInt, formatIndex, planetName, PLANET_TYPE_LABEL,
@@ -9,6 +10,8 @@ interface Props {
   planet: Planet;
   /** A solid planet's world (solidWorldOf), for its Surface section; null for giants. */
   world: SolidWorld | null;
+  /** The planet's physics, for a giant's Cloud tops section; null to leave it out. */
+  physics: PlanetPhysics | null;
   /** Whether the view is in orbit around this planet (Worlds Up Close A4). */
   orbiting: boolean;
   onClose: () => void;
@@ -35,7 +38,7 @@ const CAN_HAVE_LIFE: Record<string, boolean> = {
   "gas-giant": false, lava: false, rogue: false,
 };
 
-export function PlanetPanel({ planet, world, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere }: Props) {
+export function PlanetPanel({ planet, world, physics, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere }: Props) {
   const [r, g, b] = PLANET_COLORS[planet.type];
   const isGiant = planet.type === "gas-giant" || planet.mass > GIANT_PLANET_MASS;
   const planetColor = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
@@ -93,6 +96,21 @@ export function PlanetPanel({ planet, world, orbiting, onClose, onBack, onApproa
               <span className="data-value">{formatPercent(planet.surface.habitableFraction)}</span>
               <span className="data-label">Temperature range</span>
               <span className="data-value">{formatTemperatureRange(world.history.present.minK, world.history.present.maxK)}</span>
+            </div>
+          </div>
+        )}
+
+        {!planet.surface && physics && (
+          <div className="inspector-section">
+            {/* A giant has no surface: its gravity is taken at its visible radius, the cloud tops */}
+            <div className="section-title">Cloud tops</div>
+            <div className="data-grid">
+              <span className="data-label">Gravity</span>
+              <span className="data-value">{formatGravity(physics.surfaceGravity)}</span>
+              <span className="data-label">Rotation</span>
+              <span className="data-value data-text">{formatRotation(physics.rotationPeriodHours, physics.tidallyLocked)}</span>
+              <span className="data-label">Axial tilt</span>
+              <span className="data-value">{formatTilt(physics.axialTiltDeg)}</span>
             </div>
           </div>
         )}

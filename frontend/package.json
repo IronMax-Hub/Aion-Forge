@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "stats": "vitest bench --run stats"
   },
   "dependencies": {
     "@types/three": "^0.184.1",

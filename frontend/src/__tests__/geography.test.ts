@@ -15,7 +15,7 @@ function planet(overrides: Partial<Planet> = {}): Planet {
   const hostStarId = overrides.hostStarId ?? 1;
   return {
     id: 2, key: planetKey(hostStarId, 2), hostStarId, orbitalRadius: 1, orbitalIndex: 2, type: "rocky",
-    size: 1, mass: 1, temperature: 288, atmosphere: "moderate", resourceAbundance: 0.5,
+    size: 1, mass: 1, temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5,
     habitabilityScore: 0.8, isRare: false, surface: null, ...overrides,
   };
 }

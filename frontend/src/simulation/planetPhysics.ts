@@ -53,6 +53,21 @@ export const SURFACE_PRESSURE_BAR: Record<AtmosphereType, number> = {
   none: 0.006, thin: 0.3, moderate: 1, thick: 5, crushing: 90,
 };
 
+const ATMOSPHERE_CLASSES: AtmosphereType[] = ["none", "thin", "moderate", "thick", "crushing"];
+
+/**
+ * The atmosphere class a surface pressure falls in today. The boundaries sit at
+ * the geometric means of neighbouring classes' pressures (0.042, 0.55, 2.2 and
+ * 21 bar), so a planet whose air never changed keeps its formation class, and one
+ * whose history built up or lost air moves to the class it has now (owner decision).
+ */
+export function atmosphereClassOf(pressureBar: number): AtmosphereType {
+  let k = 0;
+  while (k < ATMOSPHERE_CLASSES.length - 1
+    && pressureBar >= Math.sqrt(SURFACE_PRESSURE_BAR[ATMOSPHERE_CLASSES[k]] * SURFACE_PRESSURE_BAR[ATMOSPHERE_CLASSES[k + 1]])) k++;
+  return ATMOSPHERE_CLASSES[k];
+}
+
 // a_lock = C · (t★ · M★²)^(1/6): with C = 0.31 AU, the Sun today locks inside ~0.40 AU
 const TIDAL_LOCK_CONSTANT_AU = 0.31;
 
@@ -117,7 +132,7 @@ export function derivePhysics(planet: Planet, star: Star, galaxySeed: number, cf
   return {
     surfaceGravity: planet.mass / (planet.size * planet.size),
     escapeVelocityKms: EARTH_ESCAPE_VELOCITY_KMS * Math.sqrt(planet.mass / planet.size),
-    surfacePressureBar: SURFACE_PRESSURE_BAR[planet.atmosphere],
+    surfacePressureBar: SURFACE_PRESSURE_BAR[planet.formationAtmosphere],
     tidallyLocked,
     orbitalPeriodYears,
     rotationPeriodHours,

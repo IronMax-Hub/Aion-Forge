@@ -125,18 +125,18 @@ Sound is off by default; turn it on from the status bar.
 
 ## Quick Start Seeds
 
-These seeds produce universes worth exploring. Figures are for the default parameters under simulation rules v3, as the life survey counts them: worlds with organisms (microbial or more advanced), civilizations, and how many systems host a civilization that got past farming.
+These seeds produce universes worth exploring. Figures are for the default parameters under simulation rules v4, as the life survey counts them: worlds with organisms (microbial or more advanced), civilizations, and how many systems host a civilization that got past farming.
 
 | Seed | Galaxy Type | Worlds with organisms | Civilizations | Systems past agriculture |
 |------|-------------|---:|---:|---:|
-| `271828` | Elliptical | 863 | 179 | 70 |
-| `137035` | Irregular | 892 | 150 | 61 |
-| `404040` | Elliptical | 904 | 159 | 57 |
-| `13579` | Spiral | 848 | 164 | 61 |
-| `3141592` | Spiral | 847 | 136 | 49 |
-| `100000` | Spiral | 770 | 133 | 49 |
+| `271828` | Elliptical | 693 | 141 | 67 |
+| `137035` | Irregular | 720 | 128 | 52 |
+| `404040` | Elliptical | 706 | 128 | 52 |
+| `13579` | Spiral | 673 | 131 | 59 |
+| `3141592` | Spiral | 670 | 101 | 42 |
+| `100000` | Spiral | 647 | 107 | 48 |
 
-With 2,000 stars per universe, default parameters give every seed a similar amount of life; what differs is where it arises and what becomes of it. Many civilizations stop at agriculture because their world has no fire: no exposed land, or air too thin to burn in. For a quiet universe, change the parameters instead: the **Fragile Life** preset leaves about a fifth as many systems with organisms.
+With 2,000 stars per universe, default parameters give every seed a similar amount of life; what differs is where it arises and what becomes of it. Many civilizations stop at agriculture because their world has no fire: no exposed land, or air too thin to burn in. Some worlds with water never get life at all, because their volcanoes have built up a crushing CO₂ atmosphere. For a quiet universe, change the parameters instead: the **Fragile Life** preset leaves about a sixth as many systems with organisms.
 
 ---
 

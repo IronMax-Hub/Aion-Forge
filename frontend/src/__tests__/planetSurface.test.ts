@@ -7,7 +7,7 @@ import { buildGalaxyConfig } from "../simulation/galaxy";
 import { makeConfig } from "../simulation/config";
 import { generateBiosphere } from "../simulation/biosphere";
 import { generateCivilization, canSustainFire } from "../simulation/civilization";
-import { derivePhysics } from "../simulation/planetPhysics";
+import { derivePhysics, atmosphereClassOf } from "../simulation/planetPhysics";
 
 // Worlds Up Close A3: planet type, temperature and habitability are read from
 // the present day the world history leaves behind.
@@ -51,6 +51,15 @@ describe("planet types", () => {
 
   it("reports the surface temperature of solid planets and the cloud-top temperature of giants", () => {
     for (const { planet } of all) expect(Number.isFinite(planet.temperature) && planet.temperature > 0).toBe(true);
+  });
+});
+
+describe("atmosphere class", () => {
+  it("is today's, from the pressure the world history left; giants keep the class they formed with", () => {
+    for (const { planet } of solid) expect(planet.atmosphere).toBe(atmosphereClassOf(planet.surface!.pressureBar));
+    for (const { planet } of giants) expect(planet.atmosphere).toBe(planet.formationAtmosphere);
+    // Histories do move planets between classes
+    expect(solid.some(({ planet }) => planet.atmosphere !== planet.formationAtmosphere)).toBe(true);
   });
 });
 

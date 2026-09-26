@@ -84,13 +84,13 @@ describe("Planetary physics", () => {
     }
   });
 
-  it("lets strongly irradiated rocky planets keep at most a thin atmosphere", () => {
+  it("forms strongly irradiated rocky planets with at most a thin atmosphere", () => {
     for (const seed of SEEDS) {
       const { stars } = generateStarsFor(makeGalaxyConfig(seed));
       for (const star of stars.slice(0, 300)) {
         for (const p of generatePlanetsFor(star, seed).planets) {
           if (p.mass > 0.05 && p.mass <= 15 && equilibriumTemp(star.luminosity, p.orbitalRadius) > 700) {
-            expect(["none", "thin"]).toContain(p.atmosphere);
+            expect(["none", "thin"]).toContain(p.formationAtmosphere);
           }
         }
       }

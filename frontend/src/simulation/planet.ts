@@ -4,7 +4,7 @@ import type { Star } from "./star";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
 import { effectiveOrbitAU, GIANT_PLANET_MASS } from "./planetBasics";
-import { derivePhysics } from "./planetPhysics";
+import { derivePhysics, atmosphereClassOf } from "./planetPhysics";
 import type { PlanetPhysics } from "./planetPhysics";
 import { buildGeography } from "./geography";
 import type { Geography } from "./geography";
@@ -42,7 +42,10 @@ export interface Planet {
   size: number;           // Earth radii
   mass: number;           // Earth masses
   temperature: number;    // Kelvin surface average
+  /** Today's class, from the surface pressure the world history left (giants: as formed). */
   atmosphere: AtmosphereType;
+  /** The class the planet formed with: sets its world history's background air. */
+  formationAtmosphere: AtmosphereType;
   resourceAbundance: number; // 0–1
   habitabilityScore: number; // 0–1
   isRare: boolean;
@@ -276,6 +279,7 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
       mass,
       temperature: equilibriumK,
       atmosphere,
+      formationAtmosphere: atmosphere,
       resourceAbundance,
       habitabilityScore: 0,
       isRare: false,
@@ -289,15 +293,16 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
       const { physics, history } = solidWorldOf(planet, star, galaxySeed, config);
       planet.surface = presentSurface(history.present, physics, history.final.pressureBar);
       planet.temperature = history.present.meanK;
+      planet.atmosphere = atmosphereClassOf(history.final.pressureBar);
       planet.type = solidType(planet.temperature, planet.surface);
     }
-    planet.habitabilityScore = calcHabitability(planet.type, atmosphere, resourceAbundance, planet.surface);
+    planet.habitabilityScore = calcHabitability(planet.type, planet.atmosphere, resourceAbundance, planet.surface);
 
     const tempK = planet.temperature;
     planet.isRare =
       planet.type === "ocean" && tempK > 240 && tempK < 310 ||
       planet.type === "lava"  && mass < 0.5 ||
-      (planet.type === "rocky" && tempK > 220 && tempK < 320 && atmosphere === "moderate");
+      (planet.type === "rocky" && tempK > 220 && tempK < 320 && planet.atmosphere === "moderate");
     return planet;
   });
 

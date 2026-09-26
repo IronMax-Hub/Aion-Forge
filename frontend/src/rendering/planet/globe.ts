@@ -63,8 +63,11 @@ export const GLOBE_CACHE_SIZE = 5;
  */
 export class GlobeTextureCache {
   private readonly bakes = new Map<string, GlobeBake>();
+  private readonly capacity: number;
 
-  constructor(private readonly capacity = GLOBE_CACHE_SIZE) {}
+  constructor(capacity = GLOBE_CACHE_SIZE) {
+    this.capacity = capacity;
+  }
 
   /** The planet's surface, reusing its bake if it is cached. */
   surfaceFor(planet: Planet, world: SolidWorld, galaxySeed: number): GlobeSurface {

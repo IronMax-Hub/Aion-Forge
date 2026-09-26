@@ -64,7 +64,9 @@ export function PlanetPanel({ planet, orbiting, onClose, onBack, onApproach, onL
             <span className="data-label">{isGiant ? "Equilibrium temperature" : "Mean surface temperature"}</span>
             <span className="data-value">{formatInt(planet.temperature)} K</span>
             <span className="data-label">Atmosphere</span>
-            <span className="data-value data-text">{ATMO_LABEL[planet.atmosphere]}</span>
+            <span className="data-value data-text">
+              {ATMO_LABEL[planet.atmosphere]}{planet.surface && ` · ${formatSig(planet.surface.pressureBar)} bar`}
+            </span>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { derivePhysics, tectonicActivity, tidalLockingDistanceAU, SURFACE_PRESSURE_BAR } from "../simulation/planetPhysics";
+import { derivePhysics, tectonicActivity, tidalLockingDistanceAU, SURFACE_PRESSURE_BAR, atmosphereClassOf } from "../simulation/planetPhysics";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { luminosityAt, mainSequenceEndGyr, generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import type { Star } from "../simulation/star";
@@ -18,7 +18,7 @@ function star(overrides: Partial<Star> = {}): Star {
 function planet(overrides: Partial<Planet> = {}): Planet {
   return {
     id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky",
-    size: 1, mass: 1, temperature: 288, atmosphere: "moderate", resourceAbundance: 0.5,
+    size: 1, mass: 1, temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5,
     habitabilityScore: 0.8, isRare: false, surface: null, ...overrides,
   };
 }
@@ -87,10 +87,28 @@ describe("planet physics: reference cases", () => {
     expect(p.rotationPeriodHours).toBeCloseTo(p.orbitalPeriodYears * 8766, 6);
   });
 
-  it("takes surface pressure from the atmosphere class", () => {
+  it("takes background pressure from the class the planet formed with, not today's", () => {
     for (const atmosphere of ["none", "thin", "moderate", "thick", "crushing"] as const) {
-      expect(derivePhysics(planet({ atmosphere }), star(), 42).surfacePressureBar).toBe(SURFACE_PRESSURE_BAR[atmosphere]);
+      expect(derivePhysics(planet({ formationAtmosphere: atmosphere, atmosphere: "crushing" }), star(), 42).surfacePressureBar)
+        .toBe(SURFACE_PRESSURE_BAR[atmosphere]);
     }
+  });
+
+  it("classes today's air by pressure, splitting neighbouring classes at their geometric mean", () => {
+    // A planet whose air never changed keeps its class
+    for (const atmosphere of ["none", "thin", "moderate", "thick", "crushing"] as const) {
+      expect(atmosphereClassOf(SURFACE_PRESSURE_BAR[atmosphere])).toBe(atmosphere);
+    }
+    expect(atmosphereClassOf(0.04)).toBe("none");
+    expect(atmosphereClassOf(0.05)).toBe("thin");
+    expect(atmosphereClassOf(0.5)).toBe("thin");
+    expect(atmosphereClassOf(0.6)).toBe("moderate");
+    expect(atmosphereClassOf(2.2)).toBe("moderate");
+    expect(atmosphereClassOf(2.3)).toBe("thick");
+    expect(atmosphereClassOf(21)).toBe("thick");
+    expect(atmosphereClassOf(22)).toBe("crushing");
+    expect(atmosphereClassOf(10_000)).toBe("crushing");
+    expect(atmosphereClassOf(0)).toBe("none");
   });
 
   it("puts the snow line where the star shone when the planet formed", () => {

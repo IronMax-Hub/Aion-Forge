@@ -87,19 +87,18 @@ describe("the carbon thermostat", () => {
     }
   });
 
-  it("is missing on a world with no land, until losing water exposes land", () => {
-    // All ocean: CO₂ builds up and the planet warms into a moist greenhouse. The
-    // escaping water lowers the sea until land emerges; weathering then pulls CO₂ back down.
+  it("works on the ocean floor of a world with no land, so it keeps its oceans", () => {
+    // All ocean: no land weathers, but the sea floor does (at 15% of land's rate), which
+    // holds CO₂ down; without it the planet ran into a moist greenhouse and lost its water
     const world = planet();
     const physics = { ...earthPhysics, waterInventory: 1 };
     expect(buildGeography(world, physics, 42).oceanFraction).toBe(1);
-    const s = history({ physics }).snapshots!;
-    const peak = s.findIndex((x, k) => k > 0 && x.co2Bar < s[k - 1].co2Bar) - 1;
-    expect(peak).toBeGreaterThan(3);
-    for (let k = 1; k <= peak; k++) expect(s[k].co2Bar).toBeGreaterThan(s[k - 1].co2Bar);
-    expect(s[peak].water).toBeLessThan(physics.waterInventory / 2);
-    expect(s[s.length - 1].co2Bar).toBeLessThan(s[peak].co2Bar / 10);
-    expect(s[s.length - 1].openLandFraction).toBeGreaterThan(0);
+    const h = history({ physics });
+    const s = h.snapshots!;
+    expect(Math.max(...s.map((x) => x.co2Bar))).toBeLessThan(0.1);
+    expect(s[s.length - 1].water).toBeGreaterThan(0.95 * physics.waterInventory);
+    expect(h.events.map((e) => e.kind)).not.toContain("moist-greenhouse");
+    expect(h.events.map((e) => e.kind)).not.toContain("runaway-greenhouse");
   });
 
   it("is missing on a dry world: no water, no weathering", () => {

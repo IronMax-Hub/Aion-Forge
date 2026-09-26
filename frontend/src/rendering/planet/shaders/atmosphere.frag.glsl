@@ -9,6 +9,10 @@
 // depth (Rayleigh: stronger for blue, in proportion to pressure; atmosphere.ts).
 // Thin air scatters blue at the limb; thick air saturates towards the star's own
 // colour, and a red star's light has little blue to scatter to begin with.
+// Light scattered more than once mixes the colours back together, so real skies
+// are paler than single scattering gives; a share of the light is taken as that
+// mixed, grey part (without it, a hot blue star's rim is a pure display blue,
+// which tone mapping turns violet).
 
 uniform float shellRadius;
 uniform vec3 zenithDepth;       // Rayleigh optical depth straight down, red, green, blue
@@ -22,6 +26,8 @@ varying vec3 vWorldPosition;
 // Share of the scattered light sent on towards the viewer: single scattering
 // with an isotropic phase, before the 1/π the surface's lighting also uses
 const float SCATTER_BRIGHTNESS = 0.35;
+// Share of the scattered light that has scattered more than once, its colours mixed
+const MULTIPLE_SCATTERING = 0.35;
 // The lit side of the air reaches this far past the terminator (twilight)
 const float TWILIGHT = 0.2;
 
@@ -41,7 +47,9 @@ void main() {
   vec3 middle = normalize(origin + direction * (enter + leave) * 0.5);
   float lit = smoothstep(-TWILIGHT, TWILIGHT, dot(middle, toStar));
 
-  vec3 scattered = (1.0 - exp(-zenithDepth * airMass)) * starColor * starIntensity * SCATTER_BRIGHTNESS * lit / 3.141592653589793;
+  vec3 single = (1.0 - exp(-zenithDepth * airMass)) * starColor;
+  vec3 mixed = vec3(dot(single, vec3(0.2126, 0.7152, 0.0722)));
+  vec3 scattered = mix(single, mixed, MULTIPLE_SCATTERING) * starIntensity * SCATTER_BRIGHTNESS * lit / 3.141592653589793;
   gl_FragColor = vec4(scattered * opacity, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>

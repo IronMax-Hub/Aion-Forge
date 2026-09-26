@@ -35,10 +35,12 @@ import cloudsFragment from "./shaders/clouds.frag.glsl?raw";
 /** Below this surface pressure the air is too thin to see from orbit (Mars, 0.006 bar, shows none). */
 export const MIN_VISIBLE_PRESSURE_BAR = 0.01;
 
-// The wavelengths standing for the red, green and blue channels, µm
-const CHANNEL_MICRONS: THREE.Vector3Tuple = [0.68, 0.55, 0.44];
-// Earth's Rayleigh optical depth straight down at 1 bar, at those wavelengths
-const EARTH_ZENITH_DEPTH: THREE.Vector3Tuple = [0.041, 0.098, 0.24];
+// The wavelengths standing for the red, green and blue channels, µm: the display
+// primaries' dominant wavelengths. The spectrum's far ends (680 and 440 nm) would
+// make the sky twice as saturated a blue as it looks, which tone mapping turns violet.
+const CHANNEL_MICRONS: THREE.Vector3Tuple = [0.612, 0.549, 0.465];
+// Earth's Rayleigh optical depth straight down at 1 bar, at those wavelengths (0.0088·λ^−4.05)
+const EARTH_ZENITH_DEPTH: THREE.Vector3Tuple = [0.064, 0.100, 0.196];
 // hc / k, in µm·K: the Planck spectrum's exponent is this over λT
 const PLANCK_MICRON_KELVIN = 14388;
 
@@ -67,7 +69,7 @@ export function zenithOpticalDepth(pressureBar: number): THREE.Vector3Tuple {
 /**
  * A star's light in the red, green and blue channels, from its Planck spectrum at
  * the channels' wavelengths, scaled so the brightest channel is 1. The Sun comes
- * out near white; a 3,500 K red dwarf gives about a third as much blue as red.
+ * out near white; a 3,500 K red dwarf gives about half as much blue as red.
  */
 export function starSpectrumRGB(temperatureK: number): THREE.Vector3Tuple {
   const radiance = CHANNEL_MICRONS.map((l) => 1 / (l ** 5 * Math.expm1(PLANCK_MICRON_KELVIN / (l * temperatureK))));

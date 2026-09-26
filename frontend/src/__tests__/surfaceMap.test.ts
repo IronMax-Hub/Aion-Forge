@@ -24,14 +24,15 @@ const solid: { star: Star; planet: Planet }[] = stars.flatMap((star) =>
     .filter((planet) => planet.mass <= GIANT_PLANET_MASS)
     .map((planet) => ({ star, planet })));
 
-// A few planets with coastlines, ice and dry land between them
+// A few planets with coastlines: some cells under water (open or frozen) and some not
 const worlds: { planet: Planet; world: SolidWorld; map: SurfaceMapData }[] = solid
-  .filter(({ planet }) => planet.surface!.oceanFraction > 0.05 && planet.surface!.oceanFraction < 0.95)
+  .map(({ star, planet }) => ({ planet, world: solidWorldOf(planet, star, seed, config) }))
+  .filter(({ world }) => {
+    const submerged = world.history.present.cellSubmerged.reduce((n, c) => n + c, 0);
+    return submerged > 30 && submerged < 612;
+  })
   .slice(0, 6)
-  .map(({ star, planet }) => {
-    const world = solidWorldOf(planet, star, seed, config);
-    return { planet, world, map: buildSurfaceMap(world.geography, world.history.present) };
-  });
+  .map(({ planet, world }) => ({ planet, world, map: buildSurfaceMap(world.geography, world.history.present) }));
 
 /** A map as the GPU holds it: every value rounded to half precision. */
 function asUploaded(map: SurfaceMapData): SurfaceMapData {

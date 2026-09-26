@@ -16,11 +16,13 @@
 //                with the CO₂ that closes this step's carbon budget (below).
 //   4. Chemistry
 //      CO₂  outgassing G·τ·g² (doubled in a volcanic pulse) against weathering
-//           K·g·openLand·wetness·(CO₂/CO₂_ref)^½·e^((T − 288)/13.7). Solved
-//           implicitly, before the climate: weathering runs to balance far
+//           K·g·(openLand·wetness + s·openOcean)·(CO₂/CO₂_ref)^½·e^((T − 288)/13.7).
+//           Solved implicitly, before the climate: weathering runs to balance far
 //           faster than 100 Myr, so each step finds the CO₂ at which the step's
-//           budget closes. Frozen, dry or steam-covered land does not weather; a
-//           world with no land has no thermostat.
+//           budget closes. The ocean floor weathers too, at s = 15% of land's
+//           rate per area (owner decision; about a quarter of Earth's total), so a
+//           world with no land keeps a weaker thermostat. Frozen, dry or
+//           steam-covered ground does not weather.
 //      Water  above 340 K it reaches the upper air and escapes:
 //           W ← W · (1 − E·Δt·(T − 340) / (v_esc / 11.2)). It never returns.
 //      O₂   photolysis of the escaping water leaves oxygen behind; volcanic
@@ -83,11 +85,16 @@ export const STEP_GYR = 1 / STEPS_PER_GYR;
 export const FORMATION_DELAY_GYR = 0.5;
 
 // Carbon cycle. Outgassing is Earth-scaled (~30 bar of CO₂ per Gyr at full activity);
-// weathering is calibrated so Earth today (τ ≈ 0.56, ~29% open land, 288 K) balances at CO₂_ref.
+// weathering is calibrated so Earth today (τ ≈ 0.56, ~29% open land and ~66% open
+// ocean, 288 K) balances at CO₂_ref.
 const OUTGASSING_BAR_PER_GYR = 30;
 const EARTH_TECTONICS_NOW = 0.5627;           // e^(−4.6 / 8)
 const EARTH_OPEN_LAND = 0.29;
-const WEATHERING_BAR_PER_GYR = (OUTGASSING_BAR_PER_GYR * EARTH_TECTONICS_NOW) / EARTH_OPEN_LAND;
+const EARTH_OPEN_OCEAN = 0.66;
+/** The ocean floor's weathering per area, as a share of land's (seafloor basalt alteration). */
+export const SEAFLOOR_WEATHERING_SHARE = 0.15;
+const WEATHERING_BAR_PER_GYR = (OUTGASSING_BAR_PER_GYR * EARTH_TECTONICS_NOW)
+  / (EARTH_OPEN_LAND + SEAFLOOR_WEATHERING_SHARE * EARTH_OPEN_OCEAN);
 const WEATHERING_REFERENCE_K = 288;
 const WEATHERING_WARMING_SCALE_K = 13.7;
 const INITIAL_CO2_BAR = 0.01;
@@ -318,10 +325,16 @@ export function runWorldHistory(
     // Weathering is judged against the step's starting ice and oceans, which is what the rock sees.
     const wetness = wetnessOf(state.water);
     const outgassing = OUTGASSING_BAR_PER_GYR * tau * g * g * (volcanicPulse ? VOLCANIC_PULSE_OUTGASSING : 1);
-    // Weathering needs liquid water and bare rock: none on a dry world, under ice or while the oceans are steam
+    // Weathering needs liquid water and rock: bare land as far as it is wet, and the
+    // ocean floor at a fraction of land's rate; none under ice or while the oceans are steam
     let openLand = 0;
-    for (let k = 0; k < BAND_COUNT; k++) if (!state.iced[k]) openLand += geometry.areas[k] * (1 - bandOcean[k]);
-    const weatherableLand = state.steam ? 0 : openLand * wetness;
+    let openOcean = 0;
+    for (let k = 0; k < BAND_COUNT; k++) {
+      if (state.iced[k]) continue;
+      openLand += geometry.areas[k] * (1 - bandOcean[k]);
+      openOcean += geometry.areas[k] * bandOcean[k];
+    }
+    const weatherableLand = state.steam ? 0 : openLand * wetness + SEAFLOOR_WEATHERING_SHARE * openOcean;
     const pressureAt = (co2: number) => pressureOf(co2, state.o2Bar, state.ch4Bar, state.water, state.steam);
     const inputsAt = (co2: number): ClimateInputs => ({
       luminosity, orbitAU, co2Bar: co2, ch4Bar: state.ch4Bar, wetness, pressureBar: pressureAt(co2),
@@ -386,15 +399,21 @@ export function runWorldHistory(
     snapshots?.push({ ...state, impact, volcanicPulse });
   }
 
-  // A star younger than the formation delay runs no steps: its planet is as it formed
+  // A star younger than the formation delay runs no steps: its planet is as it
+  // formed, except that the loop's water-phase rule still holds (owner decision):
+  // oceans above their boiling point under the air are steam. Like the loop's
+  // first step, this sets the starting climate and records no event.
   if (stepCount === 0) {
     const climate = solveBands(geometry, bandOcean, {
       luminosity: state.luminosity, orbitAU, pressureBar: state.pressureBar, co2Bar: state.co2Bar,
       ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water),
     }, state.iced);
+    const steam = state.water >= OCEANS_LOST_WATER && climate.meanK >= boilingPointK(state.pressureBar);
+    if (steam) seaLevelKm = fillOceans(state.water, true);
     state = { ...state, meanK: climate.meanK, iceFraction: climate.iceFraction,
       openOceanFraction: climate.openOceanFraction, openLandFraction: climate.openLandFraction,
-      bandK: climate.bandK, iced: climate.iced };
+      bandK: climate.bandK, iced: climate.iced,
+      steam, pressureBar: pressureOf(state.co2Bar, state.o2Bar, state.ch4Bar, state.water, steam) };
   }
 
   const present = solvePresentClimate(geography, {

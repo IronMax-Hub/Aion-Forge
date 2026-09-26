@@ -142,6 +142,18 @@ export function mainSequenceEndGyr(star: Star): number {
   return star.lifespan * MAIN_SEQUENCE_END_FRACTION;
 }
 
+// Sun's radius in AU
+const SOLAR_RADIUS_AU = 0.00465047;
+
+/**
+ * The star's radius today in AU, from its luminosity and temperature
+ * (Stefan–Boltzmann: L ∝ R²·T⁴). A red giant swells to an AU or more.
+ */
+export function stellarRadiusAU(star: Star): number {
+  const t = SOLAR_TEMPERATURE_K / star.temperature;
+  return SOLAR_RADIUS_AU * Math.sqrt(star.luminosity) * t * t;
+}
+
 /** The star's luminosity t Gyr after it formed, in solar luminosities. */
 export function luminosityAt(star: Star, tGyr: number): number {
   const msEnd = mainSequenceEndGyr(star);

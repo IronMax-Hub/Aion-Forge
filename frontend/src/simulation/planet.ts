@@ -1,6 +1,7 @@
 import { createRNG, SALT } from "./rng";
 import { pow } from "./detmath";
 import type { Star } from "./star";
+import { luminosityAt, stellarRadiusAU } from "./star";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
 import { effectiveOrbitAU, GIANT_PLANET_MASS } from "./planetBasics";
@@ -80,6 +81,18 @@ function pickArchitecture(r: number): OrbitalArch {
   if (r < 0.65) return "distributed";
   if (r < 0.82) return "resonant";
   return "chaotic";
+}
+
+// Planets form beyond the dust-sublimation line of their young star: where the
+// star's light would heat bare dust past DUST_SUBLIMATION_K. At zero albedo that
+// distance is (278 / T_sub)² · √L AU, so a star a hundred times as bright forms
+// its planets ten times as far out, at the same temperatures.
+const DUST_SUBLIMATION_K = 1500;
+
+/** The inner edge of a star's planet-forming disk, AU: its dust-sublimation line at formation. */
+export function dustSublimationAU(star: Star): number {
+  const ratio = 278 / DUST_SUBLIMATION_K;
+  return ratio * ratio * Math.sqrt(luminosityAt(star, 0));
 }
 
 function generateOrbits(arch: OrbitalArch, count: number, rng: () => number): number[] {
@@ -257,9 +270,15 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
   if (count === 0) return { hostStarId: star.id, galaxySeed, planets: [] };
 
   const arch = pickArchitecture(rng());
-  const orbits = generateOrbits(arch, count, rng);
+  // The drawn system, moved out as a whole when the innermost orbit lies inside the
+  // young star's dust-sublimation line (owner decision); a dim star's system is unchanged
+  const drawn = generateOrbits(arch, count, rng);
+  const spread = Math.max(1, dustSublimationAU(star) / effectiveOrbitAU(drawn[0], config));
+  const orbits = drawn.map((radius) => radius * spread);
+  // A star that has since swollen past a planet's orbit has engulfed it
+  const starRadiusAU = stellarRadiusAU(star);
 
-  const planets: Planet[] = orbits.map((orbitalRadius, idx) => {
+  const planets: (Planet | null)[] = orbits.map((orbitalRadius, idx) => {
     const mass = pow(10, (rng() - 0.5) * 3.5); // 0.03–32 Earth masses (log spread)
     // Stellar heating decides what atmosphere a planet can keep
     const equilibriumK = equilibriumTemp(star.luminosity, effectiveOrbitAU(orbitalRadius, config));
@@ -267,6 +286,8 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
     rng(); // the old type roll: still taken so the draws below stay aligned
     const size = pow(mass, 0.27) * (0.8 + rng() * 0.4);
     const resourceAbundance = rng();
+    // Engulfed planets are gone; their draws are taken all the same, so later planets keep theirs
+    if (effectiveOrbitAU(orbitalRadius, config) <= starRadiusAU) return null;
 
     const planet: Planet = {
       id: idx,
@@ -306,7 +327,8 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
     return planet;
   });
 
-  return { hostStarId: star.id, galaxySeed, planets };
+  // Survivors keep their index, id and key: an engulfed planet leaves a gap, as it would in a catalogue
+  return { hostStarId: star.id, galaxySeed, planets: planets.filter((planet): planet is Planet => planet !== null) };
 }
 
 // ── Color palette for rendering (AF-044) ──────────────────────────────────────

@@ -179,6 +179,10 @@ const SYSTEM_AUTO_ROTATE_SPEED = 0.4;
 const PLANET_AUTO_ROTATE_SPEED = 0.25;
 // The approach glide ends this many planet-marker radii from the marker
 const APPROACH_END_DISTANCE = 6;
+// A system whose innermost planet lies beyond this is drawn at a larger scale (see renderPlanetarySystem)
+const USUAL_INNER_ORBIT_AU = 0.4;
+// Where the system view's camera starts, relative to the star, at the usual scale
+const SYSTEM_CAMERA_OFFSET = new THREE.Vector3(0, 2, 5);
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -290,6 +294,7 @@ export class UniverseRenderer {
   private readonly globeTextures = new GlobeTextureCache();
   private pendingBake: GlobeBake | null = null;
   private systemGalaxySeed = 0;
+  private systemMaxDistance = DEFAULT_DISTANCE.max;
   private systemHostStar: Star | null = null;
   private systemCameraPose: { position: THREE.Vector3; target: THREE.Vector3 } | null = null;
 
@@ -491,23 +496,29 @@ export class UniverseRenderer {
 
     const group = new THREE.Group();
 
+    // A bright star forms its planets farther out (planet.ts): its system is drawn
+    // at a larger scale, camera, markers and zoom limit alike, by how far out its
+    // innermost planet lies, so it looks like any other system, only bigger.
+    const innermostAU = system.planets.length > 0 ? Math.min(...system.planets.map((p) => p.orbitalRadius)) : 0;
+    const scale = Math.max(1, innermostAU / USUAL_INNER_ORBIT_AU);
+
     const [sr, sg, sb] = temperatureToColor(hostStar.temperature);
     const starCol = new THREE.Color(sr, sg, sb);
 
     // Host star
-    const starGeo = new THREE.SphereGeometry(0.12, 16, 16);
+    const starGeo = new THREE.SphereGeometry(0.12 * scale, 16, 16);
     const starMat = new THREE.MeshBasicMaterial({ color: starCol });
     group.add(new THREE.Mesh(starGeo, starMat));
 
     // Star glow
-    const glowGeo = new THREE.SphereGeometry(0.26, 16, 16);
+    const glowGeo = new THREE.SphereGeometry(0.26 * scale, 16, 16);
     const glowMat = new THREE.MeshBasicMaterial({ color: starCol, transparent: true, opacity: 0.14 });
     group.add(new THREE.Mesh(glowGeo, glowMat));
 
     for (const planet of system.planets) {
       const orbitR = planet.orbitalRadius * SYSTEM_UNITS_PER_AU;
 
-      const ringGeo = new THREE.RingGeometry(orbitR - 0.005, orbitR + 0.005, 128);
+      const ringGeo = new THREE.RingGeometry(orbitR - 0.005 * scale, orbitR + 0.005 * scale, 128);
       const ringMat = new THREE.MeshBasicMaterial({
         color: 0x4a525d, transparent: true, opacity: 0.45, side: THREE.DoubleSide,
       });
@@ -516,7 +527,7 @@ export class UniverseRenderer {
       group.add(ring);
 
       const [pr, pg, pb] = PLANET_COLORS[planet.type];
-      const pSize = Math.max(0.025, Math.min(0.09, planet.size * 0.035));
+      const pSize = Math.max(0.025, Math.min(0.09, planet.size * 0.035)) * scale;
       const pGeo  = new THREE.SphereGeometry(pSize, 12, 12);
       const pMat  = new THREE.MeshBasicMaterial({ color: new THREE.Color(pr, pg, pb) });
       const pMesh = new THREE.Mesh(pGeo, pMat);
@@ -528,7 +539,7 @@ export class UniverseRenderer {
       const bio = biospheres.get(planet.id);
       if (bio?.hasLife) {
         const markerR = pSize * 2.2;
-        const lifeGeo = new THREE.RingGeometry(markerR, markerR + 0.008, 48);
+        const lifeGeo = new THREE.RingGeometry(markerR, markerR + 0.008 * scale, 48);
         const lifeMat = new THREE.MeshBasicMaterial({
           color: 0x6fc49a, transparent: true, opacity: 0.35 + bio.complexity * 0.45, side: THREE.DoubleSide,
         });
@@ -546,7 +557,10 @@ export class UniverseRenderer {
     const starPos = new THREE.Vector3(...hostStar.position);
     this.tween = null;   // a galaxy-view camera glide must not keep steering the system view
     this.controls.target.copy(starPos);
-    this.camera.position.copy(starPos.clone().add(new THREE.Vector3(0, 2, 5)));
+    this.camera.position.copy(starPos.clone().addScaledVector(SYSTEM_CAMERA_OFFSET, scale));
+    // No farther than half the camera's far plane, or the system would be clipped away
+    this.systemMaxDistance = Math.min(DEFAULT_DISTANCE.max * scale, this.camera.far / 2);
+    this.controls.maxDistance = this.systemMaxDistance;
     this.controls.autoRotate      = true;
     this.controls.autoRotateSpeed = SYSTEM_AUTO_ROTATE_SPEED;
   }
@@ -569,6 +583,8 @@ export class UniverseRenderer {
     this.systemHostStar = null;
     this.onPlanetApproach = null;
     this.controls.autoRotate = false;
+    this.systemMaxDistance = DEFAULT_DISTANCE.max;
+    this.controls.maxDistance = DEFAULT_DISTANCE.max;
   }
 
   // ── Planet view (Worlds Up Close A4–A5) ───────────────────────────────────
@@ -655,7 +671,7 @@ export class UniverseRenderer {
     this.planetView.dispose();
     this.planetView = null;
     this.controls.minDistance = DEFAULT_DISTANCE.min;
-    this.controls.maxDistance = DEFAULT_DISTANCE.max;
+    this.controls.maxDistance = this.systemMaxDistance;
   }
 
   // ── Star highlight ────────────────────────────────────────────────────────

@@ -63,8 +63,8 @@ describe("rim colour", () => {
     const [r, g, b] = zenithOpticalDepth(1);
     expect(b).toBeGreaterThan(g);
     expect(g).toBeGreaterThan(r);
-    // λ⁻⁴ between 440 and 680 nm: ~5.7 times
-    expect(b / r).toBeCloseTo((0.68 / 0.44) ** 4, 0);
+    // λ⁻⁴ between the blue and red channels' wavelengths (465 and 612 nm): ~3 times
+    expect(b / r).toBeCloseTo((0.612 / 0.465) ** 4, 0);
     expect(zenithOpticalDepth(90)[0]).toBeCloseTo(90 * r, 12);
   });
 
@@ -73,7 +73,7 @@ describe("rim colour", () => {
     expect(Math.min(sr, sg, sb)).toBeGreaterThan(0.75);
     const [rr, , rb] = starSpectrumRGB(3500);
     expect(rr).toBe(1);
-    expect(rb).toBeLessThan(0.35);
+    expect(rb).toBeLessThan(0.55);
     const [hr, , hb] = starSpectrumRGB(20000);
     expect(hb).toBe(1);
     expect(hr).toBeLessThan(0.6);
@@ -86,8 +86,8 @@ describe("rim colour", () => {
     };
     const earth = skyColour(5772);
     const red = skyColour(3500);
-    expect(earth[2] / earth[0]).toBeGreaterThan(4);
-    expect(red[2] / red[0]).toBeLessThan(2);
+    expect(earth[2] / earth[0]).toBeGreaterThan(2.5);
+    expect(red[2] / red[0]).toBeLessThan(1.6);
   });
 });
 

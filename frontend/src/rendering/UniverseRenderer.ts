@@ -8,6 +8,7 @@ import type { Planet, PlanetarySystem } from "../simulation/planet";
 import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
 import { SkyBackground } from "./background";
+import { PlanetView, ORBIT_DISTANCE } from "./planet/PlanetView";
 
 // ── Visual seeded PRNG (ENH-506) ──────────────────────────────────────────────
 // Used for the nebula accents — purely visual, does not affect
@@ -145,10 +146,28 @@ function realisticDustColors(particles: GalaxyParticles): Float32Array {
 /** Planetary-system view draws orbits at this many scene units per AU. */
 export const SYSTEM_UNITS_PER_AU = 2.5;
 
-/** How large one screen pixel is at the orbit target, in scene units, and which view it applies to. */
+export type ViewMode = "galaxy" | "system" | "planet";
+
+/**
+ * How large one screen pixel is, in scene units, and which view it applies to:
+ * at the orbit target in the galaxy and system views, at the nearest surface in
+ * the planet view, whose scene unit is `kmPerUnit` kilometres.
+ */
 export interface ViewScale {
-  mode: "galaxy" | "system";
+  mode: ViewMode;
   unitsPerPixel: number;
+  kmPerUnit?: number;
+}
+
+// Orbit-control limits outside the planet view, and the system view's auto-rotation
+const DEFAULT_DISTANCE = { min: 0.01, max: 2000 };
+const SYSTEM_AUTO_ROTATE_SPEED = 0.4;
+const PLANET_AUTO_ROTATE_SPEED = 0.25;
+// The approach glide ends this many planet-marker radii from the marker
+const APPROACH_END_DISTANCE = 6;
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 }
 
 // ── ENH-504: Stellar classification visual profile ────────────────────────────
@@ -242,9 +261,20 @@ export class UniverseRenderer {
   private planetData: Planet[] = [];
   private onStarSelected:   ((star: Star | null)     => void) | null = null;
   private onPlanetSelected: ((planet: Planet | null) => void) | null = null;
+  private onPlanetApproach: ((planet: Planet) => void) | null = null;
 
-  private tween: { from: THREE.Vector3; to: THREE.Vector3; t: number } | null = null;
-  private mode: "galaxy" | "system" = "galaxy";
+  // A glide moves the orbit target and, when `camera` is set, the camera too; `onDone` runs when it ends
+  private tween: {
+    from: THREE.Vector3; to: THREE.Vector3; t: number;
+    camera?: { from: THREE.Vector3; to: THREE.Vector3 };
+    onDone?: () => void;
+  } | null = null;
+  private mode: ViewMode = "galaxy";
+
+  // Planet view: its scene, and the system view's camera to return to
+  private planetView: PlanetView | null = null;
+  private systemHostStar: Star | null = null;
+  private systemCameraPose: { position: THREE.Vector3; target: THREE.Vector3 } | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     // ENH-511: ACES filmic tone mapping for natural brightness rolloff
@@ -282,6 +312,7 @@ export class UniverseRenderer {
     this.startLoop();
 
     canvas.addEventListener("click", this.onClick);
+    canvas.addEventListener("dblclick", this.onDoubleClick);
     window.addEventListener("resize", this.onResize);
   }
 
@@ -412,10 +443,14 @@ export class UniverseRenderer {
     system: PlanetarySystem,
     hostStar: Star,
     onPlanetSelected: (planet: Planet | null) => void,
-    biospheres: Map<number, Biosphere> = new Map()
+    biospheres: Map<number, Biosphere> = new Map(),
+    onPlanetApproach: ((planet: Planet) => void) | null = null,
   ) {
+    this.closePlanetView();
     this.onPlanetSelected = onPlanetSelected;
+    this.onPlanetApproach = onPlanetApproach;
     this.planetData = system.planets;
+    this.systemHostStar = hostStar;
     this.mode = "system";
     this.lastReportedScale = 0;
 
@@ -492,10 +527,11 @@ export class UniverseRenderer {
     this.controls.target.copy(starPos);
     this.camera.position.copy(starPos.clone().add(new THREE.Vector3(0, 2, 5)));
     this.controls.autoRotate      = true;
-    this.controls.autoRotateSpeed = 0.4;
+    this.controls.autoRotateSpeed = SYSTEM_AUTO_ROTATE_SPEED;
   }
 
   exitSystemView() {
+    this.closePlanetView();
     this.mode = "galaxy";
     this.lastReportedScale = 0;
     this.applyLifeMarkerVisibility();
@@ -509,7 +545,80 @@ export class UniverseRenderer {
       this.systemGroup = null;
     }
     this.planetData = [];
+    this.systemHostStar = null;
+    this.onPlanetApproach = null;
     this.controls.autoRotate = false;
+  }
+
+  // ── Planet view (Worlds Up Close A4) ──────────────────────────────────────
+
+  /**
+   * Glide to a planet in the system view, then switch to its planet view.
+   * Does nothing outside the system view or for a planet not in the system.
+   */
+  approachPlanet(planet: Planet) {
+    if (this.mode !== "system" || !this.systemGroup || !this.systemHostStar) return;
+    const marker = this.systemGroup.children.find(
+      c => c instanceof THREE.Mesh && c.userData.planetId === planet.id,
+    ) as THREE.Mesh<THREE.SphereGeometry> | undefined;
+    if (!marker) return;
+
+    const planetWorld = marker.getWorldPosition(new THREE.Vector3());
+    const markerRadius = marker.geometry.parameters.radius;
+    const fromPlanet = this.camera.position.clone().sub(planetWorld).normalize();
+    this.systemCameraPose = { position: this.camera.position.clone(), target: this.controls.target.clone() };
+    this.controls.autoRotate = false;
+
+    const star = this.systemHostStar;
+    const towardStar = new THREE.Vector3(...star.position).sub(planetWorld);
+    this.tween = {
+      from: this.controls.target.clone(), to: planetWorld, t: 0,
+      camera: { from: this.camera.position.clone(), to: planetWorld.clone().addScaledVector(fromPlanet, markerRadius * APPROACH_END_DISTANCE) },
+      onDone: () => this.openPlanetView(planet, star, towardStar, fromPlanet),
+    };
+  }
+
+  /** Return from the planet view (or an approach under way) to the system view. */
+  leavePlanetView() {
+    if (this.mode !== "planet" && !this.tween?.onDone) return;
+    this.closePlanetView();
+    this.mode = "system";
+    this.lastReportedScale = 0;
+    if (this.systemGroup) this.systemGroup.visible = true;
+    if (this.systemCameraPose) {
+      this.camera.position.copy(this.systemCameraPose.position);
+      this.controls.target.copy(this.systemCameraPose.target);
+      this.systemCameraPose = null;
+    }
+    this.controls.autoRotate      = true;
+    this.controls.autoRotateSpeed = SYSTEM_AUTO_ROTATE_SPEED;
+  }
+
+  private openPlanetView(planet: Planet, star: Star, towardStar: THREE.Vector3, cameraDirection: THREE.Vector3) {
+    this.planetView = new PlanetView(planet, star, towardStar, !prefersReducedMotion(), performance.now());
+    this.planetView.scene.add(this.sky.group);   // the night sky moves with the viewer
+    this.mode = "planet";
+    this.lastReportedScale = 0;
+    if (this.systemGroup) this.systemGroup.visible = false;
+
+    // Same viewing direction as the glide, now in planet radii around the planet at the origin
+    this.controls.target.set(0, 0, 0);
+    this.camera.position.copy(cameraDirection).multiplyScalar(ORBIT_DISTANCE.start);
+    this.controls.minDistance = ORBIT_DISTANCE.min;
+    this.controls.maxDistance = ORBIT_DISTANCE.max;
+    this.controls.autoRotate      = true;
+    this.controls.autoRotateSpeed = PLANET_AUTO_ROTATE_SPEED;
+  }
+
+  /** Disposes the planet view, if any, and cancels an approach under way. */
+  private closePlanetView() {
+    if (this.tween?.onDone) this.tween = null;
+    if (!this.planetView) return;
+    this.scene.add(this.sky.group);
+    this.planetView.dispose();
+    this.planetView = null;
+    this.controls.minDistance = DEFAULT_DISTANCE.min;
+    this.controls.maxDistance = DEFAULT_DISTANCE.max;
   }
 
   // ── Star highlight ────────────────────────────────────────────────────────
@@ -541,6 +650,7 @@ export class UniverseRenderer {
     );
     this.raycaster.setFromCamera(ndc, this.camera);
 
+    if (this.mode === "planet") return;
     if (this.mode === "system" && this.systemGroup) {
       const planetMeshes = this.systemGroup.children.filter(
         c => c instanceof THREE.Mesh && c.userData.planetId !== undefined
@@ -567,6 +677,25 @@ export class UniverseRenderer {
       this.controls.autoRotate = true;
     }
   };
+
+  /** Double-clicking a planet in the system view approaches it. */
+  private onDoubleClick = (e: MouseEvent) => {
+    if (this.mode !== "system" || !this.systemGroup || !this.onPlanetApproach) return;
+    const planet = this.planetAt(e);
+    if (planet) this.onPlanetApproach(planet);
+  };
+
+  private planetAt(e: MouseEvent): Planet | null {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndc  = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width)  *  2 - 1,
+      ((e.clientY - rect.top)  / rect.height) * -2 + 1,
+    );
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const markers = this.systemGroup!.children.filter(c => c instanceof THREE.Mesh && c.userData.planetId !== undefined);
+    const hit = this.raycaster.intersectObjects(markers)[0];
+    return hit ? this.planetData.find(p => p.id === hit.object.userData.planetId) ?? null : null;
+  }
 
   private selectStar(star: Star) {
     this.onStarSelected?.(star);
@@ -702,12 +831,17 @@ export class UniverseRenderer {
   }
 
   private stepTween() {
-    if (!this.tween) return;
-    this.tween.t += 0.038;
-    const p     = Math.min(this.tween.t, 1);
+    const tween = this.tween;
+    if (!tween) return;
+    tween.t += 0.038;
+    const p     = Math.min(tween.t, 1);
     const eased = 1 - Math.pow(1 - p, 5);   // quintic ease-out
-    this.controls.target.lerpVectors(this.tween.from, this.tween.to, eased);
-    if (this.tween.t >= 1) this.tween = null;
+    this.controls.target.lerpVectors(tween.from, tween.to, eased);
+    if (tween.camera) this.camera.position.lerpVectors(tween.camera.from, tween.camera.to, eased);
+    if (tween.t >= 1) {
+      this.tween = null;
+      tween.onDone?.();
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -733,7 +867,12 @@ export class UniverseRenderer {
       this.reportViewScale();
 
       this.sky.follow(this.camera);
-      this.renderer.render(this.scene, this.camera);
+      if (this.mode === "planet" && this.planetView) {
+        this.planetView.update(performance.now());
+        this.renderer.render(this.planetView.scene, this.camera);
+      } else {
+        this.renderer.render(this.scene, this.camera);
+      }
       this.updateLifeLabels();
       this.labelRenderer.render(this.scene, this.camera);
     };
@@ -750,12 +889,16 @@ export class UniverseRenderer {
     if (!this.onViewScale) return;
     const canvasHeight = this.renderer.domElement.clientHeight;
     if (canvasHeight === 0) return;
-    const distance = this.camera.position.distanceTo(this.controls.target);
+    const inPlanetView = this.mode === "planet" && this.planetView;
+    // In the planet view, measure at the surface point facing the camera (one radius nearer than the centre)
+    const distance = this.camera.position.distanceTo(this.controls.target) - (inPlanetView ? 1 : 0);
     const visibleHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
     const unitsPerPixel = visibleHeight / canvasHeight;
     if (Math.abs(unitsPerPixel - this.lastReportedScale) / unitsPerPixel < 0.02) return;
     this.lastReportedScale = unitsPerPixel;
-    this.onViewScale({ mode: this.mode, unitsPerPixel });
+    this.onViewScale(inPlanetView
+      ? { mode: "planet", unitsPerPixel, kmPerUnit: this.planetView!.kmPerUnit }
+      : { mode: this.mode, unitsPerPixel });
   }
 
   private onResize = () => {
@@ -771,6 +914,8 @@ export class UniverseRenderer {
   dispose() {
     cancelAnimationFrame(this.animFrameId);
     this.renderer.domElement.removeEventListener("click", this.onClick);
+    this.renderer.domElement.removeEventListener("dblclick", this.onDoubleClick);
+    this.closePlanetView();
     window.removeEventListener("resize", this.onResize);
 
     // ENH-512: dispose all resources

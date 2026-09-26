@@ -81,6 +81,9 @@ export default function App() {
   // Snapshots are built from the life survey, so their buttons wait for it
   const snapshotPending = isGenerating || surveyProgress !== null;
   const [view, setView]             = useState<View>("galaxy");
+  // In orbit around the selected planet (Worlds Up Close A4). The biosphere and
+  // civilization panels still open from orbit; leaving orbit returns to the system.
+  const [orbiting, setOrbiting]     = useState(false);
 
   // Universe config (laws of reality)
   const [universeConfig, setUniverseConfig] = useState<UniverseConfig>(() => makeConfig(0));
@@ -132,6 +135,7 @@ export default function App() {
     setComparison(null);
     setCurrentSystem(null);
     setView("galaxy");
+    setOrbiting(false);
     cachedSnapshotRef.current = null;
     setSurveyError(null);
     rendererRef.current?.exitSystemView();
@@ -196,10 +200,11 @@ export default function App() {
       if (showHistoryPanel) { setShowHistoryPanel(false); return; }
       if (showTimeline)     { setShowTimeline(false);     return; }
       if (comparison)       { setComparison(null);        return; }
+      if (orbiting && view === "system") { leaveOrbit(); return; }   // up one level: back to the system
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison]);
+  }, [showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, orbiting, view]);
 
   const handleRandomize = () => {
     const s = randomSeed();
@@ -444,7 +449,7 @@ export default function App() {
       setSelectedPlanet(planet);
       setSelectedBiosphere(null);
       ui.inspect();
-    }, biospheres);
+    }, biospheres, approachPlanet);
   }, [selectedStar, currentSeed, universeConfig]);
 
   const handleScanBiosphere = useCallback(() => {
@@ -473,8 +478,29 @@ export default function App() {
     }
   }, [selectedBiosphere, selectedPlanet, currentSeed, universeConfig]);
 
+  // Glide to a planet and go into orbit around it; also what double-clicking a planet does
+  function approachPlanet(planet: Planet) {
+    setSelectedPlanet(planet);
+    setSelectedBiosphere(null);
+    setSelectedCivilization(null);
+    setSelectedSpecies(null);
+    setView("system");
+    setOrbiting(true);
+    rendererRef.current?.approachPlanet(planet);
+    ui.inspect();
+  }
+
+  function leaveOrbit() {
+    setOrbiting(false);
+    rendererRef.current?.leavePlanetView();
+    ui.back();
+  }
+
+  const handleApproach = () => { if (selectedPlanet) approachPlanet(selectedPlanet); };
+
   const handleExitSystem = () => {
     setView("galaxy");
+    setOrbiting(false);
     setSelectedPlanet(null);
     setSelectedBiosphere(null);
     setSelectedCivilization(null);
@@ -508,6 +534,7 @@ export default function App() {
   };
 
   const handleBackToStar = () => {
+    if (orbiting) leaveOrbit();
     setSelectedPlanet(null);
     setSelectedBiosphere(null);
     setSelectedCivilization(null);
@@ -555,6 +582,7 @@ export default function App() {
   else if (surveyProgress !== null)                                         statusText = `Surveying life… ${Math.round(surveyProgress * 100)}%`;
   else if (view === "galaxy" && !selectedStar)                              statusText = "Select a star to inspect it";
   else if (view === "galaxy" && selectedStar)                               statusText = "Open the system to see its planets";
+  else if (view === "system" && orbiting)                                   statusText = "Drag to look around the planet; scroll to change altitude";
   else if (view === "system" && !selectedPlanet)                            statusText = "Select a planet to inspect it";
   else if (view === "system" && selectedPlanet)                             statusText = "Scan the biosphere to check for life";
   else if (view === "biosphere" && selectedBiosphere?.hasLife)              statusText = "Check whether a civilization has emerged";
@@ -593,9 +621,19 @@ export default function App() {
           {selectedPlanet && (
             <>
               <span className="breadcrumb-sep" aria-hidden="true">/</span>
+              {orbiting
+                ? <button className="breadcrumb-link" onClick={() => { handleBackToPlanet(); leaveOrbit(); }}>{planetLabel}</button>
+                : view === "biosphere" || view === "civilization"
+                  ? <button className="breadcrumb-link" onClick={handleBackToPlanet}>{planetLabel}</button>
+                  : <span className="breadcrumb-current">{planetLabel}</span>}
+            </>
+          )}
+          {selectedPlanet && orbiting && (
+            <>
+              <span className="breadcrumb-sep" aria-hidden="true">/</span>
               {view === "biosphere" || view === "civilization"
-                ? <button className="breadcrumb-link" onClick={handleBackToPlanet}>{planetLabel}</button>
-                : <span className="breadcrumb-current">{planetLabel}</span>}
+                ? <button className="breadcrumb-link" onClick={handleBackToPlanet}>Orbit</button>
+                : <span className="breadcrumb-current">Orbit</span>}
             </>
           )}
           {selectedBiosphere && (
@@ -787,8 +825,11 @@ export default function App() {
         ) : view === "system" && selectedPlanet && !selectedBiosphere ? (
           <PlanetPanel
             planet={selectedPlanet}
+            orbiting={orbiting}
             onClose={handleExitSystem}
-            onBack={handleBackToStar}
+            onBack={orbiting ? leaveOrbit : handleBackToStar}
+            onApproach={handleApproach}
+            onLeaveOrbit={leaveOrbit}
             onScanBiosphere={handleScanBiosphere}
           />
         ) : view === "biosphere" && selectedBiosphere ? (

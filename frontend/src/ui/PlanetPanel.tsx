@@ -4,8 +4,13 @@ import { formatSig, formatInt, formatIndex, planetName, PLANET_TYPE_LABEL } from
 
 interface Props {
   planet: Planet;
+  /** Whether the view is in orbit around this planet (Worlds Up Close A4). */
+  orbiting: boolean;
   onClose: () => void;
+  /** Up one level: out of orbit, or back to the star. */
   onBack: () => void;
+  onApproach: () => void;
+  onLeaveOrbit: () => void;
   onScanBiosphere: () => void;
 }
 
@@ -25,7 +30,7 @@ const CAN_HAVE_LIFE: Record<string, boolean> = {
   "gas-giant": false, lava: false, rogue: false,
 };
 
-export function PlanetPanel({ planet, onClose, onBack, onScanBiosphere }: Props) {
+export function PlanetPanel({ planet, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere }: Props) {
   const [r, g, b] = PLANET_COLORS[planet.type];
   const isGiant = planet.type === "gas-giant" || planet.mass > GIANT_PLANET_MASS;
   const planetColor = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
@@ -41,7 +46,7 @@ export function PlanetPanel({ planet, onClose, onBack, onScanBiosphere }: Props)
         </div>
         {planet.isRare && <span className="inspector-badge">Rare</span>}
         <div className="inspector-controls">
-          <button className="inspector-btn" onClick={onBack} aria-label="Back to star">←</button>
+          <button className="inspector-btn" onClick={onBack} aria-label={orbiting ? "Leave orbit" : "Back to star"}>←</button>
           <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
       </div>
@@ -77,6 +82,9 @@ export function PlanetPanel({ planet, onClose, onBack, onScanBiosphere }: Props)
         </div>
 
         <div className="inspector-actions">
+          {orbiting
+            ? <button className="btn" onClick={onLeaveOrbit} title="Return to the planetary system">Leave orbit</button>
+            : <button className="btn" onClick={onApproach} title="Go into orbit around this planet (or double-click it)">Approach</button>}
           <button
             className="btn primary"
             onClick={onScanBiosphere}

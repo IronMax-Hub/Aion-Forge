@@ -8,6 +8,18 @@ A phased plan to let an observer approach any planet, see a surface that follows
 
 Nothing in this plan has been implemented yet.
 
+> **Amended by `Worlds-Up-Close-Revision-1.md`.** Where the two disagree, the revision wins. In particular, these parts of this plan are replaced:
+> - The ground rule "land needs an ozone shield". The original C2 prerequisites are now energy costs.
+> - The "aquatic minds are capped" decision, replaced by the fire rule.
+> - The frozen-planet climate of A2.
+> - The C2.1 genome.
+> - C2.4 as a separate step.
+> - The cross-browser floating-point risk, now handled by deterministic math.
+> - Per-phase-let rules-version bumps.
+> - Every `docs/` path, which means `Documents/`.
+>
+> See the revision's *Resolutions* section (R1–R12).
+
 ## Contents
 
 - [Summary](#summary)

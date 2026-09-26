@@ -1,13 +1,15 @@
 // 3D simplex noise, from "webgl-noise" by Ian McEwan and Stefan Gustavson,
 // Ashima Arts (MIT licence): https://github.com/ashima/webgl-noise
-// Returns values in about −1 to 1; smooth, with no visible grid.
+// Returns values in about −1 to 1; smooth, with no visible grid. The gradient
+// variant also returns the noise's gradient, differentiated analytically, so a
+// slope costs no extra evaluations.
 
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
 vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
 
-float snoise(vec3 v) {
+float snoiseGradient(vec3 v, out vec3 gradient) {
   const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);
   const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
 
@@ -60,7 +62,14 @@ float snoise(vec3 v) {
   p2 *= norm.z;
   p3 *= norm.w;
 
+  // n = 42 · Σ mᵢ⁴ (gᵢ · xᵢ), with mᵢ = max(0.6 − |xᵢ|², 0);
+  // ∇n = 42 · Σ (mᵢ⁴ gᵢ − 8 mᵢ³ (gᵢ · xᵢ) xᵢ)
   vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
-  m = m * m;
-  return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+  vec4 m2 = m * m;
+  vec4 m4 = m2 * m2;
+  vec4 along = vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3));
+  vec4 falloff = m2 * m * along;
+  gradient = 42.0 * (m4.x * p0 + m4.y * p1 + m4.z * p2 + m4.w * p3
+                     - 8.0 * (falloff.x * x0 + falloff.y * x1 + falloff.z * x2 + falloff.w * x3));
+  return 42.0 * dot(m4, along);
 }

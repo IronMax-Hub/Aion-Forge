@@ -50,8 +50,11 @@ const STARLIGHT_RANGE = { min: 0.35, max: 1.6 };
 // The light is placed this far along the direction to the star; only its direction matters
 const LIGHT_DISTANCE = 10;
 
-// Globe mesh: 6 × 128² quads
-const GLOBE_SEGMENTS = 128;
+// Globe mesh: 6 × 32² quads. The sphere is shaded per pixel and never displaced, so
+// more vertices add nothing; worse, triangles only a few pixels across make GPUs
+// shade many pixels twice or more (they work in 2 × 2 blocks). At 6 × 128² that
+// tripled the globe's cost. At 32 the outline is within a pixel even at 1.15 radii.
+const GLOBE_SEGMENTS = 32;
 // Relief is drawn this many times steeper than it is, or mountains would not show from orbit
 const RELIEF_EXAGGERATION = 150;
 

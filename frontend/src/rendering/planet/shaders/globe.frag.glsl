@@ -32,7 +32,6 @@ const float DETAIL_CONTRAST = 3.0;    // fBm mostly stays within ±0.3; this str
 const float COAST_SHIFT = 0.45;       // below 0.5, so no cell centre ever changes side
 const float RELIEF_NOISE_KM = 1.2;
 const float ICE_EDGE_NOISE_K = 3.0;   // wobble of the freeze line
-const float BUMP_STEP = 0.003;        // radians between the samples a slope is measured over
 const float MAX_TILT = 0.6;           // steepest the exaggerated relief may tilt a normal
 
 // Lighting
@@ -52,38 +51,46 @@ const vec3 DEEP_WATER = vec3(0.004, 0.018, 0.06);
 const vec3 SEA_ICE = vec3(0.70, 0.78, 0.85);
 const vec3 SNOW = vec3(0.85, 0.87, 0.90);
 
-float fbm(vec3 p) {
+// fBm of simplex noise, and its gradient (per unit of p) from the noise's own derivatives
+float fbm(vec3 p, out vec3 gradient) {
   float sum = 0.0;
   float amplitude = 0.5;
   float total = 0.0;
+  float scale = 1.0;
+  gradient = vec3(0.0);
   for (int i = 0; i < DETAIL_OCTAVES; i++) {
-    sum += amplitude * snoise(p);
+    vec3 octaveGradient;
+    sum += amplitude * snoiseGradient(p, octaveGradient);
+    gradient += amplitude * scale * octaveGradient;
     total += amplitude;
     p *= 2.0;
+    scale *= 2.0;
     amplitude *= 0.5;
   }
+  gradient /= total;
   return sum / total;
 }
 
-vec4 surfaceAt(vec3 p) {
+vec2 mapCoordinates(vec3 p) {
   float latitude = asin(clamp(p.y, -1.0, 1.0));
   float longitude = atan(p.z, p.x);
-  return texture2D(surfaceMap, vec2(longitude / (2.0 * PI) + 0.5, latitude / PI + 0.5));
-}
-
-float detailAt(vec3 p) {
-  return fbm(p * DETAIL_FREQUENCY + noiseOffset);
-}
-
-// Height of the land, km above sea level; the sea floor keeps its own depth
-float heightAt(vec3 p) {
-  return surfaceAt(p).r + RELIEF_NOISE_KM * detailAt(p);
+  return vec2(longitude / (2.0 * PI) + 0.5, latitude / PI + 0.5);
 }
 
 void main() {
   vec3 p = normalize(vLocal);
-  vec4 surface = surfaceAt(p);
-  float detail = detailAt(p);
+  // East and north along the map, except at its poles, where any tangent pair does
+  vec3 east = normalize(cross(p, abs(p.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));   // longitude rises
+  vec3 north = cross(east, p);                                                                        // latitude rises
+
+  vec2 uv = mapCoordinates(p);
+  vec4 surface = texture(surfaceMap, uv);
+  // The detail only shows on land, near coasts and near the freeze line; out in open
+  // water it would change nothing but the depth tint, so the noise is skipped there
+  vec3 detailGradient = vec3(0.0);
+  float detail = 0.0;
+  bool openWater = surface.a >= 0.5 + COAST_SHIFT && abs(surface.g - freezingK) > 1.5 + ICE_EDGE_NOISE_K;
+  if (!openWater) detail = fbm(p * DETAIL_FREQUENCY + noiseOffset, detailGradient);
   float heightKm = surface.r + RELIEF_NOISE_KM * detail;
   float strong = clamp(DETAIL_CONTRAST * detail, -1.0, 1.0);
 
@@ -105,16 +112,20 @@ void main() {
   ground *= 0.85 + 0.3 * (0.5 + 0.5 * strong);
   vec3 land = mix(ground, SNOW, frozen * wetness);
 
-  float depthKm = max(0.0, -heightKm);
+  float depthKm = max(0.0, -surface.r);   // the map's depth alone, so skipping the noise leaves no seam
   vec3 sea = mix(mix(SHALLOW_WATER, DEEP_WATER, smoothstep(0.0, 4.0, depthKm)), SEA_ICE, frozen);
 
   vec3 albedo = mix(land, sea, water);
 
-  // Relief: the slope of the land, from two nearby samples
-  vec3 east = normalize(cross(abs(p.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0), p));
-  vec3 north = cross(p, east);
-  vec3 slope = ((heightAt(normalize(p + BUMP_STEP * east)) - heightKm) * east
-              + (heightAt(normalize(p + BUMP_STEP * north)) - heightKm) * north) / BUMP_STEP;
+  // Relief: the slope of the land, km per radian, east and north: the map's from its
+  // neighbouring texels (a quarter texel away; slopes between neighbouring pixels
+  // would show the steps the GPU filters in), the detail's from the noise's gradient
+  vec2 texel = 0.25 / vec2(textureSize(surfaceMap, 0));
+  float mapEast = (texture(surfaceMap, uv + vec2(texel.x, 0.0)).r - surface.r) / (texel.x * 2.0 * PI * max(sqrt(1.0 - p.y * p.y), 0.05));
+  float mapNorth = (texture(surfaceMap, uv + vec2(0.0, texel.y)).r - surface.r) / (texel.y * PI);
+  vec2 slopeKm = vec2(mapEast, mapNorth)
+               + RELIEF_NOISE_KM * DETAIL_FREQUENCY * vec2(dot(detailGradient, east), dot(detailGradient, north));
+  vec3 slope = slopeKm.x * east + slopeKm.y * north;
   vec3 tilt = bumpScale * (1.0 - water) * (1.0 - frozen * wetness * 0.7) * slope;
   tilt *= min(1.0, MAX_TILT / max(length(tilt), 1e-6));
   vec3 normalLocal = normalize(p - tilt);

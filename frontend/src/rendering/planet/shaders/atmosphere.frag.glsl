@@ -27,7 +27,7 @@ varying vec3 vWorldPosition;
 // with an isotropic phase, before the 1/π the surface's lighting also uses
 const float SCATTER_BRIGHTNESS = 0.35;
 // Share of the scattered light that has scattered more than once, its colours mixed
-const MULTIPLE_SCATTERING = 0.35;
+const float MULTIPLE_SCATTERING = 0.35;
 // The lit side of the air reaches this far past the terminator (twilight)
 const float TWILIGHT = 0.2;
 

@@ -125,16 +125,16 @@ Sound is off by default; turn it on from the status bar.
 
 ## Quick Start Seeds
 
-These seeds produce universes worth exploring. Figures are for the default parameters under simulation rules v5, as the life survey counts them: worlds with organisms (microbial or more advanced), civilizations, and how many systems host a civilization that got past farming.
+These seeds produce universes worth exploring. Figures are for the default parameters under simulation rules v6, as the life survey counts them: worlds with organisms (microbial or more advanced), civilizations, and how many systems host a civilization that got past farming.
 
 | Seed | Galaxy Type | Worlds with organisms | Civilizations | Systems past agriculture |
 |------|-------------|---:|---:|---:|
-| `271828` | Elliptical | 748 | 133 | 44 |
-| `137035` | Irregular | 726 | 120 | 40 |
-| `404040` | Elliptical | 725 | 130 | 34 |
-| `13579` | Spiral | 729 | 113 | 32 |
-| `3141592` | Spiral | 713 | 113 | 31 |
-| `100000` | Spiral | 682 | 97 | 34 |
+| `271828` | Elliptical | 699 | 140 | 56 |
+| `137035` | Irregular | 707 | 115 | 53 |
+| `3141592` | Spiral | 697 | 105 | 40 |
+| `13579` | Spiral | 690 | 107 | 39 |
+| `404040` | Elliptical | 676 | 119 | 38 |
+| `100000` | Spiral | 677 | 95 | 41 |
 
 With 2,000 stars per universe, default parameters give every seed a similar amount of life; what differs is where it arises and what becomes of it. Many civilizations stop at agriculture because their world has no fire: no exposed land, or air too thin to burn in. Some worlds with water never get life at all, because their volcanoes have built up a crushing CO₂ atmosphere. For a quiet universe, change the parameters instead: the **Fragile Life** preset leaves about a sixth as many systems with organisms.
 
@@ -210,13 +210,14 @@ Distances in light-years use a display convention — the default galaxy radius 
 
 ## Current Status
 
-**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10 (simulation rules v5)**
+**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10 (simulation rules v6)**
 
 ### Simulation
 
 * Deterministic galaxy generation — spiral, elliptical, irregular
 * 2,000-star stellar populations with full lifecycle simulation; red giants swell and engulf their innermost planets
 * Planetary systems that form beyond the young star's heat, with planet types and resource abundance
+* Planets from small rocky worlds to super-Jupiters of up to 13 Jupiter masses, sized by a measured mass–radius relation (Chen & Kipping 2017)
 * Physical planets — gravity, escape velocity, orbital period, axial tilt, rotation, tidal locking, and water set by the snow line
 * Geography of solid planets — continents, oceans and elevation on a grid of cells
 * World histories over billions of years — the star brightens, volcanoes outgas CO₂, land and seafloor weather it away, oceans can boil off in a runaway greenhouse, and today's climate, pressure and atmosphere class are what that history leaves

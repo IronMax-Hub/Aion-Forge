@@ -473,6 +473,7 @@ Examples:
 * Ice
 * Desert
 * Gas Giant
+* Ice Giant
 * Lava
 * Rogue
 
@@ -510,7 +511,7 @@ General measure of life's viability.
 
 ### Physical Properties
 
-Mass, surface gravity, escape velocity, orbital period, axial tilt, rotation period, and whether the planet is tidally locked to its star. Water is set by where the planet formed relative to the snow line.
+Mass (from small rocky worlds to 13 Jupiter masses), radius from a measured mass–radius relation, surface gravity, escape velocity, orbital period, axial tilt, rotation period, and whether the planet is tidally locked to its star. Water is set by where the planet formed relative to the snow line.
 
 ---
 

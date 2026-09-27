@@ -174,11 +174,17 @@ export interface WorldState {
   openLandFraction: number;
   bandK: Float64Array;
   iced: Uint8Array;
+  /** Each band's share of liquid water (open or under ice), for the next step. */
+  bandOcean: Float64Array;
 }
 
 export interface WorldSnapshot extends WorldState {
+  /** Length of this step, Gyr (the last step is shortened to end at the star's age). */
+  dtGyr: number;
   impact: boolean;
   volcanicPulse: boolean;
+  /** The events recorded during this step. */
+  events: WorldEventKind[];
 }
 
 export interface WorldHistory {
@@ -271,6 +277,7 @@ export function runWorldHistory(
     openLandFraction: 1,
     bandK: new Float64Array(BAND_COUNT),
     iced: new Uint8Array(BAND_COUNT),
+    bandOcean: new Float64Array(BAND_COUNT),
   };
 
   const events: WorldEvent[] = [];
@@ -304,12 +311,14 @@ export function runWorldHistory(
   const stepCount = star.age > FORMATION_DELAY_GYR ? Math.ceil((star.age - FORMATION_DELAY_GYR) / STEP_GYR - 1e-9) : 0;
   let seaLevelKm = 0;
   seaLevelKm = fillOceans(state.water, false);
+  state.bandOcean = Float64Array.from(bandOcean);
 
   for (let step = 1; step <= stepCount; step++) {
     const t0 = state.tGyr;
     // Whole steps over STEPS_PER_GYR, so step times are the nearest doubles to 0.6, 0.7, …
     const t = step === stepCount ? star.age : (FORMATION_DELAY_GYR * STEPS_PER_GYR + step) / STEPS_PER_GYR;
     const dt = t - t0;
+    const eventsBefore = events.length;
 
     // 1–2. Star and interior
     const luminosity = luminosityAt(star, t);
@@ -394,9 +403,9 @@ export function runWorldHistory(
       pressureBar: pressureOf(co2, o2, ch4, water, steam),
       meanK: climate.meanK, steam, iceFraction: climate.iceFraction,
       openOceanFraction: climate.openOceanFraction, openLandFraction: climate.openLandFraction,
-      bandK: climate.bandK, iced: climate.iced,
+      bandK: climate.bandK, iced: climate.iced, bandOcean: Float64Array.from(bandOcean),
     };
-    snapshots?.push({ ...state, impact, volcanicPulse });
+    snapshots?.push({ ...state, dtGyr: dt, impact, volcanicPulse, events: events.slice(eventsBefore).map((e) => e.kind) });
   }
 
   // A star younger than the formation delay runs no steps: its planet is as it
@@ -410,7 +419,7 @@ export function runWorldHistory(
     }, state.iced);
     const steam = state.water >= OCEANS_LOST_WATER && climate.meanK >= boilingPointK(state.pressureBar);
     if (steam) seaLevelKm = fillOceans(state.water, true);
-    state = { ...state, meanK: climate.meanK, iceFraction: climate.iceFraction,
+    state = { ...state, bandOcean: Float64Array.from(bandOcean), meanK: climate.meanK, iceFraction: climate.iceFraction,
       openOceanFraction: climate.openOceanFraction, openLandFraction: climate.openLandFraction,
       bandK: climate.bandK, iced: climate.iced,
       steam, pressureBar: pressureOf(state.co2Bar, state.o2Bar, state.ch4Bar, state.water, steam) };

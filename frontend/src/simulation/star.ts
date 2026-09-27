@@ -168,6 +168,21 @@ export function luminosityAt(star: Star, tGyr: number): number {
   return lRef * ((1 + k * tGyr / msEnd) / (1 + k * tRef / msEnd));
 }
 
+/**
+ * The star's surface temperature t Gyr after it formed, in K. Like luminosityAt:
+ * a star still on the main sequence keeps today's temperature throughout (its
+ * slight warming as it brightens is not modelled); a star that has left it had
+ * the main-sequence temperature for its mass until then, and today's since.
+ */
+export function temperatureAt(star: Star, tGyr: number): number {
+  const msEnd = mainSequenceEndGyr(star);
+  if (star.age < msEnd || tGyr >= msEnd) return star.temperature;
+  const [lo, hi] = TEMP_RANGE["main-sequence"];
+  const radius = mainSequenceRadius(star.mass);
+  const t = SOLAR_TEMPERATURE_K * pow(mainSequenceLuminosity(star.mass) / (radius * radius), 0.25);
+  return Math.min(hi, Math.max(lo, t));
+}
+
 // ── Temperature → RGB (AF-027) ────────────────────────────────────────────────
 
 export function temperatureToColor(temp: number): [number, number, number] {

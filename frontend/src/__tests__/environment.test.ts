@@ -27,13 +27,14 @@ const sun: Star = {
 const earth: Planet = {
   id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky",
   size: 1, mass: 1, temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5,
-  habitabilityScore: 0.8, isRare: false, surface: null,
+  habitabilityScore: 0.8, isRare: false, surface: null, life: null,
 };
 
 /** Every step of a planet's history, read as environments. */
-function environmentsOf(planet: Planet, star: Star): { snapshots: WorldSnapshot[]; environments: Environment[]; events: string[] } {
+function environmentsOf(planet: Planet, star: Star, lifeless = false): { snapshots: WorldSnapshot[]; environments: Environment[]; events: string[] } {
   const physics = derivePhysics(planet, star, seed, config);
-  const history = runWorldHistory(planet, physics, buildGeography(planet, physics, seed), star, seed, config, { keepSnapshots: true });
+  const history = runWorldHistory(planet, physics, buildGeography(planet, physics, seed), star, seed,
+    lifeless ? { ...config, emergenceSensitivity: 0 } : config, { keepSnapshots: true });
   const context = environmentContext(planet, physics, star, config);
   return {
     snapshots: history.snapshots!,
@@ -42,7 +43,8 @@ function environmentsOf(planet: Planet, star: Star): { snapshots: WorldSnapshot[
   };
 }
 
-const earthSteps = environmentsOf(earth, sun);
+// Earth without life, so its air holds no life-made oxygen or ozone
+const earthSteps = environmentsOf(earth, sun, true);
 const earthToday = earthSteps.environments[earthSteps.environments.length - 1];
 
 // A sample of real planets, for the rules that need variety
@@ -104,7 +106,7 @@ describe("an Earth-like planet around the Sun, today", () => {
   });
 
   it("gets the Sun's UV through the air when it has no ozone", () => {
-    expect(earthToday.ozone).toBe(0);   // no life yet, so no oxygen to speak of
+    expect(earthToday.ozone).toBe(0);   // no life, so no oxygen to speak of
     expect(earthToday.surfaceUV).toBeCloseTo(earthToday.airTransmission, 6);
   });
 
@@ -220,7 +222,7 @@ describe("catastrophes", () => {
 
 describe("determinism", () => {
   it("reads the same environment from the same step every time", () => {
-    const again = environmentsOf(earth, sun).environments;
+    const again = environmentsOf(earth, sun, true).environments;
     expect(again).toEqual(earthSteps.environments);
   });
 });

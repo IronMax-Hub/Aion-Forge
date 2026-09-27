@@ -133,7 +133,7 @@ describe("Planet generation determinism", () => {
 // ── Biosphere ─────────────────────────────────────────────────────────────────
 
 describe("Planet keys", () => {
-  it("are unique across every planet in a full universe", { timeout: 60_000 }, () => {
+  it("are unique across every planet in a full universe", () => {
     for (const seed of [100000]) {
       const config = makeConfig(seed);
       const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
@@ -313,7 +313,7 @@ describe("Config modifiers affect emergence", () => {
       for (const star of pop.stars.slice(0, 50)) {
         const sys = generatePlanetsFor(star, seed, config);
         for (const planet of sys.planets) {
-          if (generateBiosphere(planet, star, seed, config).hasLife) count++;
+          if (generateBiosphere(planet, star, seed).hasLife) count++;
         }
       }
       return count;
@@ -335,7 +335,7 @@ describe("Config modifiers affect emergence", () => {
       for (const star of pop.stars.slice(0, 50)) {
         const sys = generatePlanetsFor(star, seed, config);
         for (const planet of sys.planets) {
-          const bio = generateBiosphere(planet, star, seed, config);
+          const bio = generateBiosphere(planet, star, seed);
           if (generateCivilization(bio, planet, seed, config).civilization) count++;
         }
       }

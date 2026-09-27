@@ -20,7 +20,7 @@ function planet(overrides: Partial<Planet> = {}): Planet {
   const hostStarId = overrides.hostStarId ?? 1;
   return {
     id: 2, key: planetKey(hostStarId, 2), hostStarId, orbitalRadius: 1, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
-    temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8, isRare: false, surface: null, ...overrides,
+    temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8, isRare: false, surface: null, life: null, ...overrides,
   };
 }
 
@@ -29,13 +29,19 @@ const earthPhysics: PlanetPhysics = {
   rotationPeriodHours: 24, axialTiltDeg: 23, snowLineAU: 2.3, waterInventory: 0.08,
 };
 
-/** An Earth-like planet's history, with any part of the planet, its physics or its star changed. */
+/**
+ * An Earth-like planet's history, with any part of the planet, its physics or
+ * its star changed. `lifeless` runs it in a universe where life never begins
+ * (emergenceSensitivity 0), for the rules of the planet alone.
+ */
 function history(
-  { planet: p = {}, physics: ph = {}, star: s = {} }: { planet?: Partial<Planet>; physics?: Partial<PlanetPhysics>; star?: Partial<Star> } = {},
+  { planet: p = {}, physics: ph = {}, star: s = {}, lifeless = false }:
+    { planet?: Partial<Planet>; physics?: Partial<PlanetPhysics>; star?: Partial<Star>; lifeless?: boolean } = {},
 ): WorldHistory {
   const world = planet(p);
   const physics = { ...earthPhysics, ...ph };
-  return runWorldHistory(world, physics, buildGeography(world, physics, 42), { ...sun, ...s }, 42, undefined, { keepSnapshots: true });
+  const config = lifeless ? { ...makeConfig(42), emergenceSensitivity: 0 } : undefined;
+  return runWorldHistory(world, physics, buildGeography(world, physics, 42), { ...sun, ...s }, 42, config, { keepSnapshots: true });
 }
 
 const has = (h: WorldHistory, kind: string) => h.events.some((e) => e.kind === kind);
@@ -50,7 +56,8 @@ describe("Earth around the Sun", () => {
       expect(h.present.oceanFraction).toBeGreaterThan(0.4);
       expect(h.final.luminosity).toBe(sun.luminosity);
       expect(h.final.tGyr).toBe(sun.age);
-      expect(h.events.filter((e) => e.kind !== "freezes-over" && e.kind !== "thaws")).toEqual([]);
+      // Life's own oxygen may oxidise the air (C2.3b); nothing else happens to it
+      expect(h.events.filter((e) => !["freezes-over", "thaws", "oxidation"].includes(e.kind))).toEqual([]);
     }
   });
 
@@ -137,14 +144,14 @@ describe("water", () => {
   });
 
   it("stops weathering once the oceans are steam, so CO₂ builds up towards a Venus", () => {
-    const h = history({ planet: { orbitalRadius: 0.46 } });
+    const h = history({ planet: { orbitalRadius: 0.46 }, lifeless: true });
     const runaway = h.events.find((e) => e.kind === "runaway-greenhouse")!;
     const before = h.snapshots!.find((s) => s.tGyr === runaway.tGyr)!;
     expect(h.final.co2Bar).toBeGreaterThan(before.co2Bar * 1000);
   });
 
   it("leaves oxygen from the escaping water: an oxidised atmosphere with no life", () => {
-    expect(has(history({ planet: { orbitalRadius: 0.3 } }), "oxidation")).toBe(true);
+    expect(has(history({ planet: { orbitalRadius: 0.3 }, lifeless: true }), "oxidation")).toBe(true);
   });
 
   it("escapes more slowly from a planet with a higher escape velocity", () => {
@@ -192,9 +199,9 @@ describe("across a universe", () => {
     }
   });
 
-  it("makes no oxygen on a world that never lost water: without life, photolysis is the only source", () => {
+  it("makes no oxygen on a lifeless world that never lost water: photolysis is the only other source", () => {
     for (const { physics, history: h } of worlds) {
-      if (h.final.water < physics.waterInventory) continue;
+      if (h.final.water < physics.waterInventory || h.life !== null) continue;
       for (const s of h.snapshots!) expect(s.o2Bar).toBe(0);
     }
   });

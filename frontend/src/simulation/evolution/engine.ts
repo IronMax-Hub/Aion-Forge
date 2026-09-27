@@ -17,14 +17,20 @@
 // food chain: producers (chemical or light) at level 0, consumers one level
 // above what they eat, up to MAX_LEVEL. Its niche is habitat × level.
 //
-// One step (Revision 1, C2.3):
-//   1. Mutate. Each lineage proposes a drifted genome (seeded normal steps) and
+// One step: the six stages of Revision 1 (C2.3), with speciation first, so the
+// children drift and compete within the step and one sharing pass serves all.
+//   1. Speciate. A lineage splits at SPECIATION_PER_GYR, faster when
+//      neighbouring niches are empty and when the world holds fewer lineages
+//      than the cap (after a mass extinction, survivors radiate). The child
+//      drifts further, and may switch energy source, move to a neighbouring
+//      habitat, or eat a level up or down.
+//   2. Mutate. Each lineage proposes a drifted genome (seeded normal steps) and
 //      keeps it unless its potential biomass (what it could hold alone, less
 //      what predators able to eat it would take) falls by more than
 //      DRIFT_TOLERANCE: a lineage stands for a population, in which better
 //      variants spread, and nearly neutral ones can spread by drift.
-//   2. Score. Per band, a lineage's surplus is its intake minus its costs, as
-//      fractions of the energy reaching it:
+//   3. Score and compete. Per band, a lineage's surplus is its intake minus
+//      its costs, as fractions of the energy reaching it:
 //        intake = match × yield(O₂, M) × uptake(O₂, M)
 //          match: light users, the star's Planck spectrum at the absorption
 //                 peak relative to its maximum; others 1.
@@ -42,24 +48,19 @@
 //                   per individual, per unit of Kleiber metabolism M^¾)
 //                   and UV · surfaceUV
 //                 + in shallow water: UV · surfaceUV · SHALLOW_UV_SHARE
-//   3. Compete. Energy reaching a niche in a band is shared among its lineages
-//      by weight, surplus⁺ × (1 + INFO_SHARE_BONUS · info) for light users and
+//      Energy reaching a niche in a band is shared among its lineages by
+//      weight, surplus⁺ × (1 + INFO_SHARE_BONUS · info) for light users and
 //      consumers. Producers draw on the band's light (sunlit water, land) or
 //      chemical energy (deep water, ∝ tectonic activity). A consumer draws
-//      TROPHIC_EFFICIENCY of the biomass one level down in its habitat, and
-//      can eat only lineages no heavier than itself (owner decision), and what
-//      it takes the prey loses (PREDATION_LOSS), so large prey escape and
-//      predators gain by being large. A lineage with no
-//      surplus anywhere, or below MIN_NICHE_SHARE of its niche, dies out.
-//   4. Speciate. A lineage splits at SPECIATION_PER_GYR, faster when
-//      neighbouring niches are empty and when the world holds fewer lineages
-//      than the cap (after a mass extinction, survivors radiate). The child drifts further, and may switch
-//      energy source, move to a neighbouring habitat, or eat a level up or down.
-//      The step's energy is then shared again with the children in it.
-//   5. Catastrophes. The step's impact, volcanic pulse and climate transitions
+//      TROPHIC_EFFICIENCY of the biomass one level down in its habitat, can
+//      eat only lineages no heavier than itself (owner decision), and what it
+//      takes the prey loses (PREDATION_LOSS), so large prey escape and
+//      predators gain by being large. A lineage with no surplus anywhere, or
+//      below MIN_NICHE_SHARE of its niche, dies out.
+//   4. Catastrophes. The step's impact, volcanic pulse and climate transitions
 //      come in with the environment. Each kills each lineage with a
 //      probability that rises with body mass and food-chain level.
-//   6. Cap. Above LINEAGE_CAP living lineages, the weakest in the most crowded
+//   5. Cap. Above LINEAGE_CAP living lineages, the weakest in the most crowded
 //      niche dies out.
 // Every draw comes from its own stream, mixSeed(galaxySeed, starId,
 // planetIndex, EVOLUTION, lineageId, step, purpose), so changing one rule
@@ -314,43 +315,109 @@ function shareWeight(genome: Genome, surplus: number): number {
   return Math.max(0, surplus) * (1 + bonus);
 }
 
-/** Share of the consumer biomass one level up in a habitat that is heavy enough to eat a body of this mass. */
-function predationExposure(habitat: Habitat, level: number, log10BodyMassKg: number, alive: Lineage[]): number {
-  let able = 0;
-  let all = 0;
-  for (const c of alive) {
-    if (c.level !== level + 1 || c.genome.habitat !== habitat) continue;
-    all += c.biomass;
-    if (c.genome.log10BodyMassKg >= log10BodyMassKg) able += c.biomass;
+const nicheOf = (lineage: Lineage) => `${lineage.genome.habitat}:${lineage.level}`;
+
+/**
+ * The food and the predators each niche offers, fixed at the start of the
+ * mutation stage: per habitat and level, lineages sorted by body mass with
+ * running sums, so a body's edible supply and its exposure to predators are
+ * lookups rather than scans.
+ */
+interface FoodWeb {
+  /** Sorted masses of the lineages in a niche, and per band the running sum of their biomass (lightest first). */
+  masses: Map<string, number[]>;
+  cumulative: Map<string, Float64Array[]>;
+  /** Total biomass of a niche. */
+  totals: Map<string, number>;
+}
+
+function foodWebOf(alive: Lineage[], bandCount: number): FoodWeb {
+  const groups = new Map<string, Lineage[]>();
+  for (const l of alive) {
+    const key = nicheOf(l);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(l);
   }
-  return all > 0 ? able / all : 0;
+  const web: FoodWeb = { masses: new Map(), cumulative: new Map(), totals: new Map() };
+  for (const [key, group] of groups) {
+    group.sort((x, y) => x.genome.log10BodyMassKg - y.genome.log10BodyMassKg || x.id - y.id);
+    web.masses.set(key, group.map((l) => l.genome.log10BodyMassKg));
+    const running: Float64Array[] = [];
+    let previous = new Float64Array(bandCount);
+    for (const l of group) {
+      const next = new Float64Array(bandCount);
+      for (let b = 0; b < bandCount; b++) next[b] = previous[b] + l.bandBiomass[b];
+      running.push(next);
+      previous = next;
+    }
+    web.cumulative.set(key, running);
+    web.totals.set(key, group.reduce((sum, l) => sum + l.biomass, 0));
+  }
+  return web;
+}
+
+/** Number of sorted masses no heavier than a mass. */
+function countAtMost(masses: number[], mass: number): number {
+  let lo = 0;
+  let hi = masses.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (masses[mid] <= mass) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+}
+
+/** Share of the consumer biomass one level up in a habitat that is heavy enough to eat a body of this mass. */
+function predationExposure(habitat: Habitat, level: number, log10BodyMassKg: number, web: FoodWeb): number {
+  const key = `${habitat}:${level + 1}`;
+  const masses = web.masses.get(key);
+  const total = web.totals.get(key) ?? 0;
+  if (!masses || total <= 0) return 0;
+  // Predators lighter than the body cannot eat it
+  let lighter = 0;
+  let lo = 0;
+  let hi = masses.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (masses[mid] < log10BodyMassKg) lo = mid + 1; else hi = mid;
+  }
+  if (lo > 0) {
+    const running = web.cumulative.get(key)![lo - 1];
+    for (let b = 0; b < running.length; b++) lighter += running[b];
+  }
+  return Math.max(0, (total - lighter) / total);
 }
 
 /**
  * What a lineage could hold alone in its environment: the energy reaching it
  * in each band times its surplus there, less what predators able to eat it take.
  */
-function potentialBiomass(genome: Genome, level: number, env: Environment, alive: Lineage[]): number {
+function potentialBiomass(genome: Genome, level: number, env: Environment, web: FoodWeb): number {
   const budget = budgetOf(genome, env);
-  const prey = level === 0 ? [] : alive.filter((p) => p.level === level - 1 && p.genome.habitat === genome.habitat
-    && p.genome.log10BodyMassKg <= genome.log10BodyMassKg);
+  let edible: Float64Array | null = null;
+  if (level > 0) {
+    const key = `${genome.habitat}:${level - 1}`;
+    const masses = web.masses.get(key);
+    const count = masses ? countAtMost(masses, genome.log10BodyMassKg) : 0;
+    if (count === 0) return 0;
+    edible = web.cumulative.get(key)![count - 1];
+  }
   let total = 0;
   for (let b = 0; b < env.bands.length; b++) {
     const band = env.bands[b];
     const surplus = bandSurplus(genome, budget, band);
     if (surplus <= 0) continue;
-    let supply = 0;
-    if (level === 0) supply = producerSupply(genome.energySource, genome.habitat, band, env);
-    else for (const p of prey) supply += TROPHIC_EFFICIENCY * p.bandBiomass[b];
+    const supply = edible === null
+      ? producerSupply(genome.energySource, genome.habitat, band, env)
+      : TROPHIC_EFFICIENCY * edible[b];
     total += supply * surplus;
   }
   if (total <= 0) return 0;
-  return total * (1 - PREDATION_LOSS * predationExposure(genome.habitat, level, genome.log10BodyMassKg, alive));
+  return total * (1 - PREDATION_LOSS * predationExposure(genome.habitat, level, genome.log10BodyMassKg, web));
 }
 
 // ── The step ──────────────────────────────────────────────────────────────────
 
-const nicheOf = (lineage: Lineage) => `${lineage.genome.habitat}:${lineage.level}`;
 
 const SOURCE_INDEX: Record<EnergySource, number> = { chemical: 0, light: 1, consumer: 2 };
 const HABITAT_INDEX: Record<Habitat, number> = { "deep-water": 0, "shallow-water": 1, land: 2 };
@@ -515,26 +582,7 @@ export function stepEvolution(previous: EvolutionState, env: Environment, keys: 
     ? { ...l, genome: { ...l.genome }, bandBiomass: Float64Array.from(l.bandBiomass) } : l));
   let alive = lineages.filter((l) => l.diedGyr === null);
 
-  // 1. Mutate: keep a drifted genome if the lineage could hold at least as much with it
-  for (const lineage of alive) {
-    const proposal = drift(lineage.genome, streamFor(keys, lineage.id, step, PURPOSE.MUTATE), 1);
-    const current = potentialBiomass(lineage.genome, lineage.level, env, alive);
-    if (potentialBiomass(proposal, lineage.level, env, alive) >= current * (1 - DRIFT_TOLERANCE)) {
-      lineage.genome = proposal;
-    }
-  }
-
-  // 2–3. Score and compete; the unviable and the squeezed-out die
-  compete(alive, env);
-  const nicheTotals = new Map<string, number>();
-  for (const l of alive) nicheTotals.set(nicheOf(l), (nicheTotals.get(nicheOf(l)) ?? 0) + l.biomass);
-  for (const l of alive) {
-    if (l.biomass <= 0) kill(l, t, "unviable");
-    else if (l.biomass < MIN_NICHE_SHARE * nicheTotals.get(nicheOf(l))!) kill(l, t, "outcompeted");
-  }
-  alive = alive.filter((l) => l.diedGyr === null);
-
-  // 4. Speciate, in birth order
+  // 1. Speciate, in birth order, from last step's standing: children then drift and compete with the rest
   let nextId = previous.nextId;
   const occupied = new Set(alive.map(nicheOf));
   const room = 1 + ROOM_BONUS * Math.max(0, 1 - alive.length / LINEAGE_CAP);
@@ -549,10 +597,29 @@ export function stepEvolution(previous: EvolutionState, env: Environment, keys: 
   }
   lineages.push(...children);
   alive.push(...children);
-  // Children find their place at once: the step's biomass is shared again with them in it
-  if (children.length > 0) compete(alive, env);
 
-  // 5. Catastrophes, each drawn per lineage from its own stream
+  // 2. Mutate: keep a drifted genome unless it costs the lineage more than the drift tolerance,
+  // judged against the food web as the step began
+  const web = foodWebOf(alive, env.bands.length);
+  for (const lineage of alive) {
+    const proposal = drift(lineage.genome, streamFor(keys, lineage.id, step, PURPOSE.MUTATE), 1);
+    const current = potentialBiomass(lineage.genome, lineage.level, env, web);
+    if (potentialBiomass(proposal, lineage.level, env, web) >= current * (1 - DRIFT_TOLERANCE)) {
+      lineage.genome = proposal;
+    }
+  }
+
+  // 3. Score and compete; the unviable and the squeezed-out die
+  compete(alive, env);
+  const nicheTotals = new Map<string, number>();
+  for (const l of alive) nicheTotals.set(nicheOf(l), (nicheTotals.get(nicheOf(l)) ?? 0) + l.biomass);
+  for (const l of alive) {
+    if (l.biomass <= 0) kill(l, t, "unviable");
+    else if (l.biomass < MIN_NICHE_SHARE * nicheTotals.get(nicheOf(l))!) kill(l, t, "outcompeted");
+  }
+  alive = alive.filter((l) => l.diedGyr === null);
+
+  // 4. Catastrophes, each drawn per lineage from its own stream
   const catastrophes = [...previous.catastrophes];
   const events: { cause: CatastropheRecord["cause"]; chance: number }[] = [];
   if (env.catastrophes.impact) events.push({ cause: "impact", chance: KILL_CHANCE.impact });
@@ -567,7 +634,7 @@ export function stepEvolution(previous: EvolutionState, env: Environment, keys: 
     catastrophes.push({ tGyr: t, cause: event.cause, aliveBefore: before, lineagesLost: before - alive.length });
   });
 
-  // 6. Cap: the weakest in the most crowded niche goes first
+  // 5. Cap: the weakest in the most crowded niche goes first
   while (alive.length > LINEAGE_CAP) {
     const counts = new Map<string, number>();
     for (const l of alive) counts.set(nicheOf(l), (counts.get(nicheOf(l)) ?? 0) + 1);

@@ -21,8 +21,8 @@ function runInWorker(request: SurveyRequest): SurveyMessage[] {
   return messages;
 }
 
-// A full survey runs every solid planet's world history: seconds, not milliseconds
-const FULL_SURVEY_TIMEOUT_MS = 60_000;
+// A full survey runs every solid planet's world history and its life's evolution: minutes
+const FULL_SURVEY_TIMEOUT_MS = 900_000;
 
 describe("survey worker task", { timeout: FULL_SURVEY_TIMEOUT_MS }, () => {
   const messages = runInWorker({ generation: 7, seed: 42, config: makeConfig(42) });

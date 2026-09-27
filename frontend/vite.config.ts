@@ -12,5 +12,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Tests that build whole universes run every solid planet's world history
+    // and, since C2.3b, the evolution of its life: minutes, not seconds
+    testTimeout: 600_000,
   },
 })

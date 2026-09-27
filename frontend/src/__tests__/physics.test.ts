@@ -68,17 +68,15 @@ describe("Planetary physics", () => {
     }
   });
 
-  it("only allows life where the surface holds liquid water somewhere", () => {
+  it("scores no habitability where the surface holds no temperate liquid water", () => {
     // Not the mean temperature: a locked world can be frozen on average and still
-    // keep a temperate ring (Worlds Up Close A3)
+    // keep a temperate ring (Worlds Up Close A3). Life itself may still live in
+    // dark water under ice (C2.2): habitability is a present-day summary, not a gate (C2.3b).
     for (const seed of SEEDS) {
       const { stars } = generateStarsFor(makeGalaxyConfig(seed));
       for (const star of stars.slice(0, 300)) {
         for (const p of generatePlanetsFor(star, seed).planets) {
-          if (!p.surface || p.surface.habitableFraction === 0) {
-            expect(p.habitabilityScore).toBe(0);
-            expect(generateBiosphere(p, star, seed).hasLife).toBe(false);
-          }
+          if (!p.surface || p.surface.habitableFraction === 0) expect(p.habitabilityScore).toBe(0);
         }
       }
     }

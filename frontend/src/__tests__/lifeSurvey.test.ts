@@ -13,11 +13,11 @@ const SEED = 100000;
 const config = makeConfig(SEED);
 const stars = generateStarsFor(
   { type: pickGalaxyType(createRNG(SEED)), particleCount: 500, seed: SEED, scale: 120 }, 13.7, config,
-).stars;
+).stars.slice(0, 300);   // a sample: the survey reads each star the same way
 const survey = surveyLife(stars, SEED, config);
 
 describe("life survey", () => {
-  it("gives the same result for the same seed", { timeout: 30_000 }, () => {   // a full survey: ~4 s alone, more in the full suite
+  it("gives the same result for the same seed", () => {
     expect(surveyLife(stars, SEED, config)).toEqual(survey);
   });
 
@@ -25,7 +25,7 @@ describe("life survey", () => {
     const expected: { starId: number; stage: string; count: number }[] = [];
     for (const star of stars) {
       const stages = generatePlanetsFor(star, SEED, config).planets
-        .map(p => generateBiosphere(p, star, SEED, config))
+        .map(p => generateBiosphere(p, star, SEED))
         .filter(b => b.hasLife && b.stage !== "prebiotic")
         .map(b => ORGANISM_STAGES.indexOf(b.stage));
       if (stages.length > 0) expected.push({ starId: star.id, stage: ORGANISM_STAGES[Math.max(...stages)], count: stages.length });

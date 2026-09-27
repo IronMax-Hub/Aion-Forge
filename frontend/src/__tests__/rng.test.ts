@@ -79,7 +79,9 @@ describe("Biosphere streams", () => {
     const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
     for (const star of stars) {
       if (star.age < 3) continue;
-      const planet = generatePlanetsFor(star, seed, config).planets.find((p) => p.habitabilityScore > 0.8);
+      // A world whose life lives today, so its biosphere's seeded rolls are used
+      const planet = generatePlanetsFor(star, seed, config).planets
+        .find((p) => p.habitabilityScore > 0.8 && p.life !== null && p.life.endedGyr === null);
       if (planet) return { planet, star };
     }
     throw new Error("no habitable world in seed 42");

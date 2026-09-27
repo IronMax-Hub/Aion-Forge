@@ -89,10 +89,28 @@ The plan leaves the engine's quantitative model open. These choices were needed 
 
 Measured on hand-made Earth-like environments (12 seeds, 4 Gyr): without oxygen the heaviest lineage stays microbial (median below 10⁻⁹ kg); with Earth's oxygen, multicellular life appears in most runs by 2–4 Gyr and bodies reach up to ~100 kg over 10 Gyr.
 
-### Open issues for C2.3b and C2.10
+## Life in the world history (C2.3b)
+
+From rules v7 the world history loop (`worldHistory.ts`) carries life:
+
+- **Origin.** Until life has begun, each step has a chance of it beginning: 4.6 per Gyr per unit of liquid-water area (a share of the planet), × emergence sensitivity. An Earth-like world (70% ocean) gets life within 0.5 Gyr of its oceans in about 4 cases out of 5 (owner decision: anchored on Earth). Life begins at most once; if it dies out, the planet keeps the dates.
+- **Evolution.** Once begun, one engine step per loop step, in that step's environment.
+- **Oxygen** (owner decision). Light users make it, 4 bar/Gyr per unit of light-user biomass × g; life respires it, 17 per Gyr per unit of total biomass × O₂. The two are solved exactly over each step, so O₂ relaxes towards 0.235 · g · (light-user share of biomass): about 0.21 bar on an Earth-like world. Early anoxic light users (biomass ~0.02) out-produce the crust and volcanic sinks, so oxidation follows them.
+- **Methane.** Chemical-energy life makes it, 70 bar/Gyr per unit of biomass × g × the anaerobic share of a cell's metabolism, against the existing destruction (faster in O₂); solved exactly over each step. Anoxic vent life keeps ~10⁻³ bar; oxidised air far less.
+- **The biosphere** reads whether a planet has life today, and since when, from the loop (R4; owner decision). Its other fields keep their seeded rolls until C2.5.
+
+Found and fixed on the way: the existing methane destruction, stepped explicitly, multiplied methane by exactly zero every 0.1 Gyr step. It did not show while nothing made methane.
+
+Measured (seed 100000, first 400 stars, before stats): life begins on ~58% of solid planets and lives today on ~45%. On Earth copies around the Sun, life begins at 0.6–1.1 Gyr, light users appear at 2.8–3.4 Gyr and the air oxidises at 3.0–3.5 Gyr, settling at 0.19–0.21 bar; some copies stay anoxic.
+
+A world's life now changes its climate too: on a hot Earth at 0.46 AU, life's oxygen raises the pressure and so the boiling point enough to hold off the runaway greenhouse the lifeless planet suffers.
+
+**Speed** (owner decision: accept the slower survey). With the engine running on every planet where life begins, a universe takes about 85 s to generate on this machine, against ~3 s before. The survey runs in the background worker with its progress bar.
+
+### Open issues for C2.10
 
 - **Gravity does not limit size in practice.** The support cost lowers the heaviest land body that can live as gravity rises (tested), but over 10 Gyr of evolution land bodies stay around 1–250 kg, far below the ceiling (thousands of kg at 1 g), so gravity makes no measurable difference between 0.2 and 5 g. To tune in C2.10: how fast size evolves, or the support constant.
-- **Speed.** About 0.3 ms per step, ~19 ms per planet over its history on this machine. The plan budgets 0.6 ms per living planet. Wiring it into the survey as it is could add tens of seconds; C2.3b must measure it and decide (fewer bands for the engine, or other savings).
+- **Land life without water.** Land lineages can outlive a planet's oceans; nothing yet ties land life to water.
 
 ---
 

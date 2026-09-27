@@ -19,14 +19,19 @@ function planet(overrides: Partial<Planet> = {}): Planet {
   return {
     id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky",
     size: 1, mass: 1, temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5,
-    habitabilityScore: 0.8, isRare: false, surface: null, ...overrides,
+    habitabilityScore: 0.8, isRare: false, surface: null, life: null, ...overrides,
   };
 }
 
+function starsOf(seed: number) {
+  const config = makeConfig(seed);
+  return generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
+}
+
+// The planets of a universe's first 600 stars: a sample large enough for the statistics below
 function universe(seed: number) {
   const config = makeConfig(seed);
-  const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
-  return stars.flatMap((s) => generatePlanetsFor(s, seed, config).planets.map((p) => ({
+  return starsOf(seed).slice(0, 600).flatMap((s) => generatePlanetsFor(s, seed, config).planets.map((p) => ({
     star: s, planet: p, physics: derivePhysics(p, s, seed, config),
   })));
 }
@@ -34,8 +39,8 @@ function universe(seed: number) {
 const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 
 describe("stellar luminosity through time", () => {
-  it("returns today's luminosity today, for any kind of star", { timeout: 30_000 }, () => {   // builds a whole universe's planets
-    for (const s of universe(42).map((e) => e.star).slice(0, 400)) {
+  it("returns today's luminosity today, for any kind of star", () => {
+    for (const s of starsOf(42)) {
       expect(luminosityAt(s, s.age)).toBe(s.luminosity);
     }
   });

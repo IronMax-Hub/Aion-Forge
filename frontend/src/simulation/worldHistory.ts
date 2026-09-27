@@ -3,8 +3,8 @@
 // Why it exists: a planet is not a snapshot. Its star brightens, its interior
 // cools, its air and water change, and its climate can freeze over, run away
 // or hold steady for billions of years. This steps one solid planet from its
-// formation to the present and records what happened. Life joins the loop in
-// C2.3; until then every biomass term is zero.
+// formation to the present and records what happened, with any life that
+// arises on it (C2.3b).
 //
 // How: 100 Myr steps from 0.5 Gyr after the star formed to the star's age
 // (the last step is shortened to end exactly there). Each step:
@@ -28,10 +28,20 @@
 //      O₂   photolysis of the escaping water leaves oxygen behind; volcanic
 //           gases (∝ τ) and unoxidised crust (which is used up) remove it.
 //           Ozone = min(1, √(O₂ / 0.21 bar)). CH₄ is destroyed faster in O₂.
+//           Life's O₂ and CH₄ each relax towards production / loss, solved
+//           exactly over the step.
 //   5. Events    impacts (a heavy early bombardment fading to a background)
 //                and volcanic pulses (∝ τ), each from its own keyed draw.
 //                Climate transitions are recorded with their dates.
-//   6. Record    a snapshot of the step, when asked for.
+//   6. Life      (C2.3b) until life has begun, a chance per step of it
+//                beginning, ∝ liquid-water area × emergenceSensitivity; once
+//                begun, one step of the evolution engine (evolution/engine.ts)
+//                in this step's environment (evolution/environment.ts). Its
+//                biomass feeds the next step's chemistry: light users make O₂
+//                and chemical users CH₄; life respires O₂ in proportion to O₂ ×
+//                its biomass. Life begins at most once; if it dies out, the
+//                history keeps its record.
+//   7. Record    a snapshot of the step, when asked for.
 // After the last step, the present day is solved on all 642 cells (R5).
 //
 // Gravity (owner decisions): water is W · 33.75 km · g deep (geography.ts);
@@ -76,6 +86,11 @@ import {
 } from "./climate";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
+import { environmentContext, environmentFor } from "./evolution/environment";
+import type { EnvironmentContext } from "./evolution/environment";
+import { aerobicShare, startLife, stepEvolution } from "./evolution/engine";
+import { TRAIT_RANGES } from "./evolution/genome";
+import type { EvolutionState } from "./evolution/engine";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -136,7 +151,25 @@ const VOLCANIC_PULSE_PER_GYR = 4;            // at τ = 1
 const VOLCANIC_PULSE_OUTGASSING = 2;         // outgassing multiplier during a pulse
 
 /** Draw purposes within the WORLD stream: each step's draw for each purpose is its own. */
-const PURPOSE = { IMPACT: 1, VOLCANISM: 2 } as const;
+const PURPOSE = { IMPACT: 1, VOLCANISM: 2, ORIGIN: 3 } as const;
+
+// Life (C2.3b). Origin: a chance per Gyr per unit of liquid-water area (a share
+// of the planet), × emergenceSensitivity; set so an Earth-like world (70%
+// ocean) gets life within 0.5 Gyr of its oceans forming in 4 cases out of 5
+// (owner decision: anchored on Earth). −ln(0.2) / (0.7 · 0.5 Gyr) ≈ 4.6.
+const ORIGIN_PER_GYR_PER_WATER_AREA = 4.6;
+// Life's oxygen (owner decision): light users make it, life respires it.
+// Production per unit of light-user biomass (engine.ts units), × g like the
+// other gases; respiration and decay take O₂ × total biomass × RESPIRATION.
+// Their ratio sets the balance: Earth-like biomass (light ≈ 0.5 of 0.55) holds
+// ~0.21 bar. Production is high enough that early anoxic light users (biomass
+// ~0.02) outpace the crust and volcanic sinks, so oxidation can follow.
+const O2_PRODUCTION_BAR_PER_GYR = 4;
+const O2_RESPIRATION_PER_GYR = 17;
+// Methane from chemical-energy life (methanogens), in proportion to the
+// anaerobic share of a cell's metabolism; anoxic vent life (biomass ~1.5e-4)
+// keeps ~1e-3 bar against the existing destruction.
+const CH4_PRODUCTION_BAR_PER_GYR = 70;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -176,6 +209,10 @@ export interface WorldState {
   iced: Uint8Array;
   /** Each band's share of liquid water (open or under ice), for the next step. */
   bandOcean: Float64Array;
+  /** Life's biomass at the end of the step (engine.ts units): light users, chemical users, all. */
+  lightBiomass: number;
+  chemicalBiomass: number;
+  totalBiomass: number;
 }
 
 export interface WorldSnapshot extends WorldState {
@@ -196,6 +233,8 @@ export interface WorldHistory {
   steps: number;
   /** Every step, when `keepSnapshots` is set. */
   snapshots?: WorldSnapshot[];
+  /** Life's lineages, if life ever began (C2.3b); its `endedGyr` says whether it still lives. */
+  life: EvolutionState | null;
 }
 
 export interface WorldHistoryOptions {
@@ -278,6 +317,9 @@ export function runWorldHistory(
     bandK: new Float64Array(BAND_COUNT),
     iced: new Uint8Array(BAND_COUNT),
     bandOcean: new Float64Array(BAND_COUNT),
+    lightBiomass: 0,
+    chemicalBiomass: 0,
+    totalBiomass: 0,
   };
 
   const events: WorldEvent[] = [];
@@ -307,6 +349,11 @@ export function runWorldHistory(
     });
     return seaLevel;
   };
+
+  // Life: the engine's fixed context, made once life can start; the keys of its streams
+  let life: EvolutionState | null = null;
+  let lifeContext: EnvironmentContext | null = null;
+  const lifeKeys = { galaxySeed, starId: planet.hostStarId, planetIndex: planet.id };
 
   const stepCount = star.age > FORMATION_DELAY_GYR ? Math.ceil((star.age - FORMATION_DELAY_GYR) / STEP_GYR - 1e-9) : 0;
   let seaLevelKm = 0;
@@ -369,14 +416,29 @@ export function runWorldHistory(
     const water = state.water - waterLost;
 
     // 4c. Oxygen, ozone and methane
-    const o2Supplied = state.o2Bar + PHOTOLYSIS_O2_BAR_PER_WATER * waterLost * g * g;
+    // Life's O₂ from last step's biomass (a one-step lag keeps the order explicit):
+    // dO₂/dt = production − respiration·O₂, solved exactly over the step, so the
+    // O₂ relaxes towards production / respiration however fast life turns it over
+    const production = O2_PRODUCTION_BAR_PER_GYR * state.lightBiomass * g;
+    const respiration = O2_RESPIRATION_PER_GYR * state.totalBiomass;
+    const o2Living = respiration > 0
+      ? production / respiration + (state.o2Bar - production / respiration) * exp(-respiration * dt)
+      : state.o2Bar + production * dt;
+    const o2Supplied = o2Living + PHOTOLYSIS_O2_BAR_PER_WATER * waterLost * g * g;
     const volcanicSink = VOLCANIC_O2_SINK_BAR_PER_GYR * tau * dt;
     const crustDemand = CRUST_O2_SINK_BAR_PER_GYR * state.unoxidisedCrust * dt;
     const volcanicTaken = Math.min(o2Supplied, volcanicSink);
     const crustTaken = Math.min(o2Supplied - volcanicTaken, crustDemand);
     const o2 = o2Supplied - volcanicTaken - crustTaken;
     const unoxidisedCrust = Math.max(0, state.unoxidisedCrust - crustTaken / CRUST_O2_CAPACITY_BAR);
-    const ch4 = state.ch4Bar * Math.max(0, 1 - CH4_DESTRUCTION_PER_GYR * dt * (1 + o2 / O2_REFERENCE_BAR));
+    // dCH₄/dt = production − destruction·CH₄, solved exactly over the step (the
+    // destruction is fast, ~0.1 Gyr, so an explicit step would wipe it out each time)
+    // Methanogens work anaerobically: only the anaerobic share of a cell's metabolism makes methane
+    const anaerobic = 1 - aerobicShare(state.o2Bar, TRAIT_RANGES.log10BodyMassKg.min);
+    const ch4Production = CH4_PRODUCTION_BAR_PER_GYR * state.chemicalBiomass * anaerobic * g;
+    const ch4Destruction = CH4_DESTRUCTION_PER_GYR * (1 + o2 / O2_REFERENCE_BAR);
+    const ch4Balance = ch4Production / ch4Destruction;
+    const ch4 = ch4Balance + (state.ch4Bar - ch4Balance) * exp(-ch4Destruction * dt);
 
     // Water phase for the next step (R3): oceans boil above the boiling point
     // under the air alone; steam condenses below it under the air and the steam
@@ -397,6 +459,7 @@ export function runWorldHistory(
     if (!oceansLost && water < OCEANS_LOST_WATER) { oceansLost = true; events.push({ kind: "oceans-lost", tGyr: t }); }
     if (!oxidised && o2 >= OXIDATION_O2_BAR) { oxidised = true; events.push({ kind: "oxidation", tGyr: t }); }
 
+    const stepEvents = events.slice(eventsBefore).map((e) => e.kind);
     state = {
       tGyr: t, luminosity, tectonicActivity: tau, water, co2Bar: co2, o2Bar: o2, ch4Bar: ch4,
       ozone: Math.min(1, Math.sqrt(o2 / O2_REFERENCE_BAR)), unoxidisedCrust,
@@ -404,8 +467,28 @@ export function runWorldHistory(
       meanK: climate.meanK, steam, iceFraction: climate.iceFraction,
       openOceanFraction: climate.openOceanFraction, openLandFraction: climate.openLandFraction,
       bandK: climate.bandK, iced: climate.iced, bandOcean: Float64Array.from(bandOcean),
+      lightBiomass: 0, chemicalBiomass: 0, totalBiomass: 0,
     };
-    snapshots?.push({ ...state, dtGyr: dt, impact, volcanicPulse, events: events.slice(eventsBefore).map((e) => e.kind) });
+    const snapshot: WorldSnapshot = { ...state, dtGyr: dt, impact, volcanicPulse, events: stepEvents };
+
+    // 6. Life: once, a chance of beginning where there is liquid water; then one engine step per step
+    if (life === null) {
+      let waterArea = 0;
+      if (!steam) for (let k = 0; k < BAND_COUNT; k++) waterArea += geometry.areas[k] * bandOcean[k];
+      const originRate = ORIGIN_PER_GYR_PER_WATER_AREA * waterArea * config.emergenceSensitivity;
+      if (waterArea > 0 && happens(galaxySeed, planet, step, PURPOSE.ORIGIN, originRate, dt)) {
+        lifeContext = environmentContext(planet, physics, star, config);
+        life = startLife(environmentFor(snapshot, lifeContext));
+      }
+    } else if (life.endedGyr === null) {
+      life = stepEvolution(life, environmentFor(snapshot, lifeContext!), lifeKeys, step);
+    }
+    if (life !== null && life.endedGyr === null) {
+      state.lightBiomass = snapshot.lightBiomass = life.lightBiomass;
+      state.chemicalBiomass = snapshot.chemicalBiomass = life.chemicalBiomass;
+      state.totalBiomass = snapshot.totalBiomass = life.totalBiomass;
+    }
+    snapshots?.push(snapshot);
   }
 
   // A star younger than the formation delay runs no steps: its planet is as it
@@ -430,5 +513,5 @@ export function runWorldHistory(
     ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water),
   }, seaLevelKm, state.steam, physics.axialTiltDeg, physics.tidallyLocked, state.iced);
 
-  return { final: state, present, events, steps: stepCount, snapshots };
+  return { final: state, present, events, steps: stepCount, snapshots, life };
 }

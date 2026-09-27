@@ -94,7 +94,7 @@ describe("vegetation", () => {
   it("shows no tint on any lifeless planet", () => {
     let lifeless = 0;
     for (const { star, planet } of solids) {
-      const bio = generateBiosphere(planet, star, seed, config);
+      const bio = generateBiosphere(planet, star, seed);
       if (bio.hasLife) continue;
       lifeless++;
       expect(vegetationOf(bio, star.temperature)).toBeNull();

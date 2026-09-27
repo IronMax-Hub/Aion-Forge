@@ -53,6 +53,15 @@ export interface Planet {
   isRare: boolean;
   /** Today's surface, from the planet's world history; null for giants, which have none. */
   surface: PlanetSurface | null;
+  /** When life began and, if it has, ended on the planet, from its world history (C2.3b); null if it never began. */
+  life: PlanetLife | null;
+}
+
+/** The dates of a planet's life, Gyr after its star formed. */
+export interface PlanetLife {
+  startedGyr: number;
+  /** Null while life lasts. */
+  endedGyr: number | null;
 }
 
 /** The present-day surface of a solid planet, as the world history left it (A3). */
@@ -307,6 +316,7 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
       habitabilityScore: 0,
       isRare: false,
       surface: null,
+      life: null,
     };
 
     if (mass > GIANT_PLANET_MASS) {
@@ -315,6 +325,7 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
       // A solid planet's surface is the end of its history
       const { physics, history } = solidWorldOf(planet, star, galaxySeed, config);
       planet.surface = presentSurface(history.present, physics, history.final.pressureBar);
+      planet.life = history.life && { startedGyr: history.life.startedGyr, endedGyr: history.life.endedGyr };
       planet.temperature = history.present.meanK;
       planet.atmosphere = atmosphereClassOf(history.final.pressureBar);
       planet.type = solidType(planet.temperature, planet.surface);

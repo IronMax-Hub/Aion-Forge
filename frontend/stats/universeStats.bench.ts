@@ -10,7 +10,9 @@
 // deterministic; only the timings vary between runs.
 //
 // Later phases add their own columns (ocean fraction, climate history and
-// evolution measures) when the simulation produces them.
+// evolution measures) when the simulation produces them. Since C2.3b: worlds
+// that ever had life, worlds living today, and the median time life began
+// (after the loop's start, 0.5 Gyr after the star formed).
 
 import { execSync } from "node:child_process";
 import { appendFileSync, existsSync, writeFileSync } from "node:fs";
@@ -26,14 +28,14 @@ import { generatePlanetsFor } from "../src/simulation/planet";
 import { derivePhysics } from "../src/simulation/planetPhysics";
 import { buildGeography, hasSolidSurface } from "../src/simulation/geography";
 import type { Geography } from "../src/simulation/geography";
-import { runWorldHistory } from "../src/simulation/worldHistory";
+import { runWorldHistory, FORMATION_DELAY_GYR } from "../src/simulation/worldHistory";
 import type { WorldHistory } from "../src/simulation/worldHistory";
 import type { LifeSurvey } from "../src/simulation/lifeSurvey";
 import { SIMULATION_RULES_VERSION } from "../src/simulation/version";
 
 const SEEDS = [100000, 42, 7777];
-// Each survey runs every solid planet's world history (~3 s), so three timed runs, one of which is counted
-const TIMING_RUNS = 3;
+// Since C2.3b each survey also evolves life on every planet where it begins (a minute or more here), so one timed run
+const TIMING_RUNS = 1;
 const STATS_FILE = fileURLToPath(new URL("../../Documents/stats.md", import.meta.url));
 
 interface Geographies {
@@ -51,6 +53,9 @@ interface Histories {
   oxidisedShare: number;       // without life: oxygen left by escaping water
   liquidTodayShare: number;    // more than 1% open water today
   noLandRunawayShare: number;  // of the worlds that formed with no land
+  everLifeShare: number;       // life began at some time (C2.3b)
+  livingShare: number;         // life lives today
+  medianLifeStartGyr: number;  // after the loop's start, over worlds where life began
   ms: number;
 }
 
@@ -68,23 +73,12 @@ function starsOf(seed: number, config: UniverseConfig): Star[] {
   return generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
 }
 
-function lockedShare(stars: Star[], seed: number, config: UniverseConfig): number {
-  let planets = 0;
-  let locked = 0;
-  for (const star of stars) {
-    for (const planet of generatePlanetsFor(star, seed, config).planets) {
-      planets++;
-      if (derivePhysics(planet, star, seed, config).tidallyLocked) locked++;
-    }
-  }
-  return planets === 0 ? 0 : locked / planets;
-}
-
-/** Geography and world history of every solid planet, each timed over one pass. */
-function solidWorlds(stars: Star[], seed: number, config: UniverseConfig): { geography: Geographies; history: Histories } {
-  const solid = stars.flatMap((star) => generatePlanetsFor(star, seed, config).planets
-    .filter(hasSolidSurface)
+/** Tidal locking over all planets, and the geography and world history of every solid planet, each timed over one pass. */
+function solidWorlds(stars: Star[], seed: number, config: UniverseConfig): { lockedShare: number; geography: Geographies; history: Histories } {
+  const all = stars.flatMap((star) => generatePlanetsFor(star, seed, config).planets
     .map((planet) => ({ star, planet, physics: derivePhysics(planet, star, seed, config) })));
+  const lockedShare = all.length === 0 ? 0 : all.filter((p) => p.physics.tidallyLocked).length / all.length;
+  const solid = all.filter(({ planet }) => hasSolidSurface(planet));
 
   let start = performance.now();
   const geographies: Geography[] = solid.map(({ planet, physics }) => buildGeography(planet, physics, seed));
@@ -98,7 +92,10 @@ function solidWorlds(stars: Star[], seed: number, config: UniverseConfig): { geo
   const oceans = geographies.map((g) => g.oceanFraction).sort((a, b) => a - b);
   const had = (kind: string) => (h: WorldHistory) => h.events.some((e) => e.kind === kind);
   const noLand = histories.filter((_, i) => geographies[i].oceanFraction === 1);
+  const lifeStarts = histories.filter((h) => h.life !== null)
+    .map((h) => h.life!.startedGyr - FORMATION_DELAY_GYR).sort((a, b) => a - b);
   return {
+    lockedShare,
     geography: {
       solidPlanets: solid.length,
       medianOcean: oceans.length === 0 ? 0 : oceans[Math.floor(oceans.length / 2)],
@@ -113,6 +110,9 @@ function solidWorlds(stars: Star[], seed: number, config: UniverseConfig): { geo
       oxidisedShare: shareOf(histories, had("oxidation")),
       liquidTodayShare: shareOf(histories, (h) => h.present.oceanFraction > 0.01),
       noLandRunawayShare: shareOf(noLand, had("runaway-greenhouse")),
+      everLifeShare: shareOf(histories, (h) => h.life !== null),
+      livingShare: shareOf(histories, (h) => h.life !== null && h.life.endedGyr === null),
+      medianLifeStartGyr: lifeStarts.length === 0 ? NaN : lifeStarts[Math.floor(lifeStarts.length / 2)],
       ms: historyMs,
     },
   };
@@ -136,10 +136,7 @@ function measure(): Row[] {
     for (const seed of SEEDS) {
       const config = makeConfig(seed, preset.values);
       const stars = starsOf(seed, config);
-      rows.push({
-        preset: preset.name, seed, ...timedSurvey(stars, seed, config),
-        lockedShare: lockedShare(stars, seed, config), ...solidWorlds(stars, seed, config),
-      });
+      rows.push({ preset: preset.name, seed, ...timedSurvey(stars, seed, config), ...solidWorlds(stars, seed, config) });
     }
   }
   return rows;
@@ -151,12 +148,12 @@ function stageMix(survey: LifeSurvey): string {
 
 function table(rows: Row[]): string {
   const lines = [
-    "| Preset | Seed | Planets | Tidally locked | Solid planets | Median ocean cover at formation | Ocean worlds (> 90%) | Dry (< 3%) | Ever froze over | Runaway greenhouse | Oceans lost | Oxidised without life | Liquid water today | Runaway, worlds formed with no land | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Survey (ms) | Geography (ms) | World history (ms) |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|",
+    "| Preset | Seed | Planets | Tidally locked | Solid planets | Median ocean cover at formation | Ocean worlds (> 90%) | Dry (< 3%) | Ever froze over | Runaway greenhouse | Oceans lost | Oxidised without life | Liquid water today | Runaway, worlds formed with no land | Ever had life | Living today | Median life start (Gyr) | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Survey (ms) | Geography (ms) | World history (ms) |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|",
   ];
   const percent = (share: number) => `${(share * 100).toFixed(1)}%`;
   for (const { preset, seed, survey, lockedShare: locked, geography: g, history: h, surveyMs } of rows) {
-    lines.push(`| ${preset} | ${seed} | ${survey.totalPlanets} | ${percent(locked)} | ${g.solidPlanets} | ${percent(g.medianOcean)} | ${percent(g.oceanWorldShare)} | ${percent(g.dryShare)} | ${percent(h.frozeShare)} | ${percent(h.runawayShare)} | ${percent(h.oceansLostShare)} | ${percent(h.oxidisedShare)} | ${percent(h.liquidTodayShare)} | ${percent(h.noLandRunawayShare)} | ${survey.lifeBearingPlanets} | ${survey.systems.length} | ${stageMix(survey)} | ${survey.civilizationCount} | ${surveyMs.toFixed(1)} | ${g.ms.toFixed(0)} | ${h.ms.toFixed(0)} |`);
+    lines.push(`| ${preset} | ${seed} | ${survey.totalPlanets} | ${percent(locked)} | ${g.solidPlanets} | ${percent(g.medianOcean)} | ${percent(g.oceanWorldShare)} | ${percent(g.dryShare)} | ${percent(h.frozeShare)} | ${percent(h.runawayShare)} | ${percent(h.oceansLostShare)} | ${percent(h.oxidisedShare)} | ${percent(h.liquidTodayShare)} | ${percent(h.noLandRunawayShare)} | ${percent(h.everLifeShare)} | ${percent(h.livingShare)} | ${Number.isNaN(h.medianLifeStartGyr) ? "–" : h.medianLifeStartGyr.toFixed(1)} | ${survey.lifeBearingPlanets} | ${survey.systems.length} | ${stageMix(survey)} | ${survey.civilizationCount} | ${surveyMs.toFixed(1)} | ${g.ms.toFixed(0)} | ${h.ms.toFixed(0)} |`);
   }
   return lines.join("\n");
 }
@@ -190,5 +187,7 @@ describe("life survey", () => {
   const seed = SEEDS[0];
   const config = makeConfig(seed);
   const stars = starsOf(seed, config);
-  bench(`seed ${seed}, default parameters`, () => { surveyLife(stars, seed, config); });
+  // One run: a survey takes a minute or more since C2.3b
+  bench(`seed ${seed}, default parameters`, () => { surveyLife(stars, seed, config); },
+    { iterations: 1, time: 0, warmupIterations: 0, warmupTime: 0 });
 });

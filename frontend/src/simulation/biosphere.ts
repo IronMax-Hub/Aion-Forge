@@ -1,9 +1,7 @@
 import { createRNG, mixSeed, SALT } from "./rng";
-import { exp, pow } from "./detmath";
+import { exp } from "./detmath";
 import type { Planet } from "./planet";
 import type { Star } from "./star";
-import { makeConfig } from "./config";
-import type { UniverseConfig } from "./config";
 
 // ── Data model ────────────────────────────────────────────────────────────────
 
@@ -37,9 +35,12 @@ export interface Biosphere {
 
 // ── Stage thresholds on complexity ───────────────────────────────────────────
 
+// Lowest complexity that counts as microbial life
+const MICROBIAL_COMPLEXITY = 0.08;
+
 function complexityToStage(c: number): LifeStage {
   if (c <= 0)    return "none";
-  if (c < 0.08)  return "prebiotic";
+  if (c < MICROBIAL_COMPLEXITY) return "prebiotic";
   if (c < 0.25)  return "microbial";
   if (c < 0.50)  return "multicellular";
   if (c < 0.78)  return "complex";
@@ -65,9 +66,7 @@ export function generateBiosphere(
   planet: Planet,
   star: Star,
   galaxySeed: number,
-  cfg?: UniverseConfig
 ): Biosphere {
-  const config = cfg ?? makeConfig(galaxySeed);
   const rng = createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.BIO));
 
   const empty: Biosphere = {
@@ -77,25 +76,17 @@ export function generateBiosphere(
     extinctions: [], ageGyr: 0,
   };
 
-  // Life cannot emerge on giants, lava worlds, or with no/crushing atmosphere
-  if (
-    planet.type === "gas-giant" ||
-    planet.type === "ice-giant" ||
-    planet.type === "lava" ||
-    planet.atmosphere === "none" ||
-    planet.atmosphere === "crushing"
-  ) return empty;
+  // Whether there is life, and since when, is the world history's (R4, C2.3b):
+  // life begins by the loop's per-step origin roll and lives or dies by the
+  // evolution engine. A planet whose life has ended has none today.
+  if (!planet.life || planet.life.endedGyr !== null) return empty;
+  const lifeAgeGyr = star.age - planet.life.startedGyr;
 
-  // emergenceSensitivity scales life probability — higher = more likely
-  const lifeProbability = Math.min(0.99, pow(planet.habitabilityScore, 0.6) * 0.85 * config.emergenceSensitivity);
-  if (rng() > lifeProbability) return empty;
-
-  // Life has emerged. How long has it had to evolve?
-  // Life needs time: star must be old enough, and life needs at least ~0.5 Gyr to get started
-  const availableTimeGyr = Math.max(0, star.age - 0.5);
-  if (availableTimeGyr <= 0) return { ...empty, hasLife: false };
-
-  const lifeAgeGyr = rng() * availableTimeGyr;
+  // The rest keeps its seeded rolls until C2.5 reads it from the lineages. The
+  // two draws the old emergence roll and age used are still taken, so the
+  // draws below keep their values.
+  rng();
+  rng();
 
   // Base complexity grows with time (logistic-like) and habitability
   const growthRate    = 0.4 + planet.habitabilityScore * 0.5 + rng() * 0.2;
@@ -140,7 +131,8 @@ export function generateBiosphere(
   if (planet.type === "ocean") diversity = Math.min(1, diversity * 1.3);
 
   // Clamp all values
-  complexity   = Math.min(1, Math.max(0, complexity));
+  // Life from the loop is cells from its first step: at least microbial (R9 keeps "prebiotic" only in the type)
+  complexity   = Math.min(1, Math.max(MICROBIAL_COMPLEXITY, complexity));
   diversity    = Math.min(1, Math.max(0, diversity));
   stability    = Math.min(1, Math.max(0, stability));
   adaptability = Math.min(1, Math.max(0, adaptability));

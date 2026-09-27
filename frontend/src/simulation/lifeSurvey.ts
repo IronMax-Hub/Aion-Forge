@@ -57,7 +57,7 @@ export function surveyLife(
     let civRank = -1;
 
     for (const planet of system.planets) {
-      const bio = generateBiosphere(planet, star, seed, cfg);
+      const bio = generateBiosphere(planet, star, seed);
       if (!bio.hasLife) continue;
       lifeBearingPlanets++;
 

@@ -12,17 +12,20 @@
 //
 // VISUAL stream order, per planet: detail noise (3 draws), cloud pattern (3);
 // giants then: rings (4: chance, inner edge, width, pattern), storm count (1),
-// and each of up to three storms (3: latitude, longitude, size).
+// and each of up to three storms (3: latitude, longitude, size). City lights
+// and the orbital shell (A9, life.ts) draw from sub-streams of their own.
 
 import type * as THREE from "three";
 import type { Planet, SolidWorld } from "../../simulation/planet";
 import type { PlanetPhysics } from "../../simulation/planetPhysics";
 import { createRNG, mixSeed, SALT } from "../../simulation/rng";
+import { boilingPointK } from "../../simulation/climate";
 import { buildSurfaceMap } from "./surfaceMap";
 import { GlobeBake } from "./globeBake";
 import type { GiantStorm } from "./globeBake";
 import { EARTH_RADIUS_KM } from "./PlanetView";
 import { overcastShare } from "./atmosphere";
+import type { Vegetation } from "./life";
 
 /** A giant's rings, in planet radii. */
 export interface RingLook {
@@ -148,8 +151,11 @@ export class GlobeTextureCache {
   /**
    * The planet's globe, reusing its bake if it is cached. `world` is a solid
    * planet's world (solidWorldOf); null for a giant, drawn from its physics alone.
+   * `vegetation` tints a solid planet's first bake (A9, life.ts).
    */
-  globeFor(planet: Planet, world: SolidWorld | null, physics: PlanetPhysics, galaxySeed: number): GlobeSurface {
+  globeFor(
+    planet: Planet, world: SolidWorld | null, physics: PlanetPhysics, galaxySeed: number, vegetation: Vegetation | null = null,
+  ): GlobeSurface {
     const giant = world === null ? giantLookOf(planet, galaxySeed, physics.rotationPeriodHours) : null;
     let bake = this.bakes.get(planet.key);
     if (bake) {
@@ -161,6 +167,8 @@ export class GlobeTextureCache {
         bumpScale: RELIEF_EXAGGERATION / (planet.size * EARTH_RADIUS_KM),
         cloudOffset: cloudOffsetOf(planet, galaxySeed),
         overcast: overcastShare(planet.surface?.pressureBar ?? 0),
+        boilingK: boilingPointK(planet.surface?.pressureBar ?? 0),
+        vegetation,
       });
     } else {
       bake = GlobeBake.giant({

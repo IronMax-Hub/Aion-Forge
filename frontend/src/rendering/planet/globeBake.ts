@@ -18,6 +18,7 @@
 
 import * as THREE from "three";
 import { FREEZING_K } from "../../simulation/climate";
+import type { Vegetation } from "./life";
 import type { SurfaceMapData } from "./surfaceMap";
 import { surfaceMapTexture } from "./surfaceMap";
 import { ATLAS_HEIGHT, ATLAS_WIDTH, CUBE_ATLAS_GLSL, faceTile } from "./cubeFaces";
@@ -42,6 +43,10 @@ export interface SurfaceBakeInputs {
   cloudOffset: THREE.Vector3Tuple;
   /** 0–1: share of the sky thick air clouds over, whatever the moisture (atmosphere.ts). */
   overcast: number;
+  /** Water's boiling point under the planet's air, K. */
+  boilingK: number;
+  /** Life's tint (A9); null on a lifeless planet. */
+  vegetation: Vegetation | null;
 }
 
 /** A storm on a giant: where it sits and how large it is, radians. */
@@ -84,6 +89,9 @@ export class GlobeBake {
       bumpScale: { value: inputs.bumpScale },
       cloudOffset: { value: new THREE.Vector3(...inputs.cloudOffset) },
       overcast: { value: inputs.overcast },
+      vegetationCover: { value: inputs.vegetation?.cover ?? 0 },
+      vegetationColour: { value: inputs.vegetation?.colour.clone() ?? new THREE.Color(0, 0, 0) },
+      boilingK: { value: inputs.boilingK },
     }, [map]);
   }
 

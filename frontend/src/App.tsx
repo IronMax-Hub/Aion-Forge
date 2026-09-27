@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { audioEngine, ambientLayer, discovery, ui, lab, civLayer } from "./audio";
 import { AudioControls } from "./ui/AudioControls";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
@@ -425,10 +425,14 @@ export default function App() {
       // What the planet view draws: the planet's own world, rebuilt from the seed, lit by its star
       const orbitAU = effectiveOrbitAU(planet.orbitalRadius, universeConfig);
       const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, selectedStar, currentSeed, universeConfig) : null;
+      const biosphere = systemBiosphereRef.current.get(planet.id)
+        ?? generateBiosphere(planet, selectedStar, currentSeed, universeConfig);
       rendererRef.current?.approachPlanet(planet, {
         world,
         physics: world?.physics ?? derivePhysics(planet, selectedStar, currentSeed, universeConfig),
         starFlux: selectedStar.luminosity / (orbitAU * orbitAU),
+        biosphere,
+        civilization: generateCivilization(biosphere, planet, currentSeed, universeConfig).civilization,
       });
     }
     ui.inspect();
@@ -505,6 +509,18 @@ export default function App() {
     rendererRef.current?.leavePlanetView();
     ui.back();
   }
+
+  // The selected solid planet's world, for the planet panel's Surface section (Worlds Up Close A10)
+  const selectedWorld = useMemo(
+    () => (selectedPlanet?.surface && selectedStar ? solidWorldOf(selectedPlanet, selectedStar, currentSeed, universeConfig) : null),
+    [selectedPlanet, selectedStar, currentSeed, universeConfig],
+  );
+  // A giant's physics, for its Cloud tops section; a solid planet's come with its world
+  const selectedPhysics = useMemo(
+    () => selectedWorld?.physics
+      ?? (selectedPlanet && selectedStar ? derivePhysics(selectedPlanet, selectedStar, currentSeed, universeConfig) : null),
+    [selectedWorld, selectedPlanet, selectedStar, currentSeed, universeConfig],
+  );
 
   const handleApproach = () => { if (selectedPlanet) approachPlanet(selectedPlanet); };
 
@@ -835,6 +851,8 @@ export default function App() {
         ) : view === "system" && selectedPlanet && !selectedBiosphere ? (
           <PlanetPanel
             planet={selectedPlanet}
+            world={selectedWorld}
+            physics={selectedPhysics}
             orbiting={orbiting}
             onClose={handleExitSystem}
             onBack={orbiting ? leaveOrbit : handleBackToStar}

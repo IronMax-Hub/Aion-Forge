@@ -50,7 +50,7 @@ interface Histories {
   frozeShare: number;          // froze over at least once
   runawayShare: number;
   oceansLostShare: number;
-  oxidisedShare: number;       // without life: oxygen left by escaping water
+  oxidisedShare: number;       // oxygen from life (since C2.3b) or left by escaping water
   liquidTodayShare: number;    // more than 1% open water today
   noLandRunawayShare: number;  // of the worlds that formed with no land
   everLifeShare: number;       // life began at some time (C2.3b)
@@ -148,7 +148,7 @@ function stageMix(survey: LifeSurvey): string {
 
 function table(rows: Row[]): string {
   const lines = [
-    "| Preset | Seed | Planets | Tidally locked | Solid planets | Median ocean cover at formation | Ocean worlds (> 90%) | Dry (< 3%) | Ever froze over | Runaway greenhouse | Oceans lost | Oxidised without life | Liquid water today | Runaway, worlds formed with no land | Ever had life | Living today | Median life start (Gyr) | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Survey (ms) | Geography (ms) | World history (ms) |",
+    "| Preset | Seed | Planets | Tidally locked | Solid planets | Median ocean cover at formation | Ocean worlds (> 90%) | Dry (< 3%) | Ever froze over | Runaway greenhouse | Oceans lost | Oxidised (by life or water loss) | Liquid water today | Runaway, worlds formed with no land | Ever had life | Living today | Median life start (Gyr) | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Survey (ms) | Geography (ms) | World history (ms) |",
     "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|",
   ];
   const percent = (share: number) => `${(share * 100).toFixed(1)}%`;

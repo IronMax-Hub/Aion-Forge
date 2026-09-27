@@ -125,18 +125,20 @@ Sound is off by default; turn it on from the status bar.
 
 ## Quick Start Seeds
 
-These seeds produce universes worth exploring. Figures are for the default parameters under simulation rules v6, as the life survey counts them: worlds with organisms (microbial or more advanced), civilizations, and how many systems host a civilization that got past farming.
+These seeds produce universes worth exploring. Figures are for the default parameters under simulation rules v7, as the life survey counts them: worlds with organisms (microbial or more advanced), civilizations, and how many systems host a civilization that got past farming.
 
 | Seed | Galaxy Type | Worlds with organisms | Civilizations | Systems past agriculture |
 |------|-------------|---:|---:|---:|
-| `271828` | Elliptical | 699 | 140 | 56 |
-| `137035` | Irregular | 707 | 115 | 53 |
-| `3141592` | Spiral | 697 | 105 | 40 |
-| `13579` | Spiral | 690 | 107 | 39 |
-| `404040` | Elliptical | 676 | 119 | 38 |
-| `100000` | Spiral | 677 | 95 | 41 |
+| `137035` | Irregular | 3116 | 194 | 98 |
+| `3141592` | Spiral | 2976 | 179 | 90 |
+| `13579` | Spiral | 3058 | 170 | 87 |
+| `271828` | Elliptical | 3109 | 179 | 80 |
+| `404040` | Elliptical | 3086 | 168 | 76 |
+| `100000` | Spiral | 3093 | 174 | 96 |
 
-With 2,000 stars per universe, default parameters give every seed a similar amount of life; what differs is where it arises and what becomes of it. Many civilizations stop at agriculture because their world has no fire: no exposed land, or air too thin to burn in. Some worlds with water never get life at all, because their volcanoes have built up a crushing CO₂ atmosphere. For a quiet universe, change the parameters instead: the **Fragile Life** preset leaves about a sixth as many systems with organisms.
+With 2,000 stars per universe, default parameters give every seed a similar amount of life; what differs is where it arises and what becomes of it. Since rules v7, life begins on most worlds with liquid water within a few hundred million years and then evolves inside its planet's history, so most of these organisms are microbial, and many worlds have lost the life they once had. Many civilizations stop at agriculture because their world has no fire: no exposed land, or air too thin to burn in. For a quieter universe, change the laws instead: the **Fragile Life** preset leaves about as much life but a quarter as many civilizations.
+
+Generating a universe now takes a minute or more on a modest machine, because every planet's life is evolved through its history; the survey runs in the background with a progress bar.
 
 ---
 
@@ -210,7 +212,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 
 ## Current Status
 
-**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10 (simulation rules v6)**
+**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.3 (simulation rules v7)**
 
 ### Simulation
 
@@ -221,7 +223,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 * Physical planets — gravity, escape velocity, orbital period, axial tilt, rotation, tidal locking, and water set by the snow line
 * Geography of solid planets — continents, oceans and elevation on a grid of cells
 * World histories over billions of years — the star brightens, volcanoes outgas CO₂, land and seafloor weather it away, oceans can boil off in a runaway greenhouse, and today's climate, pressure and atmosphere class are what that history leaves
-* Probability-driven biosphere emergence and evolution, read from each world's history
+* Life that begins by chance where there is liquid water, then branches, adapts and dies out inside its planet's history: lineages with a six-trait genome, sharing energy through food chains, shaped by oxygen, gravity, UV and catastrophes; their oxygen and methane change the air
 * Civilization formation, technological progression, collapse and recovery
 * Historical event recording and timeline replay
 * Configurable laws of physics with experiment comparison

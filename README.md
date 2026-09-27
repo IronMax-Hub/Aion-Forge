@@ -210,7 +210,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 
 ## Current Status
 
-**Version 1.0, Enhancements I, III and V, and Worlds Up Close phases A1–A7 (simulation rules v5)**
+**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10 (simulation rules v5)**
 
 ### Simulation
 
@@ -226,7 +226,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 * Configurable laws of physics with experiment comparison
 * Universe persistence, library, export/import, and discovery collections
 * Life survey run in a background worker; saved counts are marked when they were made under older simulation rules
-* Determinism tests for every simulation layer, among some 236 tests
+* Determinism tests for every simulation layer, among some 250 tests
 
 The simulation rules carry a version number (`frontend/src/simulation/version.ts`). It rises whenever a change alters what a seed produces, so older saved figures can be recognised.
 
@@ -277,14 +277,15 @@ A third level of zoom: from a planetary system down to a single planet seen from
 
 * Approach glides the camera into orbit; Leave orbit returns to the system
 * Solid planets drawn from their surface grid — oceans, ice, dry and wet land, and relief, lit by their star's colour and a day–night terminator
-* Tidally locked worlds keep one face to their star; free planets are tilted by their axial tilt
+* Rotation — tidally locked worlds keep one face to their star; free planets spin on their tilted axis, one real day compressed to about a minute on screen
 * Air and clouds — a scattering rim coloured by the star's spectrum and the air's actual pressure, and clouds that thicken to full overcast on crushing worlds and drift slowly
 * Gas and ice giants — bands that multiply with faster spin, a palette by cloud-top temperature (methane blue, ammonia cream and brown, cloudless azure, dark glowing hot Jupiters), storms and sometimes rings
 * Molten ground — glowing cracks and heat shimmer where the surface is hot enough to melt
+* Life seen from orbit — vegetation on moist land and in shallow seas, its strength following the biosphere and its colour the starlight (green under Sun-like stars, yellow-orange under K stars, dark red to near-black under red dwarfs, blue-green to blue under hotter stars); city lights on the night side from the industrial stage on, growing with population; a few dim lights after a collapse; and a faint shell of orbital points around space-age worlds
 * Each globe is baked once on the GPU during the approach and cached for the last five planets visited, so older graphics cards stay responsive
 * Reduced motion is respected
 
-Still to come: planets turning on screen (A8) and signs of life seen from orbit (A9).
+The planet inspector shows the same world in figures: physical properties, a Surface section for solid planets (gravity, pressure, rotation, tilt, ocean / land / ice, habitable area, temperature range) and a Cloud tops section for giants.
 
 ---
 

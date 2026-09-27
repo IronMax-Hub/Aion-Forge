@@ -45,8 +45,8 @@ describe("planet types", () => {
   });
 
   it("makes cold giants ice giants and warm ones gas giants", () => {
-    for (const { planet } of giants) expect(planet.type).toBe(planet.temperature < 75 ? "ice" : "gas-giant");
-    expect(new Set(giants.map(({ planet }) => planet.type))).toEqual(new Set(["ice", "gas-giant"]));
+    for (const { planet } of giants) expect(planet.type).toBe(planet.temperature < 75 ? "ice-giant" : "gas-giant");
+    expect(new Set(giants.map(({ planet }) => planet.type))).toEqual(new Set(["ice-giant", "gas-giant"]));
   });
 
   it("reports the surface temperature of solid planets and the cloud-top temperature of giants", () => {
@@ -86,11 +86,12 @@ describe("habitability", () => {
     }
   });
 
-  it("fades outside the 0.4–2.5 g window", () => {
-    const heavy = solid.filter(({ planet }) => planet.surface!.surfaceGravity > 2.5 && planet.surface!.habitableFraction >= 0.5);
-    expect(heavy.length).toBeGreaterThan(0);
-    // Full credit at 2.5 g, none at 5 g
-    for (const { planet } of heavy) expect(planet.habitabilityScore).toBeLessThanOrEqual(Math.max(0, (5 - planet.surface!.surfaceGravity) / 2.5) + 1e-12);
+  it("fades below 0.4 g; with the Chen & Kipping radii no solid planet reaches the 2.5 g upper edge", () => {
+    const light = solid.filter(({ planet }) => planet.surface!.surfaceGravity < 0.4 && planet.surface!.habitableFraction >= 0.5);
+    expect(light.length).toBeGreaterThan(0);
+    // Full credit at 0.4 g, none at 0.2 g
+    for (const { planet } of light) expect(planet.habitabilityScore).toBeLessThanOrEqual(Math.max(0, (planet.surface!.surfaceGravity - 0.2) / 0.2) + 1e-12);
+    for (const { planet } of solid) expect(planet.surface!.surfaceGravity).toBeLessThan(2.5);
   });
 
   it("agrees with the planet's physics", () => {

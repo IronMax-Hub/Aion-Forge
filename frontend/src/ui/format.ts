@@ -154,6 +154,7 @@ export const PLANET_TYPE_LABEL: Record<PlanetType, string> = {
   ice:         "Ice world",
   desert:      "Desert planet",
   "gas-giant": "Gas giant",
+  "ice-giant": "Ice giant",
   lava:        "Lava world",
   rogue:       "Rogue planet",
 };

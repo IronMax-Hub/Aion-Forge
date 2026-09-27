@@ -77,9 +77,10 @@ export function generateBiosphere(
     extinctions: [], ageGyr: 0,
   };
 
-  // Life cannot emerge on gas giants, lava worlds, or with no/crushing atmosphere
+  // Life cannot emerge on giants, lava worlds, or with no/crushing atmosphere
   if (
     planet.type === "gas-giant" ||
+    planet.type === "ice-giant" ||
     planet.type === "lava" ||
     planet.atmosphere === "none" ||
     planet.atmosphere === "crushing"

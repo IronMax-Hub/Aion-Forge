@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generatePlanetsFor, dustSublimationAU, effectiveOrbitAU } from "../simulation/planet";
+import { planetMassFromDraw, typicalRadiusForMass } from "../simulation/planetBasics";
 import type { Planet } from "../simulation/planet";
 import { generateStarsFor, UNIVERSE_AGE_GYR, stellarRadiusAU, luminosityAt } from "../simulation/star";
 import type { Star } from "../simulation/star";
@@ -83,6 +84,50 @@ describe("young planets", () => {
     for (const { planet } of young) {
       const s = planet.surface!;
       if (s.oceanFraction > 0) expect(planet.temperature).toBeLessThan(boilingPointK(s.pressureBar));
+    }
+  });
+});
+
+describe("planet masses and sizes", () => {
+  it("keeps the original log-uniform masses up to 25 M⊕ and stretches the top tenth to 13 Jupiter masses", () => {
+    for (const u of [0, 0.1, 0.5, 0.8, 0.899]) expect(planetMassFromDraw(u)).toBeCloseTo(10 ** ((u - 0.5) * 3.5), 6);
+    expect(planetMassFromDraw(0.9)).toBeCloseTo(10 ** 1.4, 6);
+    expect(planetMassFromDraw(0.9999999)).toBeCloseTo(4000, 0);
+    let previous = 0;
+    for (let u = 0; u < 1; u += 0.001) {
+      expect(planetMassFromDraw(u)).toBeGreaterThan(previous);
+      previous = planetMassFromDraw(u);
+    }
+  });
+
+  it("gives some planets Saturn and Jupiter masses, about one in twenty above Saturn", () => {
+    const masses = all.map(({ planet }) => planet.mass);
+    const aboveSaturn = masses.filter((m) => m > 95).length / masses.length;
+    expect(aboveSaturn).toBeGreaterThan(0.03);
+    expect(aboveSaturn).toBeLessThan(0.08);
+    expect(masses.some((m) => m > 318)).toBe(true);
+    for (const m of masses) expect(m).toBeLessThanOrEqual(4000);
+  });
+
+  it("sizes planets by the Chen & Kipping mass–radius relation: Earth, Neptune and Jupiter come out close to themselves", () => {
+    expect(typicalRadiusForMass(1)).toBeCloseTo(1, 1);
+    expect(typicalRadiusForMass(17.1)).toBeGreaterThan(3.5);   // Neptune: 3.9 R⊕
+    expect(typicalRadiusForMass(17.1)).toBeLessThan(4.5);
+    expect(typicalRadiusForMass(318)).toBeGreaterThan(11);     // Jupiter: 11.2 R⊕
+    expect(typicalRadiusForMass(318)).toBeLessThan(15);
+    // The three laws meet at their breakpoints
+    for (const m of [2.04, 131.6]) expect(typicalRadiusForMass(m * 1.0001) / typicalRadiusForMass(m)).toBeCloseTo(1, 3);
+  });
+
+  it("keeps each planet within ±20% of its typical radius, so giants are several Earth radii with near-Earth gravity", () => {
+    for (const { planet } of all) {
+      const ratio = planet.size / typicalRadiusForMass(planet.mass);
+      expect(ratio).toBeGreaterThanOrEqual(0.8);
+      expect(ratio).toBeLessThanOrEqual(1.2);
+    }
+    for (const { planet } of all.filter(({ planet }) => planet.mass > 15)) {
+      expect(planet.size).toBeGreaterThan(3);
+      expect(planet.mass / planet.size ** 2).toBeLessThan(40);   // a 13-Jupiter-mass planet, the extreme
     }
   });
 });

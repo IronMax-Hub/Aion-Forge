@@ -35,7 +35,7 @@ function habLabel(score: number) {
 
 const CAN_HAVE_LIFE: Record<string, boolean> = {
   rocky: true, ocean: true, ice: true, desert: true,
-  "gas-giant": false, lava: false, rogue: false,
+  "gas-giant": false, "ice-giant": false, lava: false, rogue: false,
 };
 
 export function PlanetPanel({ planet, world, physics, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere }: Props) {

@@ -4,7 +4,7 @@ import type { Star } from "./star";
 import { luminosityAt, stellarRadiusAU } from "./star";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
-import { effectiveOrbitAU, GIANT_PLANET_MASS } from "./planetBasics";
+import { effectiveOrbitAU, GIANT_PLANET_MASS, planetMassFromDraw, typicalRadiusForMass } from "./planetBasics";
 import { derivePhysics, atmosphereClassOf } from "./planetPhysics";
 import type { PlanetPhysics } from "./planetPhysics";
 import { buildGeography } from "./geography";
@@ -23,6 +23,7 @@ export type PlanetType =
   | "ice"
   | "desert"
   | "gas-giant"
+  | "ice-giant"
   | "lava"
   | "rogue";
 
@@ -151,7 +152,7 @@ const DESERT_MAX_OCEAN = 0.03;
 const DESERT_MIN_K = 273;
 
 function giantType(temperatureK: number): PlanetType {
-  return temperatureK < ICE_GIANT_MAX_K ? "ice" : "gas-giant";
+  return temperatureK < ICE_GIANT_MAX_K ? "ice-giant" : "gas-giant";
 }
 
 function solidType(temperatureK: number, surface: PlanetSurface): PlanetType {
@@ -279,12 +280,13 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
   const starRadiusAU = stellarRadiusAU(star);
 
   const planets: (Planet | null)[] = orbits.map((orbitalRadius, idx) => {
-    const mass = pow(10, (rng() - 0.5) * 3.5); // 0.03–32 Earth masses (log spread)
+    const mass = planetMassFromDraw(rng());
     // Stellar heating decides what atmosphere a planet can keep
     const equilibriumK = equilibriumTemp(star.luminosity, effectiveOrbitAU(orbitalRadius, config));
     const atmosphere = pickAtmosphere(mass, equilibriumK, rng);
     rng(); // the old type roll: still taken so the draws below stay aligned
-    const size = pow(mass, 0.27) * (0.8 + rng() * 0.4);
+    // Planets of the same mass differ in make-up, so in size: ±20% around the typical radius
+    const size = typicalRadiusForMass(mass) * (0.8 + rng() * 0.4);
     const resourceAbundance = rng();
     // Engulfed planets are gone; their draws are taken all the same, so later planets keep theirs
     if (effectiveOrbitAU(orbitalRadius, config) <= starRadiusAU) return null;
@@ -339,6 +341,7 @@ export const PLANET_COLORS: Record<PlanetType, [number, number, number]> = {
   ice:         [0.75, 0.88, 0.95],
   desert:      [0.82, 0.65, 0.30],
   "gas-giant": [0.70, 0.55, 0.35],
+  "ice-giant": [0.45, 0.65, 0.85],
   lava:        [0.90, 0.25, 0.05],
   rogue:       [0.20, 0.18, 0.22],
 };

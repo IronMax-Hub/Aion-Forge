@@ -100,7 +100,7 @@ const COST = {
   maintenance: 0.01,
   information: 0.3,          // × info²
   thermal: 0.005,            // × (ΔT / THERMAL_SCALE_K)²
-  support: 0.005,            // × g × (M / 1 kg)^(7/12), on land
+  support: 0.05,             // × g × (M / 1 kg)^(7/12), on land (C2.10, owner decision: ×10 from 0.005, which gravity never made binding)
   uv: 0.02,                  // × surface UV, on land
 };
 const THERMAL_SCALE_K = 10;

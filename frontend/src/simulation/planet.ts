@@ -76,6 +76,7 @@ export interface PlanetSurface {
   habitableFraction: number;
   surfaceGravity: number;   // g
   pressureBar: number;      // total surface pressure today
+  o2Bar: number;            // oxygen's share of that pressure, bar (C2.6: fire)
 }
 
 export interface PlanetarySystem {
@@ -231,7 +232,7 @@ function calcHabitability(type: PlanetType, atmosphere: AtmosphereType, resource
 }
 
 /** A solid planet's present-day surface, from its geography and world history. */
-function presentSurface(present: PresentClimate, physics: PlanetPhysics, pressureBar: number): PlanetSurface {
+function presentSurface(present: PresentClimate, physics: PlanetPhysics, pressureBar: number, o2Bar: number): PlanetSurface {
   return {
     oceanFraction: present.oceanFraction,
     iceFraction: present.iceFraction,
@@ -239,6 +240,7 @@ function presentSurface(present: PresentClimate, physics: PlanetPhysics, pressur
     habitableFraction: present.habitableFraction,
     surfaceGravity: physics.surfaceGravity,
     pressureBar,
+    o2Bar,
   };
 }
 
@@ -333,7 +335,7 @@ export function generatePlanetsFor(
     } else {
       // A solid planet's surface is the end of its history
       const { physics, history } = worldOf(planet, star, galaxySeed, config);
-      planet.surface = presentSurface(history.present, physics, history.final.pressureBar);
+      planet.surface = presentSurface(history.present, physics, history.final.pressureBar, history.final.o2Bar);
       planet.life = history.life && {
         startedGyr: history.life.startedGyr, endedGyr: history.life.endedGyr, phylogeny: history.phylogeny!,
       };

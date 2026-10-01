@@ -102,10 +102,10 @@ describe("habitability", () => {
 });
 
 describe("fire", () => {
-  it("needs exposed land and at least half a bar of air", () => {
+  it("needs exposed land, at least half a bar of air, and air that is at least 18% oxygen (R6)", () => {
     for (const { planet } of solid) {
       const s = planet.surface!;
-      expect(canSustainFire(planet)).toBe(s.landFraction >= 0.01 && s.pressureBar >= 0.5);
+      expect(canSustainFire(planet)).toBe(s.landFraction >= 0.01 && s.pressureBar >= 0.5 && s.o2Bar / s.pressureBar >= 0.18);
     }
     for (const { planet } of giants) expect(canSustainFire(planet)).toBe(false);
   });
@@ -114,7 +114,7 @@ describe("fire", () => {
     let fireless = 0;
     for (const { star, planet } of all) {
       const bio = generateBiosphere(planet, star);
-      const civ = bio.hasLife ? generateCivilization(bio, planet, seed, config).civilization : null;
+      const civ = generateCivilization(bio, planet, seed).civilization;
       if (!civ || canSustainFire(planet)) continue;
       fireless++;
       expect(["collapsed", "primitive", "agricultural"]).toContain(civ.techStage);

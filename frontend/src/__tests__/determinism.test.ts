@@ -336,7 +336,7 @@ describe("Config modifiers affect emergence", () => {
         const sys = generatePlanetsFor(star, seed, config);
         for (const planet of sys.planets) {
           const bio = generateBiosphere(planet, star);
-          if (generateCivilization(bio, planet, seed, config).civilization) count++;
+          if (generateCivilization(bio, planet, seed).civilization) count++;
         }
       }
       return count;

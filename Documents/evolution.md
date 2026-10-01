@@ -132,6 +132,32 @@ From rules v8 the biosphere (`biosphere.ts`) is read from the lineages and draws
 
 Measured on the same sample before the change: 91% of living worlds are microbial, 6% multicellular, 2.5% complex or dominant. Large bodies need oxygen, and most worlds never oxidise. Civilizations still need a complex or dominant stage, so they become rarer.
 
+## Minds and civilizations (C2.6)
+
+From rules v9 a civilization comes from a mind found in its planet's history (`evolution/minds.ts`), not from a roll against the biosphere.
+
+- **A mind** appears in the first living lineage whose information processing reaches a threshold while its body is heavier than 1 g. It is checked after every evolution step, and only the first counts.
+- **The threshold** is 1 − (1 − 0.5) × Intelligence: 0.5 by default, 0.25 at 1.5, 0.85 at 0.3, 0.975 at 0.05.
+- **The species' traits:** intelligence = the mind's information processing; aggression = the share of its line of descent (itself and its ancestors) that were consumers; adaptability = the width of habitat temperatures its line has held biomass in, as a share of 150 K (the engine now records each lineage's coldest and warmest habitat, inherited at speciation; a record only, no rule reads it).
+- **Curiosity, cooperation and resilience** keep seeded draws: no trait could supply them yet. Candidates for new traits in the changelog below.
+- **Its age** is the time since the mind appeared. Technology, collapses and milestones develop over the time it was active.
+- **When its species dies out**, meaning the mind's lineage and every lineage descended from it, the civilization stays in the record as collapsed, remembered at its peak population, with dated milestones ending with "Its species died out" (R8). This holds whether the rest of life lives on or not.
+- **Fire** gains its oxygen condition: exposed land ≥ 1%, pressure ≥ 0.5 bar, and O₂ ≥ 18% of the air, read from today's air (R6).
+- The survey counts civilizations whose species died out (ruins) and, separately, worlds that ever had life (`everLifePlanets`).
+
+### Owner decisions (C2.6, 2026-10-02)
+
+- **A mind needs a body over 1 g.** The plan's rule ("information processing alone"), measured on 700 stars of seed 100000, made a microbe the most thoughtful lineage on nearly every qualifying world: information processing drifts up freely in microbes, its cost being small. 1 g is the complex-life size of C2.5, so no new trait is needed.
+- **Intelligence shrinks the headroom** above the base threshold rather than dividing it, so low settings make minds very rare rather than impossible.
+- **A civilization collapses when its species dies out**, and **its species is its lineage and every lineage descended from it**. Counting the lineage alone, 40 of 53 civilizations on seed 100000 were ruins, because a lineage "dies" while daughter lineages carry it on; counting descendants, 27.
+
+### Measured (seed 100000, rules v9)
+
+- 53 minds; about 50 civilizations per default universe (was 7–17 at v8, ~175 at v7).
+- About half are ruins. Large bodies face higher catastrophe risk (R9): of the mind lineages that died, impacts killed about half and volcanic pulses about a quarter.
+- Only 6 of 53 mind worlds can make fire today. Most minds live under thick air with little oxygen in it (median 7.5% O₂), so few civilizations pass agriculture (0–3 systems per seed).
+- Intelligence 0.3 gives 3 civilizations; 1.5 gives 95.
+
 ### Open issues for C2.10
 
 - **Gravity does not limit size in practice.** The support cost lowers the heaviest land body that can live as gravity rises (tested), but over 10 Gyr of evolution land bodies stay around 1–250 kg, far below the ceiling (thousands of kg at 1 g), so gravity makes no measurable difference between 0.2 and 5 g. To tune in C2.10: how fast size evolves, or the support constant.
@@ -161,3 +187,7 @@ The six traits above, as specified in Revision 1. Owner decisions on values the 
 - **Absorption peak is carried by every lineage.** Only a light user's is read. A lineage that turns to light when it splits starts from its parent's value, so the genome keeps one shape.
 
 No outcome changes: nothing reads the genome until the engine (C2.3).
+
+### Candidates (C2.6) · not added
+
+Curiosity, cooperation and resilience are species traits a civilization reads, but no genome trait supplies them, so they stay seeded draws. A trait for sociality (cooperation) or for behavioural exploration (curiosity) would be read by the civilization rules; under the rule for adding a trait, one is added only when the stats show a gap the six cannot express.

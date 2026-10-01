@@ -1,9 +1,9 @@
 import { createRNG, mixSeed, SALT } from "./rng";
-import { exp, pow } from "./detmath";
+import { exp } from "./detmath";
 import type { Biosphere } from "./biosphere";
 import type { Planet } from "./planet";
-import { makeConfig } from "./config";
-import type { UniverseConfig } from "./config";
+import type { MindSummary } from "./evolution/phylogeny";
+import { TRAIT_RANGES } from "./evolution/genome";
 
 // ── Species data model (AF-073) ───────────────────────────────────────────────
 
@@ -89,6 +89,8 @@ export interface Civilization {
   collapsesCount: number;
   isRare: boolean;
   milestones: Milestone[];
+  /** Gyr since its species died out, leaving ruins (C2.6, R8); null while it lives. */
+  extinctAgoGyr: number | null;
 }
 
 export interface CivilizationResult {
@@ -96,31 +98,30 @@ export interface CivilizationResult {
   civilization: Civilization | null;
 }
 
-// ── Intelligence emergence (AF-074) ───────────────────────────────────────────
-// Requires: complex biosphere, sufficient time, some luck
+// ── Species traits (AF-075, C2.6) ─────────────────────────────────────────────
+//
+// A civilization's species is the lineage in which its planet's first mind
+// appeared (evolution/minds.ts). Three traits come from that lineage:
+//   intelligence  its information processing when the mind appeared
+//   aggression    the share of it and its ancestors that ate other life
+//   adaptability  the width of habitat temperatures it and its ancestors lived
+//                 in, as a share of the genome's thermal range (150 K)
+// Curiosity, cooperation and resilience have no trait to come from yet, so
+// they keep seeded draws until one exists (Documents/evolution.md lists them
+// as candidates).
 
-function intelligenceEmerges(bio: Biosphere, rng: () => number): boolean {
-  if (bio.stage !== "complex" && bio.stage !== "dominant") return false;
-  if (bio.ageGyr < 0.8) return false;
+/** Width of the genome's thermal-optimum range, K: a lineage that has lived across all of it is fully adaptable. */
+const FULL_TEMPERATURE_SPAN_K = TRAIT_RANGES.thermalOptimumK.max - TRAIT_RANGES.thermalOptimumK.min;
 
-  // Base probability from complexity + adaptability
-  const base = pow(bio.complexity, 1.5) * bio.adaptability * 0.55;
-  return rng() < base;
-}
-
-// ── Species traits (AF-075) ───────────────────────────────────────────────────
-
-function generateSpecies(bio: Biosphere, planet: Planet, rng: () => number): Species {
-  // Traits loosely shaped by environment and biosphere
-  const intelligence  = 0.4 + rng() * 0.6;
+function generateSpecies(mind: MindSummary, planet: Planet, rng: () => number): Species {
+  const intelligence  = mind.informationProcessing;
   const curiosity     = 0.2 + rng() * 0.8;
   // High-pressure environments tend to produce more cooperative species
   const cooperationBase = planet.habitabilityScore < 0.5 ? 0.4 : 0.2;
   const cooperation   = cooperationBase + rng() * 0.7;
-  // Aggression inversely correlated with cooperation (loosely)
-  const aggression    = Math.max(0, Math.min(1, (1 - cooperation * 0.5) * rng() * 1.2));
-  const adaptability  = bio.adaptability * 0.5 + rng() * 0.5;
-  const resilience    = bio.stability    * 0.4 + rng() * 0.6;
+  const aggression    = mind.consumerAncestry;
+  const adaptability  = Math.min(1, mind.temperatureSpanK / FULL_TEMPERATURE_SPAN_K);
+  const resilience    = 0.2 + rng() * 0.8;
 
   // Initial population: small
   const population    = 0.001 + rng() * 0.01;
@@ -170,7 +171,8 @@ function buildMilestones(
   const push = (type: MilestoneType, minTech: number, note: string) => {
     if (techLevel >= minTech) {
       const timeAgo = ageGyr * (1 - minTech / 1.1) * (0.8 + rng() * 0.4);
-      milestones.push({ type, timeAgo: Math.max(0, timeAgo), note });
+      // Never before the civilization began
+      milestones.push({ type, timeAgo: Math.min(ageGyr, Math.max(0, timeAgo)), note });
     }
   };
 
@@ -214,22 +216,25 @@ function collapseNote(_species: Species, rng: () => number): string {
 
 // ── Fire (Worlds Up Close A3, R6) ─────────────────────────────────────────────
 //
-// Smelting and industry need open fire, and open fire needs exposed land and
-// air thick enough to burn in. A mind on a world without them can farm, but
-// cannot go further. The limit comes from the world, not from who evolved: an
-// aquatic mind is capped because it has no fire, and so is a land mind under
-// thin air. Fire also needs oxygen (at least 18% of the air); that condition
-// joins in C2.3, when life first makes oxygen inside the world history.
+// Smelting and industry need open fire, and open fire needs exposed land, air
+// thick enough to burn in, and oxygen: at least 18% of the air, since
+// combustion depends on oxygen's share, not its pressure (R6; the oxygen
+// condition joins in C2.6, read from today's air as the world history left it).
+// A mind on a world without them can farm, but cannot go further. The limit
+// comes from the world, not from who evolved: an aquatic mind is capped
+// because it has no fire, and so is a land mind under thin or oxygen-poor air.
 
 const FIRE_MIN_LAND = 0.01;          // share of the surface that is exposed, ice-free land
 const FIRE_MIN_PRESSURE_BAR = 0.5;
+const FIRE_MIN_O2_SHARE = 0.18;      // oxygen's share of the air
 // Without fire, technology stops just short of industry
 const FIRELESS_TECH_CEILING = INDUSTRIAL_TECH_LEVEL - 1e-9;
 
 /** Whether the planet today has what open fire needs. */
 export function canSustainFire(planet: Planet): boolean {
   const surface = planet.surface;
-  return surface !== null && surface.landFraction >= FIRE_MIN_LAND && surface.pressureBar >= FIRE_MIN_PRESSURE_BAR;
+  return surface !== null && surface.landFraction >= FIRE_MIN_LAND && surface.pressureBar >= FIRE_MIN_PRESSURE_BAR
+    && surface.o2Bar / surface.pressureBar >= FIRE_MIN_O2_SHARE;
 }
 
 // ── Main generator (AF-077 + AF-078 + AF-080–083) ────────────────────────────
@@ -238,31 +243,27 @@ export function generateCivilization(
   bio: Biosphere,
   planet: Planet,
   galaxySeed: number,
-  cfg?: UniverseConfig
 ): CivilizationResult {
-  const config = cfg ?? makeConfig(galaxySeed);
+  // A civilization needs a mind, found in its planet's history (C2.6); the
+  // Intelligence parameter set the threshold the mind had to reach there
+  const mind = planet.life?.phylogeny.mind ?? null;
+  if (!mind) return { species: null, civilization: null };
   const rng = createRNG(mixSeed(galaxySeed, bio.hostStarId, bio.planetId, SALT.CIV));
+  const species = generateSpecies(mind, planet, rng);
 
-  // intelligenceModifier scales the emergence probability
-  const originalRng = rng;
-  const scaledRng = () => {
-    const v = originalRng();
-    // Higher modifier = higher effective probability = lower roll needed
-    return v / Math.max(0.01, config.intelligenceModifier);
-  };
-  if (!intelligenceEmerges(bio, scaledRng)) return { species: null, civilization: null };
-
-  const species = generateSpecies(bio, planet, rng);
-
-  // How long has the civilization had to develop?
-  // Civ emerges roughly mid-to-late in life's history
-  const civAgeGyr = bio.ageGyr * (0.1 + rng() * 0.6);
+  // Its age is the time since the mind appeared. If its species (the mind's
+  // lineage and every lineage descended from it) has since died out, with the
+  // rest of life or alone, it developed only until then and remains as a
+  // collapsed civilization (R8; owner decisions for a species that dies alone).
+  const civAgeGyr = mind.ageGyr;
   if (civAgeGyr < 0.001) return { species, civilization: null };
+  const extinctAgoGyr = mind.speciesEndedAgoGyr;
+  const activeGyr = civAgeGyr - (extinctAgoGyr ?? 0);
 
   // ── Technology ───────────────────────────────────────────────────────────
   // Growth driven by curiosity and cooperation; slowed by aggression
   const growthDriver = species.curiosity * 0.6 + species.cooperation * 0.3 - species.aggression * 0.15;
-  const rawTech = 1 - exp(-growthDriver * civAgeGyr * 3.5);
+  const rawTech = 1 - exp(-growthDriver * activeGyr * 3.5);
   let techLevel = rawTech * (0.7 + rng() * 0.3);
 
   // ── Social cohesion (AF-080) ──────────────────────────────────────────────
@@ -284,7 +285,7 @@ export function generateCivilization(
   let collapsesCount = 0;
   let hasCollapsed   = false;
   const collapseThreshold = 0.55;
-  const maxCollapseChecks = Math.floor(civAgeGyr * 4);
+  const maxCollapseChecks = Math.floor(activeGyr * 4);
 
   for (let i = 0; i < maxCollapseChecks; i++) {
     if (rng() < collapseRisk * 0.18) {
@@ -294,7 +295,7 @@ export function generateCivilization(
       techLevel      *= (1 - severity * 0.5);
       socialCohesion *= (1 - severity * 0.4);
       // Recovery (AF-083)
-      const recoveryTime  = civAgeGyr - (i / maxCollapseChecks) * civAgeGyr;
+      const recoveryTime  = activeGyr - (i / maxCollapseChecks) * activeGyr;
       const recoveryFactor = species.resilience * 0.7 + species.cooperation * 0.3;
       const recovery = 1 - exp(-recoveryFactor * recoveryTime * 2);
       techLevel      += severity * 0.4 * recovery;
@@ -303,12 +304,14 @@ export function generateCivilization(
   }
 
   // Final collapse check
-  const finallyCollapsed = collapseRisk > collapseThreshold && rng() < (collapseRisk - collapseThreshold);
-  if (finallyCollapsed) {
+  const fellApart = collapseRisk > collapseThreshold && rng() < (collapseRisk - collapseThreshold);
+  if (fellApart) {
     techLevel     *= 0.3;
     hasCollapsed   = true;
     collapsesCount++;
   }
+  // A species that died out ends its civilization too
+  const finallyCollapsed = fellApart || extinctAgoGyr !== null;
 
   techLevel      = Math.min(1, Math.max(0, techLevel));
   if (!canSustainFire(planet)) techLevel = Math.min(techLevel, FIRELESS_TECH_CEILING);
@@ -317,9 +320,11 @@ export function generateCivilization(
 
   // ── Population ────────────────────────────────────────────────────────────
   const peak = peakPopulation(species, planet, techLevel);
-  const pop  = finallyCollapsed
+  const survivors = finallyCollapsed
     ? peak * (0.01 + rng() * 0.1)
     : peak * (0.4 + rng() * 0.6);
+  // A species that died out is remembered at its height
+  const pop = extinctAgoGyr === null ? survivors : peak;
 
   // ── Rare outcomes (AF-087) ────────────────────────────────────────────────
   const isRare =
@@ -341,9 +346,18 @@ export function generateCivilization(
     collapseRisk,
     hasCollapsed, collapsesCount,
     isRare, milestones: [],
+    extinctAgoGyr,
   };
 
-  civ.milestones = buildMilestones(civ, species, civAgeGyr, collapsesCount, finallyCollapsed, rng);
+  // Milestones fall within the time it was active, which ended when its species died out
+  civ.milestones = buildMilestones(civ, species, activeGyr, collapsesCount, fellApart, rng)
+    .map((m) => ({ ...m, timeAgo: m.timeAgo + (extinctAgoGyr ?? 0) }));
+  if (extinctAgoGyr !== null) {
+    civ.hasCollapsed = true;
+    civ.collapsesCount++;
+    civ.milestones.push({ type: "collapse", timeAgo: extinctAgoGyr, note: "Its species died out" });
+    civ.milestones.sort((a, b) => b.timeAgo - a.timeAgo);
+  }
 
   return { species, civilization: civ };
 }
@@ -370,7 +384,9 @@ export function describeCivilization(civ: Civilization, species: Species): strin
   parts.push(characterLine);
 
   // Trajectory
-  if (civ.techStage === "collapsed") {
+  if (civ.extinctAgoGyr !== null) {
+    parts.push("Its species has died out. Only its ruins remain.");
+  } else if (civ.techStage === "collapsed") {
     parts.push(
       civ.collapsesCount > 1
         ? `Having collapsed ${civ.collapsesCount} times, its survivors carry the weight of what was lost.`

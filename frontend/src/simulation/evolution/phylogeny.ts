@@ -21,6 +21,10 @@
 //   each of the last RECENT_CATASTROPHES that came through it.
 // - The catastrophes that killed at least one lineage (owner decision: every
 //   lethal catastrophe, not only the large ones).
+// - The first mind (minds.ts, C2.6), if one appeared: how long ago, and
+//   whether its species still lives: the mind's lineage or any lineage
+//   descended from it (owner decision: a lineage keeps splitting, and its
+//   daughters carry the species on). If none lives, when the last one died.
 //
 // Assumptions and limits:
 // - Body mass stands in for multicellularity (a stated simplification of the
@@ -31,6 +35,7 @@
 import { LINEAGE_CAP, livingLineages } from "./engine";
 import type { CatastropheRecord, EvolutionState } from "./engine";
 import type { Environment } from "./environment";
+import type { Mind } from "./minds";
 import { TRAIT_RANGES } from "./genome";
 import type { ContinuousTrait } from "./genome";
 
@@ -61,6 +66,16 @@ export interface PhylogenySummary {
   recentSurvival: number;
   /** Every catastrophe that killed at least one lineage, oldest first. */
   lethalCatastrophes: CatastropheRecord[];
+  /** The first mind, if one appeared (C2.6). */
+  mind: MindSummary | null;
+}
+
+/** A mind as the history left it. */
+export interface MindSummary extends Mind {
+  /** Gyr since it appeared. */
+  ageGyr: number;
+  /** Gyr since its lineage and every lineage descended from it died out; null while any lives. */
+  speciesEndedAgoGyr: number | null;
 }
 
 /** Share of the habitable area (land and liquid water) where producers hold biomass. */
@@ -75,6 +90,19 @@ function producerCoverOf(state: EvolutionState, env: Environment): number {
     if (living.some((l) => l.genome.habitat !== "land")) covered += band.deepWaterArea;
   });
   return habitable > 0 ? covered / habitable : 0;
+}
+
+/** When a lineage and all its descendants had died out, or null while any lives. Lineages are listed in birth order, parents first. */
+function speciesEndGyr(state: EvolutionState, lineageId: number): number | null {
+  const species = new Set([lineageId]);
+  let endGyr = -Infinity;
+  for (const l of state.lineages.slice(lineageId)) {
+    if (l.id !== lineageId && (l.parentId === null || !species.has(l.parentId))) continue;
+    species.add(l.id);
+    if (l.diedGyr === null) return null;
+    endGyr = Math.max(endGyr, l.diedGyr);
+  }
+  return endGyr;
 }
 
 /** Mean standard deviation of the living lineages' read traits, each as a share of its range, relative to an even spread. */
@@ -100,8 +128,13 @@ function recentSurvivalOf(state: EvolutionState): number {
   return before > 0 ? (before - lost) / before : 1;
 }
 
-/** Reduces a planet's evolution, at the end of its history, to what its biosphere is read from. */
-export function summarizePhylogeny(state: EvolutionState, env: Environment): PhylogenySummary {
+/**
+ * Reduces a planet's evolution, at the end of its history, to what its
+ * biosphere and civilization are read from. `presentGyr` is the end of the
+ * history, Gyr after the star formed.
+ */
+export function summarizePhylogeny(state: EvolutionState, env: Environment, mind: Mind | null, presentGyr: number): PhylogenySummary {
+  const mindDiedGyr = mind && speciesEndGyr(state, mind.lineageId);
   const alive = livingLineages(state);
   return {
     livingLineages: alive.length,
@@ -113,5 +146,10 @@ export function summarizePhylogeny(state: EvolutionState, env: Environment): Phy
     traitSpread: traitSpreadOf(state),
     recentSurvival: recentSurvivalOf(state),
     lethalCatastrophes: state.catastrophes.filter((c) => c.lineagesLost > 0),
+    mind: mind && {
+      ...mind,
+      ageGyr: presentGyr - mind.tGyr,
+      speciesEndedAgoGyr: mindDiedGyr === null ? null : presentGyr - mindDiedGyr,
+    },
   };
 }

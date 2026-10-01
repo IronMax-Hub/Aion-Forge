@@ -79,6 +79,7 @@ export function mergeSurveys(parts: LifeSurvey[]): LifeSurvey {
   return {
     totalPlanets: parts.reduce((sum, p) => sum + p.totalPlanets, 0),
     lifeBearingPlanets: parts.reduce((sum, p) => sum + p.lifeBearingPlanets, 0),
+    everLifePlanets: parts.reduce((sum, p) => sum + p.everLifePlanets, 0),
     civilizationCount: parts.reduce((sum, p) => sum + p.civilizationCount, 0),
     systems: parts.flatMap((p) => p.systems),
   };

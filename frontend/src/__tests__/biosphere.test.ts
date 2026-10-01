@@ -19,7 +19,7 @@ const star: Star = {
 
 const phylogeny = (overrides: Partial<PhylogenySummary>): PhylogenySummary => ({
   livingLineages: 10, diversity: 10 / LINEAGE_CAP, largestLog10BodyMassKg: -12, foodChainLevels: 1, producerCover: 0.5,
-  totalBiomass: 1e-3, traitSpread: 0.3, recentSurvival: 0.8, lethalCatastrophes: [], ...overrides,
+  totalBiomass: 1e-3, traitSpread: 0.3, recentSurvival: 0.8, lethalCatastrophes: [], mind: null, ...overrides,
 });
 
 function planetWith(summary: PhylogenySummary, endedGyr: number | null = null): Planet {
@@ -122,6 +122,7 @@ function lineage(habitat: Habitat, level: number, bandBiomass: number[], traits:
   return {
     id: nextId++, parentId: null, bornGyr: 1, diedGyr, deathCause: diedGyr === null ? null : "unviable", genome, level,
     biomass: bandBiomass.reduce((a, b) => a + b, 0), bandBiomass: Float64Array.from(bandBiomass),
+    coldestK: Infinity, warmestK: -Infinity,
   };
 }
 
@@ -143,7 +144,7 @@ describe("the phylogeny summary", () => {
       lineage("land", 0, [0.1, 0]),
       lineage("shallow-water", 0, [0, 0.2]),
       lineage("shallow-water", 1, [0.05, 0.05], { log10BodyMassKg: -2 }),
-    ]), env);
+    ]), env, null, 4.6);
     expect(summary.producerCover).toBeCloseTo(0.75, 12);
     expect(summary.foodChainLevels).toBe(2);
     expect(summary.largestLog10BodyMassKg).toBe(-2);
@@ -154,18 +155,18 @@ describe("the phylogeny summary", () => {
     const summary = summarizePhylogeny(state([
       lineage("land", 0, [0.1, 0]),
       lineage("deep-water", 0, [0, 0.1], { log10BodyMassKg: 3 }, 2.0),
-    ]), env);
+    ]), env, null, 4.6);
     expect(summary.livingLineages).toBe(1);
     expect(summary.largestLog10BodyMassKg).toBe(-12);
     expect(summary.producerCover).toBeCloseTo(0.25, 12);
   });
 
   it("has no trait spread for one lineage, and full spread for lineages at the ends of every range", () => {
-    expect(summarizePhylogeny(state([lineage("land", 0, [0.1, 0])]), env).traitSpread).toBe(0);
+    expect(summarizePhylogeny(state([lineage("land", 0, [0.1, 0])]), env, null, 4.6).traitSpread).toBe(0);
     const ends = summarizePhylogeny(state([
       lineage("land", 0, [0.1, 0], { log10BodyMassKg: -15, thermalOptimumK: 250, informationProcessing: 0 }),
       lineage("land", 0, [0.1, 0], { log10BodyMassKg: 5, thermalOptimumK: 400, informationProcessing: 1 }),
-    ]), env);
+    ]), env, null, 4.6);
     expect(ends.traitSpread).toBe(1);
   });
 
@@ -175,9 +176,25 @@ describe("the phylogeny summary", () => {
       ...[2, 3, 4, 5].map((tGyr) => ({ tGyr, cause: "volcanism" as const, aliveBefore: 10, lineagesLost: 0 })),
       { tGyr: 6, cause: "climate" as const, aliveBefore: 10, lineagesLost: 5 },
     ];
-    const summary = summarizePhylogeny(state([lineage("land", 0, [0.1, 0])], catastrophes), env);
+    const summary = summarizePhylogeny(state([lineage("land", 0, [0.1, 0])], catastrophes), env, null, 4.6);
     expect(summary.recentSurvival).toBeCloseTo(45 / 50, 12);
     expect(summary.lethalCatastrophes.map((c) => c.tGyr)).toEqual([1, 6]);
-    expect(summarizePhylogeny(state([lineage("land", 0, [0.1, 0])]), env).recentSurvival).toBe(1);
+    expect(summarizePhylogeny(state([lineage("land", 0, [0.1, 0])]), env, null, 4.6).recentSurvival).toBe(1);
+  });
+
+  it("keeps a mind's species alive while its lineage or any lineage descended from it lives (owner decision)", () => {
+    const mind = { tGyr: 3, lineageId: 1, informationProcessing: 0.6, log10BodyMassKg: 1, consumerAncestry: 0, temperatureSpanK: 20 };
+    const root = lineage("land", 0, [0.1, 0]);
+    const mindLine = lineage("land", 0, [0, 0], {}, 3.5);
+    const daughter = lineage("land", 0, [0.1, 0]);
+    const cousin = lineage("land", 0, [0.1, 0]);
+    [root.id, mindLine.id, daughter.id, cousin.id] = [0, 1, 2, 3];
+    mindLine.parentId = 0; daughter.parentId = 1; cousin.parentId = 0;
+    const living = summarizePhylogeny(state([root, mindLine, daughter, cousin]), env, mind, 4.6).mind!;
+    expect(living.ageGyr).toBeCloseTo(1.6, 12);
+    expect(living.speciesEndedAgoGyr).toBeNull();
+    // The daughter dies later than the mind's own lineage: the species ends with the last of them
+    const gone = { ...daughter, diedGyr: 4.0 };
+    expect(summarizePhylogeny(state([root, mindLine, gone, cousin]), env, mind, 4.6).mind!.speciesEndedAgoGyr).toBeCloseTo(0.6, 12);
   });
 });

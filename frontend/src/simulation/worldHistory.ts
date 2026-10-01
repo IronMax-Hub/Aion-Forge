@@ -40,7 +40,8 @@
 //                biomass feeds the next step's chemistry: light users make O₂
 //                and chemical users CH₄; life respires O₂ in proportion to O₂ ×
 //                its biomass. Life begins at most once; if it dies out, the
-//                history keeps its record.
+//                history keeps its record. After each step the first lineage
+//                to qualify as a mind is recorded (evolution/minds.ts, C2.6).
 //   7. Record    a snapshot of the step, when asked for.
 // After the last step, the present day is solved on all 642 cells (R5), and
 // life's lineages are summarised for the biosphere (evolution/phylogeny.ts, C2.5).
@@ -93,6 +94,8 @@ import { aerobicShare, startLife, stepEvolution } from "./evolution/engine";
 import { TRAIT_RANGES } from "./evolution/genome";
 import type { EvolutionState } from "./evolution/engine";
 import { summarizePhylogeny } from "./evolution/phylogeny";
+import { findMind, mindThreshold } from "./evolution/minds";
+import type { Mind } from "./evolution/minds";
 import type { PhylogenySummary } from "./evolution/phylogeny";
 import type { Environment } from "./evolution/environment";
 
@@ -362,6 +365,9 @@ export function runWorldHistory(
   // The environment life last met: the phylogeny summary reads today's habitats from it
   let lifeEnvironment: Environment | null = null;
   const lifeKeys = { galaxySeed, starId: planet.hostStarId, planetIndex: planet.id };
+  // The first mind, checked after every step of life (C2.6)
+  let mind: Mind | null = null;
+  const threshold = mindThreshold(config.intelligenceModifier);
 
   const stepCount = star.age > FORMATION_DELAY_GYR ? Math.ceil((star.age - FORMATION_DELAY_GYR) / STEP_GYR - 1e-9) : 0;
   let seaLevelKm = 0;
@@ -494,6 +500,7 @@ export function runWorldHistory(
       life = stepEvolution(life, lifeEnvironment, lifeKeys, step);
     }
     if (life !== null && life.endedGyr === null) {
+      mind ??= findMind(life, threshold, t);
       state.lightBiomass = snapshot.lightBiomass = life.lightBiomass;
       state.chemicalBiomass = snapshot.chemicalBiomass = life.chemicalBiomass;
       state.totalBiomass = snapshot.totalBiomass = life.totalBiomass;
@@ -523,6 +530,6 @@ export function runWorldHistory(
     ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water),
   }, seaLevelKm, state.steam, physics.axialTiltDeg, physics.tidallyLocked, state.iced);
 
-  const phylogeny = life && summarizePhylogeny(life, lifeEnvironment!);
+  const phylogeny = life && summarizePhylogeny(life, lifeEnvironment!, mind, state.tGyr);
   return { final: state, present, events, steps: stepCount, snapshots, life, phylogeny };
 }

@@ -29,7 +29,8 @@ export interface SystemLife {
 
 export interface LifeSurvey {
   totalPlanets: number;
-  lifeBearingPlanets: number;   // every planet with a biosphere, prebiotic included
+  lifeBearingPlanets: number;   // every planet with life today
+  everLifePlanets: number;      // every planet where life began, living or not (R8)
   civilizationCount: number;
   systems: SystemLife[];        // only systems with organisms, in star order
 }
@@ -47,6 +48,7 @@ export function surveyLife(
 ): LifeSurvey {
   let totalPlanets = 0;
   let lifeBearingPlanets = 0;
+  let everLifePlanets = 0;
   let civilizationCount = 0;
   const systems: SystemLife[] = [];
 
@@ -60,15 +62,18 @@ export function surveyLife(
     let civRank = -1;
 
     for (const planet of system.planets) {
+      if (!planet.life) continue;
+      everLifePlanets++;
       const bio = generateBiosphere(planet, star);
-      if (!bio.hasLife) continue;
-      lifeBearingPlanets++;
 
-      const civ = generateCivilization(bio, planet, seed, cfg).civilization;
+      // A civilization whose species has died out still counts, as ruins (R8)
+      const civ = generateCivilization(bio, planet, seed).civilization;
       if (civ) {
         civilizationCount++;
         civRank = Math.max(civRank, TECH_STAGE_RANK.indexOf(civ.techStage));
       }
+      if (!bio.hasLife) continue;
+      lifeBearingPlanets++;
 
       const stageRank = ORGANISM_STAGES.indexOf(bio.stage);
       if (stageRank >= 0) {
@@ -87,5 +92,5 @@ export function surveyLife(
     }
   }
 
-  return { totalPlanets, lifeBearingPlanets, civilizationCount, systems };
+  return { totalPlanets, lifeBearingPlanets, everLifePlanets, civilizationCount, systems };
 }

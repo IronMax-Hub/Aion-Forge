@@ -104,7 +104,7 @@ describe("energy budget", () => {
 
 describe("the food chain", () => {
   const lineage = (level: number, log10BodyMassKg: number, habitat: Genome["habitat"] = "shallow-water"): Lineage => ({
-    id: 0, parentId: null, bornGyr: 0, diedGyr: null, deathCause: null, level, biomass: 1, bandBiomass: new Float64Array(18),
+    id: 0, parentId: null, bornGyr: 0, diedGyr: null, deathCause: null, level, biomass: 1, bandBiomass: new Float64Array(18), coldestK: Infinity, warmestK: -Infinity,
     genome: { energySource: level === 0 ? "light" : "consumer", absorptionPeakNm: 502, log10BodyMassKg, habitat, thermalOptimumK: 288, informationProcessing: 0 },
   });
 

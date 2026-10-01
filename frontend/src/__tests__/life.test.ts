@@ -41,7 +41,7 @@ const biosphere = (stage: LifeStage, biomass: number): Biosphere => ({
 const civilization = (techStage: TechStage, population: number): Civilization => ({
   id: 0, speciesId: 0, planetId: planet.id, ageGyr: 0.01, population, techStage, techLevel: 0.5,
   socialCohesion: 0.5, resourceEfficiency: 0.5, expansionTendency: 0.5, collapseRisk: 0.2,
-  hasCollapsed: techStage === "collapsed", collapsesCount: 0, isRare: false, milestones: [],
+  hasCollapsed: techStage === "collapsed", collapsesCount: 0, isRare: false, milestones: [], extinctAgoGyr: null,
 });
 
 // The pigment as it would be displayed

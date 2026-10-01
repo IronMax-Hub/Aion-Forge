@@ -92,7 +92,7 @@ describe("survey pool", () => {
   // Each chunk answers with its star range in place of a real survey
   const canned = (r: ChunkRequest): ChunkMessage => ({
     kind: "chunk", generation: r.generation, chunk: r.chunk,
-    survey: { totalPlanets: r.to - r.from, lifeBearingPlanets: r.chunk, civilizationCount: r.generation, systems: [] },
+    survey: { totalPlanets: r.to - r.from, lifeBearingPlanets: r.chunk, everLifePlanets: r.chunk, civilizationCount: r.generation, systems: [] },
   });
 
   it("covers every star once, in chunks, with no more workers than its size", () => {
@@ -140,9 +140,9 @@ describe("survey pool", () => {
   it("merges chunks by adding their counts and joining their systems in star order", () => {
     const system = (starId: number) => ({ starId, mostAdvancedStage: "microbial" as const, lifePlanetCount: 1, civilizationStage: null });
     expect(mergeSurveys([
-      { totalPlanets: 3, lifeBearingPlanets: 1, civilizationCount: 0, systems: [system(2)] },
-      { totalPlanets: 4, lifeBearingPlanets: 2, civilizationCount: 1, systems: [system(51), system(60)] },
-    ])).toEqual({ totalPlanets: 7, lifeBearingPlanets: 3, civilizationCount: 1, systems: [system(2), system(51), system(60)] });
+      { totalPlanets: 3, lifeBearingPlanets: 1, everLifePlanets: 2, civilizationCount: 0, systems: [system(2)] },
+      { totalPlanets: 4, lifeBearingPlanets: 2, everLifePlanets: 3, civilizationCount: 1, systems: [system(51), system(60)] },
+    ])).toEqual({ totalPlanets: 7, lifeBearingPlanets: 3, everLifePlanets: 5, civilizationCount: 1, systems: [system(2), system(51), system(60)] });
   });
 
   it("uses one worker per core, less one for the interface", () => {
@@ -157,7 +157,7 @@ describe("survey pool", () => {
  * seed, so the client's plumbing is tested without running real surveys.
  */
 function cannedSurvey(seed: number): LifeSurvey {
-  return { totalPlanets: seed, lifeBearingPlanets: 1, civilizationCount: 0, systems: [] };
+  return { totalPlanets: seed, lifeBearingPlanets: 1, everLifePlanets: 1, civilizationCount: 0, systems: [] };
 }
 
 /** A stand-in worker that holds requests until the test answers them. */

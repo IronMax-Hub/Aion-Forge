@@ -434,7 +434,7 @@ export default function App() {
         physics: world?.physics ?? derivePhysics(planet, selectedStar, currentSeed, universeConfig),
         starFlux: selectedStar.luminosity / (orbitAU * orbitAU),
         biosphere,
-        civilization: generateCivilization(biosphere, planet, currentSeed, universeConfig).civilization,
+        civilization: generateCivilization(biosphere, planet, currentSeed).civilization,
       });
     }
     ui.inspect();
@@ -454,7 +454,7 @@ export default function App() {
     if (galaxyRef.current && populationRef.current) {
       const systemEntries = system.planets.map((planet) => {
         const bio = biospheres.get(planet.id)!;
-        const civResult = generateCivilization(bio, planet, currentSeed, universeConfig);
+        const civResult = generateCivilization(bio, planet, currentSeed);
         return {
           planet, star: selectedStar, bio,
           civ: civResult.civilization ?? undefined,
@@ -494,7 +494,7 @@ export default function App() {
 
   const handleScanCivilization = useCallback(() => {
     if (!selectedBiosphere || !selectedPlanet) return;
-    const result = generateCivilization(selectedBiosphere, selectedPlanet, currentSeed, universeConfig);
+    const result = generateCivilization(selectedBiosphere, selectedPlanet, currentSeed);
     if (result.civilization && result.species) {
       setSelectedCivilization(result.civilization);
       setSelectedSpecies(result.species);
@@ -504,7 +504,7 @@ export default function App() {
       if (result.civilization.isRare) discovery.remarkableCivilization();
       else discovery.civilizationMilestone();
     }
-  }, [selectedBiosphere, selectedPlanet, currentSeed, universeConfig]);
+  }, [selectedBiosphere, selectedPlanet, currentSeed]);
 
   function leaveOrbit() {
     setOrbiting(false);
@@ -865,6 +865,7 @@ export default function App() {
         ) : view === "biosphere" && selectedBiosphere ? (
           <BiospherePanel
             biosphere={selectedBiosphere}
+            hasMind={selectedPlanet?.life?.phylogeny.mind != null}
             onBack={handleBackToPlanet}
             onClose={handleExitSystem}
             onScanCivilization={handleScanCivilization}

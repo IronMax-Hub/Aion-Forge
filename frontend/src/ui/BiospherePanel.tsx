@@ -5,6 +5,8 @@ import { formatGyr, formatIndex } from "./format";
 
 interface Props {
   biosphere: Biosphere;
+  /** Whether a mind appeared in the planet's history, so there is a civilization (or its ruins) to look at (C2.6). */
+  hasMind: boolean;
   onBack: () => void;
   onClose: () => void;
   onScanCivilization: () => void;
@@ -12,8 +14,6 @@ interface Props {
 
 /** Stages life passes through once it has emerged, in order. */
 const LIFE_STAGES: LifeStage[] = ["prebiotic", "microbial", "multicellular", "complex", "dominant"];
-
-const CAN_HAVE_CIVILIZATION = new Set(["complex", "dominant"]);
 
 function TraitRow({ label, value }: { label: string; value: number }) {
   return (
@@ -49,7 +49,23 @@ function Extinctions({ extinctions }: { extinctions: ExtinctionEvent[] }) {
   );
 }
 
-export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization }: Props) {
+function CivilizationButton({ hasMind, onScanCivilization }: { hasMind: boolean; onScanCivilization: () => void }) {
+  return (
+    <div className="inspector-actions">
+      <button
+        className="btn primary"
+        onClick={onScanCivilization}
+        disabled={!hasMind}
+        title={hasMind ? undefined : "No mind evolved here"}
+        style={{ flex: 1 }}
+      >
+        Check for civilization
+      </button>
+    </div>
+  );
+}
+
+export function BiospherePanel({ biosphere, hasMind, onBack, onClose, onScanCivilization }: Props) {
   const stageColor = STAGE_COLOR[biosphere.stage];
 
   if (!biosphere.hasLife) {
@@ -78,6 +94,7 @@ export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization 
             </p>
           </div>
           <Extinctions extinctions={biosphere.extinctions} />
+          {ended && <CivilizationButton hasMind={hasMind} onScanCivilization={onScanCivilization} />}
         </div>
       </div>
     );
@@ -131,17 +148,7 @@ export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization 
 
         <Extinctions extinctions={biosphere.extinctions} />
 
-        <div className="inspector-actions">
-          <button
-            className="btn primary"
-            onClick={onScanCivilization}
-            disabled={!CAN_HAVE_CIVILIZATION.has(biosphere.stage)}
-            title={CAN_HAVE_CIVILIZATION.has(biosphere.stage) ? undefined : "Biosphere not complex enough for intelligence"}
-            style={{ flex: 1 }}
-          >
-            Check for civilization
-          </button>
-        </div>
+        <CivilizationButton hasMind={hasMind} onScanCivilization={onScanCivilization} />
       </div>
     </div>
   );

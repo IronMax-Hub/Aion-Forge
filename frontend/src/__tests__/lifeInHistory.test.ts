@@ -7,6 +7,7 @@ import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { generatePlanetsFor, planetKey } from "../simulation/planet";
 import type { Planet } from "../simulation/planet";
 import { generateBiosphere } from "../simulation/biosphere";
+import { generateCivilization } from "../simulation/civilization";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import type { Star } from "../simulation/star";
 import { buildGalaxyConfig } from "../simulation/galaxy";
@@ -164,6 +165,21 @@ describe("what life becomes", () => {
       // Life from the loop is cells from the start, even a world whose life is brand new
       expect(["microbial", "multicellular", "complex", "dominant"]).toContain(bio.stage);
     }
+  });
+
+  it("gives a civilization only to a world where a mind appeared, between life's start and today, no older than life (C2.6)", () => {
+    let minds = 0;
+    for (const { star, planet } of worlds) {
+      const mind = planet.life?.phylogeny.mind ?? null;
+      const civ = generateCivilization(generateBiosphere(planet, star), planet, seed).civilization;
+      if (!mind) { expect(civ).toBeNull(); continue; }
+      minds++;
+      expect(mind.tGyr).toBeGreaterThanOrEqual(planet.life!.startedGyr);
+      expect(mind.tGyr).toBeLessThanOrEqual(star.age);
+      expect(mind.log10BodyMassKg).toBeGreaterThan(-3);
+      if (civ) expect(civ.ageGyr).toBeLessThanOrEqual(star.age - planet.life!.startedGyr + 1e-12);
+    }
+    expect(minds).toBeGreaterThan(0);
   });
 
   it("is deterministic", () => {

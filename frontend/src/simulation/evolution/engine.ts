@@ -167,6 +167,13 @@ export interface Lineage {
   biomass: number;
   /** Biomass per climate band. */
   bandBiomass: Float64Array;
+  /**
+   * The coldest and warmest habitat temperatures, K, the lineage and its
+   * ancestors have held biomass in (C2.6: a mind's adaptability). A record
+   * only: no rule of the engine reads it. ±Infinity until it first holds any.
+   */
+  coldestK: number;
+  warmestK: number;
 }
 
 export type FirstKind = "light" | "consumer" | "multicellular" | "land";
@@ -522,6 +529,18 @@ function compete(alive: Lineage[], env: Environment, budgets: BudgetCache = new 
   }
 }
 
+/** Widens each lineage's record of the temperatures it has lived in to the bands where it now holds biomass. */
+function recordTemperatures(alive: Lineage[], env: Environment): void {
+  for (const lineage of alive) {
+    env.bands.forEach((band, b) => {
+      if (lineage.bandBiomass[b] <= 0) return;
+      const k = habitatK(band, lineage.genome.habitat);
+      lineage.coldestK = Math.min(lineage.coldestK, k);
+      lineage.warmestK = Math.max(lineage.warmestK, k);
+    });
+  }
+}
+
 function kill(lineage: Lineage, tGyr: number, cause: DeathCause): void {
   lineage.diedGyr = tGyr;
   lineage.deathCause = cause;
@@ -553,6 +572,7 @@ function childOf(parent: Lineage, id: number, tGyr: number, rng: () => number): 
   return {
     id, parentId: parent.id, bornGyr: tGyr, diedGyr: null, deathCause: null, genome, level,
     biomass: 0, bandBiomass: new Float64Array(parent.bandBiomass.length),
+    coldestK: parent.coldestK, warmestK: parent.warmestK,
   };
 }
 
@@ -592,8 +612,10 @@ export function startLife(env: Environment): EvolutionState | null {
   const ancestor: Lineage = {
     id: 0, parentId: null, bornGyr: env.tGyr, diedGyr: null, deathCause: null, genome, level: 0,
     biomass: 0, bandBiomass: new Float64Array(env.bands.length),
+    coldestK: Infinity, warmestK: -Infinity,
   };
   compete([ancestor], env);
+  recordTemperatures([ancestor], env);
   return {
     lineages: [ancestor], nextId: 1, startedGyr: env.tGyr, endedGyr: null, firsts: [], catastrophes: [],
     lightBiomass: 0, chemicalBiomass: ancestor.biomass, totalBiomass: ancestor.biomass,
@@ -639,6 +661,7 @@ export function stepEvolution(previous: EvolutionState, env: Environment, keys: 
 
   // 3. Score and compete; the unviable and the squeezed-out die
   compete(alive, env, budgets);
+  recordTemperatures(alive, env);
   const nicheTotals = new Map<number, number>();
   for (const l of alive) nicheTotals.set(nicheOf(l), (nicheTotals.get(nicheOf(l)) ?? 0) + l.biomass);
   for (const l of alive) {

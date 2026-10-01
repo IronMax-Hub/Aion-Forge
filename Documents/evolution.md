@@ -126,7 +126,7 @@ From rules v8 the biosphere (`biosphere.ts`) is read from the lineages and draws
 
 ### Owner decisions (C2.5, 2026-10-02)
 
-- **Dominant as written:** producer presence over land and liquid water. Measured before the change (seed 100000, first 400 stars, 607 living worlds): oxygen-breathing large bodies need light producers almost everywhere, so 14 of 15 complex worlds are dominant. Dominant and complex barely differ until tuning (C2.10) separates them.
+- **Dominant as written:** producer presence over land and liquid water. Measured before the change (seed 100000, first 400 stars, 607 living worlds): oxygen-breathing large bodies need light producers almost everywhere, so 14 of 15 complex worlds are dominant. Dominant and complex barely differ until tuning (C2.10) separates them. *Superseded in C2.10: dominant now reads living biomass.*
 - **Every lethal catastrophe is an extinction**, not only large ones: a median world has 23 catastrophes on record (the lethal ones were not counted separately), and 4 of them killed a quarter of its lineages or more. The timeline still records each as a "mass extinction" until C2.7 rewrites the biological events.
 - **Extinct life is shown** in the biosphere panel: when it ended and how long it lasted.
 
@@ -142,7 +142,7 @@ From rules v9 a civilization comes from a mind found in its planet's history (`e
 - **Curiosity, cooperation and resilience** keep seeded draws: no trait could supply them yet. Candidates for new traits in the changelog below.
 - **Its age** is the time since the mind appeared. Technology, collapses and milestones develop over the time it was active.
 - **When its species dies out**, meaning the mind's lineage and every lineage descended from it, the civilization stays in the record as collapsed, remembered at its peak population, with dated milestones ending with "Its species died out" (R8). This holds whether the rest of life lives on or not.
-- **Fire** gains its oxygen condition: exposed land ≥ 1%, pressure ≥ 0.5 bar, and O₂ ≥ 18% of the air, read from today's air (R6).
+- **Fire** gains its oxygen condition: exposed land ≥ 1%, pressure ≥ 0.5 bar, and O₂ ≥ 18% of the air, read from today's air (R6). *Replaced in C2.10 by O₂ ≥ 0.16 bar.*
 - The survey counts civilizations whose species died out (ruins) and, separately, worlds that ever had life (`everLifePlanets`).
 
 ### Owner decisions (C2.6, 2026-10-02)
@@ -181,12 +181,59 @@ The first consumer is recorded by the engine but is not among the plan's timelin
 
 The timeline is not part of any stored count (snapshots record 0 legendary events), so C2.7 changes no rules version.
 
-### Open issues for C2.10
+## Tuning and surprise audit (C2.10)
 
-- **Gravity does not limit size in practice.** The support cost lowers the heaviest land body that can live as gravity rises (tested), but over 10 Gyr of evolution land bodies stay around 1–250 kg, far below the ceiling (thousands of kg at 1 g), so gravity makes no measurable difference between 0.2 and 5 g. To tune in C2.10: how fast size evolves, or the support constant.
-- **Land life without water.** Land lineages can outlive a planet's oceans; nothing yet ties land life to water.
+From rules v10. Measured with the stats harness (18 universes: seeds 100000, 42 and 7777 under the six presets) and a sweep tool that runs one universe on a 1-in-3 sample of its stars under any parameter override. Every change below was an owner decision taken on measured options; constants not listed keep their starting values and the reasons given in the sections above.
 
----
+### Constants changed
+
+| Constant | Was | Now | Why |
+|---|---|---|---|
+| Fragile Life preset, emergence sensitivity | 0.15 | 0.01 | The Earth-anchored origin rate saturates on watery worlds: at 0.15 life still began on ~48% of solid planets (default 58%). At 0.01, ~11% and no minds: "life barely takes hold". |
+| Abundant Life and Eternal Stars presets, stellar ignition threshold | 0.8, 0.7 | 1.2 | The threshold works backwards from its name: above 1 it shrinks the mass roll, giving more small, long-lived stars. Abundant Life had less life than the default; now the most (seed 100000: 796 → 1,184 systems with organisms; default 987). Comments corrected; code kept. |
+| Validation warnings | — | — | "Life nearly impossible" from emergence below 0.005 (was 0.05, which Fragile Life would trip with life on a tenth of worlds); a high ignition threshold warns of red dwarfs, not of "no stars". |
+| Catastrophe kill chances (impact, volcanic pulse, climate shift) | 0.15, 0.05, 0.1 | 0.075, 0.025, 0.05 | Half of all civilizations' species died in catastrophes (a gram-scale grazer had ~37% chance per impact). Size and level weighting kept (R9). Ruins 50% → ~31%, minds ~1.7×. |
+| Fire's oxygen condition | 18% of the air | 0.16 bar | Most minds live under thick air (median 5 bar) that dilutes Earth-like O₂ (median 0.24 bar) to a few percent; with a share rule ~1 system per universe got past farming. Now ~10–15. Replaces part of R6. |
+| Dominant stage | producer cover > 60% | living biomass ≥ 1 unit | Producers live almost everywhere (median cover 100%), so 127 of 135 complex worlds were dominant. Now ~a third. |
+| Support cost on land | 0.005 | 0.05 | Gravity never bound body size; now the largest land bodies on worlds above 1.6 g fall from ~13 kg to ~25 g (90th percentile, small sample). |
+
+### Measured and kept
+
+- **Red-dwarf flare UV** (`FLARE_UV_AT_FULL_ACTIVITY = 1`): no measurable difference between 0 and 10 (M-dwarf worlds with land life 77, 76, 70 of 782). Kept at 1.
+- **Oxygen levers** (aerobic half-point, production and respiration together, crust and volcanic sinks): none moved the microbial share by more than 5 points (92% → 87% at best). Kept; see Surprises.
+- **The intelligence threshold** (C2.6) is unchanged; the preset checks pass with it.
+
+### Preset checks (plan verification)
+
+| Preset | Living (share of solid planets) | Systems with organisms | Civilizations |
+|---|---:|---:|---:|
+| Familiar Reality | 45–46% | 968–1,006 | 82–95 |
+| Fragile Life | 8–9% | 393–425 | 0 |
+| Rare Intelligence | 45–47% | 972–1,008 | 0–1 |
+| Abundant Life | 52–54% | 1,183–1,211 | 189–195 |
+| Eternal Stars | 52–53% | 1,217–1,243 | 140–165 |
+| Slow Cosmos | 58–59% | 1,284–1,331 | 131–148 |
+
+"Fragile Life" has few living worlds; "Rare Intelligence" has life as common as the default and minds almost never. Full figures in `Documents/stats.md` (rules v10).
+
+### The Earth path
+
+Earth's order (oxygen → land → 1 kg → mind) is one of many. Familiar Reality, 270 mind worlds over three seeds: 25 follow it; the most common order is oxygen → land → mind → 1 kg (50), and 19 orders occur. Oxygen always comes first: no mind has yet evolved in anoxic air, because large bodies need oxygen. The full list per preset is in each stats entry.
+
+### Surprises (kept, CLAUDE.md principle 4)
+
+- **Most life lives in the dark.** Nearly half of all living worlds are frozen over; their life never meets light, never makes oxygen and stays microbial. 92% of living worlds hold only microbes.
+- **Minds are small swimmers.** The first lineage to cross the threshold is usually a creature of a few grams in shallow water (measured at rules v9: 34 of 53 in shallow water, 7 on land, median mass ~3 g), not a large land animal: those exist on few worlds.
+- **Minds come before size.** On most mind worlds the first mind appears before the first body over 1 kg; many worlds never grow one.
+- **Ruins.** About a third of civilizations belong to species that died out, most often in an asteroid impact, sometimes long after the rest of life.
+- **Thick-air minds.** Civilizations under thick air reached fire only with the C2.10 change; those on landless worlds still cannot smelt.
+- **Life clinging to dry land.** On ~4% of worlds with land life, the oceans have been lost to space and land life lives on by sunlight alone.
+- **Red dwarfs rarely oxidise** (4% of their living worlds, against ~20% for Sun-like and K stars), so their life stays small.
+
+### Open after C2.10
+
+- Curiosity, cooperation and resilience still have no trait (see the genome changelog).
+- Land life does not need water; kept for now as a surprise (owner decision).
 
 ## Rule for adding a trait
 

@@ -364,3 +364,123 @@ Orders of firsts on worlds with a mind (oxygen in the air, life on land, a body 
 - 1 × oxygen → 1 kg → mind → land
 - 1 × oxygen → land → 1 kg + mind
 - 1 × oxygen → mind → land → 1 kg
+
+## 2026-10-01 · commit 3b5f589 · rules v10
+
+| Preset | Seed | Planets | Tidally locked | Solid planets | Median ocean cover at formation | Ocean worlds (> 90%) | Dry (< 3%) | Ever froze over | Runaway greenhouse | Oceans lost | Oxidised (by life or water loss) | Liquid water today | Runaway, worlds formed with no land | Ever had life | Living today | Median life start (Gyr) | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Earth path (of worlds with a mind) | Survey (ms) | Geography (ms) | World history (ms) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|
+| Familiar Reality | 100000 | 8537 | 19.1% | 7134 | 84.8% | 44.9% | 0.2% | 25.7% | 3.3% | 14.1% | 15.0% | 24.1% | 2.1% | 58.4% | 46.2% | 0.2 | 3297 | 987 | 755 / 115 / 77 / 40 | 89 | 9 / 90 | 145169.4 | 3572 | 141146 |
+| Familiar Reality | 42 | 8461 | 18.9% | 7079 | 84.7% | 44.7% | 0.2% | 25.3% | 2.8% | 14.5% | 15.1% | 23.8% | 2.5% | 57.6% | 44.6% | 0.2 | 3156 | 968 | 726 / 130 / 78 / 34 | 82 | 3 / 84 | 136589.1 | 3565 | 132556 |
+| Familiar Reality | 7777 | 8593 | 19.7% | 7196 | 84.8% | 44.4% | 0.3% | 25.6% | 3.1% | 14.4% | 15.1% | 23.9% | 2.1% | 58.3% | 45.8% | 0.2 | 3299 | 1006 | 771 / 115 / 77 / 43 | 95 | 13 / 96 | 144519.4 | 3689 | 140358 |
+| Slow Cosmos | 100000 | 9008 | 10.7% | 7525 | 90.0% | 50.0% | 0.1% | 33.8% | 2.3% | 17.6% | 18.5% | 25.0% | 0.8% | 72.7% | 58.4% | 0.2 | 4396 | 1284 | 971 / 123 / 137 / 53 | 131 | 11 / 132 | 194359.3 | 3972 | 189861 |
+| Slow Cosmos | 42 | 8975 | 10.5% | 7511 | 90.1% | 50.2% | 0.2% | 34.2% | 2.5% | 18.0% | 19.1% | 26.2% | 0.9% | 73.6% | 59.2% | 0.2 | 4447 | 1309 | 970 / 143 / 131 / 65 | 144 | 22 / 147 | 191002.5 | 3815 | 186664 |
+| Slow Cosmos | 7777 | 9103 | 11.4% | 7653 | 90.2% | 50.3% | 0.2% | 33.4% | 2.4% | 18.5% | 19.2% | 25.3% | 0.9% | 72.3% | 57.9% | 0.2 | 4433 | 1331 | 1007 / 139 / 137 / 48 | 148 | 18 / 153 | 194125.7 | 3837 | 189757 |
+| Fragile Life | 100000 | 8538 | 18.3% | 7135 | 84.9% | 45.0% | 0.2% | 25.7% | 3.5% | 13.4% | 10.5% | 23.8% | 2.4% | 11.3% | 9.4% | 3.1 | 670 | 425 | 388 / 22 / 13 / 2 | 0 | 0 / 0 | 27402.7 | 3322 | 23799 |
+| Fragile Life | 42 | 8461 | 18.0% | 7079 | 84.9% | 44.8% | 0.2% | 25.2% | 3.1% | 13.0% | 10.3% | 23.7% | 2.6% | 10.1% | 8.3% | 3.0 | 589 | 393 | 363 / 20 / 8 / 2 | 0 | 0 / 0 | 24486.8 | 3236 | 20990 |
+| Fragile Life | 7777 | 8590 | 18.9% | 7193 | 84.8% | 44.5% | 0.3% | 25.5% | 3.3% | 13.1% | 10.1% | 23.4% | 2.6% | 11.2% | 9.1% | 3.1 | 655 | 425 | 397 / 19 / 7 / 2 | 0 | 0 / 0 | 27380.5 | 3447 | 23683 |
+| Eternal Stars | 100000 | 9011 | 27.1% | 7528 | 85.6% | 45.4% | 0.1% | 27.8% | 2.5% | 27.7% | 23.8% | 27.2% | 1.0% | 65.1% | 52.6% | 0.2 | 3958 | 1217 | 905 / 134 / 107 / 71 | 140 | 19 / 141 | 175018.2 | 3809 | 170769 |
+| Eternal Stars | 42 | 8964 | 27.3% | 7505 | 85.6% | 45.4% | 0.2% | 27.4% | 2.5% | 29.4% | 25.0% | 27.3% | 1.0% | 65.2% | 51.8% | 0.2 | 3888 | 1220 | 888 / 143 / 124 / 65 | 149 | 13 / 151 | 174020.4 | 3811 | 169738 |
+| Eternal Stars | 7777 | 9095 | 28.3% | 7646 | 85.8% | 45.1% | 0.2% | 27.3% | 2.5% | 28.6% | 24.8% | 27.6% | 0.9% | 64.3% | 51.6% | 0.2 | 3946 | 1243 | 891 / 140 / 132 / 80 | 165 | 23 / 167 | 180668.7 | 4007 | 176185 |
+| Rare Intelligence | 100000 | 8537 | 19.1% | 7134 | 84.8% | 44.9% | 0.2% | 25.6% | 3.3% | 14.0% | 15.1% | 24.1% | 2.1% | 59.2% | 46.6% | 0.2 | 3324 | 989 | 757 / 114 / 78 / 40 | 0 | 0 / 0 | 151910.0 | 3594 | 147939 |
+| Rare Intelligence | 42 | 8461 | 18.9% | 7079 | 84.7% | 44.7% | 0.2% | 25.3% | 2.8% | 14.4% | 15.1% | 23.9% | 2.4% | 58.3% | 44.8% | 0.2 | 3169 | 972 | 729 / 126 / 81 / 36 | 0 | 0 / 0 | 138006.2 | 3503 | 134180 |
+| Rare Intelligence | 7777 | 8593 | 19.7% | 7196 | 84.8% | 44.4% | 0.3% | 25.6% | 3.1% | 14.4% | 15.1% | 23.8% | 2.1% | 59.1% | 46.3% | 0.2 | 3329 | 1008 | 772 / 113 / 81 / 42 | 1 | 1 / 1 | 143055.0 | 3585 | 139039 |
+| Abundant Life | 100000 | 8984 | 21.7% | 7504 | 86.9% | 46.8% | 0.1% | 29.6% | 3.5% | 15.2% | 16.7% | 27.0% | 2.2% | 68.4% | 53.7% | 0.1 | 4028 | 1184 | 900 / 122 / 91 / 71 | 188 | 4 / 191 | 159557.0 | 3464 | 155662 |
+| Abundant Life | 42 | 8940 | 21.3% | 7486 | 87.2% | 46.9% | 0.2% | 29.2% | 3.5% | 16.1% | 17.2% | 27.1% | 1.8% | 67.6% | 52.3% | 0.1 | 3918 | 1183 | 885 / 147 / 97 / 54 | 195 | 1 / 197 | 125205.9 | 2928 | 121976 |
+| Abundant Life | 7777 | 9069 | 22.7% | 7623 | 87.2% | 46.7% | 0.2% | 29.0% | 3.0% | 16.3% | 17.1% | 26.5% | 1.5% | 66.9% | 52.3% | 0.1 | 3990 | 1211 | 904 / 145 / 99 / 63 | 189 | 3 / 192 | 103184.9 | 2436 | 100494 |
+
+Orders of firsts on worlds with a mind (oxygen in the air, life on land, a body over 1 kg, a mind; Earth's path is oxygen → land → 1 kg → mind). "+" joins firsts in the same 100 Myr step.
+
+**Familiar Reality**
+
+- 50 × oxygen → land → mind → 1 kg
+- 43 × oxygen → mind → 1 kg (never: land)
+- 39 × oxygen → land → mind (never: 1 kg)
+- 25 × oxygen → 1 kg → mind (never: land)
+- 25 × oxygen → land → 1 kg → mind
+- 20 × land → oxygen → mind → 1 kg
+- 19 × land → oxygen → mind (never: 1 kg)
+- 18 × land → oxygen → 1 kg → mind
+- 13 × oxygen → mind (never: land, 1 kg)
+- 4 × oxygen → mind → 1 kg → land
+- 3 × oxygen → 1 kg → mind → land
+- 2 × oxygen → land → 1 kg + mind
+- 2 × oxygen → mind → land → 1 kg
+- 2 × oxygen + land → mind → 1 kg
+- 1 × oxygen → 1 kg + mind (never: land)
+- 1 × oxygen → land + mind (never: 1 kg)
+- 1 × oxygen → mind → land (never: 1 kg)
+- 1 × oxygen → mind → land + 1 kg
+- 1 × oxygen + land → mind (never: 1 kg)
+
+**Slow Cosmos**
+
+- 73 × oxygen → land → mind → 1 kg
+- 73 × oxygen → mind → 1 kg (never: land)
+- 62 × oxygen → land → mind (never: 1 kg)
+- 51 × oxygen → land → 1 kg → mind
+- 46 × oxygen → 1 kg → mind (never: land)
+- 30 × oxygen → mind (never: land, 1 kg)
+- 28 × land → oxygen → mind → 1 kg
+- 25 × land → oxygen → mind (never: 1 kg)
+- 24 × land → oxygen → 1 kg → mind
+- 7 × oxygen → land → 1 kg + mind
+- 2 × land → oxygen → 1 kg + mind
+- 2 × oxygen + land → 1 kg → mind
+- 2 × oxygen + land → mind (never: 1 kg)
+- 1 × oxygen → 1 kg → land → mind
+- 1 × oxygen → 1 kg → mind → land
+- 1 × oxygen → 1 kg + mind (never: land)
+- 1 × oxygen → mind → 1 kg → land
+- 1 × oxygen → mind → land (never: 1 kg)
+- 1 × oxygen → mind → land → 1 kg
+- 1 × oxygen + land → mind → 1 kg
+
+**Fragile Life**: no minds.
+
+
+**Eternal Stars**
+
+- 96 × oxygen → land → mind → 1 kg
+- 69 × oxygen → mind → 1 kg (never: land)
+- 55 × oxygen → land → 1 kg → mind
+- 54 × oxygen → land → mind (never: 1 kg)
+- 52 × oxygen → 1 kg → mind (never: land)
+- 43 × land → oxygen → mind → 1 kg
+- 25 × land → oxygen → mind (never: 1 kg)
+- 22 × oxygen → mind (never: land, 1 kg)
+- 17 × land → oxygen → 1 kg → mind
+- 5 × oxygen → mind → 1 kg → land
+- 4 × oxygen → land → 1 kg + mind
+- 4 × oxygen → mind → land (never: 1 kg)
+- 3 × oxygen → 1 kg + mind (never: land)
+- 3 × oxygen + land → 1 kg → mind
+- 3 × oxygen + land → mind → 1 kg
+- 2 × land → oxygen → 1 kg + mind
+- 1 × oxygen → 1 kg → land + mind
+- 1 × oxygen → mind → land → 1 kg
+
+**Rare Intelligence**
+
+- 1 × oxygen → land → 1 kg → mind
+
+**Abundant Life**
+
+- 114 × oxygen → land → mind → 1 kg
+- 107 × oxygen → mind → 1 kg (never: land)
+- 104 × oxygen → land → mind (never: 1 kg)
+- 92 × land → oxygen → mind (never: 1 kg)
+- 56 × oxygen → mind (never: land, 1 kg)
+- 55 × land → oxygen → mind → 1 kg
+- 9 × oxygen → mind → land → 1 kg
+- 8 × oxygen → land → 1 kg → mind
+- 6 × oxygen → 1 kg → mind (never: land)
+- 6 × oxygen → mind → land (never: 1 kg)
+- 5 × oxygen + land → mind (never: 1 kg)
+- 4 × oxygen + land → mind → 1 kg
+- 3 × land → oxygen → 1 kg → mind
+- 3 × oxygen → mind → 1 kg → land
+- 2 × oxygen → 1 kg + mind (never: land)
+- 2 × oxygen → land → 1 kg + mind
+- 2 × oxygen → land + mind (never: 1 kg)
+- 1 × land → oxygen → 1 kg + mind
+- 1 × oxygen → land + mind → 1 kg

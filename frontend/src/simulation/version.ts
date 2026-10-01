@@ -14,7 +14,7 @@
 // Limits: it records which rules made a record, not what those rules were. An
 // older version cannot be re-run; a recount always uses the current rules.
 
-export const SIMULATION_RULES_VERSION = 9;
+export const SIMULATION_RULES_VERSION = 10;
 
 /** Whether a record's numbers were produced by rules older than the current ones. */
 export function countedUnderOlderRules(rulesVersion: number): boolean {

@@ -10,7 +10,7 @@ export interface UniverseConfig {
   // Influences galaxy scale and particle spread
   expansionRate: number;
 
-  // Influences the mass threshold required for star ignition (lower = more stars)
+  // Above 1, fewer stars are heavy: more small, long-lived stars; below 1, more heavy, short-lived ones
   stellarIgnitionThreshold: number;
 
   // Influences star lifespan (lower = stars die faster)
@@ -72,7 +72,7 @@ export const PRESETS: Preset[] = [
       expansionRate:            1.0,
       stellarIgnitionThreshold: 1.0,
       entropyRate:              1.4,
-      emergenceSensitivity:     0.15,
+      emergenceSensitivity:     0.01,  // C2.10: at 0.15 the origin rate still saturated (life on ~48% of solid planets)
       intelligenceModifier:     0.3,
     },
   },
@@ -82,7 +82,7 @@ export const PRESETS: Preset[] = [
     values: {
       gravityStrength:          1.2,
       expansionRate:            0.8,
-      stellarIgnitionThreshold: 0.7,
+      stellarIgnitionThreshold: 1.2,   // more long-lived small stars (C2.10: was 0.7, which made them heavier)
       entropyRate:              0.1,
       emergenceSensitivity:     1.0,
       intelligenceModifier:     1.0,
@@ -106,7 +106,7 @@ export const PRESETS: Preset[] = [
     values: {
       gravityStrength:          1.0,
       expansionRate:            1.0,
-      stellarIgnitionThreshold: 0.8,
+      stellarIgnitionThreshold: 1.2,   // more long-lived small stars (C2.10: was 0.8, which gave less life than default)
       entropyRate:              0.9,
       emergenceSensitivity:     2.0,
       intelligenceModifier:     1.5,
@@ -130,13 +130,13 @@ export function validateConfig(cfg: UniverseConfig): ConfigWarning[] {
   if (cfg.expansionRate > 1.8)
     warnings.push({ field: "expansionRate", message: "Extreme expansion may scatter matter before stars form." });
 
-  if (cfg.stellarIgnitionThreshold > 1.8 && cfg.gravityStrength < 0.5)
-    warnings.push({ field: "stellarIgnitionThreshold", message: "High ignition threshold + weak gravity: almost no stars possible." });
+  if (cfg.stellarIgnitionThreshold > 1.8)
+    warnings.push({ field: "stellarIgnitionThreshold", message: "High ignition threshold: nearly every star is a small, dim red dwarf." });
 
   if (cfg.entropyRate > 1.8)
     warnings.push({ field: "entropyRate", message: "Stars burn out quickly — little time for life to emerge." });
 
-  if (cfg.emergenceSensitivity < 0.05)
+  if (cfg.emergenceSensitivity < 0.005)
     warnings.push({ field: "emergenceSensitivity", message: "Life emergence nearly impossible in this universe." });
 
   if (cfg.intelligenceModifier > 1.9 && cfg.emergenceSensitivity > 1.8)

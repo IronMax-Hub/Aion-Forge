@@ -274,7 +274,7 @@ export function generateStarsFor(
   const stars: Star[] = [];
 
   for (let i = 0; i < STAR_COUNT; i++) {
-    // stellarIgnitionThreshold > 1 shifts distribution toward heavier stars
+    // stellarIgnitionThreshold > 1 shrinks the mass roll: fewer heavy stars, more small long-lived ones
     const massRoll = Math.min(0.9999, rng() * (1 / config.stellarIgnitionThreshold));
     const mass = generateMass(Math.max(0, massRoll));
     // entropyRate > 1 = faster decay = shorter lifespans

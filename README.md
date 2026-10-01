@@ -125,18 +125,18 @@ Sound is off by default; turn it on from the status bar.
 
 ## Quick Start Seeds
 
-These seeds produce universes worth exploring. Figures are for the default parameters under simulation rules v8, as the life survey counts them: worlds with organisms (microbial or more advanced), civilizations, and how many systems host a civilization that got past farming.
+These seeds produce universes worth exploring. Figures are for the default parameters under simulation rules v9, as the life survey counts them: worlds with organisms (microbial or more advanced), civilizations, and how many systems host a civilization that got past farming.
 
 | Seed | Galaxy Type | Worlds with organisms | Civilizations | Systems past agriculture |
 |------|-------------|---:|---:|---:|
-| `100000` | Spiral | 3093 | 17 | 10 |
-| `13579` | Spiral | 3058 | 11 | 8 |
-| `3141592` | Spiral | 2976 | 15 | 6 |
-| `137035` | Irregular | 3116 | 9 | 6 |
-| `271828` | Elliptical | 3109 | 7 | 5 |
-| `404040` | Elliptical | 3086 | 11 | 4 |
+| `271828` | Elliptical | 3109 | 52 | 3 |
+| `100000` | Spiral | 3093 | 50 | 2 |
+| `137035` | Irregular | 3116 | 53 | 1 |
+| `3141592` | Spiral | 2976 | 47 | 1 |
+| `404040` | Elliptical | 3086 | 41 | 1 |
+| `13579` | Spiral | 3058 | 45 | 0 |
 
-With 2,000 stars per universe, default parameters give every seed a similar amount of life; what differs is where it arises and what becomes of it. Since rules v7, life begins on most worlds with liquid water within a few hundred million years and then evolves inside its planet's history, so most of these organisms are microbial, and many worlds have lost the life they once had. Since rules v8 a biosphere's stage is read from what evolved there: complex life needs bodies above a gram and a food chain three levels deep, which in practice needs an oxygen atmosphere, so only a few worlds in each universe reach it, and civilizations, which need complex life, are rare. Many civilizations stop at agriculture because their world has no fire: no exposed land, or air too thin to burn in. For a quieter universe, change the laws instead: the **Fragile Life** preset leaves about as much life but even fewer civilizations (1–6 against 8–17 for seeds 100000, 42 and 7777).
+With 2,000 stars per universe, default parameters give every seed a similar amount of life; what differs is where it arises and what becomes of it. Since rules v7, life begins on most worlds with liquid water within a few hundred million years and then evolves inside its planet's history, so most of these organisms are microbial, and many worlds have lost the life they once had. Since rules v8 a biosphere's stage is read from what evolved there: complex life needs bodies above a gram and a food chain three levels deep, which in practice needs an oxygen atmosphere, so only a few worlds in each universe reach it. Since rules v9 a civilization begins when a lineage heavier than a gram evolves enough information processing to count as a mind; about half of them are now ruins, because large bodies die in impacts and volcanic pulses and their species dies with them. Few get past farming: fire needs exposed land and air at least 18% oxygen, and most minds live under thick air with little oxygen in it. Many civilizations stop at agriculture because their world has no fire: no exposed land, or air too thin to burn in. For a quieter universe, change the laws instead: the **Fragile Life** preset leaves about as much life but far fewer minds.
 
 Generating a universe takes about 20 seconds on a four-core machine (under a minute on one core), because every planet's life is evolved through its history; the survey runs in the background on all cores but one, with a progress bar.
 
@@ -212,7 +212,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 
 ## Current Status
 
-**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.5 (simulation rules v8)**
+**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.6 (simulation rules v9)**
 
 ### Simulation
 

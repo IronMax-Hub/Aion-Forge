@@ -102,10 +102,10 @@ describe("habitability", () => {
 });
 
 describe("fire", () => {
-  it("needs exposed land, at least half a bar of air, and air that is at least 18% oxygen (R6)", () => {
+  it("needs exposed land, at least half a bar of air, and 0.16 bar of oxygen (C2.10)", () => {
     for (const { planet } of solid) {
       const s = planet.surface!;
-      expect(canSustainFire(planet)).toBe(s.landFraction >= 0.01 && s.pressureBar >= 0.5 && s.o2Bar / s.pressureBar >= 0.18);
+      expect(canSustainFire(planet)).toBe(s.landFraction >= 0.01 && s.pressureBar >= 0.5 && s.o2Bar >= 0.16);
     }
     for (const { planet } of giants) expect(canSustainFire(planet)).toBe(false);
   });

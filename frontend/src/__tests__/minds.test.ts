@@ -122,8 +122,9 @@ describe("a civilization", () => {
     expect(civOf(planet).civilization!.techStage).toBe("collapsed");
   });
 
-  it("cannot reach industry without fire, and fire needs 18% oxygen", () => {
+  it("cannot reach industry without fire, and fire needs 0.16 bar of oxygen, however thick the air (C2.10)", () => {
     const thin = { ...earthAir, o2Bar: 0.15 };
+    expect(canSustainFire(planetWith(null, { ...earthAir, pressureBar: 5, o2Bar: 0.24 }))).toBe(true);
     expect(canSustainFire(planetWith(null, earthAir))).toBe(true);
     expect(canSustainFire(planetWith(null, thin))).toBe(false);
     for (let lineageId = 0; lineageId < 40; lineageId++) {

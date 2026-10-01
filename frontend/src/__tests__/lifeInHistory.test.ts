@@ -120,13 +120,13 @@ describe("life's air", () => {
   });
 
   it("keeps far less methane once the air is oxidised", () => {
-    // Anoxic vent life keeps ~10⁻³ bar; in oxidised air methanogens are confined and methane is destroyed faster
-    let checked = 0;
-    for (const h of earths) {
-      const today = h.snapshots![h.snapshots!.length - 1];
-      if (today.o2Bar > 0.1) { expect(today.ch4Bar).toBeLessThan(1e-4); checked++; }
-    }
-    expect(checked).toBeGreaterThan(0);
+    // Anoxic vent life keeps ~10⁻³ bar; in oxidised air methanogens are confined and methane is
+    // destroyed faster: typically ~10⁻⁹ bar. A world that oxidised only lately can still hold more,
+    // but never as much as anoxic vent life keeps
+    const oxidised = earths.map((h) => h.snapshots!.at(-1)!).filter((today) => today.o2Bar > 0.1).map((today) => today.ch4Bar);
+    expect(oxidised.length).toBeGreaterThan(0);
+    for (const ch4 of oxidised) expect(ch4).toBeLessThan(1e-3);
+    expect([...oxidised].sort((a, b) => a - b)[Math.floor(oxidised.length / 2)]).toBeLessThan(1e-6);
   });
 
   it("keeps a lifeless planet's air exactly as it was without life", () => {

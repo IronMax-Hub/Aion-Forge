@@ -217,16 +217,18 @@ function collapseNote(_species: Species, rng: () => number): string {
 // ── Fire (Worlds Up Close A3, R6) ─────────────────────────────────────────────
 //
 // Smelting and industry need open fire, and open fire needs exposed land, air
-// thick enough to burn in, and oxygen: at least 18% of the air, since
-// combustion depends on oxygen's share, not its pressure (R6; the oxygen
-// condition joins in C2.6, read from today's air as the world history left it).
+// thick enough to burn in, and oxygen: at least 0.16 bar of it, read from
+// today's air as the world history left it (C2.6). R6 first set an 18% share
+// of the air; owner decision in C2.10: a partial pressure instead, since most
+// minds live under thick air that dilutes Earth-like oxygen to a few percent,
+// and a share rule left almost none of them able to smelt.
 // A mind on a world without them can farm, but cannot go further. The limit
 // comes from the world, not from who evolved: an aquatic mind is capped
 // because it has no fire, and so is a land mind under thin or oxygen-poor air.
 
 const FIRE_MIN_LAND = 0.01;          // share of the surface that is exposed, ice-free land
 const FIRE_MIN_PRESSURE_BAR = 0.5;
-const FIRE_MIN_O2_SHARE = 0.18;      // oxygen's share of the air
+const FIRE_MIN_O2_BAR = 0.16;        // oxygen partial pressure (Earth: 0.21)
 // Without fire, technology stops just short of industry
 const FIRELESS_TECH_CEILING = INDUSTRIAL_TECH_LEVEL - 1e-9;
 
@@ -234,7 +236,7 @@ const FIRELESS_TECH_CEILING = INDUSTRIAL_TECH_LEVEL - 1e-9;
 export function canSustainFire(planet: Planet): boolean {
   const surface = planet.surface;
   return surface !== null && surface.landFraction >= FIRE_MIN_LAND && surface.pressureBar >= FIRE_MIN_PRESSURE_BAR
-    && surface.o2Bar / surface.pressureBar >= FIRE_MIN_O2_SHARE;
+    && surface.o2Bar >= FIRE_MIN_O2_BAR;
 }
 
 // ── Main generator (AF-077 + AF-078 + AF-080–083) ────────────────────────────

@@ -130,8 +130,10 @@ const EMPTY_NICHE_BONUS = 0.5;   // per empty neighbouring niche
 const ROOM_BONUS = 2;            // at an empty world; falls to 0 as living lineages reach the cap
 const SWITCH_CHANCE = { source: 0.15, habitat: 0.15, level: 0.2 };
 
-// Catastrophes: chance each kills a lineage of the smallest size at level 0
-const KILL_CHANCE = { impact: 0.15, volcanicPulse: 0.05, transition: 0.1 };
+// Catastrophes: chance each kills a lineage of the smallest size at level 0.
+// C2.10 (owner decision): halved from 0.15 / 0.05 / 0.1, at which half of all
+// civilizations' species died out in catastrophes
+const KILL_CHANCE = { impact: 0.075, volcanicPulse: 0.025, transition: 0.05 };
 const KILL_SIZE_WEIGHT = 1;      // added per 20 orders of magnitude of body mass
 const KILL_LEVEL_WEIGHT = 0.5;   // added per food-chain level
 const KILL_CHANCE_MAX = 0.95;

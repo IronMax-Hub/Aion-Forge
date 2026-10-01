@@ -25,6 +25,7 @@ import { derivePhysics } from "../src/simulation/planetPhysics";
 import { buildGeography } from "../src/simulation/geography";
 import { runWorldHistory, FORMATION_DELAY_GYR } from "../src/simulation/worldHistory";
 import type { UniverseConfig } from "../src/simulation/config";
+import { EARTH_PATH, firstsOrder } from "./earthPath";
 
 export const SEEDS = [100000, 42, 7777];
 
@@ -46,6 +47,8 @@ export interface Histories {
   everLifeShare: number;       // life began at some time (C2.3b)
   livingShare: number;         // life lives today
   medianLifeStartGyr: number;  // after the loop's start, over worlds where life began
+  /** Worlds with a mind, by the order of their firsts (earthPath.ts, C2.10). */
+  mindOrders: Record<string, number>;
   ms: number;                  // summed over every solid planet
 }
 
@@ -74,6 +77,7 @@ export function measureUniverse(presetName: string, seed: number): Row {
   // Counted as each solid planet's world is made
   const oceans: number[] = [];
   const lifeStarts: number[] = [];
+  const mindOrders: Record<string, number> = {};
   const counts = { froze: 0, runaway: 0, oceansLost: 0, oxidised: 0, liquidToday: 0, noLand: 0, noLandRunaway: 0, everLife: 0, living: 0 };
   let geographyMs = 0;
   let historyMs = 0;
@@ -103,6 +107,8 @@ export function measureUniverse(presetName: string, seed: number): Row {
       lifeStarts.push(history.life.startedGyr - FORMATION_DELAY_GYR);
       if (history.life.endedGyr === null) counts.living++;
     }
+    const order = firstsOrder(history);
+    if (order !== null) mindOrders[order] = (mindOrders[order] ?? 0) + 1;
     return { physics, geography, history };
   };
 
@@ -145,6 +151,7 @@ export function measureUniverse(presetName: string, seed: number): Row {
       everLifeShare: share(counts.everLife),
       livingShare: share(counts.living),
       medianLifeStartGyr: median(lifeStarts),
+      mindOrders,
       ms: historyMs,
     },
     surveyMs,
@@ -160,15 +167,35 @@ function stageMix(survey: LifeSurvey): string {
   return ORGANISM_STAGES.map((stage) => survey.systems.filter((s) => s.mostAdvancedStage === stage).length).join(" / ");
 }
 
+function earthPathCell(orders: Record<string, number>): string {
+  const minds = Object.values(orders).reduce((a, b) => a + b, 0);
+  return `${orders[EARTH_PATH] ?? 0} / ${minds}`;
+}
+
+/** For each preset, every order of firsts that occurred on its worlds with a mind (all seeds), most common first. */
+export function ordersReport(rows: Row[]): string {
+  const lines = [`Orders of firsts on worlds with a mind (oxygen in the air, life on land, a body over 1 kg, a mind; Earth's path is ${EARTH_PATH}). "+" joins firsts in the same 100 Myr step.`];
+  for (const preset of [...new Set(rows.map((r) => r.preset))]) {
+    const totals: Record<string, number> = {};
+    for (const row of rows.filter((r) => r.preset === preset)) {
+      for (const [order, n] of Object.entries(row.history.mindOrders)) totals[order] = (totals[order] ?? 0) + n;
+    }
+    const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    lines.push("", `**${preset}**${sorted.length === 0 ? ": no minds." : ""}`, "");
+    for (const [order, n] of sorted) lines.push(`- ${n} × ${order}`);
+  }
+  return lines.join("\n");
+}
+
 /** The rows as a Markdown table. */
 export function table(rows: Row[]): string {
   const lines = [
-    "| Preset | Seed | Planets | Tidally locked | Solid planets | Median ocean cover at formation | Ocean worlds (> 90%) | Dry (< 3%) | Ever froze over | Runaway greenhouse | Oceans lost | Oxidised (by life or water loss) | Liquid water today | Runaway, worlds formed with no land | Ever had life | Living today | Median life start (Gyr) | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Survey (ms) | Geography (ms) | World history (ms) |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|",
+    "| Preset | Seed | Planets | Tidally locked | Solid planets | Median ocean cover at formation | Ocean worlds (> 90%) | Dry (< 3%) | Ever froze over | Runaway greenhouse | Oceans lost | Oxidised (by life or water loss) | Liquid water today | Runaway, worlds formed with no land | Ever had life | Living today | Median life start (Gyr) | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Earth path (of worlds with a mind) | Survey (ms) | Geography (ms) | World history (ms) |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|",
   ];
   const percent = (share: number) => `${(share * 100).toFixed(1)}%`;
   for (const { preset, seed, survey, lockedShare: locked, geography: g, history: h, surveyMs } of rows) {
-    lines.push(`| ${preset} | ${seed} | ${survey.totalPlanets} | ${percent(locked)} | ${g.solidPlanets} | ${percent(g.medianOcean)} | ${percent(g.oceanWorldShare)} | ${percent(g.dryShare)} | ${percent(h.frozeShare)} | ${percent(h.runawayShare)} | ${percent(h.oceansLostShare)} | ${percent(h.oxidisedShare)} | ${percent(h.liquidTodayShare)} | ${percent(h.noLandRunawayShare)} | ${percent(h.everLifeShare)} | ${percent(h.livingShare)} | ${Number.isNaN(h.medianLifeStartGyr) ? "–" : h.medianLifeStartGyr.toFixed(1)} | ${survey.lifeBearingPlanets} | ${survey.systems.length} | ${stageMix(survey)} | ${survey.civilizationCount} | ${surveyMs.toFixed(1)} | ${g.ms.toFixed(0)} | ${h.ms.toFixed(0)} |`);
+    lines.push(`| ${preset} | ${seed} | ${survey.totalPlanets} | ${percent(locked)} | ${g.solidPlanets} | ${percent(g.medianOcean)} | ${percent(g.oceanWorldShare)} | ${percent(g.dryShare)} | ${percent(h.frozeShare)} | ${percent(h.runawayShare)} | ${percent(h.oceansLostShare)} | ${percent(h.oxidisedShare)} | ${percent(h.liquidTodayShare)} | ${percent(h.noLandRunawayShare)} | ${percent(h.everLifeShare)} | ${percent(h.livingShare)} | ${Number.isNaN(h.medianLifeStartGyr) ? "–" : h.medianLifeStartGyr.toFixed(1)} | ${survey.lifeBearingPlanets} | ${survey.systems.length} | ${stageMix(survey)} | ${survey.civilizationCount} | ${earthPathCell(h.mindOrders)} | ${surveyMs.toFixed(1)} | ${g.ms.toFixed(0)} | ${h.ms.toFixed(0)} |`);
   }
   return lines.join("\n");
 }

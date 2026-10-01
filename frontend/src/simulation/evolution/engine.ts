@@ -176,7 +176,8 @@ export interface Lineage {
   warmestK: number;
 }
 
-export type FirstKind = "light" | "consumer" | "multicellular" | "land";
+/** Life's firsts; "kilogram" is the first body heavier than 1 kg (C2.10: the Earth-path measurement). */
+export type FirstKind = "light" | "consumer" | "multicellular" | "land" | "kilogram";
 
 export interface EvolutionFirst {
   kind: FirstKind;
@@ -586,6 +587,7 @@ const FIRST_TESTS: [FirstKind, (l: Lineage) => boolean][] = [
   ["consumer", (l) => l.genome.energySource === "consumer"],
   ["multicellular", (l) => l.genome.log10BodyMassKg > MULTICELLULAR_LOG10_KG],
   ["land", (l) => l.genome.habitat === "land"],
+  ["kilogram", (l) => l.genome.log10BodyMassKg > 0],
 ];
 
 /**

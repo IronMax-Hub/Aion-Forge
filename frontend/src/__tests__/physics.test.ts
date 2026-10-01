@@ -155,7 +155,7 @@ describe("Timeline chronology", () => {
       const lifeEnded = of(planet.key, "planetary").filter((e) => e.importance === "legendary");
       expect(lifeEnded.length).toBe(planet.life.endedGyr === null ? 0 : 1);
       const biological = of(planet.key, "biological");
-      const firsts = planet.life.phylogeny.firsts.filter((f) => f.kind !== "consumer");
+      const firsts = planet.life.phylogeny.firsts.filter((f) => ["light", "multicellular", "land"].includes(f.kind));
       expect(biological.length).toBe(firsts.length + bio.extinctions.length);
       // Graded by the share of lineages lost (owner decision): a mass extinction from a quarter on
       for (const e of biological.filter((e) => e.summary.startsWith("Mass extinction"))) expect(["major", "historic"]).toContain(e.importance);

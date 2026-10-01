@@ -12,6 +12,7 @@ import type { Geography } from "./geography";
 import { runWorldHistory } from "./worldHistory";
 import type { WorldHistory } from "./worldHistory";
 import type { PresentClimate } from "./climate";
+import type { PhylogenySummary } from "./evolution/phylogeny";
 
 export { effectiveOrbitAU, GIANT_PLANET_MASS };
 
@@ -53,15 +54,16 @@ export interface Planet {
   isRare: boolean;
   /** Today's surface, from the planet's world history; null for giants, which have none. */
   surface: PlanetSurface | null;
-  /** When life began and, if it has, ended on the planet, from its world history (C2.3b); null if it never began. */
+  /** Life on the planet, from its world history (C2.3b, C2.5); null if it never began. */
   life: PlanetLife | null;
 }
 
-/** The dates of a planet's life, Gyr after its star formed. */
+/** A planet's life: its dates, Gyr after its star formed, and what its lineages became (C2.5). */
 export interface PlanetLife {
   startedGyr: number;
   /** Null while life lasts. */
   endedGyr: number | null;
+  phylogeny: PhylogenySummary;
 }
 
 /** The present-day surface of a solid planet, as the world history left it (A3). */
@@ -325,7 +327,9 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
       // A solid planet's surface is the end of its history
       const { physics, history } = solidWorldOf(planet, star, galaxySeed, config);
       planet.surface = presentSurface(history.present, physics, history.final.pressureBar);
-      planet.life = history.life && { startedGyr: history.life.startedGyr, endedGyr: history.life.endedGyr };
+      planet.life = history.life && {
+        startedGyr: history.life.startedGyr, endedGyr: history.life.endedGyr, phylogeny: history.phylogeny!,
+      };
       planet.temperature = history.present.meanK;
       planet.atmosphere = atmosphereClassOf(history.final.pressureBar);
       planet.type = solidType(planet.temperature, planet.surface);

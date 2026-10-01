@@ -105,7 +105,7 @@ describe("Timeline chronology", () => {
     const population = generateStarsFor(galaxyCfg);
     const entries = population.stars.slice(0, 60).flatMap((star) =>
       generatePlanetsFor(star, seed).planets.map((planet) => {
-        const bio = generateBiosphere(planet, star, seed);
+        const bio = generateBiosphere(planet, star);
         const civ = bio.hasLife ? generateCivilization(bio, planet, seed) : null;
         return { planet, star, bio, civ: civ?.civilization ?? undefined, species: civ?.species ?? undefined };
       }));

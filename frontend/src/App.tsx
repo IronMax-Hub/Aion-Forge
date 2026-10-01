@@ -426,7 +426,7 @@ export default function App() {
       const orbitAU = effectiveOrbitAU(planet.orbitalRadius, universeConfig);
       const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, selectedStar, currentSeed, universeConfig) : null;
       const biosphere = systemBiosphereRef.current.get(planet.id)
-        ?? generateBiosphere(planet, selectedStar, currentSeed);
+        ?? generateBiosphere(planet, selectedStar);
       rendererRef.current?.approachPlanet(planet, {
         world,
         physics: world?.physics ?? derivePhysics(planet, selectedStar, currentSeed, universeConfig),
@@ -444,7 +444,7 @@ export default function App() {
 
     const biospheres = new Map<number, Biosphere>();
     for (const planet of system.planets) {
-      const bio = generateBiosphere(planet, selectedStar, currentSeed);
+      const bio = generateBiosphere(planet, selectedStar);
       biospheres.set(planet.id, bio);
     }
     systemBiosphereRef.current = biospheres;
@@ -481,14 +481,14 @@ export default function App() {
   const handleScanBiosphere = useCallback(() => {
     if (!selectedPlanet || !selectedStar) return;
     const bio = systemBiosphereRef.current.get(selectedPlanet.id)
-      ?? generateBiosphere(selectedPlanet, selectedStar, currentSeed);
+      ?? generateBiosphere(selectedPlanet, selectedStar);
     setSelectedBiosphere(bio);
     setSelectedCivilization(null);
     setSelectedSpecies(null);
     setView("biosphere");
     ambientLayer.setContext("biosphere");
     if (bio.hasLife) discovery.firstLife();
-  }, [selectedPlanet, selectedStar, currentSeed]);
+  }, [selectedPlanet, selectedStar]);
 
   const handleScanCivilization = useCallback(() => {
     if (!selectedBiosphere || !selectedPlanet) return;

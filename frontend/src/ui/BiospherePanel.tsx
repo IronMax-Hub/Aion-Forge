@@ -1,6 +1,6 @@
 import type { Biosphere } from "../simulation/biosphere";
 import { STAGE_LABEL, STAGE_COLOR } from "../simulation/biosphere";
-import type { LifeStage } from "../simulation/biosphere";
+import type { ExtinctionEvent, LifeStage } from "../simulation/biosphere";
 import { formatGyr, formatIndex } from "./format";
 
 interface Props {
@@ -27,17 +27,40 @@ function TraitRow({ label, value }: { label: string; value: number }) {
   );
 }
 
+/** The latest catastrophes that cost life lineages, most recent first. */
+function Extinctions({ extinctions }: { extinctions: ExtinctionEvent[] }) {
+  if (extinctions.length === 0) return null;
+  return (
+    <div className="inspector-section">
+      <div className="section-head">
+        <span className="section-title">Extinctions</span>
+        <span className="section-note">{extinctions.length} recorded</span>
+      </div>
+      {extinctions.slice(0, 3).map((e, i) => (
+        <div key={i} className="bio-ext-row">
+          <span className="bio-ext-cause">{e.cause}</span>
+          <span className={`bio-ext-severity${e.severityLoss > 0.5 ? " severe" : ""}`}>
+            −{(e.severityLoss * 100).toFixed(0)}%
+          </span>
+          <span className="bio-ext-time">{formatGyr(e.timeAgo)} ago</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization }: Props) {
   const stageColor = STAGE_COLOR[biosphere.stage];
 
   if (!biosphere.hasLife) {
+    const ended = biosphere.extinctAt !== null;
     return (
-      <div className="inspector" role="dialog" aria-label="Biosphere — no life">
+      <div className="inspector" role="dialog" aria-label={ended ? "Biosphere — life has ended" : "Biosphere — no life"}>
         <div className="inspector-header">
           <div className="inspector-dot" style={{ background: STAGE_COLOR.none }} />
           <div className="inspector-title-block">
             <span className="inspector-id">Biosphere</span>
-            <span className="inspector-subtitle">{STAGE_LABEL.none}</span>
+            <span className="inspector-subtitle">{ended ? `Extinct · ended ${formatGyr(biosphere.extinctAt!)} ago` : STAGE_LABEL.none}</span>
           </div>
           <div className="inspector-controls">
             <button className="inspector-btn" onClick={onBack} aria-label="Back to planet">←</button>
@@ -47,9 +70,14 @@ export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization 
         <div className="inspector-body">
           <div className="empty-state">
             <div className="empty-state-icon">○</div>
-            <div className="empty-state-title">No life detected</div>
-            <p className="empty-state-body">Conditions on this planet did not allow life to emerge.</p>
+            <div className="empty-state-title">{ended ? "Life has died out" : "No life detected"}</div>
+            <p className="empty-state-body">
+              {ended
+                ? `Life arose here and lasted ${formatGyr(biosphere.ageGyr)}, then died out ${formatGyr(biosphere.extinctAt!)} ago.`
+                : "Conditions on this planet did not allow life to emerge."}
+            </p>
           </div>
+          <Extinctions extinctions={biosphere.extinctions} />
         </div>
       </div>
     );
@@ -101,23 +129,7 @@ export function BiospherePanel({ biosphere, onBack, onClose, onScanCivilization 
           </div>
         </div>
 
-        {biosphere.extinctions.length > 0 && (
-          <div className="inspector-section">
-            <div className="section-head">
-              <span className="section-title">Mass extinctions</span>
-              <span className="section-note">{biosphere.extinctions.length} recorded</span>
-            </div>
-            {biosphere.extinctions.slice(-3).reverse().map((e, i) => (
-              <div key={i} className="bio-ext-row">
-                <span className="bio-ext-cause">{e.cause}</span>
-                <span className={`bio-ext-severity${e.severityLoss > 0.5 ? " severe" : ""}`}>
-                  −{(e.severityLoss * 100).toFixed(0)}%
-                </span>
-                <span className="bio-ext-time">{formatGyr(e.timeAgo)} ago</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <Extinctions extinctions={biosphere.extinctions} />
 
         <div className="inspector-actions">
           <button

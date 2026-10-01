@@ -163,8 +163,8 @@ describe("Biosphere determinism", () => {
     for (const star of pop.stars.slice(0, 10)) {
       const sys = generatePlanetsFor(star, seed);
       for (const planet of sys.planets) {
-        const b1 = generateBiosphere(planet, star, seed);
-        const b2 = generateBiosphere(planet, star, seed);
+        const b1 = generateBiosphere(planet, star);
+        const b2 = generateBiosphere(planet, star);
         expect(b1.hasLife).toBe(b2.hasLife);
         expect(b1.stage).toBe(b2.stage);
         expect(b1.complexity).toBe(b2.complexity);
@@ -186,7 +186,7 @@ describe("Civilization determinism", () => {
     for (const star of pop.stars) {
       const sys = generatePlanetsFor(star, seed);
       for (const planet of sys.planets) {
-        const bio = generateBiosphere(planet, star, seed);
+        const bio = generateBiosphere(planet, star);
         const r1 = generateCivilization(bio, planet, seed);
         const r2 = generateCivilization(bio, planet, seed);
         expect(r1.civilization?.techStage).toBe(r2.civilization?.techStage);
@@ -212,7 +212,7 @@ describe("Timeline determinism", () => {
     const entries = pop.stars.slice(0, 3).flatMap((star) => {
       const sys = generatePlanetsFor(star, seed);
       return sys.planets.map((planet) => {
-        const bio = generateBiosphere(planet, star, seed);
+        const bio = generateBiosphere(planet, star);
         const { civilization, species } = generateCivilization(bio, planet, seed);
         return { planet, star, bio, civ: civilization ?? undefined, species: species ?? undefined };
       });
@@ -313,7 +313,7 @@ describe("Config modifiers affect emergence", () => {
       for (const star of pop.stars.slice(0, 50)) {
         const sys = generatePlanetsFor(star, seed, config);
         for (const planet of sys.planets) {
-          if (generateBiosphere(planet, star, seed).hasLife) count++;
+          if (generateBiosphere(planet, star).hasLife) count++;
         }
       }
       return count;
@@ -335,7 +335,7 @@ describe("Config modifiers affect emergence", () => {
       for (const star of pop.stars.slice(0, 50)) {
         const sys = generatePlanetsFor(star, seed, config);
         for (const planet of sys.planets) {
-          const bio = generateBiosphere(planet, star, seed);
+          const bio = generateBiosphere(planet, star);
           if (generateCivilization(bio, planet, seed, config).civilization) count++;
         }
       }
@@ -360,7 +360,7 @@ describe("describeCivilization", () => {
     for (const star of pop.stars) {
       const sys = generatePlanetsFor(star, seed);
       for (const planet of sys.planets) {
-        const bio = generateBiosphere(planet, star, seed);
+        const bio = generateBiosphere(planet, star);
         const { civilization, species } = generateCivilization(bio, planet, seed);
         if (civilization && species) {
           const n1 = describeCivilization(civilization, species);
@@ -386,7 +386,7 @@ describe("summarizeTimeline", () => {
     const entries = pop.stars.slice(0, 5).flatMap((star) => {
       const sys = generatePlanetsFor(star, seed);
       return sys.planets.map((planet) => {
-        const bio = generateBiosphere(planet, star, seed);
+        const bio = generateBiosphere(planet, star);
         const { civilization, species } = generateCivilization(bio, planet, seed);
         return { planet, star, bio, civ: civilization ?? undefined, species: species ?? undefined };
       });

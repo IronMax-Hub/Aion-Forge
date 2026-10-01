@@ -113,7 +113,7 @@ describe("fire", () => {
   it("stops every civilization on a world without fire short of industry", () => {
     let fireless = 0;
     for (const { star, planet } of all) {
-      const bio = generateBiosphere(planet, star, seed);
+      const bio = generateBiosphere(planet, star);
       const civ = bio.hasLife ? generateCivilization(bio, planet, seed, config).civilization : null;
       if (!civ || canSustainFire(planet)) continue;
       fireless++;

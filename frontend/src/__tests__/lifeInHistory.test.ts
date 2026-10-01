@@ -76,9 +76,10 @@ describe("the origin of life", () => {
     const ended = worlds.filter(({ history }) => history.life?.endedGyr != null);
     expect(ended.length).toBeGreaterThan(0);
     for (const { star, planet, history } of ended) {
-      expect(planet.life).toEqual({ startedGyr: history.life!.startedGyr, endedGyr: history.life!.endedGyr });
+      expect(planet.life).toEqual({ startedGyr: history.life!.startedGyr, endedGyr: history.life!.endedGyr, phylogeny: history.phylogeny });
+      expect(history.phylogeny!.livingLineages).toBe(0);
       expect(history.life!.endedGyr!).toBeGreaterThanOrEqual(history.life!.startedGyr);
-      expect(generateBiosphere(planet, star, seed).hasLife).toBe(false);
+      expect(generateBiosphere(planet, star).hasLife).toBe(false);
     }
   });
 });
@@ -148,10 +149,17 @@ describe("what life becomes", () => {
 
   it("tells the biosphere whether life lives today and since when", () => {
     for (const { star, planet } of worlds) {
-      const bio = generateBiosphere(planet, star, seed);
+      const bio = generateBiosphere(planet, star);
       const alive = planet.life !== null && planet.life.endedGyr === null;
       expect(bio.hasLife).toBe(alive);
+      if (planet.life && planet.life.endedGyr !== null) {
+        // Life that has ended (R8, C2.5): how long ago, and how long it lasted
+        expect(bio.stage).toBe("none");
+        expect(bio.extinctAt).toBeCloseTo(star.age - planet.life.endedGyr, 12);
+        expect(bio.ageGyr).toBeCloseTo(planet.life.endedGyr - planet.life.startedGyr, 12);
+      }
       if (!alive) continue;
+      expect(bio.extinctAt).toBeNull();
       expect(bio.ageGyr).toBeCloseTo(star.age - planet.life!.startedGyr, 12);
       // Life from the loop is cells from the start, even a world whose life is brand new
       expect(["microbial", "multicellular", "complex", "dominant"]).toContain(bio.stage);

@@ -1,13 +1,46 @@
-import { createRNG, mixSeed, SALT } from "./rng";
-import { exp } from "./detmath";
+// Biosphere summary (Worlds Up Close, phase C2.5).
+//
+// Why it exists: the biosphere panel, the life markers, the survey and the
+// civilization rules all read one summary of a planet's life. Since C2.5 it is
+// read from the lineages the planet's world history produced (its phylogeny
+// summary, evolution/phylogeny.ts), not rolled, so what a world holds today
+// follows from what happened to it. It draws nothing.
+//
+// The stage, from the living lineages (Revision 1, C2.5):
+//   microbial      largest body below 10⁻⁹ kg
+//   multicellular  largest body 10⁻⁹ to 10⁻³ kg (or larger, with fewer than
+//                  three food-chain levels)
+//   complex        largest body above 10⁻³ kg and at least three food-chain levels
+//   dominant       complex, and producers cover more than 60% of the habitable area
+// "prebiotic" is no longer produced (life either exists or not) and stays only
+// in the type (R9). Body mass stands in for multicellularity.
+//
+// The measures, each 0–1:
+//   complexity    largest living body mass, as a share of the genome's mass range
+//   diversity     living lineages over the lineage cap
+//   stability     share of lineages that came through the last catastrophes
+//   adaptability  spread of the living lineages' traits
+//   biomass       living biomass on a log scale, from vent life (10⁻⁵ of
+//                 Earth's mean sunlight) to all of it (1)
+// Extinctions are every catastrophe that killed a lineage (owner decision), with
+// the share of lineages it killed as its severity.
+//
+// Life that has ended (R8): no stage, `extinctAt` says how long ago, and
+// `ageGyr` how long it lasted. Its extinctions stay on record.
+
+import { log } from "./detmath";
 import type { Planet } from "./planet";
 import type { Star } from "./star";
+import { MULTICELLULAR_LOG10_KG } from "./evolution/engine";
+import type { CatastropheRecord } from "./evolution/engine";
+import { TRAIT_RANGES } from "./evolution/genome";
+import type { PhylogenySummary } from "./evolution/phylogeny";
 
 // ── Data model ────────────────────────────────────────────────────────────────
 
 export type LifeStage =
   | "none"           // no life
-  | "prebiotic"      // chemistry approaching life
+  | "prebiotic"      // chemistry approaching life (kept in the type only, R9)
   | "microbial"      // simple single-celled life
   | "multicellular"  // complex cell structures
   | "complex"        // animals, plants, ecosystems
@@ -15,7 +48,7 @@ export type LifeStage =
 
 export interface ExtinctionEvent {
   cause: string;
-  severityLoss: number; // how much complexity was lost (0–1)
+  severityLoss: number; // share of living lineages lost (0–1)
   timeAgo: number;      // billion years ago (relative to star age)
 }
 
@@ -30,126 +63,78 @@ export interface Biosphere {
   adaptability: number;  // 0–1: evolutionary flexibility
   biomass: number;       // 0–1: relative abundance of life
   extinctions: ExtinctionEvent[];
-  ageGyr: number;        // how long life has existed
+  ageGyr: number;        // how long life has existed (or, if it has ended, lasted)
+  /** Gyr ago that life ended, or null if it lives or never began (C2.5). */
+  extinctAt: number | null;
 }
 
-// ── Stage thresholds on complexity ───────────────────────────────────────────
+// ── Stage thresholds (Revision 1, C2.5) ───────────────────────────────────────
 
-// Lowest complexity that counts as microbial life
-const MICROBIAL_COMPLEXITY = 0.08;
+/** Above this largest body mass (log10 kg), life can be complex. */
+const COMPLEX_LOG10_KG = -3;
+/** Food-chain levels complex life needs: producers and two levels of consumers. */
+const COMPLEX_FOOD_CHAIN_LEVELS = 3;
+/** Producer cover of the habitable area above which complex life is dominant. */
+const DOMINANT_PRODUCER_COVER = 0.6;
 
-function complexityToStage(c: number): LifeStage {
-  if (c <= 0)    return "none";
-  if (c < MICROBIAL_COMPLEXITY) return "prebiotic";
-  if (c < 0.25)  return "microbial";
-  if (c < 0.50)  return "multicellular";
-  if (c < 0.78)  return "complex";
-  return "dominant";
+// Biomass scale, log10 of the engine's unit: vent life to all of Earth's mean sunlight
+const BIOMASS_LOG10 = { floor: -5, full: 0 };
+const LN10 = log(10);
+
+const CATASTROPHE_CAUSE: Record<CatastropheRecord["cause"], string> = {
+  impact: "asteroid impact",
+  volcanism: "volcanic pulse",
+  climate: "climate shift",
+};
+
+function stageOf(life: PhylogenySummary): LifeStage {
+  const largest = life.largestLog10BodyMassKg;
+  if (largest === null) return "none";
+  if (largest <= MULTICELLULAR_LOG10_KG) return "microbial";
+  if (largest <= COMPLEX_LOG10_KG || life.foodChainLevels < COMPLEX_FOOD_CHAIN_LEVELS) return "multicellular";
+  return life.producerCover > DOMINANT_PRODUCER_COVER ? "dominant" : "complex";
 }
 
-// ── Extinction causes ─────────────────────────────────────────────────────────
-
-const EXTINCTION_CAUSES = [
-  "asteroid impact",
-  "volcanic winter",
-  "gamma-ray burst",
-  "glaciation event",
-  "ocean anoxia",
-  "stellar flare cascade",
-  "atmospheric collapse",
-  "runaway greenhouse shift",
-];
+function share(value: number, from: number, to: number): number {
+  return Math.min(1, Math.max(0, (value - from) / (to - from)));
+}
 
 // ── Main generator ────────────────────────────────────────────────────────────
 
-export function generateBiosphere(
-  planet: Planet,
-  star: Star,
-  galaxySeed: number,
-): Biosphere {
-  const rng = createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.BIO));
-
+/** The planet's biosphere today, read from the phylogeny its world history left. */
+export function generateBiosphere(planet: Planet, star: Star): Biosphere {
   const empty: Biosphere = {
     planetId: planet.id, hostStarId: planet.hostStarId,
     hasLife: false, stage: "none",
     complexity: 0, diversity: 0, stability: 0, adaptability: 0, biomass: 0,
-    extinctions: [], ageGyr: 0,
+    extinctions: [], ageGyr: 0, extinctAt: null,
   };
+  // Whether there is life, and since when, is the world history's (R4, C2.3b)
+  if (!planet.life) return empty;
+  const { startedGyr, endedGyr, phylogeny } = planet.life;
 
-  // Whether there is life, and since when, is the world history's (R4, C2.3b):
-  // life begins by the loop's per-step origin roll and lives or dies by the
-  // evolution engine. A planet whose life has ended has none today.
-  if (!planet.life || planet.life.endedGyr !== null) return empty;
-  const lifeAgeGyr = star.age - planet.life.startedGyr;
+  const extinctions: ExtinctionEvent[] = phylogeny.lethalCatastrophes
+    .map((c) => ({ cause: CATASTROPHE_CAUSE[c.cause], severityLoss: c.lineagesLost / c.aliveBefore, timeAgo: star.age - c.tGyr }))
+    .sort((a, b) => a.timeAgo - b.timeAgo);
 
-  // The rest keeps its seeded rolls until C2.5 reads it from the lineages. The
-  // two draws the old emergence roll and age used are still taken, so the
-  // draws below keep their values.
-  rng();
-  rng();
-
-  // Base complexity grows with time (logistic-like) and habitability
-  const growthRate    = 0.4 + planet.habitabilityScore * 0.5 + rng() * 0.2;
-  const timeSignal    = 1 - exp(-growthRate * lifeAgeGyr);
-  let complexity      = timeSignal * (0.5 + planet.habitabilityScore * 0.5);
-
-  // Diversity, stability, adaptability — correlated but with individual variation
-  let diversity    = complexity * (0.6 + rng() * 0.4);
-  let stability    = (planet.habitabilityScore * 0.5 + rng() * 0.5) * 0.9;
-  let adaptability = 0.3 + rng() * 0.5 + complexity * 0.2;
-
-  // Generate extinction events — more common on less stable worlds
-  const extinctions: ExtinctionEvent[] = [];
-  const extinctionChance = 0.15 + (1 - stability) * 0.4;
-  const maxExtinctions   = Math.floor(lifeAgeGyr * 1.5);
-
-  for (let i = 0; i < maxExtinctions; i++) {
-    if (rng() < extinctionChance) {
-      const severity = 0.1 + rng() * 0.7;
-      const cause    = EXTINCTION_CAUSES[Math.floor(rng() * EXTINCTION_CAUSES.length)];
-      const timeAgo  = rng() * lifeAgeGyr;
-      extinctions.push({ cause, severityLoss: severity, timeAgo });
-      // Each extinction knocks back complexity
-      complexity   *= (1 - severity * 0.6);
-      diversity    *= (1 - severity * 0.5);
-      stability    *= (1 - severity * 0.3);
-    }
+  if (endedGyr !== null) {
+    return { ...empty, extinctions, ageGyr: endedGyr - startedGyr, extinctAt: star.age - endedGyr };
   }
 
-  // Sort extinctions by recency
-  extinctions.sort((a, b) => a.timeAgo - b.timeAgo);
-
-  // Recovery: life rebounds after each extinction given enough time
-  for (const evt of extinctions) {
-    const recoveryTime = lifeAgeGyr - evt.timeAgo;
-    const recovery     = 1 - exp(-growthRate * recoveryTime * 0.5);
-    complexity   += (evt.severityLoss * 0.6) * recovery * planet.habitabilityScore;
-    diversity    += (evt.severityLoss * 0.4) * recovery * planet.habitabilityScore;
-  }
-
-  // Ocean worlds are exceptionally biodiverse
-  if (planet.type === "ocean") diversity = Math.min(1, diversity * 1.3);
-
-  // Clamp all values
-  // Life from the loop is cells from its first step: at least microbial (R9 keeps "prebiotic" only in the type)
-  complexity   = Math.min(1, Math.max(MICROBIAL_COMPLEXITY, complexity));
-  diversity    = Math.min(1, Math.max(0, diversity));
-  stability    = Math.min(1, Math.max(0, stability));
-  adaptability = Math.min(1, Math.max(0, adaptability));
-  const biomass = Math.min(1, complexity * 0.7 + planet.resourceAbundance * 0.3);
-
+  const { min, max } = TRAIT_RANGES.log10BodyMassKg;
   return {
     planetId: planet.id,
     hostStarId: planet.hostStarId,
     hasLife: true,
-    stage: complexityToStage(complexity),
-    complexity,
-    diversity,
-    stability,
-    adaptability,
-    biomass,
+    stage: stageOf(phylogeny),
+    complexity: share(phylogeny.largestLog10BodyMassKg!, min, max),
+    diversity: phylogeny.diversity,
+    stability: phylogeny.recentSurvival,
+    adaptability: phylogeny.traitSpread,
+    biomass: phylogeny.totalBiomass > 0 ? share(log(phylogeny.totalBiomass) / LN10, BIOMASS_LOG10.floor, BIOMASS_LOG10.full) : 0,
     extinctions,
-    ageGyr: lifeAgeGyr,
+    ageGyr: star.age - startedGyr,
+    extinctAt: null,
   };
 }
 

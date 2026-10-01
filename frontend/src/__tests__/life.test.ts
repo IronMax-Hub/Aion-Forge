@@ -36,7 +36,7 @@ const world = solidWorldOf(planet, star, seed, config);
 
 const biosphere = (stage: LifeStage, biomass: number): Biosphere => ({
   planetId: planet.id, hostStarId: star.id, hasLife: stage !== "none", stage,
-  complexity: 0.5, diversity: 0.5, stability: 0.5, adaptability: 0.5, biomass, extinctions: [], ageGyr: 2,
+  complexity: 0.5, diversity: 0.5, stability: 0.5, adaptability: 0.5, biomass, extinctions: [], ageGyr: 2, extinctAt: null,
 });
 const civilization = (techStage: TechStage, population: number): Civilization => ({
   id: 0, speciesId: 0, planetId: planet.id, ageGyr: 0.01, population, techStage, techLevel: 0.5,
@@ -94,7 +94,7 @@ describe("vegetation", () => {
   it("shows no tint on any lifeless planet", () => {
     let lifeless = 0;
     for (const { star, planet } of solids) {
-      const bio = generateBiosphere(planet, star, seed);
+      const bio = generateBiosphere(planet, star);
       if (bio.hasLife) continue;
       lifeless++;
       expect(vegetationOf(bio, star.temperature)).toBeNull();

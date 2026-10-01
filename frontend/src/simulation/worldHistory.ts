@@ -42,7 +42,8 @@
 //                its biomass. Life begins at most once; if it dies out, the
 //                history keeps its record.
 //   7. Record    a snapshot of the step, when asked for.
-// After the last step, the present day is solved on all 642 cells (R5).
+// After the last step, the present day is solved on all 642 cells (R5), and
+// life's lineages are summarised for the biosphere (evolution/phylogeny.ts, C2.5).
 //
 // Gravity (owner decisions): water is W · 33.75 km · g deep (geography.ts);
 // outgassed gas becomes pressure ∝ τ·g² (gas per unit planet mass, spread over
@@ -91,6 +92,9 @@ import type { EnvironmentContext } from "./evolution/environment";
 import { aerobicShare, startLife, stepEvolution } from "./evolution/engine";
 import { TRAIT_RANGES } from "./evolution/genome";
 import type { EvolutionState } from "./evolution/engine";
+import { summarizePhylogeny } from "./evolution/phylogeny";
+import type { PhylogenySummary } from "./evolution/phylogeny";
+import type { Environment } from "./evolution/environment";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -235,6 +239,8 @@ export interface WorldHistory {
   snapshots?: WorldSnapshot[];
   /** Life's lineages, if life ever began (C2.3b); its `endedGyr` says whether it still lives. */
   life: EvolutionState | null;
+  /** What the biosphere is read from (C2.5): life's lineages as the history left them; null if life never began. */
+  phylogeny: PhylogenySummary | null;
 }
 
 export interface WorldHistoryOptions {
@@ -353,6 +359,8 @@ export function runWorldHistory(
   // Life: the engine's fixed context, made once life can start; the keys of its streams
   let life: EvolutionState | null = null;
   let lifeContext: EnvironmentContext | null = null;
+  // The environment life last met: the phylogeny summary reads today's habitats from it
+  let lifeEnvironment: Environment | null = null;
   const lifeKeys = { galaxySeed, starId: planet.hostStarId, planetIndex: planet.id };
 
   const stepCount = star.age > FORMATION_DELAY_GYR ? Math.ceil((star.age - FORMATION_DELAY_GYR) / STEP_GYR - 1e-9) : 0;
@@ -478,10 +486,12 @@ export function runWorldHistory(
       const originRate = ORIGIN_PER_GYR_PER_WATER_AREA * waterArea * config.emergenceSensitivity;
       if (waterArea > 0 && happens(galaxySeed, planet, step, PURPOSE.ORIGIN, originRate, dt)) {
         lifeContext = environmentContext(planet, physics, star, config);
-        life = startLife(environmentFor(snapshot, lifeContext));
+        lifeEnvironment = environmentFor(snapshot, lifeContext);
+        life = startLife(lifeEnvironment);
       }
     } else if (life.endedGyr === null) {
-      life = stepEvolution(life, environmentFor(snapshot, lifeContext!), lifeKeys, step);
+      lifeEnvironment = environmentFor(snapshot, lifeContext!);
+      life = stepEvolution(life, lifeEnvironment, lifeKeys, step);
     }
     if (life !== null && life.endedGyr === null) {
       state.lightBiomass = snapshot.lightBiomass = life.lightBiomass;
@@ -513,5 +523,6 @@ export function runWorldHistory(
     ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water),
   }, seaLevelKm, state.steam, physics.axialTiltDeg, physics.tidallyLocked, state.iced);
 
-  return { final: state, present, events, steps: stepCount, snapshots, life };
+  const phylogeny = life && summarizePhylogeny(life, lifeEnvironment!);
+  return { final: state, present, events, steps: stepCount, snapshots, life, phylogeny };
 }

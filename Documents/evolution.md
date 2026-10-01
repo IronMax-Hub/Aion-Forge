@@ -107,6 +107,31 @@ A world's life now changes its climate too: on a hot Earth at 0.46 AU, life's ox
 
 **Speed** (owner decision: accept the slower survey). With the engine running on every planet where life begins, a universe takes about 85 s to generate on this machine, against ~3 s before. The survey runs in the background worker with its progress bar.
 
+## The biosphere summary (C2.5)
+
+From rules v8 the biosphere (`biosphere.ts`) is read from the lineages and draws nothing. At the end of each world history, `evolution/phylogeny.ts` reduces the evolution state to a summary kept on `Planet.life.phylogeny`, and the biosphere reads:
+
+| Field | Read from |
+|---|---|
+| Stage | microbial: largest living body below 10⁻⁹ kg · multicellular: 10⁻⁹–10⁻³ kg, or larger with fewer than three food-chain levels · complex: above 10⁻³ kg and at least three food-chain levels · dominant: complex, and producers hold biomass on more than 60% of the habitable area (land and liquid water, in the last step's environment) |
+| Complexity | largest living body mass as a share of the genome's range (−15 to 5) |
+| Diversity | living lineages ÷ the cap (32) |
+| Stability | share of lineages that came through the last five catastrophes; 1 if none has struck |
+| Adaptability | mean standard deviation of body mass, thermal optimum and information processing (each as a share of its range), ÷ that of an even spread (1/√12), capped at 1. The absorption peak is left out: only light users read it |
+| Biomass | living biomass on a log scale: 10⁻⁵ of Earth's mean sunlight (vent life) → 0, 1 → 1 |
+| Extinctions | every catastrophe that killed a lineage (owner decision), severity = share of lineages lost |
+| `extinctAt` | Gyr ago life ended; null while it lives. Life that has ended has no stage, and `ageGyr` is how long it lasted (R8). Shown in the biosphere panel (owner decision) |
+
+"Prebiotic" is no longer produced; it stays in the type only (R9).
+
+### Owner decisions (C2.5, 2026-10-02)
+
+- **Dominant as written:** producer presence over land and liquid water. Measured before the change (seed 100000, first 400 stars, 607 living worlds): oxygen-breathing large bodies need light producers almost everywhere, so 14 of 15 complex worlds are dominant. Dominant and complex barely differ until tuning (C2.10) separates them.
+- **Every lethal catastrophe is an extinction**, not only large ones: a median world has 23 catastrophes on record (the lethal ones were not counted separately), and 4 of them killed a quarter of its lineages or more. The timeline still records each as a "mass extinction" until C2.7 rewrites the biological events.
+- **Extinct life is shown** in the biosphere panel: when it ended and how long it lasted.
+
+Measured on the same sample before the change: 91% of living worlds are microbial, 6% multicellular, 2.5% complex or dominant. Large bodies need oxygen, and most worlds never oxidise. Civilizations still need a complex or dominant stage, so they become rarer.
+
 ### Open issues for C2.10
 
 - **Gravity does not limit size in practice.** The support cost lowers the heaviest land body that can live as gravity rises (tested), but over 10 Gyr of evolution land bodies stay around 1–250 kg, far below the ceiling (thousands of kg at 1 g), so gravity makes no measurable difference between 0.2 and 5 g. To tune in C2.10: how fast size evolves, or the support constant.

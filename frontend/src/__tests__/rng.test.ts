@@ -1,12 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { mixSeed, SALT } from "../simulation/rng";
-import { buildGalaxyConfig } from "../simulation/galaxy";
-import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
-import type { Star } from "../simulation/star";
-import { generatePlanetsFor } from "../simulation/planet";
-import type { Planet } from "../simulation/planet";
-import { generateBiosphere } from "../simulation/biosphere";
-import { makeConfig } from "../simulation/config";
 
 describe("mixSeed", () => {
   it("is deterministic", () => {
@@ -67,42 +60,5 @@ describe("Salts", () => {
   it("are all distinct", () => {
     const values = Object.values(SALT);
     expect(new Set(values).size).toBe(values.length);
-  });
-});
-
-describe("Biosphere streams", () => {
-  // A highly habitable planet around an old star, so life almost always emerges
-  // and two biospheres differ unless they share a random stream.
-  function habitableWorld(): { planet: Planet; star: Star } {
-    const seed = 42;
-    const config = makeConfig(seed);
-    const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
-    for (const star of stars) {
-      if (star.age < 3) continue;
-      // A world whose life lives today, so its biosphere's seeded rolls are used
-      const planet = generatePlanetsFor(star, seed, config).planets
-        .find((p) => p.habitabilityScore > 0.8 && p.life !== null && p.life.endedGyr === null);
-      if (planet) return { planet, star };
-    }
-    throw new Error("no habitable world in seed 42");
-  }
-
-  it("no longer give swapped star and planet ids the same biosphere", () => {
-    const { planet, star } = habitableWorld();
-    const lifeOf = (hostStarId: number, id: number) => {
-      const bio = generateBiosphere({ ...planet, hostStarId, id }, star, 42);
-      return JSON.stringify([bio.hasLife, bio.complexity, bio.diversity, bio.stability, bio.ageGyr, bio.extinctions]);
-    };
-    let identical = 0;
-    let pairs = 0;
-    for (let a = 0; a < 10; a++) {
-      for (let b = a + 1; b < 10; b++) {
-        pairs++;
-        if (lifeOf(a, b) === lifeOf(b, a)) identical++;
-      }
-    }
-    // Under XOR seeding every pair was identical; now only pairs where life
-    // failed to emerge on both worlds can match.
-    expect(identical).toBeLessThan(pairs * 0.2);
   });
 });

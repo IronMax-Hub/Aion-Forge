@@ -25,7 +25,7 @@ describe("life survey", () => {
     const expected: { starId: number; stage: string; count: number }[] = [];
     for (const star of stars) {
       const stages = generatePlanetsFor(star, SEED, config).planets
-        .map(p => generateBiosphere(p, star, SEED))
+        .map(p => generateBiosphere(p, star))
         .filter(b => b.hasLife && b.stage !== "prebiotic")
         .map(b => ORGANISM_STAGES.indexOf(b.stage));
       if (stages.length > 0) expected.push({ starId: star.id, stage: ORGANISM_STAGES[Math.max(...stages)], count: stages.length });

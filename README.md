@@ -225,7 +225,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 * World histories over billions of years — the star brightens, volcanoes outgas CO₂, land and seafloor weather it away, oceans can boil off in a runaway greenhouse, and today's climate, pressure and atmosphere class are what that history leaves
 * Life that begins by chance where there is liquid water, then branches, adapts and dies out inside its planet's history: lineages with a six-trait genome, sharing energy through food chains, shaped by oxygen, gravity, UV and catastrophes; their oxygen and methane change the air
 * Civilization formation, technological progression, collapse and recovery
-* Atmospheric composition — the gases each atmosphere holds today: N₂, CO₂, O₂, CH₄ and ozone as the world history left them, water vapour by Clausius–Clapeyron, CO₂, NO₂ and CFCs from active industrial civilizations, and hydrogen, helium and cold-trapped ammonia and water on giants. Oxygen alone does not prove life: worlds that lost water to space keep its oxygen
+* Atmospheric composition — the gases each atmosphere holds today: N₂, CO₂, O₂, CH₄ and ozone as the world history left them, water vapour by Clausius–Clapeyron, N₂O from living biomass under oxygen, CO₂, NO₂ and CFCs from active industrial civilizations, and on giants hydrogen and helium, carbon as methane or (above ~1,100 K) carbon monoxide by chemical equilibrium, and cold-trapped ammonia and water. Oxygen alone does not prove life: worlds that lost water to space keep its oxygen
 * Historical event recording and timeline replay
 * Configurable laws of physics with experiment comparison
 * Universe persistence, library, export/import, and discovery collections

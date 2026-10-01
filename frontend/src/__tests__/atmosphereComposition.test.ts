@@ -99,12 +99,13 @@ describe("solid planets", () => {
     expect(dry.mixingRatios.H2O! * dry.pressureBar).toBeLessThanOrEqual(3311 * 1e-6 + 1e-12);
   });
 
-  it("carries no methane or technology gases where life never began", () => {
+  it("carries no methane, N₂O or technology gases where life never began", () => {
     const lifeless = solid.filter(({ planet }) => planet.life === null);
     expect(lifeless.length).toBeGreaterThan(500);
     for (const { star, planet } of lifeless) {
       const { mixingRatios: x } = atmosphereComposition(planet, civilizationOf(planet, star));
       expect(x.CH4).toBeUndefined();
+      expect(x.N2O).toBeUndefined();
       for (const gas of TECH_GASES) expect(x[gas]).toBeUndefined();
     }
   });
@@ -117,6 +118,42 @@ describe("solid planets", () => {
       // Their oxygen came from water lost to space: they hold less than they formed with
       expect(planet.surface!.water).toBeLessThan(derivePhysics(planet, star, seed, config).waterInventory);
     }
+  });
+});
+
+describe("nitrous oxide", () => {
+  const living = (totalBiomass: number, endedGyr: number | null = null): Planet["life"] => ({
+    startedGyr: 0.6, endedGyr,
+    phylogeny: {
+      livingLineages: 20, diversity: 0.6, largestLog10BodyMassKg: 1, foodChainLevels: 3, totalBiomass, traitSpread: 0.4,
+      recentSurvival: 0.9, lethalCatastrophes: [], mind: null, firsts: [],
+    },
+  });
+  const n2oBar = (planet: Planet) => {
+    const c = atmosphereComposition(planet, null);
+    return (c.mixingRatios.N2O ?? 0) * c.pressureBar;
+  };
+
+  it("is Earth's pre-industrial amount on an Earth-like living world", () => {
+    expect(n2oBar({ ...earth, life: living(0.55) })).toBeCloseTo(2.7e-7, 9);
+  });
+
+  it("rises with living biomass, and is gone when life has died out", () => {
+    expect(n2oBar({ ...earth, life: living(1.1) })).toBeCloseTo(2 * n2oBar({ ...earth, life: living(0.55) }), 15);
+    expect(n2oBar({ ...earth, life: living(0.55, 3) })).toBe(0);
+  });
+
+  it("needs oxygen: anoxic life makes almost none", () => {
+    const anoxic = { ...earth, surface: { ...earthSurface, o2Bar: 0 }, life: living(0.55) };
+    expect(n2oBar(anoxic)).toBe(0);
+    const trace = { ...earth, surface: { ...earthSurface, o2Bar: 1e-9 }, life: living(0.55) };
+    expect(n2oBar(trace)).toBeLessThan(2.7e-8);
+  });
+
+  it("occurs on living oxidised worlds in the sample", () => {
+    const withN2O = solid.filter(({ planet }) => atmosphereComposition(planet, null).mixingRatios.N2O !== undefined);
+    expect(withN2O.length).toBeGreaterThan(0);
+    for (const { planet } of withN2O) expect(planet.life?.endedGyr).toBeNull();
   });
 });
 
@@ -172,10 +209,26 @@ describe("giants", () => {
     const cold = atmosphereComposition(jupiter, null).mixingRatios;
     expect(cold.NH3).toBeLessThan(1e-5);
     expect(cold.H2O ?? 0).toBeLessThan(1e-12);
-    const hot = atmosphereComposition({ ...jupiter, temperature: 900 }, null).mixingRatios;
+    const hot = atmosphereComposition({ ...jupiter, temperature: 600 }, null).mixingRatios;
     expect(hot.NH3).toBeCloseTo(3.3e-4, 9);
     expect(hot.H2O).toBeCloseTo(2.5e-3, 9);
     const neptune = atmosphereComposition({ ...jupiter, type: "ice-giant", temperature: 51 }, null).mixingRatios;
     expect(neptune.CH4).toBeGreaterThan(cold.CH4! * 5);
+  });
+
+  it("hold carbon as methane when cool and as carbon monoxide when hot, as real hot Jupiters do", () => {
+    const jupiter: Planet = { ...earth, type: "gas-giant", mass: 318, size: 11, temperature: 122, surface: null };
+    const at = (temperature: number) => atmosphereComposition({ ...jupiter, temperature }, null).mixingRatios;
+    expect(at(122).CO ?? 0).toBeLessThan(1e-30);
+    expect(at(800).CO ?? 0).toBeLessThan(at(800).CH4! * 0.01);
+    expect(at(1000).CH4).toBeGreaterThan(at(1000).CO!);
+    expect(at(1300).CO).toBeGreaterThan(at(1300).CH4! * 10);
+    expect(at(1500).CO).toBeGreaterThan(at(1500).CH4! * 100);
+    // Carbon is shared, not made or lost; the water that made CO is gone
+    for (const t of [700, 1000, 1100, 1300, 2000]) {
+      const x = at(t);
+      expect((x.CH4 ?? 0) + (x.CO ?? 0)).toBeCloseTo(1.8e-3, 9);
+      expect((x.H2O ?? 0) + (x.CO ?? 0)).toBeCloseTo(2.5e-3, 9);
+    }
   });
 });

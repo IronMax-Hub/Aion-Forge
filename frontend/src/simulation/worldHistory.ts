@@ -97,7 +97,6 @@ import { summarizePhylogeny } from "./evolution/phylogeny";
 import { findMind, mindThreshold } from "./evolution/minds";
 import type { Mind } from "./evolution/minds";
 import type { PhylogenySummary } from "./evolution/phylogeny";
-import type { Environment } from "./evolution/environment";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -362,8 +361,6 @@ export function runWorldHistory(
   // Life: the engine's fixed context, made once life can start; the keys of its streams
   let life: EvolutionState | null = null;
   let lifeContext: EnvironmentContext | null = null;
-  // The environment life last met: the phylogeny summary reads today's habitats from it
-  let lifeEnvironment: Environment | null = null;
   const lifeKeys = { galaxySeed, starId: planet.hostStarId, planetIndex: planet.id };
   // The first mind, checked after every step of life (C2.6)
   let mind: Mind | null = null;
@@ -492,12 +489,10 @@ export function runWorldHistory(
       const originRate = ORIGIN_PER_GYR_PER_WATER_AREA * waterArea * config.emergenceSensitivity;
       if (waterArea > 0 && happens(galaxySeed, planet, step, PURPOSE.ORIGIN, originRate, dt)) {
         lifeContext = environmentContext(planet, physics, star, config);
-        lifeEnvironment = environmentFor(snapshot, lifeContext);
-        life = startLife(lifeEnvironment);
+        life = startLife(environmentFor(snapshot, lifeContext));
       }
     } else if (life.endedGyr === null) {
-      lifeEnvironment = environmentFor(snapshot, lifeContext!);
-      life = stepEvolution(life, lifeEnvironment, lifeKeys, step);
+      life = stepEvolution(life, environmentFor(snapshot, lifeContext!), lifeKeys, step);
     }
     if (life !== null && life.endedGyr === null) {
       mind ??= findMind(life, threshold, t);
@@ -530,6 +525,6 @@ export function runWorldHistory(
     ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water),
   }, seaLevelKm, state.steam, physics.axialTiltDeg, physics.tidallyLocked, state.iced);
 
-  const phylogeny = life && summarizePhylogeny(life, lifeEnvironment!, mind, state.tGyr);
+  const phylogeny = life && summarizePhylogeny(life, mind, state.tGyr);
   return { final: state, present, events, steps: stepCount, snapshots, life, phylogeny };
 }

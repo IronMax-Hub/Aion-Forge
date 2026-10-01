@@ -9,9 +9,6 @@
 // What it reads (Revision 1, C2.5):
 // - Largest body mass and food-chain depth among the living lineages: the life
 //   stage reads these instead of an organisation ladder.
-// - Producer cover: the share of the habitable area (land and liquid water, in
-//   the last step's environment) where producers hold biomass. Shallow water is
-//   the sunlit top of the water, so a producer there covers that water's area.
 // - Trait spread: how widely the living lineages differ in the three continuous
 //   traits every lineage's rules read (body mass, thermal optimum, information
 //   processing), each as a share of its range, relative to the spread of traits
@@ -34,7 +31,6 @@
 
 import { LINEAGE_CAP, livingLineages } from "./engine";
 import type { CatastropheRecord, EvolutionFirst, EvolutionState } from "./engine";
-import type { Environment } from "./environment";
 import type { Mind } from "./minds";
 import { TRAIT_RANGES } from "./genome";
 import type { ContinuousTrait } from "./genome";
@@ -56,8 +52,6 @@ export interface PhylogenySummary {
   largestLog10BodyMassKg: number | null;
   /** Distinct food-chain levels among the living (1 = producers only). */
   foodChainLevels: number;
-  /** Share of the habitable area where producers hold biomass, 0–1. */
-  producerCover: number;
   /** Biomass of all living lineages, in the engine's unit (Earth's mean sunlight on the whole planet). */
   totalBiomass: number;
   /** Spread of the living lineages' traits, 0–1. */
@@ -78,20 +72,6 @@ export interface MindSummary extends Mind {
   ageGyr: number;
   /** Gyr since its lineage and every lineage descended from it died out; null while any lives. */
   speciesEndedAgoGyr: number | null;
-}
-
-/** Share of the habitable area (land and liquid water) where producers hold biomass. */
-function producerCoverOf(state: EvolutionState, env: Environment): number {
-  const producers = livingLineages(state).filter((l) => l.level === 0);
-  let habitable = 0;
-  let covered = 0;
-  env.bands.forEach((band, b) => {
-    habitable += band.landArea + band.deepWaterArea;
-    const living = producers.filter((l) => l.bandBiomass[b] > 0);
-    if (living.some((l) => l.genome.habitat === "land")) covered += band.landArea;
-    if (living.some((l) => l.genome.habitat !== "land")) covered += band.deepWaterArea;
-  });
-  return habitable > 0 ? covered / habitable : 0;
 }
 
 /** When a lineage and all its descendants had died out, or null while any lives. Lineages are listed in birth order, parents first. */
@@ -135,7 +115,7 @@ function recentSurvivalOf(state: EvolutionState): number {
  * biosphere and civilization are read from. `presentGyr` is the end of the
  * history, Gyr after the star formed.
  */
-export function summarizePhylogeny(state: EvolutionState, env: Environment, mind: Mind | null, presentGyr: number): PhylogenySummary {
+export function summarizePhylogeny(state: EvolutionState, mind: Mind | null, presentGyr: number): PhylogenySummary {
   const mindDiedGyr = mind && speciesEndGyr(state, mind.lineageId);
   const alive = livingLineages(state);
   return {
@@ -143,7 +123,6 @@ export function summarizePhylogeny(state: EvolutionState, env: Environment, mind
     diversity: Math.min(1, alive.length / LINEAGE_CAP),
     largestLog10BodyMassKg: alive.length > 0 ? Math.max(...alive.map((l) => l.genome.log10BodyMassKg)) : null,
     foodChainLevels: new Set(alive.map((l) => l.level)).size,
-    producerCover: alive.length > 0 ? producerCoverOf(state, env) : 0,
     totalBiomass: alive.reduce((sum, l) => sum + l.biomass, 0),
     traitSpread: traitSpreadOf(state),
     recentSurvival: recentSurvivalOf(state),

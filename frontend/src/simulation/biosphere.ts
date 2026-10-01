@@ -11,7 +11,8 @@
 //   multicellular  largest body 10⁻⁹ to 10⁻³ kg (or larger, with fewer than
 //                  three food-chain levels)
 //   complex        largest body above 10⁻³ kg and at least three food-chain levels
-//   dominant       complex, and producers cover more than 60% of the habitable area
+//   dominant       complex, and living biomass of at least one unit (Earth's mean
+//                  sunlight on the whole planet; C2.10, owner decision)
 // "prebiotic" is no longer produced (life either exists or not) and stays only
 // in the type (R9). Body mass stands in for multicellularity.
 //
@@ -74,8 +75,13 @@ export interface Biosphere {
 const COMPLEX_LOG10_KG = -3;
 /** Food-chain levels complex life needs: producers and two levels of consumers. */
 const COMPLEX_FOOD_CHAIN_LEVELS = 3;
-/** Producer cover of the habitable area above which complex life is dominant. */
-const DOMINANT_PRODUCER_COVER = 0.6;
+/**
+ * Living biomass, in the engine's unit (Earth's mean sunlight on the whole
+ * planet), at which complex life is dominant. C2.10 (owner decision): the
+ * plan's producer cover over 60% of the habitable area made nearly every
+ * complex world dominant, since producers live almost everywhere.
+ */
+const DOMINANT_BIOMASS = 1;
 
 // Biomass scale, log10 of the engine's unit: vent life to all of Earth's mean sunlight
 const BIOMASS_LOG10 = { floor: -5, full: 0 };
@@ -92,7 +98,7 @@ function stageOf(life: PhylogenySummary): LifeStage {
   if (largest === null) return "none";
   if (largest <= MULTICELLULAR_LOG10_KG) return "microbial";
   if (largest <= COMPLEX_LOG10_KG || life.foodChainLevels < COMPLEX_FOOD_CHAIN_LEVELS) return "multicellular";
-  return life.producerCover > DOMINANT_PRODUCER_COVER ? "dominant" : "complex";
+  return life.totalBiomass >= DOMINANT_BIOMASS ? "dominant" : "complex";
 }
 
 function share(value: number, from: number, to: number): number {

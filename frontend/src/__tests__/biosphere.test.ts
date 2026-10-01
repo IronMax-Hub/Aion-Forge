@@ -7,7 +7,6 @@ import type { PhylogenySummary } from "../simulation/evolution/phylogeny";
 import { summarizePhylogeny } from "../simulation/evolution/phylogeny";
 import { LINEAGE_CAP } from "../simulation/evolution/engine";
 import type { EvolutionState, Lineage } from "../simulation/evolution/engine";
-import type { Environment, EnvironmentBand } from "../simulation/evolution/environment";
 import type { Genome, Habitat } from "../simulation/evolution/genome";
 
 // Worlds Up Close C2.5: the biosphere is read from the lineages.
@@ -18,7 +17,7 @@ const star: Star = {
 };
 
 const phylogeny = (overrides: Partial<PhylogenySummary>): PhylogenySummary => ({
-  livingLineages: 10, diversity: 10 / LINEAGE_CAP, largestLog10BodyMassKg: -12, foodChainLevels: 1, producerCover: 0.5,
+  livingLineages: 10, diversity: 10 / LINEAGE_CAP, largestLog10BodyMassKg: -12, foodChainLevels: 1,
   totalBiomass: 1e-3, traitSpread: 0.3, recentSurvival: 0.8, lethalCatastrophes: [], mind: null, firsts: [], ...overrides,
 });
 
@@ -34,7 +33,7 @@ const stageOf = (overrides: Partial<PhylogenySummary>) => generateBiosphere(plan
 
 describe("the life stage (Revision 1, C2.5)", () => {
   it("is microbial while the largest body is below 10⁻⁹ kg", () => {
-    expect(stageOf({ largestLog10BodyMassKg: -12, foodChainLevels: 4, producerCover: 1 })).toBe("microbial");
+    expect(stageOf({ largestLog10BodyMassKg: -12, foodChainLevels: 4, totalBiomass: 2 })).toBe("microbial");
   });
 
   it("is multicellular from 10⁻⁹ kg, and above 10⁻³ kg with fewer than three food-chain levels", () => {
@@ -42,9 +41,9 @@ describe("the life stage (Revision 1, C2.5)", () => {
     expect(stageOf({ largestLog10BodyMassKg: 1, foodChainLevels: 2 })).toBe("multicellular");
   });
 
-  it("is complex above 10⁻³ kg with three food-chain levels, and dominant when producers cover more than 60%", () => {
-    expect(stageOf({ largestLog10BodyMassKg: 1, foodChainLevels: 3, producerCover: 0.6 })).toBe("complex");
-    expect(stageOf({ largestLog10BodyMassKg: 1, foodChainLevels: 3, producerCover: 0.61 })).toBe("dominant");
+  it("is complex above 10⁻³ kg with three food-chain levels, and dominant from one unit of living biomass (C2.10)", () => {
+    expect(stageOf({ largestLog10BodyMassKg: 1, foodChainLevels: 3, totalBiomass: 0.99 })).toBe("complex");
+    expect(stageOf({ largestLog10BodyMassKg: 1, foodChainLevels: 3, totalBiomass: 1 })).toBe("dominant");
   });
 });
 
@@ -81,7 +80,7 @@ describe("the biosphere's measures", () => {
 
   it("keep the record of life that has ended: when, how long it lasted, and what struck it", () => {
     const summary = phylogeny({
-      livingLineages: 0, largestLog10BodyMassKg: null, foodChainLevels: 0, producerCover: 0, totalBiomass: 0,
+      livingLineages: 0, largestLog10BodyMassKg: null, foodChainLevels: 0, totalBiomass: 0,
       lethalCatastrophes: [{ tGyr: 2.6, cause: "volcanism", aliveBefore: 3, lineagesLost: 3 }],
     });
     const bio = generateBiosphere(planetWith(summary, 2.6), star);
@@ -103,16 +102,6 @@ describe("the biosphere's measures", () => {
 
 // ── The phylogeny summary ─────────────────────────────────────────────────────
 
-const band = (overrides: Partial<EnvironmentBand>): EnvironmentBand => ({
-  area: 0.5, light: 1, landArea: 0, shallowWaterArea: 0, deepWaterArea: 0, landK: 288, waterK: 288, ...overrides,
-});
-
-const environment = (bands: EnvironmentBand[]): Environment => ({
-  tGyr: 4.6, dtGyr: 0.1, gravity: 1, starTemperatureK: 5772, starPeakNm: 502, airTransmission: 0.96, surfaceUV: 0,
-  tectonicActivity: 0.5, co2Bar: 0.0004, o2Bar: 0.21, ch4Bar: 0, ozone: 1, bands,
-  catastrophes: { impact: false, volcanicPulse: false, transitions: [] },
-});
-
 let nextId = 0;
 function lineage(habitat: Habitat, level: number, bandBiomass: number[], traits: Partial<Genome> = {}, diedGyr: number | null = null): Lineage {
   const genome: Genome = {
@@ -132,20 +121,13 @@ const state = (lineages: Lineage[], catastrophes: EvolutionState["catastrophes"]
 });
 
 describe("the phylogeny summary", () => {
-  // Two bands: the first half land, half water; the second all water
-  const env = environment([
-    band({ landArea: 0.25, deepWaterArea: 0.25, shallowWaterArea: 0.25 }),
-    band({ deepWaterArea: 0.5, shallowWaterArea: 0.5 }),
-  ]);
 
-  it("reads producer cover from where producers hold biomass, over land and liquid water", () => {
-    // Land producers in band 0 only; a sunlit-water producer covers band 1's water
+  it("reads food-chain depth, the largest body and the living biomass", () => {
     const summary = summarizePhylogeny(state([
       lineage("land", 0, [0.1, 0]),
       lineage("shallow-water", 0, [0, 0.2]),
       lineage("shallow-water", 1, [0.05, 0.05], { log10BodyMassKg: -2 }),
-    ]), env, null, 4.6);
-    expect(summary.producerCover).toBeCloseTo(0.75, 12);
+    ]), null, 4.6);
     expect(summary.foodChainLevels).toBe(2);
     expect(summary.largestLog10BodyMassKg).toBe(-2);
     expect(summary.totalBiomass).toBeCloseTo(0.4, 12);
@@ -155,18 +137,17 @@ describe("the phylogeny summary", () => {
     const summary = summarizePhylogeny(state([
       lineage("land", 0, [0.1, 0]),
       lineage("deep-water", 0, [0, 0.1], { log10BodyMassKg: 3 }, 2.0),
-    ]), env, null, 4.6);
+    ]), null, 4.6);
     expect(summary.livingLineages).toBe(1);
     expect(summary.largestLog10BodyMassKg).toBe(-12);
-    expect(summary.producerCover).toBeCloseTo(0.25, 12);
   });
 
   it("has no trait spread for one lineage, and full spread for lineages at the ends of every range", () => {
-    expect(summarizePhylogeny(state([lineage("land", 0, [0.1, 0])]), env, null, 4.6).traitSpread).toBe(0);
+    expect(summarizePhylogeny(state([lineage("land", 0, [0.1, 0])]), null, 4.6).traitSpread).toBe(0);
     const ends = summarizePhylogeny(state([
       lineage("land", 0, [0.1, 0], { log10BodyMassKg: -15, thermalOptimumK: 250, informationProcessing: 0 }),
       lineage("land", 0, [0.1, 0], { log10BodyMassKg: 5, thermalOptimumK: 400, informationProcessing: 1 }),
-    ]), env, null, 4.6);
+    ]), null, 4.6);
     expect(ends.traitSpread).toBe(1);
   });
 
@@ -176,10 +157,10 @@ describe("the phylogeny summary", () => {
       ...[2, 3, 4, 5].map((tGyr) => ({ tGyr, cause: "volcanism" as const, aliveBefore: 10, lineagesLost: 0 })),
       { tGyr: 6, cause: "climate" as const, aliveBefore: 10, lineagesLost: 5 },
     ];
-    const summary = summarizePhylogeny(state([lineage("land", 0, [0.1, 0])], catastrophes), env, null, 4.6);
+    const summary = summarizePhylogeny(state([lineage("land", 0, [0.1, 0])], catastrophes), null, 4.6);
     expect(summary.recentSurvival).toBeCloseTo(45 / 50, 12);
     expect(summary.lethalCatastrophes.map((c) => c.tGyr)).toEqual([1, 6]);
-    expect(summarizePhylogeny(state([lineage("land", 0, [0.1, 0])]), env, null, 4.6).recentSurvival).toBe(1);
+    expect(summarizePhylogeny(state([lineage("land", 0, [0.1, 0])]), null, 4.6).recentSurvival).toBe(1);
   });
 
   it("keeps a mind's species alive while its lineage or any lineage descended from it lives (owner decision)", () => {
@@ -190,11 +171,11 @@ describe("the phylogeny summary", () => {
     const cousin = lineage("land", 0, [0.1, 0]);
     [root.id, mindLine.id, daughter.id, cousin.id] = [0, 1, 2, 3];
     mindLine.parentId = 0; daughter.parentId = 1; cousin.parentId = 0;
-    const living = summarizePhylogeny(state([root, mindLine, daughter, cousin]), env, mind, 4.6).mind!;
+    const living = summarizePhylogeny(state([root, mindLine, daughter, cousin]), mind, 4.6).mind!;
     expect(living.ageGyr).toBeCloseTo(1.6, 12);
     expect(living.speciesEndedAgoGyr).toBeNull();
     // The daughter dies later than the mind's own lineage: the species ends with the last of them
     const gone = { ...daughter, diedGyr: 4.0 };
-    expect(summarizePhylogeny(state([root, mindLine, gone, cousin]), env, mind, 4.6).mind!.speciesEndedAgoGyr).toBeCloseTo(0.6, 12);
+    expect(summarizePhylogeny(state([root, mindLine, gone, cousin]), mind, 4.6).mind!.speciesEndedAgoGyr).toBeCloseTo(0.6, 12);
   });
 });

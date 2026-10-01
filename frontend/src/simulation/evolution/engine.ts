@@ -244,7 +244,11 @@ export function aerobicShare(o2Bar: number, log10BodyMassKg: number): number {
 
 /** Energy yield of food relative to full aerobic respiration, for a body of this mass in this much O₂. */
 export function oxygenYield(o2Bar: number, log10BodyMassKg: number): number {
-  return (1 + (AEROBIC_YIELD - 1) * aerobicShare(o2Bar, log10BodyMassKg)) / AEROBIC_YIELD;
+  return yieldAt(aerobicShare(o2Bar, log10BodyMassKg));
+}
+
+function yieldAt(aerobic: number): number {
+  return (1 + (AEROBIC_YIELD - 1) * aerobic) / AEROBIC_YIELD;
 }
 
 /**
@@ -254,7 +258,10 @@ export function oxygenYield(o2Bar: number, log10BodyMassKg: number): number {
  * transport lifts that limit in proportion to the aerobic share.
  */
 export function uptakePerNeed(o2Bar: number, log10BodyMassKg: number): number {
-  const aerobic = aerobicShare(o2Bar, log10BodyMassKg);
+  return uptakeAt(aerobicShare(o2Bar, log10BodyMassKg), log10BodyMassKg);
+}
+
+function uptakeAt(aerobic: number, log10BodyMassKg: number): number {
   const surfaceLimited = pow(10, -(log10BodyMassKg - TRAIT_RANGES.log10BodyMassKg.min) / 12);
   return aerobic + (1 - aerobic) * surfaceLimited;
 }
@@ -274,16 +281,25 @@ interface Budget {
   fixedCosts: number;
 }
 
-function budgetOf(genome: Genome, env: Environment): Budget {
+/** Budgets already worked out in one step's environment, by genome (a genome is never changed in place). */
+type BudgetCache = Map<Genome, Budget>;
+
+function budgetOf(genome: Genome, env: Environment, cache?: BudgetCache): Budget {
+  const cached = cache?.get(genome);
+  if (cached) return cached;
   const match = genome.energySource === "light" ? lightMatch(genome.absorptionPeakNm, env.starTemperatureK) : 1;
-  const intake = match * oxygenYield(env.o2Bar, genome.log10BodyMassKg) * uptakePerNeed(env.o2Bar, genome.log10BodyMassKg);
+  // oxygenYield × uptakePerNeed, with the aerobic share they both read worked out once
+  const aerobic = aerobicShare(env.o2Bar, genome.log10BodyMassKg);
+  const intake = match * yieldAt(aerobic) * uptakeAt(aerobic, genome.log10BodyMassKg);
   let fixedCosts = COST.maintenance + COST.information * genome.informationProcessing * genome.informationProcessing;
   if (genome.habitat === "land") {
     fixedCosts += COST.support * env.gravity * pow(10, genome.log10BodyMassKg * SUPPORT_EXPONENT) + COST.uv * env.surfaceUV;
   } else if (genome.habitat === "shallow-water") {
     fixedCosts += COST.uv * env.surfaceUV * SHALLOW_UV_SHARE;
   }
-  return { intake, fixedCosts };
+  const budget = { intake, fixedCosts };
+  cache?.set(genome, budget);
+  return budget;
 }
 
 function bandSurplus(genome: Genome, budget: Budget, band: EnvironmentBand): number {
@@ -315,7 +331,9 @@ function shareWeight(genome: Genome, surplus: number): number {
   return Math.max(0, surplus) * (1 + bonus);
 }
 
-const nicheOf = (lineage: Lineage) => `${lineage.genome.habitat}:${lineage.level}`;
+/** A niche's key: habitat and food-chain level as one number (room for a level above the top, which is looked up but never filled). */
+const nicheKey = (habitat: Habitat, level: number) => HABITAT_INDEX[habitat] * (MAX_LEVEL + 2) + level;
+const nicheOf = (lineage: Lineage) => nicheKey(lineage.genome.habitat, lineage.level);
 
 /**
  * The food and the predators each niche offers, fixed at the start of the
@@ -324,15 +342,19 @@ const nicheOf = (lineage: Lineage) => `${lineage.genome.habitat}:${lineage.level
  * lookups rather than scans.
  */
 interface FoodWeb {
-  /** Sorted masses of the lineages in a niche, and per band the running sum of their biomass (lightest first). */
-  masses: Map<string, number[]>;
-  cumulative: Map<string, Float64Array[]>;
+  /**
+   * Sorted masses of the lineages in a niche, and per band the running sum of
+   * their biomass (lightest first): row k, the sum over the k + 1 lightest, at
+   * [k · bands, (k + 1) · bands).
+   */
+  masses: Map<number, number[]>;
+  cumulative: Map<number, Float64Array>;
   /** Total biomass of a niche. */
-  totals: Map<string, number>;
+  totals: Map<number, number>;
 }
 
 function foodWebOf(alive: Lineage[], bandCount: number): FoodWeb {
-  const groups = new Map<string, Lineage[]>();
+  const groups = new Map<number, Lineage[]>();
   for (const l of alive) {
     const key = nicheOf(l);
     if (!groups.has(key)) groups.set(key, []);
@@ -342,14 +364,11 @@ function foodWebOf(alive: Lineage[], bandCount: number): FoodWeb {
   for (const [key, group] of groups) {
     group.sort((x, y) => x.genome.log10BodyMassKg - y.genome.log10BodyMassKg || x.id - y.id);
     web.masses.set(key, group.map((l) => l.genome.log10BodyMassKg));
-    const running: Float64Array[] = [];
-    let previous = new Float64Array(bandCount);
-    for (const l of group) {
-      const next = new Float64Array(bandCount);
-      for (let b = 0; b < bandCount; b++) next[b] = previous[b] + l.bandBiomass[b];
-      running.push(next);
-      previous = next;
-    }
+    const running = new Float64Array(group.length * bandCount);
+    group.forEach((l, k) => {
+      const row = k * bandCount;
+      for (let b = 0; b < bandCount; b++) running[row + b] = (k === 0 ? 0 : running[row - bandCount + b]) + l.bandBiomass[b];
+    });
     web.cumulative.set(key, running);
     web.totals.set(key, group.reduce((sum, l) => sum + l.biomass, 0));
   }
@@ -369,7 +388,7 @@ function countAtMost(masses: number[], mass: number): number {
 
 /** Share of the consumer biomass one level up in a habitat that is heavy enough to eat a body of this mass. */
 function predationExposure(habitat: Habitat, level: number, log10BodyMassKg: number, web: FoodWeb): number {
-  const key = `${habitat}:${level + 1}`;
+  const key = nicheKey(habitat, level + 1);
   const masses = web.masses.get(key);
   const total = web.totals.get(key) ?? 0;
   if (!masses || total <= 0) return 0;
@@ -382,8 +401,9 @@ function predationExposure(habitat: Habitat, level: number, log10BodyMassKg: num
     if (masses[mid] < log10BodyMassKg) lo = mid + 1; else hi = mid;
   }
   if (lo > 0) {
-    const running = web.cumulative.get(key)![lo - 1];
-    for (let b = 0; b < running.length; b++) lighter += running[b];
+    const running = web.cumulative.get(key)!;
+    const bandCount = running.length / masses.length;
+    for (let b = (lo - 1) * bandCount; b < lo * bandCount; b++) lighter += running[b];
   }
   return Math.max(0, (total - lighter) / total);
 }
@@ -392,15 +412,17 @@ function predationExposure(habitat: Habitat, level: number, log10BodyMassKg: num
  * What a lineage could hold alone in its environment: the energy reaching it
  * in each band times its surplus there, less what predators able to eat it take.
  */
-function potentialBiomass(genome: Genome, level: number, env: Environment, web: FoodWeb): number {
-  const budget = budgetOf(genome, env);
+function potentialBiomass(genome: Genome, level: number, env: Environment, web: FoodWeb, budgets: BudgetCache): number {
+  const budget = budgetOf(genome, env, budgets);
   let edible: Float64Array | null = null;
+  let edibleRow = 0;
   if (level > 0) {
-    const key = `${genome.habitat}:${level - 1}`;
+    const key = nicheKey(genome.habitat, level - 1);
     const masses = web.masses.get(key);
     const count = masses ? countAtMost(masses, genome.log10BodyMassKg) : 0;
     if (count === 0) return 0;
-    edible = web.cumulative.get(key)![count - 1];
+    edible = web.cumulative.get(key)!;
+    edibleRow = (count - 1) * env.bands.length;
   }
   let total = 0;
   for (let b = 0; b < env.bands.length; b++) {
@@ -409,7 +431,7 @@ function potentialBiomass(genome: Genome, level: number, env: Environment, web: 
     if (surplus <= 0) continue;
     const supply = edible === null
       ? producerSupply(genome.energySource, genome.habitat, band, env)
-      : TROPHIC_EFFICIENCY * edible[b];
+      : TROPHIC_EFFICIENCY * edible[edibleRow + b];
     total += supply * surplus;
   }
   if (total <= 0) return 0;
@@ -422,30 +444,35 @@ function potentialBiomass(genome: Genome, level: number, env: Environment, web: 
 const SOURCE_INDEX: Record<EnergySource, number> = { chemical: 0, light: 1, consumer: 2 };
 const HABITAT_INDEX: Record<Habitat, number> = { "deep-water": 0, "shallow-water": 1, land: 2 };
 
+// Scratch buffers the competition step reuses from step to step, so it does
+// not allocate them each time; each is fully written before it is read.
+const scratchBuffers: Float64Array[] = [new Float64Array(0), new Float64Array(0)];
+function scratch(index: number, length: number): Float64Array {
+  if (scratchBuffers[index].length < length) scratchBuffers[index] = new Float64Array(length * 2);
+  return scratchBuffers[index];
+}
+
 /**
  * Sets every living lineage's biomass from this step's environment: producers
  * first, then each consumer level, which takes its share of the level below
  * and so lowers that level's biomass.
  */
-function compete(alive: Lineage[], env: Environment): void {
+function compete(alive: Lineage[], env: Environment, budgets: BudgetCache = new Map()): void {
   const bandCount = env.bands.length;
   const n = alive.length;
-  // Each lineage's surplus and share weight in every band, once
-  const surplus: Float64Array[] = [];
-  const weight: Float64Array[] = [];
-  for (const lineage of alive) {
+  // Each lineage's surplus and share weight in every band, once: lineage i, band b at i · bands + b
+  const surplus = scratch(0, n * bandCount);
+  const weight = scratch(1, n * bandCount);
+  alive.forEach((lineage, i) => {
     lineage.bandBiomass = new Float64Array(bandCount);
     lineage.biomass = 0;
-    const budget = budgetOf(lineage.genome, env);
-    const s = new Float64Array(bandCount);
-    const w = new Float64Array(bandCount);
+    const budget = budgetOf(lineage.genome, env, budgets);
     for (let b = 0; b < bandCount; b++) {
-      s[b] = bandSurplus(lineage.genome, budget, env.bands[b]);
-      w[b] = shareWeight(lineage.genome, s[b]);
+      const at = i * bandCount + b;
+      surplus[at] = bandSurplus(lineage.genome, budget, env.bands[b]);
+      weight[at] = shareWeight(lineage.genome, surplus[at]);
     }
-    surplus.push(s);
-    weight.push(w);
-  }
+  });
   const sumBands = (l: Lineage) => { let t = 0; for (let b = 0; b < bandCount; b++) t += l.bandBiomass[b]; l.biomass = t; };
 
   // Producers share each source's energy in each habitat
@@ -453,12 +480,12 @@ function compete(alive: Lineage[], env: Environment): void {
   const poolOf = alive.map((l) => SOURCE_INDEX[l.genome.energySource] * 3 + HABITAT_INDEX[l.genome.habitat]);
   for (let b = 0; b < bandCount; b++) {
     pool.fill(0);
-    for (let i = 0; i < n; i++) if (alive[i].level === 0) pool[poolOf[i]] += weight[i][b];
+    for (let i = 0; i < n; i++) if (alive[i].level === 0) pool[poolOf[i]] += weight[i * bandCount + b];
     for (let i = 0; i < n; i++) {
       const l = alive[i];
-      if (l.level !== 0 || weight[i][b] <= 0) continue;
+      if (l.level !== 0 || weight[i * bandCount + b] <= 0) continue;
       l.bandBiomass[b] = producerSupply(l.genome.energySource, l.genome.habitat, env.bands[b], env)
-        * (weight[i][b] / pool[poolOf[i]]) * surplus[i][b];
+        * (weight[i * bandCount + b] / pool[poolOf[i]]) * surplus[i * bandCount + b];
     }
   }
   for (let i = 0; i < n; i++) if (alive[i].level === 0) sumBands(alive[i]);
@@ -478,12 +505,12 @@ function compete(alive: Lineage[], env: Environment): void {
         const production = preyBands[b];
         if (production <= 0) continue;
         let totalWeight = 0;
-        for (const i of able) totalWeight += weight[i][b];
+        for (const i of able) totalWeight += weight[i * bandCount + b];
         if (totalWeight <= 0) continue;
         let grazed = 0;
         for (const i of able) {
-          if (weight[i][b] <= 0) continue;
-          const share = (weight[i][b] / totalWeight) * surplus[i][b];
+          if (weight[i * bandCount + b] <= 0) continue;
+          const share = (weight[i * bandCount + b] / totalWeight) * surplus[i * bandCount + b];
           alive[i].bandBiomass[b] += TROPHIC_EFFICIENCY * production * share;
           grazed += share;
         }
@@ -502,10 +529,10 @@ function kill(lineage: Lineage, tGyr: number, cause: DeathCause): void {
 }
 
 /** Empty niches next to a lineage's: neighbouring habitats at its level, and a level up or down in its habitat. */
-function emptyNeighbours(lineage: Lineage, occupied: Set<string>): number {
-  const candidates = HABITAT_NEIGHBOURS[lineage.genome.habitat].map((h) => `${h}:${lineage.level}`);
-  if (lineage.level < MAX_LEVEL) candidates.push(`${lineage.genome.habitat}:${lineage.level + 1}`);
-  if (lineage.level > 0) candidates.push(`${lineage.genome.habitat}:${lineage.level - 1}`);
+function emptyNeighbours(lineage: Lineage, occupied: Set<number>): number {
+  const candidates = HABITAT_NEIGHBOURS[lineage.genome.habitat].map((h) => nicheKey(h, lineage.level));
+  if (lineage.level < MAX_LEVEL) candidates.push(nicheKey(lineage.genome.habitat, lineage.level + 1));
+  if (lineage.level > 0) candidates.push(nicheKey(lineage.genome.habitat, lineage.level - 1));
   return candidates.filter((n) => !occupied.has(n)).length;
 }
 
@@ -577,9 +604,9 @@ export function startLife(env: Environment): EvolutionState | null {
 export function stepEvolution(previous: EvolutionState, env: Environment, keys: EvolutionKeys, step: number): EvolutionState {
   if (previous.endedGyr !== null) return previous;
   const t = env.tGyr;
-  // Copy the living; the dead are kept as they were
-  const lineages = previous.lineages.map((l) => (l.diedGyr === null
-    ? { ...l, genome: { ...l.genome }, bandBiomass: Float64Array.from(l.bandBiomass) } : l));
+  // Copy the living; the dead are kept as they were. Genomes and band arrays are
+  // replaced, never changed in place, so the copies can share them.
+  const lineages = previous.lineages.map((l) => (l.diedGyr === null ? { ...l } : l));
   let alive = lineages.filter((l) => l.diedGyr === null);
 
   // 1. Speciate, in birth order, from last step's standing: children then drift and compete with the rest
@@ -601,17 +628,18 @@ export function stepEvolution(previous: EvolutionState, env: Environment, keys: 
   // 2. Mutate: keep a drifted genome unless it costs the lineage more than the drift tolerance,
   // judged against the food web as the step began
   const web = foodWebOf(alive, env.bands.length);
+  const budgets: BudgetCache = new Map();
   for (const lineage of alive) {
     const proposal = drift(lineage.genome, streamFor(keys, lineage.id, step, PURPOSE.MUTATE), 1);
-    const current = potentialBiomass(lineage.genome, lineage.level, env, web);
-    if (potentialBiomass(proposal, lineage.level, env, web) >= current * (1 - DRIFT_TOLERANCE)) {
+    const current = potentialBiomass(lineage.genome, lineage.level, env, web, budgets);
+    if (potentialBiomass(proposal, lineage.level, env, web, budgets) >= current * (1 - DRIFT_TOLERANCE)) {
       lineage.genome = proposal;
     }
   }
 
   // 3. Score and compete; the unviable and the squeezed-out die
-  compete(alive, env);
-  const nicheTotals = new Map<string, number>();
+  compete(alive, env, budgets);
+  const nicheTotals = new Map<number, number>();
   for (const l of alive) nicheTotals.set(nicheOf(l), (nicheTotals.get(nicheOf(l)) ?? 0) + l.biomass);
   for (const l of alive) {
     if (l.biomass <= 0) kill(l, t, "unviable");
@@ -636,9 +664,9 @@ export function stepEvolution(previous: EvolutionState, env: Environment, keys: 
 
   // 5. Cap: the weakest in the most crowded niche goes first
   while (alive.length > LINEAGE_CAP) {
-    const counts = new Map<string, number>();
+    const counts = new Map<number, number>();
     for (const l of alive) counts.set(nicheOf(l), (counts.get(nicheOf(l)) ?? 0) + 1);
-    let crowded = "";
+    let crowded = -1;
     let most = 0;
     for (const [niche, count] of counts) if (count > most) { most = count; crowded = niche; }
     const weakest = alive.filter((l) => nicheOf(l) === crowded).reduce((a, b) => (b.biomass < a.biomass ? b : a));

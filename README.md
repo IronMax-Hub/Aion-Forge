@@ -138,7 +138,7 @@ These seeds produce universes worth exploring. Figures are for the default param
 
 With 2,000 stars per universe, default parameters give every seed a similar amount of life; what differs is where it arises and what becomes of it. Since rules v7, life begins on most worlds with liquid water within a few hundred million years and then evolves inside its planet's history, so most of these organisms are microbial, and many worlds have lost the life they once had. Since rules v8 a biosphere's stage is read from what evolved there: complex life needs bodies above a gram and a food chain three levels deep, which in practice needs an oxygen atmosphere, so only a few worlds in each universe reach it, and civilizations, which need complex life, are rare. Many civilizations stop at agriculture because their world has no fire: no exposed land, or air too thin to burn in. For a quieter universe, change the laws instead: the **Fragile Life** preset leaves about as much life but even fewer civilizations (1–6 against 8–17 for seeds 100000, 42 and 7777).
 
-Generating a universe takes about half a minute on a four-core machine (over a minute on one core), because every planet's life is evolved through its history; the survey runs in the background on all cores but one, with a progress bar.
+Generating a universe takes about 20 seconds on a four-core machine (under a minute on one core), because every planet's life is evolved through its history; the survey runs in the background on all cores but one, with a progress bar.
 
 ---
 

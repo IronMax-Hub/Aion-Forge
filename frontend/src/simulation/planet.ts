@@ -10,7 +10,7 @@ import type { PlanetPhysics } from "./planetPhysics";
 import { buildGeography } from "./geography";
 import type { Geography } from "./geography";
 import { runWorldHistory } from "./worldHistory";
-import type { WorldEvent, WorldHistory } from "./worldHistory";
+import type { WorldEvent, WorldHistory, WorldState } from "./worldHistory";
 import type { PresentClimate } from "./climate";
 import type { PhylogenySummary } from "./evolution/phylogeny";
 
@@ -79,6 +79,13 @@ export interface PlanetSurface {
   surfaceGravity: number;   // g
   pressureBar: number;      // total surface pressure today
   o2Bar: number;            // oxygen's share of that pressure, bar (C2.6: fire)
+  // The rest of today's air, as the world history left it (read by atmosphereComposition.ts, B1)
+  backgroundBar: number;    // the fixed background gas (R6)
+  co2Bar: number;
+  ch4Bar: number;
+  ozone: number;            // ozone column, as a share of Earth's (0–1)
+  water: number;            // water inventory, A1 scale
+  steam: boolean;           // the oceans are boiled into the air
 }
 
 export interface PlanetarySystem {
@@ -234,15 +241,21 @@ function calcHabitability(type: PlanetType, atmosphere: AtmosphereType, resource
 }
 
 /** A solid planet's present-day surface, from its geography and world history. */
-function presentSurface(present: PresentClimate, physics: PlanetPhysics, pressureBar: number, o2Bar: number): PlanetSurface {
+function presentSurface(present: PresentClimate, physics: PlanetPhysics, final: WorldState): PlanetSurface {
   return {
     oceanFraction: present.oceanFraction,
     iceFraction: present.iceFraction,
     landFraction: present.landFraction,
     habitableFraction: present.habitableFraction,
     surfaceGravity: physics.surfaceGravity,
-    pressureBar,
-    o2Bar,
+    pressureBar: final.pressureBar,
+    o2Bar: final.o2Bar,
+    backgroundBar: physics.surfacePressureBar,
+    co2Bar: final.co2Bar,
+    ch4Bar: final.ch4Bar,
+    ozone: final.ozone,
+    water: final.water,
+    steam: final.steam,
   };
 }
 
@@ -338,7 +351,7 @@ export function generatePlanetsFor(
     } else {
       // A solid planet's surface is the end of its history
       const { physics, history } = worldOf(planet, star, galaxySeed, config);
-      planet.surface = presentSurface(history.present, physics, history.final.pressureBar, history.final.o2Bar);
+      planet.surface = presentSurface(history.present, physics, history.final);
       planet.worldEvents = history.events;
       planet.life = history.life && {
         startedGyr: history.life.startedGyr, endedGyr: history.life.endedGyr, phylogeny: history.phylogeny!,

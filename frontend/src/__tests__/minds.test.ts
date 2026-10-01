@@ -76,6 +76,7 @@ const star: Star = {
 };
 const earthAir: PlanetSurface = {
   oceanFraction: 0.7, iceFraction: 0.03, landFraction: 0.27, habitableFraction: 0.8, surfaceGravity: 1, pressureBar: 1, o2Bar: 0.21,
+    backgroundBar: 0.78, co2Bar: 4e-4, ch4Bar: 0, ozone: 1, water: 0.5, steam: false,
 };
 const mindOf = (overrides: Partial<MindSummary> = {}): MindSummary => ({
   tGyr: 4.0, lineageId: 7, informationProcessing: 0.62, log10BodyMassKg: 1.5, consumerAncestry: 0.5, temperatureSpanK: 75,

@@ -251,8 +251,14 @@ export interface WorldHistoryOptions {
 
 // ── The loop ──────────────────────────────────────────────────────────────────
 
-function wetnessOf(water: number): number {
+/** How much surface water can feed vapour and weathering, 0–1, from the water inventory. */
+export function wetnessOf(water: number): number {
   return Math.min(1, water / WET_WATER);
+}
+
+/** The pressure a water inventory exerts once it is all in the air, bar: steam, or the most vapour the air can hold. */
+export function waterAsVapourBar(water: number, g: number): number {
+  return STEAM_BAR_PER_WATER * water * g * g;
 }
 
 /**
@@ -340,7 +346,7 @@ export function runWorldHistory(
 
   /** Total surface pressure: the background, the gases, and steam while the oceans are boiled. */
   const pressureOf = (co2: number, o2: number, ch4: number, water: number, steam: boolean) =>
-    backgroundBar + co2 + o2 + ch4 + (steam ? STEAM_BAR_PER_WATER * water * g * g : 0);
+    backgroundBar + co2 + o2 + ch4 + (steam ? waterAsVapourBar(water, g) : 0);
 
   /**
    * Fills each band's liquid-water share from the current water inventory and

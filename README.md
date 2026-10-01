@@ -212,7 +212,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 
 ## Current Status
 
-**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.7 and C2.10 (simulation rules v10)**
+**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.7 and C2.10, and Phase B step B1 (simulation rules v10)**
 
 ### Simulation
 
@@ -225,6 +225,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 * World histories over billions of years — the star brightens, volcanoes outgas CO₂, land and seafloor weather it away, oceans can boil off in a runaway greenhouse, and today's climate, pressure and atmosphere class are what that history leaves
 * Life that begins by chance where there is liquid water, then branches, adapts and dies out inside its planet's history: lineages with a six-trait genome, sharing energy through food chains, shaped by oxygen, gravity, UV and catastrophes; their oxygen and methane change the air
 * Civilization formation, technological progression, collapse and recovery
+* Atmospheric composition — the gases each atmosphere holds today: N₂, CO₂, O₂, CH₄ and ozone as the world history left them, water vapour by Clausius–Clapeyron, CO₂, NO₂ and CFCs from active industrial civilizations, and hydrogen, helium and cold-trapped ammonia and water on giants. Oxygen alone does not prove life: worlds that lost water to space keep its oxygen
 * Historical event recording and timeline replay
 * Configurable laws of physics with experiment comparison
 * Universe persistence, library, export/import, and discovery collections

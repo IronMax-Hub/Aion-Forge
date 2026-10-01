@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "stats": "vitest bench --run stats"
+    "stats": "node stats/run.mjs"
   },
   "dependencies": {
     "@types/three": "^0.184.1",

@@ -1,4 +1,5 @@
-// Main-thread side of the life survey worker.
+// Main-thread side of the life survey worker (a pool of workers since
+// 2026-10-02, surveyPool.ts, which answers as one).
 //
 // Each request gets a new generation number. Only the latest request's
 // progress and result reach its handlers; answers about a universe the viewer

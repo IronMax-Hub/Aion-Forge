@@ -6,6 +6,7 @@
 import type { Star } from "./star";
 import type { UniverseConfig } from "./config";
 import { generatePlanetsFor } from "./planet";
+import type { PlanetarySystem } from "./planet";
 import { generateBiosphere } from "./biosphere";
 import type { LifeStage } from "./biosphere";
 import { generateCivilization } from "./civilization";
@@ -41,6 +42,8 @@ export function surveyLife(
   seed: number,
   cfg: UniverseConfig,
   onProgress?: (starsSurveyed: number, starsTotal: number) => void,
+  // How each star's planets are made; the stats harness wraps it to measure them as they are made
+  planetsOf: (star: Star) => PlanetarySystem = (star) => generatePlanetsFor(star, seed, cfg),
 ): LifeSurvey {
   let totalPlanets = 0;
   let lifeBearingPlanets = 0;
@@ -49,7 +52,7 @@ export function surveyLife(
 
   for (const [index, star] of stars.entries()) {
     if (onProgress && index > 0 && index % SURVEY_PROGRESS_INTERVAL === 0) onProgress(index, stars.length);
-    const system = generatePlanetsFor(star, seed, cfg);
+    const system = planetsOf(star);
     totalPlanets += system.planets.length;
 
     let mostAdvanced = -1;

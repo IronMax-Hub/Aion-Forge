@@ -1,12 +1,12 @@
-// Web Worker entry point for the life survey (see surveyTask.ts).
+// Web Worker entry point for one chunk of the life survey (see surveyTask.ts).
 
-import { runSurvey } from "./surveyTask";
-import type { SurveyRequest, SurveyMessage } from "./surveyTask";
+import { runSurveyChunk } from "./surveyTask";
+import type { ChunkRequest, ChunkMessage } from "./surveyTask";
 
 // The DOM typings describe `self` as a window; inside a worker it is the worker scope
 const scope = self as unknown as {
-  onmessage: ((event: MessageEvent<SurveyRequest>) => void) | null;
-  postMessage(message: SurveyMessage): void;
+  onmessage: ((event: MessageEvent<ChunkRequest>) => void) | null;
+  postMessage(message: ChunkMessage): void;
 };
 
-scope.onmessage = (event) => runSurvey(event.data, (message) => scope.postMessage(message));
+scope.onmessage = (event) => runSurveyChunk(event.data, (message) => scope.postMessage(message));

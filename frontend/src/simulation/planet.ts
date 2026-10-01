@@ -269,7 +269,14 @@ export function planetKey(starId: number, index: number): string {
   return `${starId}-${index}`;
 }
 
-export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: UniverseConfig): PlanetarySystem {
+/**
+ * A star's planetary system. `worldOf` builds each solid planet's physics,
+ * geography and history; it is solidWorldOf unless a caller (the stats
+ * harness) wraps it to time or keep those, so it must compute the same.
+ */
+export function generatePlanetsFor(
+  star: Star, galaxySeed: number, cfg?: UniverseConfig, worldOf: typeof solidWorldOf = solidWorldOf,
+): PlanetarySystem {
   const config = cfg ?? makeConfig(galaxySeed);
   const rng = createRNG(((galaxySeed ^ star.id) ^ SALT.PLANET) >>> 0);
 
@@ -325,7 +332,7 @@ export function generatePlanetsFor(star: Star, galaxySeed: number, cfg?: Univers
       planet.type = giantType(equilibriumK);
     } else {
       // A solid planet's surface is the end of its history
-      const { physics, history } = solidWorldOf(planet, star, galaxySeed, config);
+      const { physics, history } = worldOf(planet, star, galaxySeed, config);
       planet.surface = presentSurface(history.present, physics, history.final.pressureBar);
       planet.life = history.life && {
         startedGyr: history.life.startedGyr, endedGyr: history.life.endedGyr, phylogeny: history.phylogeny!,

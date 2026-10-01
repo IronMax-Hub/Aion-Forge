@@ -41,10 +41,12 @@ import type { JournalEntry } from "./simulation/journal";
 import * as api from "./api/client";
 import { importLocalDataOnce } from "./api/importLocalData";
 import { createSurveyClient } from "./workers/surveyClient";
+import { createSurveyPool, surveyPoolSize } from "./workers/surveyPool";
 import SurveyWorker from "./workers/survey.worker?worker";
 import "./App.css";
 
-const surveyClient = createSurveyClient(() => new SurveyWorker());
+const surveyClient = createSurveyClient(() =>
+  createSurveyPool(() => new SurveyWorker(), surveyPoolSize(navigator.hardwareConcurrency)));
 
 function randomSeed(): number {
   return Math.floor(Math.random() * 1_000_000_000);

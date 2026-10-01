@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { runSurvey } from "../workers/surveyTask";
-import type { SurveyMessage, SurveyRequest } from "../workers/surveyTask";
+import { mergeSurveys, runSurveyChunk, STARS_PER_CHUNK } from "../workers/surveyTask";
+import type { ChunkMessage, ChunkRequest, SurveyMessage, SurveyRequest } from "../workers/surveyTask";
 import { createSurveyClient, surveyCacheKey } from "../workers/surveyClient";
 import type { SurveyWorkerLike } from "../workers/surveyClient";
+import { createSurveyPool, surveyPoolSize } from "../workers/surveyPool";
+import type { ChunkWorkerLike } from "../workers/surveyPool";
 import { makeConfig, PRESETS } from "../simulation/config";
 import { buildGalaxyConfig } from "../simulation/galaxy";
-import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
-import { surveyLife, SURVEY_PROGRESS_INTERVAL } from "../simulation/lifeSurvey";
+import { generateStarsFor, STAR_COUNT, UNIVERSE_AGE_GYR } from "../simulation/star";
+import { surveyLife } from "../simulation/lifeSurvey";
 import type { LifeSurvey } from "../simulation/lifeSurvey";
 
 function surveyOnMainThread(seed: number, config = makeConfig(seed)): LifeSurvey {
@@ -14,20 +16,57 @@ function surveyOnMainThread(seed: number, config = makeConfig(seed)): LifeSurvey
   return surveyLife(stars, seed, config);
 }
 
-function runInWorker(request: SurveyRequest): SurveyMessage[] {
+const CHUNKS = STAR_COUNT / STARS_PER_CHUNK;
+
+/**
+ * Stand-in chunk workers that hold their requests until the test runs them, in
+ * any order it likes; `answer` decides what each chunk replies.
+ */
+function fakeChunkWorkers(answer: (request: ChunkRequest) => ChunkMessage) {
+  const held: { worker: ChunkWorkerLike; request: ChunkRequest }[] = [];
+  let created = 0;
+  return {
+    held,
+    created: () => created,
+    create(): ChunkWorkerLike {
+      created++;
+      const worker: ChunkWorkerLike = {
+        onmessage: null,
+        // structuredClone is what postMessage does to every message
+        postMessage(request) { held.push({ worker, request: structuredClone(request) }); },
+      };
+      return worker;
+    },
+    /** Runs the held request at `index` (default: the newest) and delivers its reply. */
+    run(index = held.length - 1) {
+      const [{ worker, request }] = held.splice(index, 1);
+      worker.onmessage!({ data: structuredClone(answer(request)) } as MessageEvent<ChunkMessage>);
+    },
+  };
+}
+
+/** Runs a whole request through a pool of stand-in workers that really survey, finishing chunks newest first. */
+function surveyThroughPool(request: SurveyRequest, size = 3): SurveyMessage[] {
+  const workers = fakeChunkWorkers((r) => {
+    let reply: ChunkMessage | undefined;
+    runSurveyChunk(r, (m) => { reply = m; });
+    return reply!;
+  });
+  const pool = createSurveyPool(workers.create, size);
   const messages: SurveyMessage[] = [];
-  // structuredClone is what postMessage does to every message
-  runSurvey(structuredClone(request), (m) => messages.push(structuredClone(m)));
+  pool.onmessage = ({ data }) => messages.push(data);
+  pool.postMessage(request);
+  while (workers.held.length > 0) workers.run();
   return messages;
 }
 
 // A full survey runs every solid planet's world history and its life's evolution: minutes
 const FULL_SURVEY_TIMEOUT_MS = 900_000;
 
-describe("survey worker task", { timeout: FULL_SURVEY_TIMEOUT_MS }, () => {
-  const messages = runInWorker({ generation: 7, seed: 42, config: makeConfig(42) });
+describe("survey worker pool", { timeout: FULL_SURVEY_TIMEOUT_MS }, () => {
+  const messages = surveyThroughPool({ generation: 7, seed: 42, config: makeConfig(42) });
 
-  it("returns exactly what surveying on the main thread returns", () => {
+  it("returns exactly what surveying on the main thread returns, whatever order the chunks finish in", () => {
     const result = messages.at(-1)!;
     expect(result.kind).toBe("result");
     expect(result.kind === "result" && result.survey).toEqual(surveyOnMainThread(42));
@@ -35,17 +74,81 @@ describe("survey worker task", { timeout: FULL_SURVEY_TIMEOUT_MS }, () => {
 
   it("uses the parameters it is given, not the defaults", () => {
     const config = makeConfig(42, PRESETS.find((p) => p.name === "Abundant Life")!.values);
-    const result = runInWorker({ generation: 1, seed: 42, config }).at(-1)!;
+    const result = surveyThroughPool({ generation: 1, seed: 42, config }).at(-1)!;
     expect(result.kind === "result" && result.survey).toEqual(surveyOnMainThread(42, config));
   });
 
-  it("reports rising progress every 100 stars, tagged with the request's generation", () => {
+  it("reports rising progress after each chunk, tagged with the request's generation", () => {
     const progress = messages.filter((m) => m.kind === "progress").map((m) => m.kind === "progress" && m.fraction);
-    expect(progress.length).toBe(2000 / SURVEY_PROGRESS_INTERVAL - 1);
+    expect(progress.length).toBe(CHUNKS - 1);
     expect(progress).toEqual([...progress].sort());
     expect(progress[0]).toBeGreaterThan(0);
     expect(progress.at(-1)).toBeLessThan(1);
     expect(messages.every((m) => m.generation === 7)).toBe(true);
+  });
+});
+
+describe("survey pool", () => {
+  // Each chunk answers with its star range in place of a real survey
+  const canned = (r: ChunkRequest): ChunkMessage => ({
+    kind: "chunk", generation: r.generation, chunk: r.chunk,
+    survey: { totalPlanets: r.to - r.from, lifeBearingPlanets: r.chunk, civilizationCount: r.generation, systems: [] },
+  });
+
+  it("covers every star once, in chunks, with no more workers than its size", () => {
+    const workers = fakeChunkWorkers(canned);
+    const pool = createSurveyPool(workers.create, 4);
+    const results: SurveyMessage[] = [];
+    pool.onmessage = ({ data }) => { if (data.kind === "result") results.push(data); };
+    pool.postMessage({ generation: 1, seed: 42, config: makeConfig(42) });
+    expect(workers.held.length).toBe(4);
+    const ranges: [number, number][] = [];
+    while (workers.held.length > 0) {
+      ranges.push([workers.held[0].request.from, workers.held[0].request.to]);
+      workers.run(0);
+    }
+    expect(workers.created()).toBe(4);
+    expect(ranges.sort((a, b) => a[0] - b[0]).flat()).toEqual(
+      Array.from({ length: CHUNKS }, (_, i) => [i * STARS_PER_CHUNK, (i + 1) * STARS_PER_CHUNK]).flat());
+    expect(results).toHaveLength(1);
+    expect(results[0].kind === "result" && results[0].survey.totalPlanets).toBe(STAR_COUNT);
+  });
+
+  it("serves requests in the order they arrive", () => {
+    const workers = fakeChunkWorkers(canned);
+    const pool = createSurveyPool(workers.create, 2);
+    const results: number[] = [];
+    pool.onmessage = ({ data }) => { if (data.kind === "result") results.push(data.generation); };
+    pool.postMessage({ generation: 1, seed: 42, config: makeConfig(42) });
+    pool.postMessage({ generation: 2, seed: 43, config: makeConfig(43) });
+    while (workers.held.length > 0) workers.run(0);
+    expect(results).toEqual([1, 2]);
+  });
+
+  it("posts a request's first failure once, drops its other chunks, and goes on to the next request", () => {
+    const workers = fakeChunkWorkers((r) => (r.generation === 1 && r.chunk === 1
+      ? { kind: "error", generation: 1, message: "boom" } : canned(r)));
+    const pool = createSurveyPool(workers.create, 3);
+    const seen: SurveyMessage[] = [];
+    pool.onmessage = ({ data }) => { if (data.kind !== "progress") seen.push(data); };
+    pool.postMessage({ generation: 1, seed: 42, config: makeConfig(42) });
+    pool.postMessage({ generation: 2, seed: 43, config: makeConfig(43) });
+    while (workers.held.length > 0) workers.run(0);
+    expect(seen.map((m) => [m.kind, m.generation])).toEqual([["error", 1], ["result", 2]]);
+  });
+
+  it("merges chunks by adding their counts and joining their systems in star order", () => {
+    const system = (starId: number) => ({ starId, mostAdvancedStage: "microbial" as const, lifePlanetCount: 1, civilizationStage: null });
+    expect(mergeSurveys([
+      { totalPlanets: 3, lifeBearingPlanets: 1, civilizationCount: 0, systems: [system(2)] },
+      { totalPlanets: 4, lifeBearingPlanets: 2, civilizationCount: 1, systems: [system(51), system(60)] },
+    ])).toEqual({ totalPlanets: 7, lifeBearingPlanets: 3, civilizationCount: 1, systems: [system(2), system(51), system(60)] });
+  });
+
+  it("uses one worker per core, less one for the interface", () => {
+    expect(surveyPoolSize(8)).toBe(7);
+    expect(surveyPoolSize(1)).toBe(1);
+    expect(surveyPoolSize(undefined)).toBe(1);
   });
 });
 

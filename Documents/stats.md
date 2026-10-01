@@ -1,6 +1,6 @@
 # Universe statistics
 
-Appended by `npm run stats` (frontend/stats/universeStats.bench.ts). Each entry measures seeds 100000, 42 and 7777 under the six presets, so the effect of every simulation change is recorded. Counts are deterministic; survey times are medians of several runs (5 before rules v3; 3 from then on, since each survey now runs every world history) on the machine that ran it, and vary between runs.
+Appended by `npm run stats` (frontend/stats/run.mjs; before 2026-10-02, frontend/stats/universeStats.bench.ts). Each entry measures seeds 100000, 42 and 7777 under the six presets, so the effect of every simulation change is recorded. Counts are deterministic; times vary between runs. Survey times were medians of several runs (5 before rules v3, 3 until C2.3b, then 1). From 2026-10-02 the universes are measured in parallel, one per core less one, so each time is taken while the other universes run and is slower than a universe measured alone; geography and world history times are summed over every solid planet within the survey's single pass.
 
 "Life-bearing planets" includes prebiotic chemistry; "systems with organisms" counts systems with at least one microbial or more advanced world.
 

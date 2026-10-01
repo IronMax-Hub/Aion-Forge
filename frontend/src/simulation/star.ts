@@ -258,7 +258,7 @@ export interface StellarPopulation {
   galaxySeed: number;
 }
 
-const STAR_COUNT = 2000;
+export const STAR_COUNT = 2000;
 
 /** Age of every universe, in billion years; no star is older. */
 export const UNIVERSE_AGE_GYR = 13.7;

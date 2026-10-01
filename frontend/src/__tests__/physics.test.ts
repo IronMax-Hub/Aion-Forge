@@ -121,11 +121,45 @@ describe("Timeline chronology", () => {
       }
     }
     expect(formedAgo.size).toBe(entries.length);
+    // Every event of a planet falls between its formation and the present (C2.7)
     for (const e of timeline.events) {
-      if (e.category === "biological" || e.category === "civilizational") {
+      if (e.category === "planetary" || e.category === "biological" || e.category === "civilizational") {
         expect(formedAgo.has(e.subjectId)).toBe(true);
         expect(e.timestampGyr).toBeLessThanOrEqual(formedAgo.get(e.subjectId)!);
+        expect(e.timestampGyr).toBeGreaterThan(0);
       }
     }
+  });
+
+  it("dates each planet's world events, life's start and end, its firsts and its extinctions as its history did (C2.7)", () => {
+    const seed = 100000;
+    const galaxyCfg = makeGalaxyConfig(seed);
+    const galaxy = generateGalaxy(galaxyCfg);
+    const population = generateStarsFor(galaxyCfg);
+    const entries = population.stars.slice(0, 60).flatMap((star) =>
+      generatePlanetsFor(star, seed).planets.map((planet) => ({ planet, star, bio: generateBiosphere(planet, star) })));
+    const timeline = buildUniverseTimeline(seed, galaxy, population, entries);
+    const of = (planetKey: string, category: string) =>
+      timeline.events.filter((e) => e.subjectId === `planet-${planetKey}` && e.category === category);
+    const ago = (star: { age: number }, tGyr: number) => Math.max(0.001, star.age - tGyr);
+    let checked = 0;
+    for (const { planet, star, bio } of entries) {
+      const planetary = of(planet.key, "planetary").map((e) => e.timestampGyr);
+      for (const w of planet.worldEvents) expect(planetary).toContain(ago(star, w.tGyr));
+      if (!planet.life) {
+        expect(of(planet.key, "biological")).toEqual([]);
+        continue;
+      }
+      checked++;
+      expect(planetary).toContain(ago(star, planet.life.startedGyr));
+      const lifeEnded = of(planet.key, "planetary").filter((e) => e.importance === "legendary");
+      expect(lifeEnded.length).toBe(planet.life.endedGyr === null ? 0 : 1);
+      const biological = of(planet.key, "biological");
+      const firsts = planet.life.phylogeny.firsts.filter((f) => f.kind !== "consumer");
+      expect(biological.length).toBe(firsts.length + bio.extinctions.length);
+      // Graded by the share of lineages lost (owner decision): a mass extinction from a quarter on
+      for (const e of biological.filter((e) => e.summary.startsWith("Mass extinction"))) expect(["major", "historic"]).toContain(e.importance);
+    }
+    expect(checked).toBeGreaterThan(0);
   });
 });

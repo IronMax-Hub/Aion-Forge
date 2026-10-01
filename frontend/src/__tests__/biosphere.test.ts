@@ -19,14 +19,14 @@ const star: Star = {
 
 const phylogeny = (overrides: Partial<PhylogenySummary>): PhylogenySummary => ({
   livingLineages: 10, diversity: 10 / LINEAGE_CAP, largestLog10BodyMassKg: -12, foodChainLevels: 1, producerCover: 0.5,
-  totalBiomass: 1e-3, traitSpread: 0.3, recentSurvival: 0.8, lethalCatastrophes: [], mind: null, ...overrides,
+  totalBiomass: 1e-3, traitSpread: 0.3, recentSurvival: 0.8, lethalCatastrophes: [], mind: null, firsts: [], ...overrides,
 });
 
 function planetWith(summary: PhylogenySummary, endedGyr: number | null = null): Planet {
   return {
     id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
     temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5,
-    habitabilityScore: 0.8, isRare: false, surface: null, life: { startedGyr: 0.6, endedGyr, phylogeny: summary },
+    habitabilityScore: 0.8, isRare: false, surface: null, life: { startedGyr: 0.6, endedGyr, phylogeny: summary }, worldEvents: [],
   };
 }
 

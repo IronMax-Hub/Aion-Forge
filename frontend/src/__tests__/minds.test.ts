@@ -84,12 +84,12 @@ const mindOf = (overrides: Partial<MindSummary> = {}): MindSummary => ({
 function planetWith(mind: MindSummary | null, surface: PlanetSurface = earthAir, endedGyr: number | null = null): Planet {
   const phylogeny: PhylogenySummary = {
     livingLineages: endedGyr === null ? 20 : 0, diversity: 0.6, largestLog10BodyMassKg: endedGyr === null ? 1.5 : null,
-    foodChainLevels: 3, producerCover: 0.9, totalBiomass: 0.5, traitSpread: 0.4, recentSurvival: 0.9, lethalCatastrophes: [], mind,
+    foodChainLevels: 3, producerCover: 0.9, totalBiomass: 0.5, traitSpread: 0.4, recentSurvival: 0.9, lethalCatastrophes: [], mind, firsts: [],
   };
   return {
     id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
     temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8,
-    isRare: false, surface, life: { startedGyr: 0.6, endedGyr, phylogeny },
+    isRare: false, surface, life: { startedGyr: 0.6, endedGyr, phylogeny }, worldEvents: [],
   };
 }
 const civOf = (planet: Planet) => generateCivilization(generateBiosphere(planet, star), planet, 42);

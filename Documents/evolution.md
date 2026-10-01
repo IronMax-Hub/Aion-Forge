@@ -158,6 +158,29 @@ From rules v9 a civilization comes from a mind found in its planet's history (`e
 - Only 6 of 53 mind worlds can make fire today. Most minds live under thick air with little oxygen in it (median 7.5% O₂), so few civilizations pass agriculture (0–3 systems per seed).
 - Intelligence 0.3 gives 3 civilizations; 1.5 gives 95.
 
+## The timeline (C2.7)
+
+The universe timeline (`history.ts`) now dates life and its planet from the planet's own history, instead of placing stage events at fixed fractions of life's age. Planets keep their world-history events (`Planet.worldEvents`), and the phylogeny summary keeps life's firsts.
+
+| Event | Category | Importance |
+|---|---|---|
+| Star leaves the main sequence | planetary | historic |
+| Planet freezes over / thaws | planetary | major |
+| Moist greenhouse begins | planetary | major |
+| Runaway greenhouse; oceans lost to space | planetary | historic |
+| Oxygen builds up (once, by life or by escaping water) | planetary | historic |
+| Life begins | planetary | significant |
+| Life ends | planetary | legendary |
+| First light user | biological | significant |
+| First body over 10⁻⁹ kg (multicellular, R9) | biological | major |
+| First life on land | biological | major |
+| Every lethal catastrophe (owner decision) | biological | minor below 25% of living lineages; "Mass extinction", major from 25%, historic from 50% |
+| A mind appears | civilizational | legendary ("An intelligent species evolved", unchanged) |
+
+The first consumer is recorded by the engine but is not among the plan's timeline events. First flight is dropped until a flight trait exists. A civilization whose species died out ends with "Its species died out" instead of "survivors among the ruins". The timeline summary counts worlds where life began, living or not.
+
+The timeline is not part of any stored count (snapshots record 0 legendary events), so C2.7 changes no rules version.
+
 ### Open issues for C2.10
 
 - **Gravity does not limit size in practice.** The support cost lowers the heaviest land body that can live as gravity rises (tested), but over 10 Gyr of evolution land bodies stay around 1–250 kg, far below the ceiling (thousands of kg at 1 g), so gravity makes no measurable difference between 0.2 and 5 g. To tune in C2.10: how fast size evolves, or the support constant.

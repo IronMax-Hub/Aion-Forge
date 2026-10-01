@@ -10,7 +10,7 @@ import type { PlanetPhysics } from "./planetPhysics";
 import { buildGeography } from "./geography";
 import type { Geography } from "./geography";
 import { runWorldHistory } from "./worldHistory";
-import type { WorldHistory } from "./worldHistory";
+import type { WorldEvent, WorldHistory } from "./worldHistory";
 import type { PresentClimate } from "./climate";
 import type { PhylogenySummary } from "./evolution/phylogeny";
 
@@ -56,6 +56,8 @@ export interface Planet {
   surface: PlanetSurface | null;
   /** Life on the planet, from its world history (C2.3b, C2.5); null if it never began. */
   life: PlanetLife | null;
+  /** What happened to the planet over its world history, dated (C2.7); empty for giants, which have none. */
+  worldEvents: WorldEvent[];
 }
 
 /** A planet's life: its dates, Gyr after its star formed, and what its lineages became (C2.5). */
@@ -328,6 +330,7 @@ export function generatePlanetsFor(
       isRare: false,
       surface: null,
       life: null,
+      worldEvents: [],
     };
 
     if (mass > GIANT_PLANET_MASS) {
@@ -336,6 +339,7 @@ export function generatePlanetsFor(
       // A solid planet's surface is the end of its history
       const { physics, history } = worldOf(planet, star, galaxySeed, config);
       planet.surface = presentSurface(history.present, physics, history.final.pressureBar, history.final.o2Bar);
+      planet.worldEvents = history.events;
       planet.life = history.life && {
         startedGyr: history.life.startedGyr, endedGyr: history.life.endedGyr, phylogeny: history.phylogeny!,
       };

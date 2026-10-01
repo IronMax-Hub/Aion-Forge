@@ -33,7 +33,7 @@
 //   has ended keeps its dates and catastrophes, and nothing living.
 
 import { LINEAGE_CAP, livingLineages } from "./engine";
-import type { CatastropheRecord, EvolutionState } from "./engine";
+import type { CatastropheRecord, EvolutionFirst, EvolutionState } from "./engine";
 import type { Environment } from "./environment";
 import type { Mind } from "./minds";
 import { TRAIT_RANGES } from "./genome";
@@ -68,6 +68,8 @@ export interface PhylogenySummary {
   lethalCatastrophes: CatastropheRecord[];
   /** The first mind, if one appeared (C2.6). */
   mind: MindSummary | null;
+  /** Life's dated firsts: light, consumers, multicellular, land (C2.7). */
+  firsts: EvolutionFirst[];
 }
 
 /** A mind as the history left it. */
@@ -146,6 +148,7 @@ export function summarizePhylogeny(state: EvolutionState, env: Environment, mind
     traitSpread: traitSpreadOf(state),
     recentSurvival: recentSurvivalOf(state),
     lethalCatastrophes: state.catastrophes.filter((c) => c.lineagesLost > 0),
+    firsts: state.firsts,
     mind: mind && {
       ...mind,
       ageGyr: presentGyr - mind.tGyr,

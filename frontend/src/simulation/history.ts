@@ -5,6 +5,8 @@ import { MAIN_SEQUENCE_END_FRACTION, REMNANT_FRACTION } from "./star";
 import type { Planet } from "./planet";
 import type { Biosphere } from "./biosphere";
 import type { Civilization, Species } from "./civilization";
+import type { WorldEventKind } from "./worldHistory";
+import type { FirstKind } from "./evolution/engine";
 
 /** Delay between a star's birth and its innermost planet finishing assembly, in Gyr. */
 const PLANET_FORMATION_DELAY_GYR = 0.05;
@@ -228,7 +230,7 @@ export function recordPlanetaryEvents(
   const events: HistoricalEvent[] = [];
   // Planets assemble within the star's first ~100 Myr, outer ones slightly later.
   // Later milestones are dated as time elapsed after formation, so they always
-  // follow it — and precede the earliest possible life (0.5 Gyr after the star, see biosphere.ts).
+  // follow it — and precede the world history, which starts 0.5 Gyr after the star (worldHistory.ts).
   const formedAgo = Math.max(0.001, hostStar.age - (PLANET_FORMATION_DELAY_GYR + planet.orbitalIndex * 0.01));
   const afterFormation = (gyr: number) => Math.max(0.001, formedAgo - gyr);
 
@@ -276,7 +278,39 @@ export function recordPlanetaryEvents(
     });
   }
 
+  // What its world history recorded (C2.7), and when its life began and ended
+  const planetEvent = (tGyr: number, summary: string, importance: Importance) => events.push({
+    id: nextId(), universeSeed: seed,
+    timestampGyr: agoFrom(hostStar, tGyr),
+    category: "planetary",
+    subjectId: `planet-${planet.key}`,
+    summary, importance,
+  });
+  for (const e of planet.worldEvents) planetEvent(e.tGyr, WORLD_EVENT[e.kind].summary, WORLD_EVENT[e.kind].importance);
+  if (planet.life) {
+    planetEvent(planet.life.startedGyr, LIFE_BEGAN, "significant");
+    if (planet.life.endedGyr !== null) planetEvent(planet.life.endedGyr, "The last life on this world died out.", "legendary");
+  }
+
   return events;
+}
+
+const LIFE_BEGAN = "Life began, as a single kind of cell in the dark water.";
+
+/** The world history's events in the timeline (Revision 1, C2.7). */
+const WORLD_EVENT: Record<WorldEventKind, { summary: string; importance: Importance }> = {
+  "star-leaves-main-sequence": { summary: "Its star left the main sequence, and its light began to change.", importance: "historic" },
+  "freezes-over":       { summary: "Ice spread from the poles until the planet froze over.", importance: "major" },
+  thaws:                { summary: "The ice retreated and the planet thawed.", importance: "major" },
+  "moist-greenhouse":   { summary: "The climate grew hot enough for water to rise into the upper air and escape to space.", importance: "major" },
+  "runaway-greenhouse": { summary: "A runaway greenhouse turned the oceans to steam.", importance: "historic" },
+  "oceans-lost":        { summary: "The last of the oceans was lost to space.", importance: "historic" },
+  oxidation:            { summary: "Oxygen built up in the air for the first time.", importance: "historic" },
+};
+
+/** Gyr before present of a moment `tGyr` after the star formed; never quite zero, so it sorts as past. */
+function agoFrom(star: Star, tGyr: number): number {
+  return Math.max(0.001, star.age - tGyr);
 }
 
 // ── AF-096: Biological event recording ───────────────────────────────────────
@@ -284,62 +318,59 @@ export function recordPlanetaryEvents(
 export function recordBiologicalEvents(
   bio: Biosphere,
   planet: Planet,
+  star: Star,
   seed: number
 ): HistoricalEvent[] {
-  if (!bio.hasLife) return [];
+  // Life's dated firsts and the catastrophes that cost it lineages (C2.7), from
+  // the planet's own history; a world whose life has ended keeps them
+  if (!planet.life) return [];
   const events: HistoricalEvent[] = [];
+  const subjectId = `planet-${planet.key}`;
 
-  // First life
-  events.push({
-    id: nextId(), universeSeed: seed,
-    timestampGyr: bio.ageGyr,
-    category: "biological",
-    subjectId: `planet-${planet.key}`,
-    summary: `The first self-replicating molecules emerged — life took hold on this world.`,
-    importance: "legendary",
-  });
-
-  const STAGE_EVENTS: Partial<Record<string, { summary: string; importance: Importance }>> = {
-    microbial:      { summary: "Microbial ecosystems spread across the planet, transforming the atmosphere.", importance: "major" },
-    multicellular:  { summary: "Multicellular organisms evolved — complexity began its exponential ascent.", importance: "historic" },
-    complex:        { summary: "Complex animal-like life diversified into ecological niches across land and sea.", importance: "historic" },
-    dominant:       { summary: "A dominant lifeform emerged, reshaping ecosystems in its wake.", importance: "legendary" },
-  };
-
-  const reached = ["microbial", "multicellular", "complex", "dominant"];
-  const stageOrder = ["none", "prebiotic", "microbial", "multicellular", "complex", "dominant"];
-  const stageIdx = stageOrder.indexOf(bio.stage);
-
-  for (let i = 2; i <= stageIdx; i++) {
-    const s = reached[i - 2];
-    const ev = STAGE_EVENTS[s];
-    if (ev) {
-      const timeAgo = bio.ageGyr * (1 - (i - 2) / 4) * 0.85;
-      events.push({
-        id: nextId(), universeSeed: seed,
-        timestampGyr: Math.max(0.001, timeAgo),
-        category: "biological",
-        subjectId: `planet-${planet.key}`,
-        summary: ev.summary,
-        importance: ev.importance,
-      });
-    }
-  }
-
-  // Extinction events
-  for (const ext of bio.extinctions) {
+  for (const first of planet.life.phylogeny.firsts) {
+    const recorded = FIRST_EVENT[first.kind];
+    if (!recorded) continue;
     events.push({
       id: nextId(), universeSeed: seed,
-      timestampGyr: ext.timeAgo,
-      category: "biological",
-      subjectId: `planet-${planet.key}`,
-      summary: `Mass extinction: ${ext.cause}. ${Math.round(ext.severityLoss * 100)}% of biodiversity lost.`,
-      importance: ext.severityLoss > 0.6 ? "historic" : "significant",
+      timestampGyr: agoFrom(star, first.tGyr),
+      category: "biological", subjectId,
+      summary: recorded.summary, importance: recorded.importance,
+    });
+  }
+
+  // Every lethal catastrophe (owner decision), graded by the share of living lineages it ended
+  for (const ext of bio.extinctions) {
+    const percent = Math.round(ext.severityLoss * 100);
+    const mass = ext.severityLoss >= MASS_EXTINCTION_SHARE;
+    events.push({
+      id: nextId(), universeSeed: seed,
+      timestampGyr: Math.max(0.001, ext.timeAgo),
+      category: "biological", subjectId,
+      summary: mass
+        ? `Mass extinction: ${ext.cause} ended ${percent}% of living lineages.`
+        : `${ext.cause[0].toUpperCase()}${ext.cause.slice(1)} ended ${percent}% of living lineages.`,
+      importance: ext.severityLoss >= SEVERE_EXTINCTION_SHARE ? "historic" : mass ? "major" : "minor",
     });
   }
 
   return events;
 }
+
+/**
+ * Life's firsts in the timeline (Worlds Up Close C2.7, as amended in R9): the
+ * first multicellular body is the first lineage above 10⁻⁹ kg. The first
+ * consumer is not among the plan's events, and the first mind is the
+ * civilization's own "An intelligent species evolved".
+ */
+const FIRST_EVENT: Partial<Record<FirstKind, { summary: string; importance: Importance }>> = {
+  light:         { summary: "The first organisms that live on starlight appeared.", importance: "significant" },
+  multicellular: { summary: "Life grew beyond single cells: the first bodies heavier than a microgram.", importance: "major" },
+  land:          { summary: "Life first moved onto land.", importance: "major" },
+};
+
+// Share of living lineages a catastrophe must end to count as a mass extinction, and as a severe one
+const MASS_EXTINCTION_SHARE = 0.25;
+const SEVERE_EXTINCTION_SHARE = 0.5;
 
 // ── AF-097: Civilizational event recording ────────────────────────────────────
 
@@ -386,7 +417,7 @@ export function recordCivilizationalEvents(
   }
 
   // Final state
-  if (civ.techStage === "collapsed") {
+  if (civ.techStage === "collapsed" && civ.extinctAgoGyr === null) {
     events.push({
       id: nextId(), universeSeed: seed,
       timestampGyr: 0.001,
@@ -440,7 +471,7 @@ export function buildUniverseTimeline(
   }
   for (const { planet, star, bio, civ, species } of systems) {
     for (const e of recordPlanetaryEvents(planet, star, seed))         insertEvent(timeline, e);
-    for (const e of recordBiologicalEvents(bio, planet, seed))         insertEvent(timeline, e);
+    for (const e of recordBiologicalEvents(bio, planet, star, seed))   insertEvent(timeline, e);
     if (civ && species) {
       for (const e of recordCivilizationalEvents(civ, species, planet, seed)) insertEvent(timeline, e);
     }
@@ -457,9 +488,9 @@ export function summarizeTimeline(timeline: UniverseTimeline): string {
   const legendary  = events.filter((e) => e.importance === "legendary");
   const historic   = events.filter((e) => e.importance === "historic" || e.importance === "legendary");
   const civEvents  = events.filter((e) => e.category === "civilizational");
-  const bioEvents  = events.filter((e) => e.category === "biological");
   const stelEvents = events.filter((e) => e.category === "stellar");
-  const lifePlanets = new Set(bioEvents.map((e) => e.subjectId)).size;
+  // Worlds where life began (a planetary event since C2.7), living or not
+  const lifePlanets = new Set(events.filter((e) => e.summary === LIFE_BEGAN).map((e) => e.subjectId)).size;
   const civPlanets  = new Set(civEvents.map((e) => e.subjectId)).size;
 
   const parts: string[] = [];

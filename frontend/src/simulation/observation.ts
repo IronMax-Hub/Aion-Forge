@@ -46,9 +46,9 @@ export const MAX_TRANSITS = 200;
 /**
  * Noise per bin in one transit of a Sun-like star, at 1 µm, ppm: the
  * instrument. About what a large space telescope reaches on a bright star at
- * this resolution; with it an Earth twin around a Sun-like star is at the edge
- * of detection after the longest observation, and a world around a small star
- * comes out sooner.
+ * this resolution. With it an Earth twin around a Sun-like star shows its
+ * water after ~50 transits and its oxygen not even after 200 (~2σ); around a
+ * small star, sooner (Documents/spectrum.md).
  */
 export const REFERENCE_NOISE_PPM = 30;
 const REFERENCE_WAVELENGTH_UM = 1;

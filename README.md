@@ -212,7 +212,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 
 ## Current Status
 
-**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.7 and C2.10, and Phase B steps B1–B5 (simulation rules v10)**
+**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.7 and C2.10, and Phase B, B1–B6 (simulation rules v10)**
 
 ### Simulation
 
@@ -229,7 +229,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 * Transit spectra — how deep each planet's transit is from 0.3 to 20 µm, from its gases, temperature and gravity: Rayleigh scattering and absorption bands of every gas above, over a scale height that light, hot air makes tall, under a cloud deck that thick or humid air and cold giants carry
 * Observing transits — 1 to 200 transits, with photon noise that falls as the square root of their number and follows the star's light; each transit is its own measurement, so a longer look adds to a shorter one, and the same observation always shows the same data
 * Detection — each gas's significance from how much worse the data fit without it, and a verdict: oxygen with methane is a strong biosignature, oxygen alone is ambiguous (lifeless worlds make it too), methane on a temperate world or N₂O a possible one, CFCs a technosignature
-* Spectrum tab in the planet panel — the observed spectrum with error bars, the model and the detected gases' bands on a log wavelength axis, a transits control, each gas's significance and the verdict; a universe's first strong biosignature or technosignature can be recorded as a discovery
+* Spectrum tab in the planet panel — the observed spectrum with error bars, the model and the detected gases' bands on a log wavelength axis, a transits control, each gas's significance and the verdict; a universe's first strong biosignature or technosignature can be recorded as a discovery. How the reading works, what it measured and what it cannot show: `Documents/spectrum.md`
 * Historical event recording and timeline replay
 * Configurable laws of physics with experiment comparison
 * Universe persistence, library, export/import, and discovery collections

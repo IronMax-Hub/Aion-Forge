@@ -12,7 +12,7 @@ import {
   CHART, PLOT_HEIGHT, PLOT_WIDTH, GAS_LABEL, xOf, yOf, wavelengthTicks, depthTicks, depthUnit, displayPoints, depthRange,
   bandLabels, formatSigma,
 } from "./spectrumChart";
-import { planetName } from "./format";
+import { spectrumDiscovery } from "./spectrumDiscovery";
 
 // The Spectrum tab of the planet panel (Worlds Up Close, phase B5): the
 // planet's transit spectrum as a telescope records it, what each gas's
@@ -32,12 +32,6 @@ const DEFAULT_TRANSITS = 10;
 /** A transit this deep hides the whole star. */
 const FULL_COVER_PPM = 1e6;
 const LABEL_ROW_HEIGHT = 13;
-
-/** Verdicts a universe can record once, as a discovery: the first of each. */
-const RECORDABLE: Partial<Record<Verdict, DiscoveryItem["category"]>> = {
-  "strong-biosignature": "remarkable-worlds",
-  technosignature: "extraordinary-civilizations",
-};
 
 const VERDICT_CLASS: Record<Verdict, string> = {
   technosignature: "techno",
@@ -71,10 +65,7 @@ export function SpectrumPanel({ planet, star, galaxySeed, civilization, discover
   const plotBottom = CHART.top + PLOT_HEIGHT;
   const modelPath = points.map((p, i) => `${i === 0 ? "M" : "L"}${xOf(p.wavelengthUm).toFixed(1)},${yOf(p.modelPpm, range).toFixed(1)}`).join("");
 
-  // The first of each recordable verdict in a universe can be saved; its id names the universe and the verdict
-  const category = RECORDABLE[detection.verdict];
-  const discoveryId = `spectrum-${galaxySeed}-${detection.verdict}`;
-  const recorded = discoveries.find((d) => d.id === discoveryId);
+  const record = spectrumDiscovery(detection, transits, planet, galaxySeed, discoveries);
 
   return (
     <div className="spectrum">
@@ -173,28 +164,14 @@ export function SpectrumPanel({ planet, star, galaxySeed, civilization, discover
         {VERDICT_LABEL[detection.verdict]}
       </div>
 
-      {category && onSaveDiscovery && (
-        recorded
-          ? <div className="spectrum-recorded">
-              {recorded.subjectId === planet.key
-                ? "Recorded as this universe's first."
-                : `This universe's first was ${recorded.label}.`}
-            </div>
-          : <button
-              className="btn primary full"
-              onClick={() => onSaveDiscovery({
-                id: discoveryId,
-                category,
-                universeSeed: galaxySeed,
-                subjectId: planet.key,
-                label: planetName(planet.hostStarId, planet.orbitalIndex),
-                description: `${VERDICT_LABEL[detection.verdict]} after ${transits} transits: `
-                  + detected.map((gas) => `${GAS_LABEL[gas]} ${formatSigma(detection.gases.find((g) => g.gas === gas)!.sigma)}σ`).join(", "),
-                savedAt: Date.now(),
-              })}
-            >
-              Record as this universe's first
-            </button>
+      {onSaveDiscovery && record.status === "recordable" && (
+        <button className="btn primary full" onClick={() => onSaveDiscovery(record.item(Date.now()))}>
+          Record as this universe's first
+        </button>
+      )}
+      {record.status === "recorded-here" && <div className="spectrum-recorded">Recorded as this universe's first.</div>}
+      {record.status === "recorded-elsewhere" && (
+        <div className="spectrum-recorded">This universe's first was {record.label}.</div>
       )}
     </div>
   );

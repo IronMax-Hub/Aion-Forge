@@ -186,6 +186,26 @@
   .life-bubble { animation: none; }
 }
 
+/* System view: the label beside the planet under the pointer */
+.planet-label-anchor {
+  padding: 0 0 4px 10px;   /* clear of the planet's limb */
+  pointer-events: none;
+}
+
+.planet-label-anchor.left { padding: 0 10px 4px 0; }
+
+.planet-label {
+  padding: 2px 6px;
+  border: 1px solid var(--col-border-3);
+  border-radius: 3px;
+  background: rgba(17, 20, 24, 0.86);
+  color: var(--col-text-1);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
 /* ── Dock (selection inspector) ───────────────────────────────────────────── */
 
 .dock {
@@ -702,6 +722,14 @@
 }
 
 .system-table tbody tr:hover { background: var(--col-hover); }
+
+/* A planet's life, on its own line under the type */
+.system-table-life {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--col-life);
+}
+.system-table-life.extinct { color: var(--col-text-3); }
 
 .system-table-link {
   background: none;

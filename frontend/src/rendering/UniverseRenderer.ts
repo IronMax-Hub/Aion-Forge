@@ -154,6 +154,14 @@ function realisticDustColors(particles: GalaxyParticles): Float32Array {
 /** Planetary-system view draws orbits at this many scene units per AU. */
 export const SYSTEM_UNITS_PER_AU = 2.5;
 
+/** What the system view is given besides the system: callbacks and what it labels each planet with. */
+export interface SystemSight {
+  /** Called when a planet is double-clicked, to approach it. */
+  onPlanetApproach?: ((planet: Planet) => void) | null;
+  /** Hover label text per planet id; a planet without one shows no label. */
+  planetLabels?: Map<number, string>;
+}
+
 /** What the planet view is given about a planet besides the planet itself. */
 export interface PlanetSight {
   /** The planet's solid world, when it has one to draw; null for giants. */
@@ -248,6 +256,8 @@ export interface LifeMarker {
 /** Only this many systems carry a text bubble at once, the ones nearest the camera; the rest keep just the ring. */
 const LABELLED_MARKER_LIMIT = 30;
 const LIFE_RING_SIZE_PX = 13;
+// A planet's hover label moves to its left once the planet is this far right (normalized device coordinates)
+const PLANET_LABEL_FLIP_NDC = 0.2;
 // Approximate bubble footprint on screen (10px monospace text plus padding and pointer),
 // used to skip a bubble that would cover a nearer one.
 const BUBBLE_CHAR_WIDTH_PX = 6.1;
@@ -291,6 +301,12 @@ export class UniverseRenderer {
   private onStarSelected:   ((star: Star | null)     => void) | null = null;
   private onPlanetSelected: ((planet: Planet | null) => void) | null = null;
   private onPlanetApproach: ((planet: Planet) => void) | null = null;
+
+  // System view: the label shown beside the planet under the pointer (life is named there, never drawn on the planet)
+  private planetLabels = new Map<number, string>();
+  private planetLabel: CSS2DObject | null = null;
+  private hoveredPlanetId: number | null = null;
+  private pointer: THREE.Vector2 | null = null;
 
   // A glide moves the orbit target and, when `camera` is set, the camera too; `onDone` runs when it ends
   private tween: {
@@ -346,6 +362,8 @@ export class UniverseRenderer {
 
     canvas.addEventListener("click", this.onClick);
     canvas.addEventListener("dblclick", this.onDoubleClick);
+    canvas.addEventListener("pointermove", this.onPointerMove);
+    canvas.addEventListener("pointerleave", this.onPointerLeave);
     window.addEventListener("resize", this.onResize);
   }
 
@@ -479,10 +497,12 @@ export class UniverseRenderer {
     system: PlanetarySystem,
     hostStar: Star,
     onPlanetSelected: (planet: Planet | null) => void,
-    biospheres: Map<number, Biosphere> = new Map(),
-    onPlanetApproach: ((planet: Planet) => void) | null = null,
+    sight: SystemSight = {},
   ) {
+    const { onPlanetApproach = null, planetLabels = new Map() } = sight;
     this.closePlanetView();
+    this.planetLabels = planetLabels;
+    this.hidePlanetLabel();
     this.onPlanetSelected = onPlanetSelected;
     this.onPlanetApproach = onPlanetApproach;
     this.planetData = system.planets;
@@ -528,20 +548,6 @@ export class UniverseRenderer {
       pMesh.position.set(orbitR, 0, 0);
       pMesh.userData = { planetId: planet.id };
       group.add(pMesh);
-
-      // Life marker: a thin ring around the planet, stronger for more complex life
-      const bio = biospheres.get(planet.id);
-      if (bio?.hasLife) {
-        const markerR = pSize * 2.2;
-        const lifeGeo = new THREE.RingGeometry(markerR, markerR + 0.008 * scale, 48);
-        const lifeMat = new THREE.MeshBasicMaterial({
-          color: 0x6fc49a, transparent: true, opacity: 0.35 + bio.complexity * 0.45, side: THREE.DoubleSide,
-        });
-        const lifeMesh = new THREE.Mesh(lifeGeo, lifeMat);
-        lifeMesh.rotation.x = Math.PI / 2;
-        lifeMesh.position.copy(pMesh.position);
-        group.add(lifeMesh);
-      }
     }
 
     group.position.set(...hostStar.position);
@@ -561,6 +567,8 @@ export class UniverseRenderer {
 
   exitSystemView() {
     this.closePlanetView();
+    this.hidePlanetLabel();
+    this.planetLabels = new Map();
     this.mode = "galaxy";
     this.lastReportedScale = 0;
     this.applyLifeMarkerVisibility();
@@ -737,15 +745,74 @@ export class UniverseRenderer {
   };
 
   private planetAt(e: MouseEvent): Planet | null {
+    const hit = this.planetMeshAt(this.pointerNdc(e));
+    return hit ? this.planetData.find(p => p.id === hit.userData.planetId) ?? null : null;
+  }
+
+  private pointerNdc(e: MouseEvent): THREE.Vector2 {
     const rect = this.renderer.domElement.getBoundingClientRect();
-    const ndc  = new THREE.Vector2(
+    return new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width)  *  2 - 1,
       ((e.clientY - rect.top)  / rect.height) * -2 + 1,
     );
+  }
+
+  /** The system view's planet sphere under a point on screen (normalized device coordinates), if any. */
+  private planetMeshAt(ndc: THREE.Vector2): THREE.Object3D | null {
+    if (!this.systemGroup) return null;
     this.raycaster.setFromCamera(ndc, this.camera);
-    const markers = this.systemGroup!.children.filter(c => c instanceof THREE.Mesh && c.userData.planetId !== undefined);
-    const hit = this.raycaster.intersectObjects(markers)[0];
-    return hit ? this.planetData.find(p => p.id === hit.object.userData.planetId) ?? null : null;
+    const markers = this.systemGroup.children.filter(c => c instanceof THREE.Mesh && c.userData.planetId !== undefined);
+    return this.raycaster.intersectObjects(markers)[0]?.object ?? null;
+  }
+
+  // ── System view: hover label ──────────────────────────────────────────────
+
+  private onPointerMove = (e: PointerEvent) => {
+    this.pointer = this.mode === "system" ? this.pointerNdc(e) : null;
+  };
+
+  private onPointerLeave = () => {
+    this.pointer = null;
+  };
+
+  /** Shows the label of the planet under the pointer, once a frame, so planets moving under a still pointer are found too. */
+  private updatePlanetLabel() {
+    const mesh = this.mode === "system" && this.pointer ? this.planetMeshAt(this.pointer) : null;
+    const id = mesh ? mesh.userData.planetId as number : null;
+    const text = id !== null ? this.planetLabels.get(id) : undefined;
+    if (!mesh || text === undefined) {
+      this.hidePlanetLabel();
+      return;
+    }
+    if (id !== this.hoveredPlanetId) {
+      this.hidePlanetLabel();
+      const element = document.createElement("div");
+      element.className = "planet-label";
+      element.textContent = text;
+      const anchor = document.createElement("div");   // CSS2DRenderer owns this element's transform
+      anchor.className = "planet-label-anchor";
+      anchor.append(element);
+      this.planetLabel = new CSS2DObject(anchor);
+      this.scene.add(this.planetLabel);
+      this.hoveredPlanetId = id;
+    }
+    const label = this.planetLabel!;
+    const radius = ((mesh as THREE.Mesh).geometry as THREE.SphereGeometry).parameters.radius;
+    mesh.getWorldPosition(label.position);
+    label.position.y += radius;
+    // Up and to the right of the planet, or to the left in the right part of the view, so the edge never cuts it off
+    const onLeft = label.position.clone().project(this.camera).x > PLANET_LABEL_FLIP_NDC;
+    label.center.set(onLeft ? 1 : 0, 1);
+    label.element.classList.toggle("left", onLeft);
+  }
+
+  private hidePlanetLabel() {
+    if (this.planetLabel) {
+      this.scene.remove(this.planetLabel);
+      this.planetLabel.element.remove();
+      this.planetLabel = null;
+    }
+    this.hoveredPlanetId = null;
   }
 
   private selectStar(star: Star) {
@@ -929,6 +996,7 @@ export class UniverseRenderer {
         this.renderer.render(this.scene, this.camera);
       }
       this.updateLifeLabels();
+      this.updatePlanetLabel();
       this.labelRenderer.render(this.scene, this.camera);
     };
     tick();
@@ -970,6 +1038,9 @@ export class UniverseRenderer {
     cancelAnimationFrame(this.animFrameId);
     this.renderer.domElement.removeEventListener("click", this.onClick);
     this.renderer.domElement.removeEventListener("dblclick", this.onDoubleClick);
+    this.renderer.domElement.removeEventListener("pointermove", this.onPointerMove);
+    this.renderer.domElement.removeEventListener("pointerleave", this.onPointerLeave);
+    this.hidePlanetLabel();
     this.closePlanetView();
     this.globeTextures.clear();
     window.removeEventListener("resize", this.onResize);

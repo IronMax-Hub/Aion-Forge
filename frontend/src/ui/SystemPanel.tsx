@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import type { Star } from "../simulation/star";
+import { generateBiosphere } from "../simulation/biosphere";
 import type { PlanetarySystem, Planet } from "../simulation/planet";
-import { formatSig, formatInt, formatIndex, planetName, starName, spectralType, PLANET_TYPE_LABEL } from "./format";
+import { formatSig, formatInt, formatIndex, planetName, planetLifeLabel, starName, spectralType, PLANET_TYPE_LABEL } from "./format";
 
 interface Props {
   system: PlanetarySystem;
@@ -12,6 +14,11 @@ interface Props {
 export function SystemPanel({ system, star, onSelectPlanet }: Props) {
   const spectral = spectralType(star.temperature, star.classification);
   const count = system.planets.length;
+  // Each planet's life, read from its world history (generateBiosphere draws nothing); shown under its type
+  const lifeLabels = useMemo(
+    () => new Map(system.planets.map((planet) => [planet.id, planetLifeLabel(generateBiosphere(planet, star))])),
+    [system, star],
+  );
 
   return (
     <div className="inspector" role="region" aria-label={`${starName(star.id)} system`}>
@@ -47,7 +54,14 @@ export function SystemPanel({ system, star, onSelectPlanet }: Props) {
                     {planetName(planet.hostStarId, planet.orbitalIndex)}
                   </button>
                 </th>
-                <td>{PLANET_TYPE_LABEL[planet.type]}</td>
+                <td>
+                  {PLANET_TYPE_LABEL[planet.type]}
+                  {lifeLabels.get(planet.id) !== "—" && (
+                    <span className={`system-table-life${lifeLabels.get(planet.id) === "Extinct" ? " extinct" : ""}`}>
+                      {lifeLabels.get(planet.id)} life
+                    </span>
+                  )}
+                </td>
                 <td className="num">{formatSig(planet.orbitalRadius)}</td>
                 <td className="num">{formatInt(planet.temperature)}</td>
                 <td className="num">{formatIndex(planet.habitabilityScore)}</td>

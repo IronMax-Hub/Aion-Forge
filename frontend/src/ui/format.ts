@@ -3,7 +3,7 @@
 
 import type { StellarClass } from "../simulation/star";
 import type { PlanetType } from "../simulation/planet";
-import type { LifeStage } from "../simulation/biosphere";
+import type { Biosphere, LifeStage } from "../simulation/biosphere";
 import { TECH_STAGE_LABEL } from "../simulation/civilization";
 import type { SystemLife } from "../simulation/lifeSurvey";
 
@@ -191,6 +191,21 @@ export const LIFE_MARKER_STAGE: Record<LifeStage, string> = {
   complex:       "Complex ecosystems",
   dominant:      "Dominant biosphere",
 };
+
+/** Short names for a planet's life in the system table and the system view's hover label. */
+const PLANET_LIFE_STAGE: Record<LifeStage, string> = {
+  none:          "—",
+  prebiotic:     "Prebiotic",
+  microbial:     "Microbial",
+  multicellular: "Multicellular",
+  complex:       "Complex",
+  dominant:      "Dominant",
+};
+
+/** A planet's life in a word: its stage, "Extinct" where life has ended, "—" where it never began. */
+export function planetLifeLabel(biosphere: Biosphere): string {
+  return biosphere.extinctAt !== null ? "Extinct" : PLANET_LIFE_STAGE[biosphere.stage];
+}
 
 /** Bubble text for a system: its most notable life, plus how many other planets have life. */
 export function lifeMarkerLabel(life: SystemLife): string {

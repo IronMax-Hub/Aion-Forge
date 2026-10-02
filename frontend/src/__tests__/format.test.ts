@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   spectralType, planetName, starName, formatSig, formatGyr, formatInt, niceScaleLength, formatLightYears,
   formatGravity, formatPressure, formatRotation, formatTilt, formatPercent, wholePercents, formatSurfaceShares, formatTemperatureRange,
+  planetLifeLabel,
 } from "../ui/format";
+import type { Biosphere } from "../simulation/biosphere";
 
 describe("spectralType", () => {
   it("types the Sun as G2 V", () => {
@@ -114,5 +116,22 @@ describe("surface", () => {
   it("gives the temperature range in kelvin", () => {
     expect(formatTemperatureRange(184.4, 330.6)).toBe("184–331 K");
     expect(formatTemperatureRange(1500, 2210)).toBe("1,500–2,210 K");
+  });
+});
+
+describe("planetLifeLabel", () => {
+  const biosphere = (over: Partial<Biosphere>): Biosphere => ({
+    planetId: 0, hostStarId: 0, hasLife: false, stage: "none", complexity: 0, diversity: 0, stability: 0,
+    adaptability: 0, biomass: 0, extinctions: [], ageGyr: 0, extinctAt: null, ...over,
+  });
+
+  it("names living life by its stage", () => {
+    expect(planetLifeLabel(biosphere({ hasLife: true, stage: "microbial" }))).toBe("Microbial");
+    expect(planetLifeLabel(biosphere({ hasLife: true, stage: "dominant" }))).toBe("Dominant");
+  });
+
+  it("marks life that has ended, and a planet where it never began", () => {
+    expect(planetLifeLabel(biosphere({ extinctAt: 1.2 }))).toBe("Extinct");
+    expect(planetLifeLabel(biosphere({}))).toBe("—");
   });
 });

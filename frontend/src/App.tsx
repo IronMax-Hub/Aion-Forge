@@ -33,7 +33,7 @@ import { ExperimentHistoryPanel } from "./ui/ExperimentHistoryPanel";
 import { GalleryPanel } from "./ui/GalleryPanel";
 import { SystemPanel } from "./ui/SystemPanel";
 import { ScaleBar } from "./ui/ScaleBar";
-import { starName, planetName, lifeMarkerLabel } from "./ui/format";
+import { starName, planetName, planetLifeLabel, lifeMarkerLabel, PLANET_TYPE_LABEL } from "./ui/format";
 import { makeUniverseId, generateUniverseSummary, importUniverseFromFile } from "./simulation/persistence";
 import type { UniverseMeta, DiscoveryItem } from "./simulation/persistence";
 import { makeJournalEntry } from "./simulation/journal";
@@ -477,7 +477,14 @@ export default function App() {
       setSelectedPlanet(planet);
       setSelectedBiosphere(null);
       ui.inspect();
-    }, biospheres, approachPlanet);
+    }, {
+      onPlanetApproach: approachPlanet,
+      planetLabels: new Map(system.planets.map((planet) => {
+        const life = planetLifeLabel(biospheres.get(planet.id)!);
+        const name = `${planetName(planet.hostStarId, planet.orbitalIndex)} · ${PLANET_TYPE_LABEL[planet.type]}`;
+        return [planet.id, life === "—" ? name : `${name} · ${life} life`];
+      })),
+    });
   }, [selectedStar, currentSeed, universeConfig, approachPlanet]);
 
   const handleScanBiosphere = useCallback(() => {

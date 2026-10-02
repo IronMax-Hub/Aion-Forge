@@ -186,6 +186,62 @@
   .life-bubble { animation: none; }
 }
 
+/* Field guide (C2.9): specimen plates in the biosphere panel's Life tab */
+.field-guide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.specimen-plate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--col-border-1);
+  outline: none;
+  cursor: pointer;
+}
+.specimen-plate:last-child { border-bottom: none; }
+
+.specimen-canvas {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--col-border-2);
+  border-radius: 3px;
+}
+.specimen-plate.selected .specimen-canvas,
+.specimen-plate:focus-visible .specimen-canvas { border-color: var(--col-accent); }
+.specimen-plate.extinct .specimen-canvas { opacity: 0.6; }
+
+.specimen-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+.specimen-designation {
+  font-family: var(--font-mono);
+  font-size: var(--fs-base);
+  color: var(--col-text-1);
+}
+.specimen-badge {
+  font-size: var(--fs-xs);
+  color: var(--col-life);
+}
+.specimen-badge.extinct { color: var(--col-text-3); }
+
+.specimen-description {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--col-text-2);
+}
+
+/* Labels keep their width; long values wrap under themselves */
+.data-grid.specimen-facts { grid-template-columns: auto minmax(0, 1fr); }
+.specimen-facts .data-label,
+.specimen-facts .data-value { font-size: var(--fs-sm); }
+.specimen-facts .data-value { white-space: normal; }
+
 /* System view: the label beside the planet under the pointer */
 .planet-label-anchor {
   padding: 0 0 4px 10px;   /* clear of the planet's limb */

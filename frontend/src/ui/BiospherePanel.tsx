@@ -1,12 +1,17 @@
+import { useState } from "react";
 import type { Biosphere } from "../simulation/biosphere";
 import { STAGE_LABEL, STAGE_COLOR } from "../simulation/biosphere";
 import type { ExtinctionEvent, LifeStage } from "../simulation/biosphere";
 import { formatGyr, formatIndex } from "./format";
+import { FieldGuide } from "./FieldGuide";
+import type { Specimen } from "./specimens";
 
 interface Props {
   biosphere: Biosphere;
   /** Whether a mind appeared in the planet's history, so there is a civilization (or its ruins) to look at (C2.6). */
   hasMind: boolean;
+  /** The planet's specimen plates (C2.9); null where life never began. */
+  specimens: Specimen[] | null;
   onBack: () => void;
   onClose: () => void;
   onScanCivilization: () => void;
@@ -65,8 +70,41 @@ function CivilizationButton({ hasMind, onScanCivilization }: { hasMind: boolean;
   );
 }
 
-export function BiospherePanel({ biosphere, hasMind, onBack, onClose, onScanCivilization }: Props) {
+type Tab = "overview" | "life";
+const TAB_LABEL: Record<Tab, string> = { overview: "Overview", life: "Life" };
+
+/** Overview and Life (the field guide) tabs; shown only when there are specimens to show. */
+function Tabs({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+  return (
+    <div className="inspector-tabs" role="tablist" aria-label="Biosphere views">
+      {(Object.keys(TAB_LABEL) as Tab[]).map((t) => (
+        <button
+          key={t}
+          role="tab"
+          id={`biosphere-tab-${t}`}
+          aria-selected={tab === t}
+          aria-controls="biosphere-tab-panel"
+          className={`tl-filter-btn${tab === t ? " active" : ""}`}
+          onClick={() => onTab(t)}
+        >
+          {TAB_LABEL[t]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function BiospherePanel({ biosphere, hasMind, specimens, onBack, onClose, onScanCivilization }: Props) {
   const stageColor = STAGE_COLOR[biosphere.stage];
+  const [tab, setTab] = useState<Tab>("overview");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const showLife = tab === "life" && specimens !== null;
+  const tabs = specimens !== null && <Tabs tab={tab} onTab={setTab} />;
+  const lifeBody = showLife && (
+    <div className="inspector-body" role="tabpanel" id="biosphere-tab-panel" aria-labelledby="biosphere-tab-life">
+      <FieldGuide specimens={specimens!} selectedId={selectedId} onSelect={setSelectedId} />
+    </div>
+  );
 
   if (!biosphere.hasLife) {
     const ended = biosphere.extinctAt !== null;
@@ -83,7 +121,8 @@ export function BiospherePanel({ biosphere, hasMind, onBack, onClose, onScanCivi
             <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
           </div>
         </div>
-        <div className="inspector-body">
+        {tabs}
+        {lifeBody || <div className="inspector-body">
           <div className="empty-state">
             <div className="empty-state-icon">○</div>
             <div className="empty-state-title">{ended ? "Life has died out" : "No life detected"}</div>
@@ -95,7 +134,7 @@ export function BiospherePanel({ biosphere, hasMind, onBack, onClose, onScanCivi
           </div>
           <Extinctions extinctions={biosphere.extinctions} />
           {ended && <CivilizationButton hasMind={hasMind} onScanCivilization={onScanCivilization} />}
-        </div>
+        </div>}
       </div>
     );
   }
@@ -114,7 +153,8 @@ export function BiospherePanel({ biosphere, hasMind, onBack, onClose, onScanCivi
         </div>
       </div>
 
-      <div className="inspector-body">
+      {tabs}
+      {lifeBody || <div className="inspector-body">
         <div className="inspector-section">
           <div className="section-head">
             <span className="section-title">Evolutionary stage</span>
@@ -149,7 +189,7 @@ export function BiospherePanel({ biosphere, hasMind, onBack, onClose, onScanCivi
         <Extinctions extinctions={biosphere.extinctions} />
 
         <CivilizationButton hasMind={hasMind} onScanCivilization={onScanCivilization} />
-      </div>
+      </div>}
     </div>
   );
 }

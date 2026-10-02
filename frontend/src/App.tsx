@@ -32,6 +32,8 @@ import { ComparisonPanel } from "./ui/ComparisonPanel";
 import { ExperimentHistoryPanel } from "./ui/ExperimentHistoryPanel";
 import { GalleryPanel } from "./ui/GalleryPanel";
 import { SystemPanel } from "./ui/SystemPanel";
+import { fieldGuideSpecimens } from "./ui/specimens";
+import { bodyPlans } from "./rendering/life/morphology";
 import { ScaleBar } from "./ui/ScaleBar";
 import { starName, planetName, planetLifeLabel, lifeMarkerLabel, PLANET_TYPE_LABEL } from "./ui/format";
 import { makeUniverseId, generateUniverseSummary, importUniverseFromFile } from "./simulation/persistence";
@@ -564,6 +566,24 @@ export default function App() {
       : null),
     [selectedPlanet, selectedStar, currentSeed, universeConfig, systemSights],
   );
+  // The selected planet's field guide (C2.9): its lineages as specimens, from its kept world; null where life never began
+  const selectedSpecimens = useMemo(() => {
+    const life = selectedWorld?.history.life;
+    if (!life || !selectedPlanet?.surface || !selectedStar) return null;
+    const orbitAU = effectiveOrbitAU(selectedPlanet.orbitalRadius, universeConfig);
+    const env = {
+      gravityG: selectedPlanet.surface.surfaceGravity,
+      starFlux: selectedStar.luminosity / (orbitAU * orbitAU),
+      starTemperatureK: selectedStar.temperature,
+    };
+    const plans = bodyPlans(life.lineages, env, { galaxySeed: currentSeed, starId: selectedStar.id, planetId: selectedPlanet.id });
+    return fieldGuideSpecimens({
+      lineages: life.lineages, plans,
+      planetName: planetName(selectedPlanet.hostStarId, selectedPlanet.orbitalIndex),
+      starAgeGyr: selectedStar.age,
+      mindLineageId: selectedPlanet.life?.phylogeny.mind?.lineageId ?? null,
+    });
+  }, [selectedWorld, selectedPlanet, selectedStar, currentSeed, universeConfig]);
   // A giant's physics, for its Cloud tops section; a solid planet's come with its world
   const selectedPhysics = useMemo(
     () => selectedWorld?.physics
@@ -925,8 +945,10 @@ export default function App() {
           />
         ) : view === "biosphere" && selectedBiosphere ? (
           <BiospherePanel
+            key={selectedPlanet?.key}
             biosphere={selectedBiosphere}
             hasMind={selectedPlanet?.life?.phylogeny.mind != null}
+            specimens={selectedSpecimens}
             onBack={handleBackToPlanet}
             onClose={handleExitSystem}
             onScanCivilization={handleScanCivilization}

@@ -2,7 +2,7 @@
 
 *Forge a planet from its description, then stand on it*
 
-Planning document · 3 Oct 2026 · PF0–PF2 done; PF3 next
+Planning document · 3 Oct 2026 · PF0–PF3 built; PF3's frame time and the terrain's tuning open; PF4 next
 
 Planet Forge takes a description of one planet (its star, body, air and surface) and builds ground you can land on and look around. It is a separate app from Aion Forge, in the same repository. Aion Forge sends it the planets its simulation produces; Planet Forge also runs on its own, from presets or from inputs you type in.
 
@@ -130,7 +130,7 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
   - **Check:** the flat map's Terrain view samples the terrain once per degree, coloured by materials and shaded by slope; about 0.2 s to draw.
 
 ### PF3 Terrain renderer
-**XL** · was D3
+**XL** · was D3 · **built**
 
 - **Objective:** The ground around the observer, out to the horizon.
 - **Deliverables:**
@@ -140,6 +140,13 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
   - Materials blended by ground type and slope; water at sea level that reflects the sky; molten ground that glows.
 - **Implementation:** skirts hide seams between levels of detail.
 - **Verification:** no cracks between levels; a frame within 16 ms at 1080p on the reference machine (measured, with automatic detail reduction if exceeded).
+- **As built** (owner decisions, 3 Oct 2026; details in each file's header, `src/ground/`):
+  - **Patches** (`cubeSphere.ts`, `quadtree.ts`): six equal-angle cube faces, each a quadtree; a patch splits when the camera is closer than 2× its edge, down to vertices 1 m apart; parents stay drawn until all four children are built; patches beyond the horizon are skipped, those outside the view culled by Three.js.
+  - **Building** (`patchBuilder.ts`, `patch.worker.ts`, `workerPool.ts`): 32 × 32 squares per patch (the plan's 64 × 64 cut to a quarter of the triangles for this machine's GPU, a GeForce 210-class NVA8); heights at twice the vertex spacing; normals from an outer ring; outward-facing skirts deep enough for a coarser neighbour's sag; colours from PF2's materials in Aion Forge's globe palette; water as a second mesh with depth per vertex; up to 4 workers, nearest first; 600 patches cached.
+  - **Drawing** (`GroundRenderer.ts`, `shaders/water.*.glsl`): camera-relative placement, a logarithmic depth buffer, Lambert ground with molten glow, water with depth colour, Fresnel against a placeholder sky colour, the star's glint and ripples; a black sky until PF4.
+  - **Frame time:** the split factor falls to 0.75 when frames run over 20 ms and recovers under 14 ms. Not yet measured reliably: in the app's browser pane an empty frame already takes 40–50 ms on this machine, so the 16 ms target is checked by the owner in a normal browser tab.
+  - **The temporary viewer** (`src/ui/GroundView.tsx`): a site picked on the flat map, a height from 2 m to 2,000 km, drag to look, and a sun-height control (the star otherwise sits over the spec's subsolar point or longitude 0, leaving most sites in night until PF4 brings the time of day). PF5 replaces it.
+  - **Found on screen:** skirts drawn double-sided showed as dark dotted lines along patch edges (back faces take flipped normals); the ground is drawn front faces only. The ground looks very flat: PF2's starting detail gives about 25 m of relief at a 10 km wavelength. Tuning it is open (owner decision).
 
 ### PF4 Sky and light
 **L** · was D4

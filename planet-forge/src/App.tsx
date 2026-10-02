@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { SketchInputs } from "./forge/inputs";
 import { sketchPlanet } from "./forge/sketch";
 import { presetSpec } from "./spec/presetFiles";
@@ -7,21 +7,35 @@ import { encodeSpec, readSpecFromFragment } from "./spec/url";
 import { ForgePanel } from "./ui/ForgePanel";
 import { SpecFigures } from "./ui/SpecFigures";
 import { SurfaceMap } from "./ui/SurfaceMap";
+import { GroundView } from "./ui/GroundView";
 
 /** Errors shown at most; the rest are counted. */
 const MAX_ERRORS_SHOWN = 20;
 
 type Shown = { state: "reading" } | FragmentRead;
+type Site = { latitudeDeg: number; longitudeDeg: number };
 
 /** Planet Forge: forges a planet from a preset or your inputs, or reads the one in the URL, and shows it. */
 export default function App() {
   const [shown, setShown] = useState<Shown>({ state: "reading" });
+  // Where the ground view stands: the landing site, or one picked on the map
+  const [site, setSite] = useState<Site>({ latitudeDeg: 0, longitudeDeg: 0 });
+  const [viewingGround, setViewingGround] = useState(false);
+  const spec = "found" in shown && shown.found && shown.ok ? shown.spec : null;
+  const closeGround = useCallback(() => setViewingGround(false), []);
 
   // The spec is read from the URL, on load and whenever its # part changes
   useEffect(() => {
     let current = true;
     const read = () => {
-      readSpecFromFragment(window.location.hash).then((result) => { if (current) setShown(result); });
+      readSpecFromFragment(window.location.hash).then((result) => {
+        if (!current) return;
+        setShown(result);
+        // A new planet: back to its landing site, or longitude 0 on the equator
+        const landing = result.found && result.ok ? result.spec.landing : undefined;
+        setSite(landing ? { latitudeDeg: landing.latitudeDeg, longitudeDeg: landing.longitudeDeg } : { latitudeDeg: 0, longitudeDeg: 0 });
+        setViewingGround(false);
+      });
     };
     read();
     window.addEventListener("hashchange", read);
@@ -65,7 +79,7 @@ export default function App() {
             </section>
           ) : (
             <>
-              <SurfaceMap spec={shown.spec} />
+              <SurfaceMap spec={shown.spec} site={site} onPick={setSite} onViewGround={() => setViewingGround(true)} />
               <SpecFigures spec={shown.spec} />
               {shown.warnings.length > 0 && (
                 <section className="notice">
@@ -77,6 +91,7 @@ export default function App() {
           )}
         </div>
       </div>
+      {viewingGround && spec && <GroundView spec={spec} site={site} onClose={closeGround} />}
     </main>
   );
 }

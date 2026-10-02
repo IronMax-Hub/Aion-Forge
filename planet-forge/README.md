@@ -2,7 +2,7 @@
 
 Forge a planet from its description, then stand on it.
 
-**Status: PF2 of [`PLAN.md`](PLAN.md).** Planet Forge sketches a planet from a preset or your inputs, or reads one from its URL, works out its terrain down to about a metre, and shows its figures and a flat map of its cells or its terrain. It does not draw the ground yet.
+**Status: PF3 of [`PLAN.md`](PLAN.md).** Planet Forge sketches a planet from a preset or your inputs, or reads one from its URL, works out its terrain down to about a metre, and draws the ground: click the flat map to pick a site, then *View the ground*. The sky, the time of day, arriving and walking come next.
 
 ## What it is
 
@@ -57,4 +57,5 @@ Pick a preset or change the inputs and press *Forge*, or open a link of the form
 | `src/forge/presets.ts` | the five presets' inputs |
 | `src/forge/icosphere.ts`, `noise.ts`, `random.ts`, `detmath.ts` | the grid, seeded noise and randomness, and deterministic maths (copied from Aion Forge) |
 | `src/terrain/` | the terrain: the cells blended (`cellField.ts`), the detail (`detail.ts`, `gradientNoise.ts`), height and kind at any point (`terrain.ts`), the landing pin (`landing.ts`), materials (`materials.ts`) |
-| `src/ui/` | the page: the forge panel, the surface map and its terrain view, a spec's figures |
+| `src/ground/` | drawing the ground: cube-sphere patches (`cubeSphere.ts`), which to draw (`quadtree.ts`), building them in workers (`patchBuilder.ts`, `patch.worker.ts`, `workerPool.ts`), colours (`palette.ts`), the star's light (`light.ts`), the renderer and its water shaders |
+| `src/ui/` | the page: the forge panel, the surface map and its terrain view, a spec's figures, the temporary ground viewer |

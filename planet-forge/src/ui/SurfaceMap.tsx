@@ -61,8 +61,20 @@ function drawMarks(ctx: CanvasRenderingContext2D, spec: PlanetSpec) {
   }
 }
 
-/** A flat map of the spec's cells: longitude across, latitude up, for checking a planet before its globe exists. */
-export function SurfaceMap({ spec }: { spec: PlanetSpec }) {
+interface Site { latitudeDeg: number; longitudeDeg: number }
+
+interface Props {
+  spec: PlanetSpec;
+  /** The site the ground view stands on, marked on the map. */
+  site: Site;
+  /** A click on the map picks a site. */
+  onPick: (site: Site) => void;
+  /** Opens the ground view at the site. */
+  onViewGround: () => void;
+}
+
+/** A flat map of the spec's cells or terrain: longitude across, latitude up, for checking a planet; a click picks a site. */
+export function SurfaceMap({ spec, site, onPick, onViewGround }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [view, setView] = useState<"cells" | "terrain">("cells");
 
@@ -105,12 +117,25 @@ export function SurfaceMap({ spec }: { spec: PlanetSpec }) {
 
   return (
     <figure className="surface-map">
-      <canvas ref={canvasRef} width={MAP_WIDTH} height={MAP_HEIGHT}
-        aria-label={`Flat map of ${spec.name}'s ${spec.surface.cells.length} surface cells`} role="img" />
+      <div className="map-frame">
+        <canvas ref={canvasRef} width={MAP_WIDTH} height={MAP_HEIGHT}
+          aria-label={`Flat map of ${spec.name}'s ${spec.surface.cells.length} surface cells; click to pick a site`} role="img"
+          onClick={(e) => {
+            const box = e.currentTarget.getBoundingClientRect();
+            onPick({
+              latitudeDeg: Math.round((90 - ((e.clientY - box.top) / box.height) * 180) * 100) / 100,
+              longitudeDeg: Math.round((((e.clientX - box.left) / box.width) * 360 - 180) * 100) / 100,
+            });
+          }} />
+        <span className="map-site" aria-hidden="true"
+          style={{ left: `${((site.longitudeDeg + 180) / 360) * 100}%`, top: `${((90 - site.latitudeDeg) / 180) * 100}%` }} />
+      </div>
       <figcaption>
         <span className="map-views" role="group" aria-label="Map view">
           <button className={`preset${view === "cells" ? " selected" : ""}`} aria-pressed={view === "cells"} onClick={() => setView("cells")}>Cells</button>
           <button className={`preset${view === "terrain" ? " selected" : ""}`} aria-pressed={view === "terrain"} onClick={() => setView("terrain")}>Terrain</button>
+          <span className="map-site-text">Site {site.latitudeDeg}°, {site.longitudeDeg}° (click the map to move it)</span>
+          <button className="primary" onClick={onViewGround}>View the ground</button>
         </span>
         {view === "cells" ? (
         <span className="map-legend">

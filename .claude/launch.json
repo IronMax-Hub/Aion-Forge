@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "backend"],
       "port": 4000
+    },
+    {
+      "name": "planet-forge",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "planet-forge"],
+      "port": 5174
     }
   ]
 }

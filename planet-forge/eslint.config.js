@@ -26,4 +26,26 @@ export default defineConfig([
       }],
     },
   },
+  {
+    // What decides a planet's cells, heights and kinds must give identical results
+    // in every browser, so it uses src/forge/detmath.ts instead of Math functions
+    // that engines may round differently. Math.sqrt, floor, min, max, abs, round
+    // and imul are exact and allowed.
+    files: ['src/forge/**/*.ts'],
+    ignores: ['src/forge/**/*.test.ts'],
+    rules: {
+      'no-restricted-properties': ['error',
+        ...['exp', 'expm1', 'log', 'log1p', 'log2', 'log10', 'pow', 'cbrt', 'hypot',
+            'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
+            'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh'].map((property) => ({
+          object: 'Math', property,
+          message: 'Not deterministic across browsers; use src/forge/detmath.ts.',
+        })),
+      ],
+      'no-restricted-syntax': ['error',
+        { selector: "BinaryExpression[operator='**']", message: 'Not deterministic across browsers; use pow from src/forge/detmath.ts.' },
+        { selector: "AssignmentExpression[operator='**=']", message: 'Not deterministic across browsers; use pow from src/forge/detmath.ts.' },
+      ],
+    },
+  },
 ])

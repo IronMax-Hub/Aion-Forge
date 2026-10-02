@@ -14,10 +14,13 @@
 //   of transits and N₀ the photons a Sun-like star gives a bin at 1 µm, so it
 //   falls as 1/√n and rises towards the wavelengths a star is faint in: a red
 //   dwarf's spectrum is noisy in the blue, a hot star's in the infrared.
-// - The data. Each bin is the model depth plus Gaussian noise of that size.
-//   The draws come from the SPECTRUM stream, keyed by the planet and the number
-//   of transits, so the same observation always shows the same data, and a
-//   longer one is a new look, not the old one with noise scaled down.
+// - The data. Every transit is its own measurement: the model depth plus
+//   Gaussian noise of one transit's size, drawn from the SPECTRUM stream keyed
+//   by the planet and that transit's number. An observation of n transits is
+//   the average of the first n, so the same observation always shows the same
+//   data, and a longer one adds transits to a shorter one instead of
+//   replacing it (owner decision in B4: evidence builds up, as it does at a
+//   real telescope).
 //
 // Assumptions and limits:
 // - One fixed instrument for every star, as if all were seen from the same
@@ -85,15 +88,21 @@ function gaussian(rng: () => number): number {
 }
 
 /**
- * What a telescope records of a planet's transit spectrum over `transits`
- * transits (an integer from 1 to 200): the same data every time.
+ * What a telescope records of a planet's transit spectrum over its first
+ * `transits` transits (an integer from 1 to 200): the same data every time.
  */
 export function observeTransits(spectrum: Spectrum, planet: Planet, star: Star, galaxySeed: number, transits: number): Observation {
   if (!Number.isInteger(transits) || transits < MIN_TRANSITS || transits > MAX_TRANSITS) {
     throw new RangeError(`transits must be an integer from ${MIN_TRANSITS} to ${MAX_TRANSITS}, got ${transits}`);
   }
-  const rng = createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.SPECTRUM, transits));
+  // Each bin's noise, summed over the transits in units of one transit's noise
+  const summed = new Float64Array(spectrum.depthPpm.length);
+  for (let transit = 1; transit <= transits; transit++) {
+    const rng = createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.SPECTRUM, transit));
+    for (let k = 0; k < summed.length; k++) summed[k] += gaussian(rng);
+  }
   const uncertaintyPpm = spectrum.wavelengthUm.map((wavelength) => noisePerBin(star, transits, wavelength));
-  const depthPpm = spectrum.depthPpm.map((depth, k) => depth + uncertaintyPpm[k] * gaussian(rng));
+  // The mean of n transits: one transit's noise × sum / n, which is the n-transit noise × sum / √n
+  const depthPpm = spectrum.depthPpm.map((depth, k) => depth + (uncertaintyPpm[k] * summed[k]) / Math.sqrt(transits));
   return { transits, wavelengthUm: spectrum.wavelengthUm, depthPpm, uncertaintyPpm };
 }

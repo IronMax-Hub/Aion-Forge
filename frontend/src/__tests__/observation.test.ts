@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { observeTransits, noisePerBin, MAX_TRANSITS, REFERENCE_NOISE_PPM } from "../simulation/observation";
-import { transitSpectrum } from "../simulation/spectrum";
+import { transitSpectrum, SPECTRUM_WAVELENGTHS_UM } from "../simulation/spectrum";
 import type { Spectrum } from "../simulation/spectrum";
 import { atmosphereComposition } from "../simulation/atmosphereComposition";
 import { generatePlanetsFor, planetKey } from "../simulation/planet";
@@ -27,6 +27,7 @@ const earth: Planet = {
   temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8,
   isRare: false, surface: earthSurface, life: null, worldEvents: [],
 };
+const binOf = (um: number) => SPECTRUM_WAVELENGTHS_UM.findIndex((w) => w >= um);
 const spectrumOf = (planet: Planet, star: Star) => transitSpectrum(planet, star, atmosphereComposition(planet, null));
 const earthSpectrum = spectrumOf(earth, sun);
 
@@ -43,6 +44,22 @@ function atmosphereSnr(spectrum: Spectrum, star: Star, transits: number): number
 describe("the same observation", () => {
   it("always shows the same data", () => {
     expect(observeTransits(earthSpectrum, earth, sun, seed, 12)).toEqual(observeTransits(earthSpectrum, earth, sun, seed, 12));
+  });
+
+  it("adds transits to a shorter observation: n + 1 transits are the first n and one more", () => {
+    // n · (data_n − model) / one transit's noise is the sum of the first n transits' draws;
+    // consecutive sums differ by one standard-normal draw only if the transits are shared
+    const k = binOf(1.5);
+    const sums: number[] = [];
+    for (let n = 1; n <= 60; n++) {
+      const o = observeTransits(earthSpectrum, earth, sun, seed, n);
+      const sigmaOne = o.uncertaintyPpm[k] * Math.sqrt(n);
+      sums.push((n * (o.depthPpm[k] - earthSpectrum.depthPpm[k])) / sigmaOne);
+    }
+    const steps = sums.slice(1).map((sum, i) => sum - sums[i]);
+    const sd = Math.sqrt(steps.reduce((a, b) => a + b * b, 0) / steps.length);
+    expect(sd).toBeGreaterThan(0.7);
+    expect(sd).toBeLessThan(1.3);
   });
 
   it("is a new look with another number of transits, another planet or another universe", () => {

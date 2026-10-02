@@ -62,6 +62,16 @@ describe("surface map", () => {
     expect(map.data.every(Number.isFinite)).toBe(true);
   });
 
+  it("can be built smaller for the system view, still through every cell's land/ocean flag", () => {
+    const { positions } = surfaceGrid();
+    const { world } = worlds[0];
+    const small = asUploaded(buildSurfaceMap(world.geography, world.history.present, 256, 128));
+    expect([small.width, small.height, small.data.length]).toEqual([256, 128, 256 * 128 * 4]);
+    positions.forEach((p, i) => {
+      expect(sampleSurfaceMap(small, p, SURFACE_MAP_CHANNELS.submerged) > 0.5).toBe(world.history.present.cellSubmerged[i] === 1);
+    });
+  });
+
   it("reproduces the simulation's land/ocean flag at every cell centre", () => {
     const { positions } = surfaceGrid();
     for (const { world, map } of worlds) {

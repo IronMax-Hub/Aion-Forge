@@ -5,7 +5,8 @@
 // textures and lights them, which old GPUs manage. Glowing ground and hot giants
 // add their own light (the relief atlas's alpha), seen best on the night side.
 // Molten ground shimmers in the day's heat: a slight, moving wobble in where the
-// atlas is read, off under reduced motion (presentation only).
+// atlas is read, off under reduced motion (presentation only). The system view,
+// with no cloud sphere, draws the baked clouds on the ground (cloudsOnGround).
 
 uniform sampler2D albedoAtlas;  // surface colour (square root) and glint share
 uniform sampler2D reliefAtlas;  // RG: relief tilt; B: clouds (not read here); A: glow
@@ -20,11 +21,15 @@ uniform vec3 glowColour;        // colour of the planet's own light: blackbody a
 uniform float glowIntensity;
 uniform float shimmer;          // 0–1: heat shimmer strength (0 under reduced motion)
 uniform float timeSeconds;
+uniform float cloudsOnGround;   // 1: draw the baked clouds on the ground (system view); 0: the cloud sphere does (planet view)
 
 varying vec3 vLocal;
 varying vec3 vWorldPosition;
 
 const float PI = 3.141592653589793;
+
+// The cloud sphere's colour (clouds.frag.glsl)
+const vec3 CLOUD_ALBEDO = vec3(0.8);
 
 // Lighting
 const float TERMINATOR_WRAP = 0.08;   // light reaches this far past the geometric terminator
@@ -56,6 +61,11 @@ void main() {
   float glintShare = surface.a;
   vec4 relief = textureLod(reliefAtlas, uv, lod);
   vec3 normalLocal = decodeNormal(p, faceU, relief.rg);
+  // Clouds on the ground hide its colour, relief and glint
+  float cloud = relief.b * cloudsOnGround;
+  albedo = mix(albedo, CLOUD_ALBEDO, cloud);
+  normalLocal = normalize(mix(normalLocal, p, cloud));
+  glintShare *= 1.0 - cloud;
 
   vec3 normal = normalize(localToWorld * normalLocal);
   vec3 sphereNormal = normalize(localToWorld * p);

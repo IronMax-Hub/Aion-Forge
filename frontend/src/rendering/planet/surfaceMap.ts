@@ -90,8 +90,10 @@ function candidateCells(): number[][] {
 
 let sharedCandidates: number[][] | undefined;
 
-/** Resamples a planet's present-day cells into the globe's surface map. */
-export function buildSurfaceMap(geography: Geography, present: PresentClimate): SurfaceMapData {
+/** Resamples a planet's present-day cells into the globe's surface map, of this size (the system view's is smaller). */
+export function buildSurfaceMap(
+  geography: Geography, present: PresentClimate, width = SURFACE_MAP_WIDTH, height = SURFACE_MAP_HEIGHT,
+): SurfaceMapData {
   const { positions, neighbours } = surfaceGrid();
   sharedCandidates ??= candidateCells();
   const candidates = sharedCandidates;
@@ -102,8 +104,6 @@ export function buildSurfaceMap(geography: Geography, present: PresentClimate): 
     present.cellSubmerged[i],
   ]);
 
-  const width = SURFACE_MAP_WIDTH;
-  const height = SURFACE_MAP_HEIGHT;
   const data = new Float32Array(width * height * 4);
   const cosRadius = Math.cos(SMOOTHING_RADIUS);
   let nearest = 0;

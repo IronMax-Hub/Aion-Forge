@@ -5,9 +5,14 @@
 // Why it exists: the surface shading (6-octave noise with its gradient, soil,
 // ice and ocean colours, relief) cost 30–110 ms per frame over a planet on the
 // older GPUs Aion Forge must run on. Baked once, each frame only reads two
-// textures. The bake runs a strip of a cube face per frame (24 strips), during
+// textures. The bake runs a strip of a cube face per frame (24 in the planet view), during
 // the glide towards the planet, so it never stalls the browser for long: the
 // whole bake took ~0.8 s on a GeForce 210, ~35 ms a strip.
+//
+// The system view shows many planets at once, each a few dozen pixels across,
+// so it bakes them coarser (SYSTEM_DETAIL): 256-texel faces (a quarter of the
+// texels), a 256 × 128 surface map (a quarter of the CPU work) and one octave
+// of detail noise fewer (the sixth is finer than a 256-texel face can hold).
 //
 // The atlas: 6 faces of FACE_SIZE² texels plus borders (cubeFaces.ts), in two
 // RGBA8 textures: albedo (square-rooted colour, glint share) and relief (tilt
@@ -20,16 +25,37 @@ import * as THREE from "three";
 import { FREEZING_K } from "../../simulation/climate";
 import type { Vegetation } from "./life";
 import type { SurfaceMapData } from "./surfaceMap";
-import { surfaceMapTexture } from "./surfaceMap";
-import { ATLAS_HEIGHT, ATLAS_WIDTH, CUBE_ATLAS_GLSL, faceTile } from "./cubeFaces";
+import { surfaceMapTexture, SURFACE_MAP_HEIGHT, SURFACE_MAP_WIDTH } from "./surfaceMap";
+import { PLANET_ATLAS, cubeAtlas } from "./cubeFaces";
+import type { CubeAtlas } from "./cubeFaces";
 import simplexNoise from "./shaders/simplexNoise.glsl?raw";
 import bakeVertex from "./shaders/globeBake.vert.glsl?raw";
 import surfaceFragment from "./shaders/globeBake.frag.glsl?raw";
 import giantFragment from "./shaders/giantBake.frag.glsl?raw";
 
 const FACE_COUNT = 6;
-const STRIPS_PER_FACE = 4;
-const STRIP_COUNT = FACE_COUNT * STRIPS_PER_FACE;
+
+/** How finely a globe is baked, and in how many pieces. */
+export interface BakeDetail {
+  atlas: CubeAtlas;
+  /** The surface map's size, texels (surfaceMap.ts). */
+  mapWidth: number;
+  mapHeight: number;
+  /** Octaves of the solid surface's detail noise. */
+  detailOctaves: number;
+  /** Strips each face is baked in, one per frame: ~17–35 ms each on a GeForce 210. */
+  stripsPerFace: number;
+}
+
+/** The planet view: one planet filling the screen. */
+export const PLANET_DETAIL: BakeDetail = {
+  atlas: PLANET_ATLAS, mapWidth: SURFACE_MAP_WIDTH, mapHeight: SURFACE_MAP_HEIGHT, detailOctaves: 6, stripsPerFace: 4,
+};
+
+/** The system view: many planets, each small on screen. */
+export const SYSTEM_DETAIL: BakeDetail = {
+  atlas: cubeAtlas(256), mapWidth: 256, mapHeight: 128, detailOctaves: 5, stripsPerFace: 2,
+};
 
 /** What a solid planet's bake draws with, besides the surface map. */
 export interface SurfaceBakeInputs {
@@ -77,11 +103,13 @@ export class GlobeBake {
   private readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private readonly quad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   private stripsDone = 0;
+  readonly atlas: CubeAtlas;
+  private readonly stripsPerFace: number;
 
-  /** A solid planet's surface, from its surface map. */
-  static surface(surfaceMap: SurfaceMapData, inputs: SurfaceBakeInputs): GlobeBake {
+  /** A solid planet's surface, from its surface map (built at the detail's map size). */
+  static surface(surfaceMap: SurfaceMapData, inputs: SurfaceBakeInputs, detail: BakeDetail = PLANET_DETAIL): GlobeBake {
     const map = surfaceMapTexture(surfaceMap);
-    return new GlobeBake(surfaceFragment, {
+    return new GlobeBake(detail, surfaceFragment, {
       surfaceMap: { value: map },
       noiseOffset: { value: new THREE.Vector3(...inputs.noiseOffset) },
       wetness: { value: inputs.wetness },
@@ -96,12 +124,12 @@ export class GlobeBake {
   }
 
   /** A giant's cloud bands. */
-  static giant(inputs: GiantBakeInputs): GlobeBake {
+  static giant(inputs: GiantBakeInputs, detail: BakeDetail = PLANET_DETAIL): GlobeBake {
     const storms = Array.from({ length: MAX_STORMS }, (_, i) => {
       const storm = inputs.storms[i];
       return storm ? new THREE.Vector4(storm.latitude, storm.longitude, storm.size, 1) : new THREE.Vector4(0, 0, 0, 0);
     });
-    return new GlobeBake(giantFragment, {
+    return new GlobeBake(detail, giantFragment, {
       temperatureK: { value: inputs.temperatureK },
       bandCount: { value: inputs.bandCount },
       noiseOffset: { value: new THREE.Vector3(...inputs.noiseOffset) },
@@ -110,8 +138,10 @@ export class GlobeBake {
   }
 
   /** @param owned textures the bake uses and frees once it is done */
-  private constructor(fragment: string, uniforms: Record<string, THREE.IUniform>, owned: THREE.Texture[]) {
-    this.target = new THREE.WebGLRenderTarget(ATLAS_WIDTH, ATLAS_HEIGHT, {
+  private constructor(detail: BakeDetail, fragment: string, uniforms: Record<string, THREE.IUniform>, owned: THREE.Texture[]) {
+    this.atlas = detail.atlas;
+    this.stripsPerFace = detail.stripsPerFace;
+    this.target = new THREE.WebGLRenderTarget(detail.atlas.width, detail.atlas.height, {
       count: 2,
       type: THREE.UnsignedByteType,
       format: THREE.RGBAFormat,
@@ -127,7 +157,8 @@ export class GlobeBake {
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
       vertexShader: bakeVertex,
-      fragmentShader: simplexNoise + CUBE_ATLAS_GLSL + fragment,
+      fragmentShader: simplexNoise + detail.atlas.glsl + fragment,
+      defines: { DETAIL_OCTAVES: detail.detailOctaves },
       uniforms,
       depthTest: false,
       depthWrite: false,
@@ -137,7 +168,7 @@ export class GlobeBake {
   }
 
   get done(): boolean {
-    return this.stripsDone === STRIP_COUNT;
+    return this.stripsDone === FACE_COUNT * this.stripsPerFace;
   }
 
   get albedo(): THREE.Texture {
@@ -151,10 +182,10 @@ export class GlobeBake {
   /** Bakes the next strip of a face; after the last, frees what the bake used. */
   step(renderer: THREE.WebGLRenderer): void {
     if (this.done) return;
-    const [x, y, width, height] = faceTile(Math.floor(this.stripsDone / STRIPS_PER_FACE));
-    const strip = this.stripsDone % STRIPS_PER_FACE;
-    const top = y + Math.round((strip * height) / STRIPS_PER_FACE);
-    const bottom = y + Math.round(((strip + 1) * height) / STRIPS_PER_FACE);
+    const [x, y, width, height] = this.atlas.faceTile(Math.floor(this.stripsDone / this.stripsPerFace));
+    const strip = this.stripsDone % this.stripsPerFace;
+    const top = y + Math.round((strip * height) / this.stripsPerFace);
+    const bottom = y + Math.round(((strip + 1) * height) / this.stripsPerFace);
     this.target.scissor.set(x, top, width, bottom - top);
     const previous = renderer.getRenderTarget();
     renderer.setRenderTarget(this.target);

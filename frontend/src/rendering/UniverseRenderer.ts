@@ -10,8 +10,9 @@ import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
 import type { Civilization } from "../simulation/civilization";
 import { SkyBackground } from "./background";
-import { disposeSystemGroup, hostStarObject, orbitLine, systemLights, SYSTEM_STARLIGHT_INTENSITY } from "./systemView";
-import { PlanetView, ORBIT_DISTANCE } from "./planet/PlanetView";
+import { disposeSystemGroup, hostStarObject, orbitLine, systemLights } from "./systemView";
+import { SystemGlobes } from "./systemGlobes";
+import { PlanetView, ORBIT_DISTANCE, starlightIntensity } from "./planet/PlanetView";
 import { GlobeTextureCache, drawsSurface, giantLookOf } from "./planet/globe";
 import { ringMesh } from "./planet/rings";
 import type { GlobeSurface } from "./planet/globe";
@@ -161,8 +162,8 @@ export interface SystemSight {
   onPlanetApproach?: ((planet: Planet) => void) | null;
   /** Hover label text per planet id; a planet without one shows no label. */
   planetLabels?: Map<number, string>;
-  /** Each planet's physics by planet id (derivePhysics): giants' spin and tilt, for their rings. */
-  physics?: Map<number, PlanetPhysics>;
+  /** What each planet is drawn from, by planet id: its world, physics, starlight and life (its globe, air and rings). */
+  planets?: Map<number, PlanetSight>;
 }
 
 /** What the planet view is given about a planet besides the planet itself. */
@@ -322,6 +323,8 @@ export class UniverseRenderer {
   // Planet view: its scene, and the system view's camera to return to
   private planetView: PlanetView | null = null;
   private readonly globeTextures = new GlobeTextureCache();
+  // The system view's planets as globes, baked a step a frame (systemGlobes.ts)
+  private readonly systemGlobes = new SystemGlobes();
   private pendingBake: GlobeBake | null = null;
   private systemGalaxySeed = 0;
   private systemMaxDistance = DEFAULT_DISTANCE.max;
@@ -444,6 +447,7 @@ export class UniverseRenderer {
     // A new universe reuses planet keys for different planets
     this.pendingBake = null;
     this.globeTextures.clear();
+    this.systemGlobes.clear();
   }
 
   // ── Stellar population (ENH-502–509) ─────────────────────────────────────
@@ -502,7 +506,7 @@ export class UniverseRenderer {
     onPlanetSelected: (planet: Planet | null) => void,
     sight: SystemSight = {},
   ) {
-    const { onPlanetApproach = null, planetLabels = new Map(), physics = new Map() } = sight;
+    const { onPlanetApproach = null, planetLabels = new Map(), planets = new Map() } = sight;
     this.closePlanetView();
     this.planetLabels = planetLabels;
     this.hidePlanetLabel();
@@ -539,6 +543,7 @@ export class UniverseRenderer {
     // Host star, as light (systemView.ts), and the starlight the planets are lit by
     group.add(hostStarObject(starCol, HOST_STAR_RADIUS * scale), ...systemLights(starCol));
 
+    const markers = new Map<number, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
     for (const planet of system.planets) {
       const orbitR = planet.orbitalRadius * SYSTEM_UNITS_PER_AU;
       group.add(orbitLine(orbitR));
@@ -548,17 +553,19 @@ export class UniverseRenderer {
       const pGeo  = new THREE.SphereGeometry(pSize, SYSTEM_PLANET_SEGMENTS, SYSTEM_PLANET_SEGMENTS / 2);
       const pMat  = new THREE.MeshStandardMaterial({ color: new THREE.Color(pr, pg, pb), roughness: 0.9, metalness: 0 });
       const pMesh = new THREE.Mesh(pGeo, pMat);
+      markers.set(planet.id, pMesh);
       pMesh.position.set(orbitR, 0, 0);
       pMesh.userData = { planetId: planet.id };
       group.add(pMesh);
 
       // A giant's rings, as the planet view draws them (its VISUAL stream, globe.ts), in its equatorial plane
-      const giantPhysics = planet.surface === null ? physics.get(planet.id) : undefined;
+      const planetSight = planets.get(planet.id);
+      const giantPhysics = planet.surface === null ? planetSight?.physics ?? undefined : undefined;
       const rings = giantPhysics ? giantLookOf(planet, system.galaxySeed, giantPhysics.rotationPeriodHours).rings : null;
       if (giantPhysics && rings) {
         const pole = new THREE.Vector3(0, 1, 0).applyAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.degToRad(giantPhysics.axialTiltDeg));
         const ring = ringMesh(rings, planet.temperature, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), pole), {
-          toStar: new THREE.Vector3(-1, 0, 0), starColor: starCol, starIntensity: SYSTEM_STARLIGHT_INTENSITY, opacity: 1,
+          toStar: new THREE.Vector3(-1, 0, 0), starColor: starCol, starIntensity: starlightIntensity(planetSight!.starFlux), opacity: 1,
         });
         ring.position.copy(pMesh.position);
         ring.scale.setScalar(pSize);
@@ -581,10 +588,12 @@ export class UniverseRenderer {
     this.controls.maxDistance = this.systemMaxDistance;
     this.controls.autoRotate      = true;
     this.controls.autoRotateSpeed = SYSTEM_AUTO_ROTATE_SPEED;
+    this.systemGlobes.start(group, hostStar, system.galaxySeed, system.planets, markers, planets, this.camera, !prefersReducedMotion());
   }
 
   exitSystemView() {
     this.closePlanetView();
+    this.systemGlobes.stop();
     this.hidePlanetLabel();
     this.planetLabels = new Map();
     this.mode = "galaxy";
@@ -1000,6 +1009,8 @@ export class UniverseRenderer {
       if (this.pendingBake) {
         this.pendingBake.step(this.renderer);
         if (this.pendingBake.done) this.pendingBake = null;
+      } else if (this.mode === "system") {
+        this.systemGlobes.update(this.renderer, performance.now());   // the approach's bake goes first
       }
       this.stepTween();
       this.controls.update();
@@ -1061,6 +1072,7 @@ export class UniverseRenderer {
     this.hidePlanetLabel();
     this.closePlanetView();
     this.globeTextures.clear();
+    this.systemGlobes.clear();
     window.removeEventListener("resize", this.onResize);
 
     // ENH-512: dispose all resources

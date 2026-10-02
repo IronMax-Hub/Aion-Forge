@@ -2,7 +2,8 @@
 // added over the planet and the sky around it.
 //
 // Each pixel's view ray is followed through the shell (radius shellRadius around
-// the planet at the origin, stopping at the surface, radius 1). Its length in
+// the planet, stopping at the surface, radius 1), in planet radii about its
+// centre: the planet view draws the planet there; the system view says where. Its length in
 // shell thicknesses is the air mass it crosses: 1 looking straight down, ~20
 // grazing the limb, which is why the rim glows. Per colour channel the ray
 // scatters 1 − exp(−τ · air mass) of the starlight, with τ the zenith optical
@@ -20,6 +21,8 @@ uniform vec3 toStar;
 uniform vec3 starColor;       // the star's spectrum in red, green, blue (starSpectrumRGB)
 uniform float starIntensity;
 uniform float opacity;
+uniform vec3 planetCentre;      // world; the origin in the planet view
+uniform float planetRadius;     // world units; 1 in the planet view
 
 varying vec3 vWorldPosition;
 
@@ -32,7 +35,8 @@ const float MULTIPLE_SCATTERING = 0.35;
 const float TWILIGHT = 0.2;
 
 void main() {
-  vec3 origin = cameraPosition;
+  // In planet radii, around the planet's centre
+  vec3 origin = (cameraPosition - planetCentre) / planetRadius;
   vec3 direction = normalize(vWorldPosition - cameraPosition);
   float b = dot(origin, direction);
   float c = dot(origin, origin);

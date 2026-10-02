@@ -72,7 +72,7 @@ export function atlasDirection(x: number, y: number): THREE.Vector3Tuple {
 
 /** The pixel rectangle of a face's tile, border included: x, y, width, height. */
 export function faceTile(face: number): [number, number, number, number] {
-  return [(face % ATLAS_COLUMNS) * TILE, Math.floor(face / ATLAS_COLUMNS) * TILE, TILE, TILE];
+  return PLANET_ATLAS.faceTile(face);
 }
 
 const vec3 = ([x, y, z]: THREE.Vector3Tuple) => `vec3(${x}.0, ${y}.0, ${z}.0)`;
@@ -80,13 +80,15 @@ const vec3 = ([x, y, z]: THREE.Vector3Tuple) => `vec3(${x}.0, ${y}.0, ${z}.0)`;
 /**
  * The same table and mappings in GLSL: atlasCoordinates(direction[, u]) and
  * atlasDirection(pixel, u), where u is the face's first axis; plus the relief
- * tilt encoding, for the shaders to include.
+ * tilt encoding, for the shaders to include. For an atlas of faces this many texels across.
  */
-export const CUBE_ATLAS_GLSL = `
-const float FACE_SIZE = ${FACE_SIZE}.0;
+function cubeAtlasGlsl(faceSize: number): string {
+  const tile = faceSize + 2 * FACE_BORDER;
+  return `
+const float FACE_SIZE = ${faceSize}.0;
 const float FACE_BORDER = ${FACE_BORDER}.0;
 const float TILE = FACE_SIZE + 2.0 * FACE_BORDER;
-const vec2 ATLAS_SIZE = vec2(${ATLAS_WIDTH}.0, ${ATLAS_HEIGHT}.0);
+const vec2 ATLAS_SIZE = vec2(${ATLAS_COLUMNS * tile}.0, ${ATLAS_ROWS * tile}.0);
 
 void cubeFace(int face, out vec3 normal, out vec3 u, out vec3 v) {
 ${CUBE_FACES.map(([n, u, v], f) =>
@@ -142,3 +144,32 @@ vec3 decodeNormal(vec3 p, vec3 u, vec2 stored) {
   return normalize(p - tilt.x * first - tilt.y * second);
 }
 `;
+}
+
+/** An atlas of the six faces, each faceSize texels across plus its border, side by side in tiles. */
+export interface CubeAtlas {
+  faceSize: number;
+  width: number;
+  height: number;
+  /** The mappings in GLSL for this atlas, for the shaders that bake or read it to include. */
+  glsl: string;
+  /** The pixel rectangle of a face's tile, border included: x, y, width, height. */
+  faceTile(face: number): [number, number, number, number];
+}
+
+/** The atlas layout for faces of this many texels. */
+export function cubeAtlas(faceSize: number): CubeAtlas {
+  const tile = faceSize + 2 * FACE_BORDER;
+  return {
+    faceSize,
+    width: ATLAS_COLUMNS * tile,
+    height: ATLAS_ROWS * tile,
+    glsl: cubeAtlasGlsl(faceSize),
+    faceTile: (face) => [(face % ATLAS_COLUMNS) * tile, Math.floor(face / ATLAS_COLUMNS) * tile, tile, tile],
+  };
+}
+
+/** The planet view's atlas (FACE_SIZE); atlasCoordinates and atlasDirection above use its layout. */
+export const PLANET_ATLAS = cubeAtlas(FACE_SIZE);
+/** The planet view's atlas mappings in GLSL. */
+export const CUBE_ATLAS_GLSL = PLANET_ATLAS.glsl;

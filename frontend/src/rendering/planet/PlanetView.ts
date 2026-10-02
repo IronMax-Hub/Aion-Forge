@@ -44,7 +44,6 @@ import type { Star } from "../../simulation/star";
 import { temperatureToColor } from "../../simulation/star";
 import type { GlobeSurface } from "./globe";
 import { cubeSphereGeometry } from "./cubeSphere";
-import { CUBE_ATLAS_GLSL } from "./cubeFaces";
 import { atmosphereShell, cloudDriftAngle, cloudSphere, hasVisibleAtmosphere } from "./atmosphere";
 import { ringMesh } from "./rings";
 import type { CivilizationLights } from "./life";
@@ -104,6 +103,43 @@ const SHIMMER_K = { from: 900, full: 1300 };
 export function glowColourOf(temperatureK: number): THREE.Color {
   const [r, g, b] = temperatureToColor(Math.min(GLOW_COLOUR_K.max, Math.max(GLOW_COLOUR_K.min, temperatureK)));
   return new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
+}
+
+/** How a globe is lit and drawn: the star, its fade, its own glow and heat shimmer, and where its clouds go. */
+export interface GlobeLook {
+  toStar: THREE.Vector3;
+  starColor: THREE.Color;
+  starIntensity: number;
+  /** 0–1; a material that starts below 1 is drawn transparent, to fade in. */
+  opacity: number;
+  glowColour: THREE.Color;
+  shimmer: number;
+  /** Draw the baked clouds on the ground (the system view) rather than leave them to a cloud sphere. */
+  cloudsOnGround: boolean;
+}
+
+/** The material that draws a baked globe (globe.frag.glsl), for the atlas it was baked into. */
+export function globeMaterial(surface: GlobeSurface, look: GlobeLook): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    vertexShader: globeVertex,
+    fragmentShader: surface.bake.atlas.glsl + globeFragment,
+    transparent: look.opacity < 1,
+    uniforms: {
+      albedoAtlas: { value: surface.bake.albedo },
+      reliefAtlas: { value: surface.bake.relief },
+      localToWorld: { value: new THREE.Matrix3() },
+      toStar: { value: look.toStar.clone() },
+      starColor: { value: look.starColor },
+      starIntensity: { value: look.starIntensity },
+      nightFill: { value: NIGHT_FILL_INTENSITY },
+      opacity: { value: look.opacity },
+      glowColour: { value: look.glowColour },
+      glowIntensity: { value: GLOW_INTENSITY },
+      shimmer: { value: look.shimmer },
+      timeSeconds: { value: 0 },
+      cloudsOnGround: { value: look.cloudsOnGround ? 1 : 0 },
+    },
+  });
 }
 
 /** How strongly a planet's day side shimmers with heat, 0–1: solid planets hot enough to melt. */
@@ -172,7 +208,10 @@ export class PlanetView {
     if (options.surface) {
       const shimmer = (options.drift ?? fade) ? shimmerOf(planet) : 0;
       this.globe = new THREE.Mesh(cubeSphereGeometry(GLOBE_SEGMENTS),
-        this.globeMaterial(options.surface, starColor, intensity, fade, glowColourOf(planet.temperature), shimmer));
+        globeMaterial(options.surface, {
+          toStar: this.lightDirection, starColor, starIntensity: intensity, opacity: fade ? 0 : 1,
+          glowColour: glowColourOf(planet.temperature), shimmer, cloudsOnGround: false,
+        }));
       this.globeBase.copy(globeOrientation(options.surface, towardStar));
       this.setGlobeTurn(0);
       this.starlight = null;
@@ -224,29 +263,6 @@ export class PlanetView {
     this.fadeStartMs = fade ? nowMs : null;
   }
 
-  private globeMaterial(
-    surface: GlobeSurface, starColor: THREE.Color, intensity: number, fade: boolean, glowColour: THREE.Color, shimmer: number,
-  ): THREE.ShaderMaterial {
-    return new THREE.ShaderMaterial({
-      vertexShader: globeVertex,
-      fragmentShader: CUBE_ATLAS_GLSL + globeFragment,
-      transparent: fade,
-      uniforms: {
-        albedoAtlas: { value: surface.bake.albedo },
-        reliefAtlas: { value: surface.bake.relief },
-        localToWorld: { value: new THREE.Matrix3() },
-        toStar: { value: this.lightDirection.clone() },
-        starColor: { value: starColor },
-        starIntensity: { value: intensity },
-        nightFill: { value: NIGHT_FILL_INTENSITY },
-        opacity: { value: fade ? 0 : 1 },
-        glowColour: { value: glowColour },
-        glowIntensity: { value: GLOW_INTENSITY },
-        shimmer: { value: shimmer },
-        timeSeconds: { value: 0 },
-      },
-    });
-  }
 
   /** Turns the globe about its pole, from its base orientation, and tells its shader. */
   private setGlobeTurn(angle: number): void {

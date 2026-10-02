@@ -89,10 +89,15 @@ interface Lighting {
   opacity: number;
 }
 
-/** The single-scattering shell for a planet's air, drawn after the globe and added to it. */
-export function atmosphereShell(pressureBar: number, starTemperatureK: number, light: Lighting): THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> {
+/**
+ * The single-scattering shell for a planet's air, drawn after the globe and added to it.
+ * `shellRadius` is in planet radii; the system view draws it thicker so it shows on a small planet.
+ */
+export function atmosphereShell(
+  pressureBar: number, starTemperatureK: number, light: Lighting, shellRadius = SHELL_RADIUS,
+): THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> {
   const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(SHELL_RADIUS, 64, 32),
+    new THREE.SphereGeometry(shellRadius, 64, 32),
     new THREE.ShaderMaterial({
       vertexShader: shellVertex,
       fragmentShader: shellFragment,
@@ -100,12 +105,14 @@ export function atmosphereShell(pressureBar: number, starTemperatureK: number, l
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       uniforms: {
-        shellRadius: { value: SHELL_RADIUS },
+        shellRadius: { value: shellRadius },
         zenithDepth: { value: new THREE.Vector3(...zenithOpticalDepth(pressureBar)) },
         toStar: { value: light.toStar },
         starColor: { value: new THREE.Vector3(...starSpectrumRGB(starTemperatureK)) },
         starIntensity: { value: light.starIntensity },
         opacity: { value: light.opacity },
+        planetCentre: { value: new THREE.Vector3() },
+        planetRadius: { value: 1 },
       },
     }),
   );

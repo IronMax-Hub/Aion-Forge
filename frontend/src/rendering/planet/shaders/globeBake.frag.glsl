@@ -42,7 +42,7 @@ const float PI = 3.141592653589793;
 
 // Detail noise
 const float DETAIL_FREQUENCY = 3.0;   // lowest octave: about three features per radian
-const int DETAIL_OCTAVES = 6;
+// DETAIL_OCTAVES is defined by the bake (globeBake.ts): 6 for the planet view, 5 for the system view
 const float DETAIL_CONTRAST = 3.0;    // fBm mostly stays within ±0.3; this stretches it to about ±1
 const float COAST_SHIFT = 0.45;       // below 0.5, so no cell centre ever changes side
 const float RELIEF_NOISE_KM = 1.2;

@@ -2,14 +2,14 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { audioEngine, ambientLayer, discovery, ui, lab, civLayer } from "./audio";
 import { AudioControls } from "./ui/AudioControls";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
-import type { ViewScale } from "./rendering/UniverseRenderer";
+import type { PlanetSight, ViewScale } from "./rendering/UniverseRenderer";
 import { generateGalaxy, buildGalaxyConfig, GALAXY_PARTICLE_COUNT } from "./simulation/galaxy";
 import type { GalaxyType, GalaxyParticles } from "./simulation/galaxy";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "./simulation/star";
 import type { Star, StellarPopulation } from "./simulation/star";
 import { generatePlanetsFor, solidWorldOf, effectiveOrbitAU, GIANT_PLANET_MASS } from "./simulation/planet";
 import { derivePhysics } from "./simulation/planetPhysics";
-import type { Planet, PlanetarySystem } from "./simulation/planet";
+import type { Planet, PlanetarySystem, SolidWorld } from "./simulation/planet";
 import { generateBiosphere } from "./simulation/biosphere";
 import type { Biosphere } from "./simulation/biosphere";
 import { generateCivilization } from "./simulation/civilization";
@@ -73,6 +73,8 @@ export default function App() {
   const snapshotRef        = useRef<UniverseSnapshot | null>(null);
   const cachedSnapshotRef  = useRef<UniverseSnapshot | null>(null);
   const systemBiosphereRef = useRef<Map<number, Biosphere>>(new Map());
+  // What the system and planet views draw each planet of the open system from, by planet id
+  const systemSightsRef = useRef<Map<number, PlanetSight>>(new Map());
 
   const [seed, setSeed]             = useState<number>(() => randomSeed());
   const [inputSeed, setInputSeed]   = useState<string>("");
@@ -415,6 +417,20 @@ export default function App() {
     generate(seed, next);
   }, [seed, generate]);
 
+  // What a planet is drawn from: its world (null for a giant), physics, starlight, life and civilization
+  const planetSightOf = useCallback((
+    planet: Planet, star: Star, world: SolidWorld | null, biosphere: Biosphere, civilization: Civilization | null,
+  ): PlanetSight => {
+    const orbitAU = effectiveOrbitAU(planet.orbitalRadius, universeConfig);
+    return {
+      world,
+      physics: world?.physics ?? derivePhysics(planet, star, currentSeed, universeConfig),
+      starFlux: star.luminosity / (orbitAU * orbitAU),
+      biosphere,
+      civilization,
+    };
+  }, [currentSeed, universeConfig]);
+
   // Glide to a planet and go into orbit around it; also what double-clicking a planet does
   const approachPlanet = useCallback((planet: Planet) => {
     setSelectedPlanet(planet);
@@ -424,25 +440,27 @@ export default function App() {
     setView("system");
     setOrbiting(true);
     if (selectedStar) {
-      // What the planet view draws: the planet's own world, rebuilt from the seed, lit by its star
-      const orbitAU = effectiveOrbitAU(planet.orbitalRadius, universeConfig);
-      const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, selectedStar, currentSeed, universeConfig) : null;
-      const biosphere = systemBiosphereRef.current.get(planet.id)
-        ?? generateBiosphere(planet, selectedStar);
-      rendererRef.current?.approachPlanet(planet, {
-        world,
-        physics: world?.physics ?? derivePhysics(planet, selectedStar, currentSeed, universeConfig),
-        starFlux: selectedStar.luminosity / (orbitAU * orbitAU),
-        biosphere,
-        civilization: generateCivilization(biosphere, planet, currentSeed).civilization,
-      });
+      // What the planet view draws: the planet's own world, kept from opening the system, lit by its star
+      const sight = systemSightsRef.current.get(planet.id) ?? (() => {
+        const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, selectedStar, currentSeed, universeConfig) : null;
+        const biosphere = systemBiosphereRef.current.get(planet.id) ?? generateBiosphere(planet, selectedStar);
+        return planetSightOf(planet, selectedStar, world, biosphere, generateCivilization(biosphere, planet, currentSeed).civilization);
+      })();
+      rendererRef.current?.approachPlanet(planet, sight);
     }
     ui.inspect();
-  }, [selectedStar, currentSeed, universeConfig]);
+  }, [selectedStar, currentSeed, universeConfig, planetSightOf]);
 
   const handleExploreSystem = useCallback(() => {
     if (!selectedStar || !rendererRef.current) return;
-    const system = generatePlanetsFor(selectedStar, currentSeed, universeConfig);
+    // Each solid planet's world is kept from making the system (solidWorldOf would build the same again):
+    // the system and planet views draw its surface from it
+    const worlds = new Map<number, SolidWorld>();
+    const system = generatePlanetsFor(selectedStar, currentSeed, universeConfig, (planet, star, seed, cfg) => {
+      const world = solidWorldOf(planet, star, seed, cfg);
+      worlds.set(planet.id, world);
+      return world;
+    });
 
     const biospheres = new Map<number, Biosphere>();
     for (const planet of system.planets) {
@@ -450,11 +468,17 @@ export default function App() {
       biospheres.set(planet.id, bio);
     }
     systemBiosphereRef.current = biospheres;
+    const civilizations = new Map(system.planets.map((planet) =>
+      [planet.id, generateCivilization(biospheres.get(planet.id)!, planet, currentSeed)]));
+    const sights = new Map(system.planets.map((planet) => [planet.id, planetSightOf(
+      planet, selectedStar, worlds.get(planet.id) ?? null, biospheres.get(planet.id)!, civilizations.get(planet.id)!.civilization,
+    )]));
+    systemSightsRef.current = sights;
 
     if (galaxyRef.current && populationRef.current) {
       const systemEntries = system.planets.map((planet) => {
         const bio = biospheres.get(planet.id)!;
-        const civResult = generateCivilization(bio, planet, currentSeed);
+        const civResult = civilizations.get(planet.id)!;
         return {
           planet, star: selectedStar, bio,
           civ: civResult.civilization ?? undefined,
@@ -484,9 +508,9 @@ export default function App() {
         const name = `${planetName(planet.hostStarId, planet.orbitalIndex)} · ${PLANET_TYPE_LABEL[planet.type]}`;
         return [planet.id, life === "—" ? name : `${name} · ${life} life`];
       })),
-      physics: new Map(system.planets.map((planet) => [planet.id, derivePhysics(planet, selectedStar, currentSeed, universeConfig)])),
+      planets: sights,
     });
-  }, [selectedStar, currentSeed, universeConfig, approachPlanet]);
+  }, [selectedStar, currentSeed, universeConfig, approachPlanet, planetSightOf]);
 
   const handleScanBiosphere = useCallback(() => {
     if (!selectedPlanet || !selectedStar) return;
@@ -551,6 +575,7 @@ export default function App() {
     setShowTimeline(false);
     setCurrentSystem(null);
     systemBiosphereRef.current = new Map();
+    systemSightsRef.current = new Map();
     rendererRef.current?.exitSystemView();
     ui.back();
     ambientLayer.setContext("galaxy");

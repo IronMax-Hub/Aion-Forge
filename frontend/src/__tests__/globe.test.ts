@@ -3,10 +3,11 @@ import * as THREE from "three";
 import { cubeSphereGeometry } from "../rendering/planet/cubeSphere";
 import {
   CUBE_FACES, CUBE_ATLAS_GLSL, ATLAS_WIDTH, ATLAS_HEIGHT, FACE_BORDER, FACE_SIZE,
-  atlasCoordinates, atlasDirection, faceOf, faceTile,
+  atlasCoordinates, atlasDirection, faceOf, faceTile, cubeAtlas, PLANET_ATLAS,
 } from "../rendering/planet/cubeFaces";
+import { PLANET_DETAIL, SYSTEM_DETAIL } from "../rendering/planet/globeBake";
 import { GlobeTextureCache, GLOBE_CACHE_SIZE, drawsSurface, noiseOffsetOf } from "../rendering/planet/globe";
-import { PlanetView, SECONDS_PER_ROTATION, globeOrientation, spinAngle, starlightIntensity } from "../rendering/planet/PlanetView";
+import { PlanetView, SECONDS_PER_ROTATION, globeMaterial, globeOrientation, spinAngle, starlightIntensity } from "../rendering/planet/PlanetView";
 import { axisFrame } from "../rendering/planet/surfaceMap";
 import { derivePhysics } from "../simulation/planetPhysics";
 import { surfaceGrid } from "../simulation/geography";
@@ -80,6 +81,23 @@ describe("baked globe atlas", () => {
 
   it("writes the same face table into the shaders", () => {
     CUBE_FACES.forEach(([n], face) => expect(CUBE_ATLAS_GLSL).toContain(`face == ${face}) { normal = vec3(${n[0]}.0, ${n[1]}.0, ${n[2]}.0)`));
+  });
+
+  it("lays out a smaller atlas the same way, for the system view", () => {
+    expect([PLANET_ATLAS.width, PLANET_ATLAS.height]).toEqual([ATLAS_WIDTH, ATLAS_HEIGHT]);
+    expect(PLANET_ATLAS.faceTile(4)).toEqual(faceTile(4));
+    const small = cubeAtlas(256);
+    const tile = 256 + 2 * FACE_BORDER;
+    expect([small.width, small.height]).toEqual([3 * tile, 2 * tile]);
+    expect(small.faceTile(5)).toEqual([2 * tile, tile, tile, tile]);
+    expect(small.glsl).toContain("const float FACE_SIZE = 256.0;");
+    expect(small.glsl).toContain(`const vec2 ATLAS_SIZE = vec2(${3 * tile}.0, ${2 * tile}.0);`);
+  });
+
+  it("bakes the system view's globes at a quarter of the planet view's texels, one octave of detail fewer", () => {
+    expect(SYSTEM_DETAIL.atlas.faceSize ** 2 * 4).toBe(PLANET_DETAIL.atlas.faceSize ** 2);
+    expect(SYSTEM_DETAIL.mapWidth * SYSTEM_DETAIL.mapHeight * 4).toBe(PLANET_DETAIL.mapWidth * PLANET_DETAIL.mapHeight);
+    expect(SYSTEM_DETAIL.detailOctaves).toBe(PLANET_DETAIL.detailOctaves - 1);
   });
 });
 
@@ -224,5 +242,31 @@ describe("rotation", () => {
         expect(THREE.MathUtils.radToDeg(view.worldDirectionOf(local).angleTo(toward))).toBeLessThan(20);
       }
     }
+  });
+});
+
+describe("system-view globes", () => {
+  const { star, planet } = drawn[0];
+  const world = solidWorldOf(planet, star, seed, config);
+  const look = {
+    toStar: new THREE.Vector3(1, 0, 0), starColor: new THREE.Color(1, 1, 1), starIntensity: 2.6,
+    opacity: 1, glowColour: new THREE.Color(1, 0.5, 0), shimmer: 0,
+  };
+
+  it("are baked into their own, smaller atlas and drawn with that atlas's mappings", () => {
+    const surface = new GlobeTextureCache(4, SYSTEM_DETAIL).globeFor(planet, world, world.physics, seed);
+    expect(surface.bake.atlas).toBe(SYSTEM_DETAIL.atlas);
+    const material = globeMaterial(surface, { ...look, cloudsOnGround: true });
+    expect(material.fragmentShader).toContain("const float FACE_SIZE = 256.0;");
+    expect(material.uniforms.cloudsOnGround.value).toBe(1);
+    surface.bake.dispose();
+  });
+
+  it("leave the planet view's globe and its cloud sphere as they were", () => {
+    const surface = new GlobeTextureCache().globeFor(planet, world, world.physics, seed);
+    const material = globeMaterial(surface, { ...look, cloudsOnGround: false });
+    expect(material.fragmentShader.startsWith(CUBE_ATLAS_GLSL)).toBe(true);
+    expect(material.uniforms.cloudsOnGround.value).toBe(0);
+    surface.bake.dispose();
   });
 });

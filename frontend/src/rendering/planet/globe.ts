@@ -21,8 +21,8 @@ import type { PlanetPhysics } from "../../simulation/planetPhysics";
 import { createRNG, mixSeed, SALT } from "../../simulation/rng";
 import { boilingPointK } from "../../simulation/climate";
 import { buildSurfaceMap } from "./surfaceMap";
-import { GlobeBake } from "./globeBake";
-import type { GiantStorm } from "./globeBake";
+import { GlobeBake, PLANET_DETAIL } from "./globeBake";
+import type { BakeDetail, GiantStorm } from "./globeBake";
 import { EARTH_RADIUS_KM } from "./PlanetView";
 import { overcastShare } from "./atmosphere";
 import type { Vegetation } from "./life";
@@ -143,9 +143,12 @@ export const GLOBE_CACHE_SIZE = 5;
 export class GlobeTextureCache {
   private readonly bakes = new Map<string, GlobeBake>();
   private readonly capacity: number;
+  private readonly detail: BakeDetail;
 
-  constructor(capacity = GLOBE_CACHE_SIZE) {
+  /** @param detail how finely its globes are baked: the planet view's, or the system view's (globeBake.ts) */
+  constructor(capacity = GLOBE_CACHE_SIZE, detail: BakeDetail = PLANET_DETAIL) {
     this.capacity = capacity;
+    this.detail = detail;
   }
 
   /**
@@ -161,7 +164,7 @@ export class GlobeTextureCache {
     if (bake) {
       this.bakes.delete(planet.key);   // re-inserted below as the newest
     } else if (world) {
-      bake = GlobeBake.surface(buildSurfaceMap(world.geography, world.history.present), {
+      bake = GlobeBake.surface(buildSurfaceMap(world.geography, world.history.present, this.detail.mapWidth, this.detail.mapHeight), {
         wetness: world.history.present.wetness,
         noiseOffset: noiseOffsetOf(planet, galaxySeed),
         bumpScale: RELIEF_EXAGGERATION / (planet.size * EARTH_RADIUS_KM),
@@ -169,14 +172,14 @@ export class GlobeTextureCache {
         overcast: overcastShare(planet.surface?.pressureBar ?? 0),
         boilingK: boilingPointK(planet.surface?.pressureBar ?? 0),
         vegetation,
-      });
+      }, this.detail);
     } else {
       bake = GlobeBake.giant({
         temperatureK: planet.temperature,
         bandCount: giant!.bandCount,
         noiseOffset: noiseOffsetOf(planet, galaxySeed),
         storms: giant!.storms,
-      });
+      }, this.detail);
     }
     this.bakes.set(planet.key, bake);
     for (const [key, oldest] of this.bakes) {

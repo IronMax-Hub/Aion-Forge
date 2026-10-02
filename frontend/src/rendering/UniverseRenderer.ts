@@ -10,6 +10,7 @@ import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
 import type { Civilization } from "../simulation/civilization";
 import { SkyBackground } from "./background";
+import { disposeSystemGroup, hostStarObject, orbitLine, systemLights } from "./systemView";
 import { PlanetView, ORBIT_DISTANCE } from "./planet/PlanetView";
 import { GlobeTextureCache, drawsSurface } from "./planet/globe";
 import type { GlobeSurface } from "./planet/globe";
@@ -189,6 +190,10 @@ const APPROACH_END_DISTANCE = 6;
 const USUAL_INNER_ORBIT_AU = 0.4;
 // Where the system view's camera starts, relative to the star, at the usual scale
 const SYSTEM_CAMERA_OFFSET = new THREE.Vector3(0, 2, 5);
+// The host star's drawn radius at the usual scale (far larger than true scale, as the planets are)
+const HOST_STAR_RADIUS = 0.12;
+// Planet spheres stay round up close: 48 segments keep the outline smooth at the closest zoom
+const SYSTEM_PLANET_SEGMENTS = 48;
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -494,10 +499,7 @@ export class UniverseRenderer {
 
     if (this.systemGroup) {
       this.scene.remove(this.systemGroup);
-      this.systemGroup.traverse(obj => {
-        if ((obj as THREE.Mesh).geometry) (obj as THREE.Mesh).geometry.dispose();
-        if ((obj as THREE.Mesh).material) ((obj as THREE.Mesh).material as THREE.Material).dispose();
-      });
+      disposeSystemGroup(this.systemGroup);
     }
 
     const group = new THREE.Group();
@@ -511,31 +513,17 @@ export class UniverseRenderer {
     const [sr, sg, sb] = temperatureToColor(hostStar.temperature);
     const starCol = new THREE.Color(sr, sg, sb);
 
-    // Host star
-    const starGeo = new THREE.SphereGeometry(0.12 * scale, 16, 16);
-    const starMat = new THREE.MeshBasicMaterial({ color: starCol });
-    group.add(new THREE.Mesh(starGeo, starMat));
-
-    // Star glow
-    const glowGeo = new THREE.SphereGeometry(0.26 * scale, 16, 16);
-    const glowMat = new THREE.MeshBasicMaterial({ color: starCol, transparent: true, opacity: 0.14 });
-    group.add(new THREE.Mesh(glowGeo, glowMat));
+    // Host star, as light (systemView.ts), and the starlight the planets are lit by
+    group.add(hostStarObject(starCol, HOST_STAR_RADIUS * scale), ...systemLights(starCol));
 
     for (const planet of system.planets) {
       const orbitR = planet.orbitalRadius * SYSTEM_UNITS_PER_AU;
-
-      const ringGeo = new THREE.RingGeometry(orbitR - 0.005 * scale, orbitR + 0.005 * scale, 128);
-      const ringMat = new THREE.MeshBasicMaterial({
-        color: 0x4a525d, transparent: true, opacity: 0.45, side: THREE.DoubleSide,
-      });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.rotation.x = Math.PI / 2;
-      group.add(ring);
+      group.add(orbitLine(orbitR));
 
       const [pr, pg, pb] = PLANET_COLORS[planet.type];
       const pSize = Math.max(0.025, Math.min(0.09, planet.size * 0.035)) * scale;
-      const pGeo  = new THREE.SphereGeometry(pSize, 12, 12);
-      const pMat  = new THREE.MeshBasicMaterial({ color: new THREE.Color(pr, pg, pb) });
+      const pGeo  = new THREE.SphereGeometry(pSize, SYSTEM_PLANET_SEGMENTS, SYSTEM_PLANET_SEGMENTS / 2);
+      const pMat  = new THREE.MeshStandardMaterial({ color: new THREE.Color(pr, pg, pb), roughness: 0.9, metalness: 0 });
       const pMesh = new THREE.Mesh(pGeo, pMat);
       pMesh.position.set(orbitR, 0, 0);
       pMesh.userData = { planetId: planet.id };
@@ -583,6 +571,7 @@ export class UniverseRenderer {
 
     if (this.systemGroup) {
       this.scene.remove(this.systemGroup);
+      disposeSystemGroup(this.systemGroup);
       this.systemGroup = null;
     }
     this.planetData = [];

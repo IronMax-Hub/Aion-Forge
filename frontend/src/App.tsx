@@ -73,8 +73,11 @@ export default function App() {
   const snapshotRef        = useRef<UniverseSnapshot | null>(null);
   const cachedSnapshotRef  = useRef<UniverseSnapshot | null>(null);
   const systemBiosphereRef = useRef<Map<number, Biosphere>>(new Map());
-  // What the system and planet views draw each planet of the open system from, by planet id
-  const systemSightsRef = useRef<Map<number, PlanetSight>>(new Map());
+  // What the system and planet views draw each planet of the open system from, by planet key
+  // (ids repeat between systems). A ref for the approach callback the renderer holds (state
+  // would reach it stale), and state for what renders from it (the planet panel)
+  const systemSightsRef = useRef<Map<string, PlanetSight>>(new Map());
+  const [systemSights, setSystemSights] = useState<Map<string, PlanetSight>>(new Map());
 
   const [seed, setSeed]             = useState<number>(() => randomSeed());
   const [inputSeed, setInputSeed]   = useState<string>("");
@@ -441,7 +444,7 @@ export default function App() {
     setOrbiting(true);
     if (selectedStar) {
       // What the planet view draws: the planet's own world, kept from opening the system, lit by its star
-      const sight = systemSightsRef.current.get(planet.id) ?? (() => {
+      const sight = systemSightsRef.current.get(planet.key) ?? (() => {
         const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, selectedStar, currentSeed, universeConfig) : null;
         const biosphere = systemBiosphereRef.current.get(planet.id) ?? generateBiosphere(planet, selectedStar);
         return planetSightOf(planet, selectedStar, world, biosphere, generateCivilization(biosphere, planet, currentSeed).civilization);
@@ -470,10 +473,11 @@ export default function App() {
     systemBiosphereRef.current = biospheres;
     const civilizations = new Map(system.planets.map((planet) =>
       [planet.id, generateCivilization(biospheres.get(planet.id)!, planet, currentSeed)]));
-    const sights = new Map(system.planets.map((planet) => [planet.id, planetSightOf(
+    const sights = new Map(system.planets.map((planet) => [planet.key, planetSightOf(
       planet, selectedStar, worlds.get(planet.id) ?? null, biospheres.get(planet.id)!, civilizations.get(planet.id)!.civilization,
     )]));
     systemSightsRef.current = sights;
+    setSystemSights(sights);
 
     if (galaxyRef.current && populationRef.current) {
       const systemEntries = system.planets.map((planet) => {
@@ -508,7 +512,7 @@ export default function App() {
         const name = `${planetName(planet.hostStarId, planet.orbitalIndex)} · ${PLANET_TYPE_LABEL[planet.type]}`;
         return [planet.id, life === "—" ? name : `${name} · ${life} life`];
       })),
-      planets: sights,
+      planets: new Map(system.planets.map((planet) => [planet.id, sights.get(planet.key)!])),
     });
   }, [selectedStar, currentSeed, universeConfig, approachPlanet, planetSightOf]);
 
@@ -544,10 +548,13 @@ export default function App() {
     ui.back();
   }
 
-  // The selected solid planet's world, for the planet panel's Surface section (Worlds Up Close A10)
+  // The selected solid planet's world, for the planet panel's Surface section (Worlds Up Close A10):
+  // the one kept from opening its system, built again only if there is none
   const selectedWorld = useMemo(
-    () => (selectedPlanet?.surface && selectedStar ? solidWorldOf(selectedPlanet, selectedStar, currentSeed, universeConfig) : null),
-    [selectedPlanet, selectedStar, currentSeed, universeConfig],
+    () => (selectedPlanet?.surface && selectedStar
+      ? systemSights.get(selectedPlanet.key)?.world ?? solidWorldOf(selectedPlanet, selectedStar, currentSeed, universeConfig)
+      : null),
+    [selectedPlanet, selectedStar, currentSeed, universeConfig, systemSights],
   );
   // A giant's physics, for its Cloud tops section; a solid planet's come with its world
   const selectedPhysics = useMemo(
@@ -576,6 +583,7 @@ export default function App() {
     setCurrentSystem(null);
     systemBiosphereRef.current = new Map();
     systemSightsRef.current = new Map();
+    setSystemSights(new Map());
     rendererRef.current?.exitSystemView();
     ui.back();
     ambientLayer.setContext("galaxy");

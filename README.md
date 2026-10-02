@@ -212,7 +212,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 
 ## Current Status
 
-**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.7 and C2.10, and Phase B steps B1–B2 (simulation rules v10)**
+**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.7 and C2.10, and Phase B steps B1–B3 (simulation rules v10)**
 
 ### Simulation
 
@@ -227,6 +227,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 * Civilization formation, technological progression, collapse and recovery
 * Atmospheric composition — the gases each atmosphere holds today: N₂, CO₂, O₂, CH₄ and ozone as the world history left them, water vapour by Clausius–Clapeyron, N₂O from living biomass under oxygen, CO₂, NO₂ and CFCs from active industrial civilizations, and on giants hydrogen and helium, carbon as methane or (above ~1,100 K) carbon monoxide by chemical equilibrium, and cold-trapped ammonia and water. Oxygen alone does not prove life: worlds that lost water to space keep its oxygen
 * Transit spectra — how deep each planet's transit is from 0.3 to 20 µm, from its gases, temperature and gravity: Rayleigh scattering and absorption bands of every gas above, over a scale height that light, hot air makes tall, under a cloud deck that thick or humid air and cold giants carry
+* Observing transits — 1 to 200 transits, with photon noise that falls as the square root of their number and follows the star's light; the same observation always shows the same data
 * Historical event recording and timeline replay
 * Configurable laws of physics with experiment comparison
 * Universe persistence, library, export/import, and discovery collections

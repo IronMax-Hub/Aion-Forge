@@ -107,6 +107,14 @@ describe("depth", () => {
     expect(co2World.scaleHeightKm).toBeLessThan(transitSpectrum(earth, sun, airWith("CO2", 1e-3), CLEAR).scaleHeightKm * 0.7);
   });
 
+  it("never hides more than the whole star", () => {
+    // A white dwarf about the Earth's size: an Earth-sized planet covers it, and shows no air
+    const whiteDwarf: Star = { ...sun, temperature: 20_000, luminosity: 0.0016, classification: "white-dwarf" };
+    const s = transitSpectrum({ ...earth, size: 1.5 }, whiteDwarf, atmosphereComposition(earth, null));
+    for (const d of s.depthPpm) expect(d).toBe(1e6);
+    expect(s.baselinePpm).toBe(1e6);
+  });
+
   it("is deeper around a smaller star", () => {
     const dwarf: Star = { ...sun, temperature: 3000, luminosity: 0.005 };   // ~0.26 R☉
     const air = atmosphereComposition(earth, null);

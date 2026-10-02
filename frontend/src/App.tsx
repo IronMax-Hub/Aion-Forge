@@ -524,6 +524,13 @@ export default function App() {
     [selectedWorld, selectedPlanet, selectedStar, currentSeed, universeConfig],
   );
 
+  // The selected planet's civilization, whose gases its air carries (the Spectrum tab, B5)
+  const selectedPlanetCivilization = useMemo(() => {
+    if (!selectedPlanet || !selectedStar) return null;
+    const biosphere = systemBiosphereRef.current.get(selectedPlanet.id) ?? generateBiosphere(selectedPlanet, selectedStar);
+    return generateCivilization(biosphere, selectedPlanet, currentSeed).civilization;
+  }, [selectedPlanet, selectedStar, currentSeed]);
+
   const handleApproach = () => { if (selectedPlanet) approachPlanet(selectedPlanet); };
 
   const handleExitSystem = () => {
@@ -850,9 +857,14 @@ export default function App() {
             bookmarked={isSelectedStarBookmarked}
             onToggleBookmark={handleToggleBookmark}
           />
-        ) : view === "system" && selectedPlanet && !selectedBiosphere ? (
+        ) : view === "system" && selectedPlanet && selectedStar && !selectedBiosphere ? (
           <PlanetPanel
             planet={selectedPlanet}
+            star={selectedStar}
+            galaxySeed={currentSeed}
+            civilization={selectedPlanetCivilization}
+            discoveries={discoveries}
+            onSaveDiscovery={handleSaveDiscovery}
             world={selectedWorld}
             physics={selectedPhysics}
             orbiting={orbiting}

@@ -12,7 +12,8 @@
 //   σ_ref = τ_eq / (n₀ · √(2π·R_p·H))            the σ that makes the air opaque at the
 //                                                 reference level along the limb, τ_eq = 0.56
 //   z(λ)  = H · ln(σ(λ) / σ_ref), clipped at 0   effective height above that level
-//   depth = (R_p + z(λ))² / R★²                  in ppm
+//   depth = (R_p + z(λ))² / R★²                  in ppm, at most 10⁶: a planet
+//                                                 as large as its star hides all of it
 // The reference level is the surface for solid planets (their air cannot hide
 // more than the ground does) and 1 bar for giants. Each σᵢ is Rayleigh
 // scattering, (128π⁵/3)·α²/λ⁴ from the gas's polarisability, plus its
@@ -204,8 +205,10 @@ export function transitSpectrum(
   const sigmaRefM2 = LIMB_OPTICAL_DEPTH / (numberDensity * Math.sqrt(2 * Math.PI * planetRadiusM * scaleHeightM));
   const deckHeightM = clouds.cover > 0 && clouds.topBar < referenceBar ? scaleHeightM * log(referenceBar / clouds.topBar) : 0;
 
+  // A planet can hide no more than the whole star: one as large as its star (a
+  // white dwarf's planet) blocks all of it, and no light passes through its air
   const depthOf = (heightM: number) => {
-    const ratio = (planetRadiusM + heightM) / starRadiusM;
+    const ratio = Math.min(1, (planetRadiusM + heightM) / starRadiusM);
     return ratio * ratio * 1e6;
   };
   const depthPpm = meanCrossSections(composition).map((sigmaCm2) => {

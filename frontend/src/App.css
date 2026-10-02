@@ -910,6 +910,80 @@
 .civ-milestone-icon.adverse,
 .civ-milestone-label.adverse { color: var(--col-danger); }
 
+/* ── Planet panel tabs and spectrum (Worlds Up Close B5) ──────────────────── */
+
+.inspector-tabs {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-6) 0;
+}
+
+.spectrum {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.spectrum-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.spectrum-frame      { fill: var(--col-deep); stroke: var(--col-border-2); stroke-width: 1; }
+.spectrum-grid       { stroke: var(--col-border-1); stroke-width: 1; }
+.spectrum-tick       { fill: var(--col-text-4); font-family: var(--font-mono); font-size: var(--fs-2xs); }
+.spectrum-axis       { fill: var(--col-text-3); font-family: var(--font-sans); font-size: var(--fs-2xs); }
+.spectrum-band       { stroke: var(--col-accent-dim); stroke-width: 1; stroke-dasharray: 2 3; }
+.spectrum-band-label { fill: var(--col-accent); font-family: var(--font-sans); font-size: var(--fs-2xs); }
+.spectrum-model      { fill: none; stroke: var(--col-blue); stroke-width: 1; opacity: 0.8; }
+.spectrum-error      { stroke: var(--col-text-4); stroke-width: 1; }
+.spectrum-point        { fill: var(--col-text-1); }
+.spectrum-point.pinned { fill: var(--col-deep); stroke: var(--col-text-1); stroke-width: 1; }
+
+.spectrum-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  font-size: var(--fs-xs);
+  color: var(--col-text-3);
+}
+
+.spectrum-legend > span { display: inline-flex; align-items: center; gap: var(--sp-2); }
+
+.spectrum-key-point {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--col-text-1);
+  box-shadow: 0 -4px 0 -2px var(--col-text-4), 0 4px 0 -2px var(--col-text-4);
+}
+.spectrum-key-pinned { width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--col-text-1); }
+.spectrum-key-model { width: 12px; height: 0; border-top: 1px solid var(--col-blue); }
+.spectrum-key-band  { width: 0; height: 10px; border-left: 1px dashed var(--col-accent); }
+
+/* A detection-table row spans the data grid's two columns */
+.spectrum-row { display: contents; }
+.spectrum-row[data-detected="false"] .data-label,
+.spectrum-row[data-detected="false"] .data-value { color: var(--col-text-4); }
+
+.spectrum-empty { font-size: var(--fs-base); color: var(--col-text-3); }
+
+.spectrum-verdict {
+  font-size: var(--fs-lg);
+  color: var(--col-text-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--col-border-2);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--col-card);
+}
+.spectrum-verdict.techno    { border-left-color: var(--col-purple); color: var(--col-text-1); }
+.spectrum-verdict.strong    { border-left-color: var(--col-life); color: var(--col-text-1); }
+.spectrum-verdict.possible  { border-left-color: var(--col-gold); }
+.spectrum-verdict.ambiguous { border-left-color: var(--col-amber); }
+
+.spectrum-recorded { font-size: var(--fs-sm); color: var(--col-text-3); }
+
 /* ── Panel close / back buttons (backward compat) ────────────────────────── */
 .panel-close {
   background: none;

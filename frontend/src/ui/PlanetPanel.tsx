@@ -1,13 +1,24 @@
+import { useState } from "react";
 import type { Planet, SolidWorld } from "../simulation/planet";
+import type { Star } from "../simulation/star";
+import type { Civilization } from "../simulation/civilization";
+import type { DiscoveryItem } from "../simulation/persistence";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { PLANET_COLORS, GIANT_PLANET_MASS } from "../simulation/planet";
 import {
   formatSig, formatInt, formatIndex, planetName, PLANET_TYPE_LABEL,
   formatGravity, formatPressure, formatRotation, formatTilt, formatPercent, formatSurfaceShares, formatTemperatureRange,
 } from "./format";
+import { SpectrumPanel } from "./SpectrumPanel";
 
 interface Props {
   planet: Planet;
+  star: Star;
+  galaxySeed: number;
+  /** The planet's civilization, for the gases it adds to the air (Spectrum tab); null if none. */
+  civilization: Civilization | null;
+  discoveries: DiscoveryItem[];
+  onSaveDiscovery?: (item: DiscoveryItem) => void;
   /** A solid planet's world (solidWorldOf), for its Surface section; null for giants. */
   world: SolidWorld | null;
   /** The planet's physics, for a giant's Cloud tops section; null to leave it out. */
@@ -33,12 +44,19 @@ function habLabel(score: number) {
   return "Negligible";
 }
 
+type Tab = "overview" | "spectrum";
+const TAB_LABEL: Record<Tab, string> = { overview: "Overview", spectrum: "Spectrum" };
+
 const CAN_HAVE_LIFE: Record<string, boolean> = {
   rocky: true, ocean: true, ice: true, desert: true,
   "gas-giant": false, "ice-giant": false, lava: false, rogue: false,
 };
 
-export function PlanetPanel({ planet, world, physics, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere }: Props) {
+export function PlanetPanel({
+  planet, star, galaxySeed, civilization, discoveries, onSaveDiscovery,
+  world, physics, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere,
+}: Props) {
+  const [tab, setTab] = useState<Tab>("overview");
   const [r, g, b] = PLANET_COLORS[planet.type];
   const isGiant = planet.type === "gas-giant" || planet.mass > GIANT_PLANET_MASS;
   const planetColor = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
@@ -59,7 +77,34 @@ export function PlanetPanel({ planet, world, physics, orbiting, onClose, onBack,
         </div>
       </div>
 
-      <div className="inspector-body">
+      <div className="inspector-tabs" role="tablist" aria-label="Planet views">
+        {(Object.keys(TAB_LABEL) as Tab[]).map((t) => (
+          <button
+            key={t}
+            role="tab"
+            id={`planet-tab-${t}`}
+            aria-selected={tab === t}
+            aria-controls="planet-tab-panel"
+            className={`tl-filter-btn${tab === t ? " active" : ""}`}
+            onClick={() => setTab(t)}
+          >
+            {TAB_LABEL[t]}
+          </button>
+        ))}
+      </div>
+
+      <div className="inspector-body" role="tabpanel" id="planet-tab-panel" aria-labelledby={`planet-tab-${tab}`}>
+        {tab === "spectrum" ? (
+          <SpectrumPanel
+            key={planet.key}
+            planet={planet}
+            star={star}
+            galaxySeed={galaxySeed}
+            civilization={civilization}
+            discoveries={discoveries}
+            onSaveDiscovery={onSaveDiscovery}
+          />
+        ) : (<>
         <div className="inspector-section">
           <div className="section-title">Physical properties</div>
           <div className="data-grid">
@@ -127,6 +172,7 @@ export function PlanetPanel({ planet, world, physics, orbiting, onClose, onBack,
             <div className="progress-fill" style={{ width: `${planet.habitabilityScore * 100}%` }} />
           </div>
         </div>
+        </>)}
 
         <div className="inspector-actions">
           {orbiting

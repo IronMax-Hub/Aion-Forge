@@ -295,6 +295,10 @@ A third level of zoom: from a planetary system down to a single planet seen from
 
 The planet inspector shows the same world in figures: physical properties, a Surface section for solid planets (gravity, pressure, rotation, tilt, ocean / land / ice, habitable area, temperature range) and a Cloud tops section for giants.
 
+### Planet Forge — planned
+
+Standing on a planet's surface will be a separate app in this repository, `planet-forge/`. *Go to the Surface* on a solid planet's panel will open it in a new tab with that planet's description, and land where you chose on the globe; on its own, it will forge preset or hand-made planets. Nothing is built yet: see `planet-forge/PLAN.md`, and `contracts/planet-spec/` for the description the two apps share.
+
 ---
 
 ## Technology

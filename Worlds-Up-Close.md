@@ -19,6 +19,8 @@ Nothing in this plan has been implemented yet.
 > - Every `docs/` path, which means `Documents/`.
 >
 > See the revision's *Resolutions* section (R1–R12).
+>
+> **Phase D moved to Planet Forge** (3 Oct 2026). Standing on the surface is now a separate app in this repository, which Aion Forge hands a planet to. Its plan, `planet-forge/PLAN.md`, replaces Phase D below and maps each D step onto its own phases.
 
 ## Contents
 
@@ -635,6 +637,8 @@ Detect life the way astronomers would: through the chemistry of an atmosphere se
 ---
 
 ## Phase D — Standing on the surface
+
+> **Moved to Planet Forge** (3 Oct 2026): see `planet-forge/PLAN.md`, *From Phase D*. This section is kept as the original plan; where they differ, Planet Forge's plan wins. The main change: the ground matches the orbit globe at the scale of continents, and exactly at the landing site, instead of sharing the globe's fine detail everywhere.
 
 The furthest reach. The ground comes from the same surface model as the orbital view, so a coastline seen from orbit is the coastline you land beside.
 

@@ -389,6 +389,8 @@ flowchart LR
   C8 --> D1[D · Surface]
 ```
 
+Phase D has since moved to a separate app, Planet Forge (`planet-forge/PLAN.md`, 3 Oct 2026).
+
 | Step | Phase-lets | Changes outcomes? | You can see |
 |---|---|---|---|
 | 1 | 0.1–0.5 (incl. 0.2b) | Yes, once (seed fix and deterministic math) | Library marks older saves |

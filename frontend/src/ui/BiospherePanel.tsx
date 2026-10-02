@@ -12,6 +12,9 @@ interface Props {
   hasMind: boolean;
   /** The planet's specimen plates (C2.9); null where life never began. */
   specimens: Specimen[] | null;
+  selectedLineageId: number | null;
+  onSelectLineage: (lineageId: number) => void;
+  onOpenTree: () => void;
   onBack: () => void;
   onClose: () => void;
   onScanCivilization: () => void;
@@ -94,15 +97,19 @@ function Tabs({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   );
 }
 
-export function BiospherePanel({ biosphere, hasMind, specimens, onBack, onClose, onScanCivilization }: Props) {
+export function BiospherePanel({
+  biosphere, hasMind, specimens, selectedLineageId, onSelectLineage, onOpenTree, onBack, onClose, onScanCivilization,
+}: Props) {
   const stageColor = STAGE_COLOR[biosphere.stage];
   const [tab, setTab] = useState<Tab>("overview");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const showLife = tab === "life" && specimens !== null;
   const tabs = specimens !== null && <Tabs tab={tab} onTab={setTab} />;
   const lifeBody = showLife && (
     <div className="inspector-body" role="tabpanel" id="biosphere-tab-panel" aria-labelledby="biosphere-tab-life">
-      <FieldGuide specimens={specimens!} selectedId={selectedId} onSelect={setSelectedId} />
+      <div className="inspector-actions">
+        <button className="btn" onClick={onOpenTree} style={{ flex: 1 }}>Tree of life</button>
+      </div>
+      <FieldGuide specimens={specimens!} selectedId={selectedLineageId} onSelect={onSelectLineage} />
     </div>
   );
 

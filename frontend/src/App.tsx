@@ -32,7 +32,9 @@ import { ComparisonPanel } from "./ui/ComparisonPanel";
 import { ExperimentHistoryPanel } from "./ui/ExperimentHistoryPanel";
 import { GalleryPanel } from "./ui/GalleryPanel";
 import { SystemPanel } from "./ui/SystemPanel";
-import { fieldGuideSpecimens } from "./ui/specimens";
+import { fieldGuideSpecimens, mindSpecies } from "./ui/specimens";
+import { layoutTree } from "./ui/treeOfLife";
+import { TreeOfLifePanel } from "./ui/TreeOfLifePanel";
 import { bodyPlans } from "./rendering/life/morphology";
 import { ScaleBar } from "./ui/ScaleBar";
 import { starName, planetName, planetLifeLabel, lifeMarkerLabel, PLANET_TYPE_LABEL } from "./ui/format";
@@ -566,8 +568,9 @@ export default function App() {
       : null),
     [selectedPlanet, selectedStar, currentSeed, universeConfig, systemSights],
   );
-  // The selected planet's field guide (C2.9): its lineages as specimens, from its kept world; null where life never began
-  const selectedSpecimens = useMemo(() => {
+  // The selected planet's field guide (C2.9): its lineages as specimens and as a tree of life,
+  // from its kept world; null where life never began
+  const selectedFieldGuide = useMemo(() => {
     const life = selectedWorld?.history.life;
     if (!life || !selectedPlanet?.surface || !selectedStar) return null;
     const orbitAU = effectiveOrbitAU(selectedPlanet.orbitalRadius, universeConfig);
@@ -577,13 +580,24 @@ export default function App() {
       starTemperatureK: selectedStar.temperature,
     };
     const plans = bodyPlans(life.lineages, env, { galaxySeed: currentSeed, starId: selectedStar.id, planetId: selectedPlanet.id });
-    return fieldGuideSpecimens({
-      lineages: life.lineages, plans,
-      planetName: planetName(selectedPlanet.hostStarId, selectedPlanet.orbitalIndex),
-      starAgeGyr: selectedStar.age,
-      mindLineageId: selectedPlanet.life?.phylogeny.mind?.lineageId ?? null,
-    });
+    const name = planetName(selectedPlanet.hostStarId, selectedPlanet.orbitalIndex);
+    const mindLineageId = selectedPlanet.life?.phylogeny.mind?.lineageId ?? null;
+    return {
+      planetName: name,
+      plans,
+      specimens: fieldGuideSpecimens({ lineages: life.lineages, plans, planetName: name, starAgeGyr: selectedStar.age, mindLineageId }),
+      tree: layoutTree(life.lineages, life.catastrophes, life.startedGyr, selectedStar.age),
+      mindSpecies: mindSpecies(life.lineages, mindLineageId),
+    };
   }, [selectedWorld, selectedPlanet, selectedStar, currentSeed, universeConfig]);
+  // The field guide's selected lineage and whether its tree of life is open, for one planet at a time
+  const [lifeView, setLifeView] = useState<{ planetKey: string; lineageId: number | null; treeOpen: boolean } | null>(null);
+  const currentLifeView = lifeView && lifeView.planetKey === selectedPlanet?.key ? lifeView : null;
+  const selectLineage = (lineageId: number) =>
+    selectedPlanet && setLifeView({ planetKey: selectedPlanet.key, lineageId, treeOpen: currentLifeView?.treeOpen ?? false });
+  const setTreeOpen = (treeOpen: boolean) =>
+    selectedPlanet && setLifeView({ planetKey: selectedPlanet.key, lineageId: currentLifeView?.lineageId ?? null, treeOpen });
+  const treeShown = view === "biosphere" && selectedFieldGuide !== null && currentLifeView?.treeOpen === true;
   // A giant's physics, for its Cloud tops section; a solid planet's come with its world
   const selectedPhysics = useMemo(
     () => selectedWorld?.physics
@@ -904,6 +918,18 @@ export default function App() {
           />
         )}
 
+        {treeShown && (
+          <TreeOfLifePanel
+            tree={selectedFieldGuide!.tree}
+            plans={selectedFieldGuide!.plans}
+            mindSpecies={selectedFieldGuide!.mindSpecies}
+            planetName={selectedFieldGuide!.planetName}
+            selectedId={currentLifeView?.lineageId ?? null}
+            onSelect={selectLineage}
+            onClose={() => setTreeOpen(false)}
+          />
+        )}
+
         {showTimeline && universeTimeline && (
           <TimelinePanel
             timeline={universeTimeline}
@@ -948,7 +974,10 @@ export default function App() {
             key={selectedPlanet?.key}
             biosphere={selectedBiosphere}
             hasMind={selectedPlanet?.life?.phylogeny.mind != null}
-            specimens={selectedSpecimens}
+            specimens={selectedFieldGuide?.specimens ?? null}
+            selectedLineageId={currentLifeView?.lineageId ?? null}
+            onSelectLineage={selectLineage}
+            onOpenTree={() => setTreeOpen(true)}
             onBack={handleBackToPlanet}
             onClose={handleExitSystem}
             onScanCivilization={handleScanCivilization}

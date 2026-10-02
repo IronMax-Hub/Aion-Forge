@@ -242,6 +242,48 @@
 .specimen-facts .data-value { font-size: var(--fs-sm); }
 .specimen-facts .data-value { white-space: normal; }
 
+/* Tree of life (C2.9b): an overlay over the stage */
+.tree-panel {
+  top: var(--sp-8);
+  left: var(--sp-8);
+  right: var(--sp-8);
+  bottom: var(--sp-8);
+}
+.tree-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3) var(--sp-5);
+  padding: var(--sp-3) var(--sp-6);
+  border-bottom: 1px solid var(--col-border-1);
+  font-size: var(--fs-sm);
+  color: var(--col-text-3);
+}
+.tree-legend i {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  margin-right: var(--sp-2);
+  vertical-align: middle;
+}
+.tree-legend i.extinct { background: var(--col-text-5); opacity: 0.5; }
+.tree-legend i.rule { width: 2px; height: 10px; background: var(--col-danger); }
+.tree-legend i.mind { width: 6px; height: 6px; border-radius: 50%; background: var(--col-text-1); }
+.tree-selected { margin-left: auto; font-family: var(--font-mono); color: var(--col-text-2); }
+.tree-body { padding: 0; outline: none; }
+.tree-body:focus-visible { box-shadow: inset 0 0 0 1px var(--col-accent-dim); }
+.tree-chart { display: block; }
+.tree-tick { stroke: var(--col-border-2); stroke-width: 1; }
+.tree-tick-label { fill: var(--col-text-4); font-size: 11px; font-family: var(--font-mono); }
+.tree-extinction { stroke: var(--col-danger); stroke-width: 1; opacity: 0.55; }
+.tree-line line { stroke-width: 1.5; }
+.tree-line line.tree-join { stroke-width: 1; opacity: 0.6; }
+.tree-line.extinct line { opacity: 0.45; }
+.tree-line.lit line { stroke: var(--col-accent); stroke-width: 2.5; opacity: 1; }
+.tree-line { cursor: pointer; }
+.tree-hit { fill: transparent; }
+.tree-mind { fill: var(--col-text-1); }
+
 /* System view: the label beside the planet under the pointer */
 .planet-label-anchor {
   padding: 0 0 4px 10px;   /* clear of the planet's limb */

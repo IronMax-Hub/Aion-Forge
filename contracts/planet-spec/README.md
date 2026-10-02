@@ -21,7 +21,8 @@ All three produce the same document, the Planet Spec, so Planet Forge has one wa
 | `README.md` | this description | written |
 | `planet-spec.v1.schema.json` | the spec as a JSON Schema (draft 2020-12), generated from Planet Forge's checking code: `npm run schema` in `planet-forge/` | written |
 | `examples/minimal.json` | the smallest spec Planet Forge accepts: an airless rock of 12 cells | written |
-| `examples/*.json` | the presets (PF1) and one exported from Aion Forge (PF6) | to come |
+| `examples/earth-like.json`, `lava.json`, `ice.json`, `ocean.json`, `desert.json` | the five presets, sketched by Planet Forge from authored inputs: `npm run presets` in `planet-forge/` | written |
+| `examples/*.json` | one exported from Aion Forge (PF6) | to come |
 
 These are data, not code. Neither app imports code from the other or from here; each one checks itself against the schema in its own tests:
 

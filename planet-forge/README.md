@@ -2,7 +2,7 @@
 
 Forge a planet from its description, then stand on it.
 
-**Status: PF0 of [`PLAN.md`](PLAN.md).** Planet Forge reads and checks a Planet Spec from its URL and shows its figures. It does not forge terrain yet.
+**Status: PF1 of [`PLAN.md`](PLAN.md).** Planet Forge sketches a planet from a preset or your inputs, or reads one from its URL, and shows its figures and a flat map of its surface. It does not forge terrain yet.
 
 ## What it is
 
@@ -32,7 +32,7 @@ npm install
 npm run dev       # http://127.0.0.1:5174
 ```
 
-Open the page and press *Open the example*, or open a link of the form `http://127.0.0.1:5174/#spec=…`.
+Pick a preset or change the inputs and press *Forge*, or open a link of the form `http://127.0.0.1:5174/#spec=…`.
 
 | Command | Does |
 |---|---|
@@ -41,6 +41,7 @@ Open the page and press *Open the example*, or open a link of the form `http://1
 | `npm run lint` | ESLint; it also fails if anything imports Aion Forge's code |
 | `npm run build` | type check and production build |
 | `npm run schema` | writes `../contracts/planet-spec/planet-spec.v1.schema.json` from the checking code; run it after changing the spec, or a test fails |
+| `npm run presets` | writes each preset's spec to `../contracts/planet-spec/examples/`; run it after changing the presets or the sketcher, or a test fails |
 
 ## Where things are
 
@@ -50,4 +51,9 @@ Open the page and press *Open the example*, or open a link of the form `http://1
 | `src/spec/check.ts` | checking a spec: errors with their places, warnings for unknown fields |
 | `src/spec/url.ts` | a spec in a URL fragment: packing and reading |
 | `src/spec/jsonSchema.ts` | the shared JSON Schema file's text, generated from the schema |
-| `src/ui/` | the page that shows a spec's figures |
+| `src/spec/specFile.ts`, `presetFiles.ts` | specs as committed files, and the presets' files |
+| `src/forge/inputs.ts` | what you describe a planet with, the figures that follow, and the inputs' problems |
+| `src/forge/sketch.ts` | the world sketcher: inputs to a spec's cells (authored rules, not a simulation) |
+| `src/forge/presets.ts` | the five presets' inputs |
+| `src/forge/icosphere.ts`, `noise.ts`, `random.ts`, `detmath.ts` | the grid, seeded noise and randomness, and deterministic maths (copied from Aion Forge) |
+| `src/ui/` | the page: the forge panel, the surface map, a spec's figures |

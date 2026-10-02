@@ -20,3 +20,9 @@ export function surfaceSummary(cells: PlanetSpec["surface"]["cells"]) {
   }
   return { count, lowKm, highKm, coldK, warmK };
 }
+
+/** "1 year", "2.5 years". */
+export function years(value: number, digits = 4): string {
+  const text = figure(value, digits);
+  return `${text} ${text === "1" ? "year" : "years"}`;
+}

@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "schema": "tsx scripts/writeSchema.ts"
+    "schema": "tsx scripts/writeSchema.ts",
+    "presets": "tsx scripts/writePresets.ts"
   },
   "dependencies": {
     "react": "^19.2.6",

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { PlanetSpec } from "../spec/schema";
-import { figure, surfaceSummary } from "./format";
+import { figure, surfaceSummary, years } from "./format";
 
 const colour = ([r, g, b]: readonly number[]) => `${figure(r, 3)}, ${figure(g, 3)}, ${figure(b, 3)}`;
 
@@ -47,7 +47,7 @@ export function SpecFigures({ spec }: { spec: PlanetSpec }) {
       ]} />
       <Section title="Orbit" rows={[
         ["Distance", `${figure(orbit.distanceAU)} AU`],
-        ["Year", `${figure(orbit.periodYears)} years`],
+        ["Year", years(orbit.periodYears)],
       ]} />
       <Section title="Body" rows={[
         ["Radius", `${figure(body.radiusEarth)} R⊕`],

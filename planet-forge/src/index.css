@@ -149,3 +149,201 @@ button.primary:focus-visible { outline: 2px solid var(--col-text-1); outline-off
   color: var(--col-text-1);
   overflow-wrap: anywhere;
 }
+
+/* Layout: the forge panel beside the planet, stacked on narrow screens */
+
+.app { max-width: 1280px; }
+
+.app-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-5);
+}
+
+@media (min-width: 900px) {
+  .app-layout { grid-template-columns: 340px minmax(0, 1fr); align-items: start; }
+}
+
+.app-planet-view { min-width: 0; }
+
+.small { font-size: var(--fs-sm); }
+
+/* The forge panel */
+
+.forge-panel {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+
+.forge-panel h2 {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+.forge-panel p { margin: var(--sp-2) 0; }
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+button.preset, button.secondary {
+  font: inherit;
+  color: var(--col-text-1);
+  background: var(--col-card);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+}
+
+button.preset.selected {
+  border-color: var(--col-accent);
+  color: var(--col-accent);
+}
+
+button.preset:focus-visible, button.secondary:focus-visible { outline: 2px solid var(--col-text-1); outline-offset: 1px; }
+
+.forge-panel fieldset {
+  border: none;
+  border-top: 1px solid var(--col-border);
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-3) 0 0;
+  min-width: 0;
+}
+
+.forge-panel legend {
+  padding: 0;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--col-text-3);
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 9em minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-2) 0;
+}
+
+.field.check {
+  grid-template-columns: auto minmax(0, 1fr);
+  color: var(--col-text-2);
+}
+
+.field-label { color: var(--col-text-2); }
+
+.field-input {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.field-input input[type="number"], .field-input input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--col-text-1);
+  background: var(--col-void);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: 3px var(--sp-2);
+}
+
+.field-input input[type="text"] { font-family: var(--font-sans); }
+
+.field-input input:disabled { opacity: 0.45; }
+
+.field-input input[type="color"] {
+  width: 48px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--col-border);
+  background: none;
+}
+
+.field-unit {
+  min-width: 2.4em;
+  color: var(--col-text-3);
+  font-size: var(--fs-sm);
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.gases .field { grid-template-columns: 9em minmax(0, 1fr); }
+
+.derived {
+  font-size: var(--fs-sm);
+  color: var(--col-text-3);
+}
+
+.forge-button { width: 100%; margin-top: var(--sp-5); }
+
+/* The surface map */
+
+.surface-map {
+  margin: 0 0 var(--sp-4);
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+}
+
+.surface-map canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  image-rendering: pixelated;
+  border-radius: 2px;
+}
+
+.surface-map figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--sp-2);
+  color: var(--col-text-2);
+}
+
+.map-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-left: var(--sp-3);
+  border-radius: 2px;
+}
+
+.map-legend i:first-child { margin-left: 0; }
+
+.map-legend i.cross {
+  background: linear-gradient(#fff, #fff) center / 10px 1px no-repeat, linear-gradient(#fff, #fff) center / 1px 10px no-repeat;
+}
+
+button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.problems {
+  margin: var(--sp-3) 0 0;
+  padding-left: var(--sp-5);
+  color: var(--col-danger);
+  font-size: var(--fs-sm);
+}

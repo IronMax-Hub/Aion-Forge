@@ -2,7 +2,7 @@
 
 *Forge a planet from its description, then stand on it*
 
-Planning document · 3 Oct 2026 · PF0 done; PF1 next
+Planning document · 3 Oct 2026 · PF0–PF1 done; PF2 next
 
 Planet Forge takes a description of one planet (its star, body, air and surface) and builds ground you can land on and look around. It is a separate app from Aion Forge, in the same repository. Aion Forge sends it the planets its simulation produces; Planet Forge also runs on its own, from presets or from inputs you type in.
 
@@ -92,7 +92,7 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
 - **Verification:** a spec survives a round trip through the URL unchanged; malformed specs and unknown versions are rejected with a message naming the field; every example passes the schema.
 
 ### PF1 Presets and inputs
-**M**
+**M** · **done**
 
 - **Objective:** Planet Forge works on its own.
 - **Deliverables:**
@@ -101,6 +101,13 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
   - **The world sketcher:** turns those inputs into surface cells. Continents from seeded noise on the sphere, filled with water to the requested amount; temperatures falling with latitude, or from the substellar point on a locked world; moisture from distance to water.
 - **Implementation:** The sketcher is authored, not simulated, and its documentation says so: it describes a plausible planet, it does not evolve one. Aion Forge's specs bypass it.
 - **Verification:** the same inputs always give the same cells; more water never gives less ocean; each preset passes the schema.
+- **As built** (owner decisions, 3 Oct 2026):
+  - **Inputs** (`src/forge/inputs.ts`): star temperature and luminosity; distance; radius, mass, day length, locked, tilt; pressure, relative amounts of N₂, O₂, CO₂, CH₄ and H₂O, cloud cover; ocean share, mean temperature, relief at 1 g; ground cover and its colour; name and seed. Worked out from them: the star's radius (Stefan–Boltzmann), its mass (L ∝ M⁴, a main-sequence estimate), the year (Kepler), gravity (M/R²) and water's boiling point (Clausius–Clapeyron, never below the triple point).
+  - **Mean temperature is an input**, not computed: Planet Forge describes, it does not simulate. The form shows the star's equilibrium temperature (30% of its light reflected) as a guide.
+  - **The sketcher** (`src/forge/sketch.ts`, rules and constants in its header): a level-3 icosphere of 642 cells, the resolution of Aion Forge's grid; heights from seeded value-noise fBm, spanning the relief divided by gravity, stored to the metre; sea level set to put the ocean share of cells under water; temperature as the mean times one plus a zero-average pattern (equator to pole when spinning, substellar point to far side when locked), its strength a share of the mean (0.2 spinning, 0.8 locked) halved by 2 bar of air, 6.5 K colder per km above the sea where there is air, never below 30 K; water, ice or dry basin under the sea by temperature, ice on land below freezing on a planet with water; moisture halving with each cell from open water.
+  - **The same in every browser:** a copy of Aion Forge's `detmath` (`src/forge/detmath.ts`) and the same lint rule over `src/forge/`; the grid and noise use exact arithmetic only.
+  - **Presets as committed data:** `npm run presets` writes each preset's spec to `contracts/planet-spec/examples/<id>.json`; an unchanged preset is forged from its file, and a test fails if a file is not what the sketcher makes now.
+  - **The page:** preset buttons, the form with its worked-out figures, a seed with a Random button (a random seed is an input; the planet from it is deterministic), the inputs' problems named under a disabled Forge button, and a flat surface map of the cells (a check, not the planet's look; the globe comes in PF5).
 
 ### PF2 Terrain
 **L** · was D1

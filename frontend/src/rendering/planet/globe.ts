@@ -13,7 +13,8 @@
 // VISUAL stream order, per planet: detail noise (3 draws), cloud pattern (3);
 // giants then: rings (4: chance, inner edge, width, pattern), storm count (1),
 // and each of up to three storms (3: latitude, longitude, size). City lights
-// and the orbital shell (A9, life.ts) draw from sub-streams of their own.
+// and the orbital shell (A9, life.ts) draw from sub-streams of their own (1, 2),
+// as does the planet's starting angle round its orbit in the system view (3, systemView.ts).
 
 import type * as THREE from "three";
 import type { Planet, SolidWorld } from "../../simulation/planet";

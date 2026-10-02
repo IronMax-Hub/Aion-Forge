@@ -10,7 +10,7 @@ import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
 import type { Civilization } from "../simulation/civilization";
 import { SkyBackground } from "./background";
-import { disposeSystemGroup, hostStarObject, orbitLine, systemLights } from "./systemView";
+import { disposeSystemGroup, hostStarObject, orbitLine, systemLights, SystemOrbits } from "./systemView";
 import { SystemGlobes } from "./systemGlobes";
 import { PlanetView, ORBIT_DISTANCE, starlightIntensity } from "./planet/PlanetView";
 import { GlobeTextureCache, drawsSurface, giantLookOf } from "./planet/globe";
@@ -198,6 +198,8 @@ const SYSTEM_AUTO_ROTATE_SPEED = 0.4;
 const PLANET_AUTO_ROTATE_SPEED = 0.25;
 // The approach glide ends this many planet-marker radii from the marker
 const APPROACH_END_DISTANCE = 6;
+// The planets' clock moves at most this much a frame, so a hidden tab does not make them jump
+const MAX_ORBIT_STEP_MS = 100;
 // A system whose innermost planet lies beyond this is drawn at a larger scale (see renderPlanetarySystem)
 const USUAL_INNER_ORBIT_AU = 0.4;
 // Where the system view's camera starts, relative to the star, at the usual scale
@@ -325,6 +327,11 @@ export class UniverseRenderer {
   private readonly globeTextures = new GlobeTextureCache();
   // The system view's planets as globes, baked a step a frame (systemGlobes.ts)
   private readonly systemGlobes = new SystemGlobes();
+  // The system view's planets going round their star, their spheres (for picking), and the last frame's time
+  private systemOrbits = new SystemOrbits();
+  private systemMarkers = new Map<number, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
+  private orbitsMove = false;
+  private lastFrameMs = performance.now();
   private pendingBake: GlobeBake | null = null;
   private systemGalaxySeed = 0;
   private systemMaxDistance = DEFAULT_DISTANCE.max;
@@ -530,6 +537,7 @@ export class UniverseRenderer {
     }
 
     const group = new THREE.Group();
+    group.position.set(...hostStar.position);
 
     // A bright star forms its planets farther out (planet.ts): its system is drawn
     // at a larger scale, camera, markers and zoom limit alike, by how far out its
@@ -544,9 +552,14 @@ export class UniverseRenderer {
     group.add(hostStarObject(starCol, HOST_STAR_RADIUS * scale), ...systemLights(starCol));
 
     const markers = new Map<number, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
+    // Each planet's meshes ride in a carrier that goes round the orbit (systemView.ts)
+    this.systemOrbits = new SystemOrbits();
     for (const planet of system.planets) {
       const orbitR = planet.orbitalRadius * SYSTEM_UNITS_PER_AU;
       group.add(orbitLine(orbitR));
+      const carrier = new THREE.Group();
+      group.add(carrier);
+      this.systemOrbits.add(planet, carrier, orbitR, innermostAU * SYSTEM_UNITS_PER_AU, system.galaxySeed);
 
       const [pr, pg, pb] = PLANET_COLORS[planet.type];
       const pSize = Math.max(0.025, Math.min(0.09, planet.size * 0.035)) * scale;
@@ -554,9 +567,8 @@ export class UniverseRenderer {
       const pMat  = new THREE.MeshStandardMaterial({ color: new THREE.Color(pr, pg, pb), roughness: 0.9, metalness: 0 });
       const pMesh = new THREE.Mesh(pGeo, pMat);
       markers.set(planet.id, pMesh);
-      pMesh.position.set(orbitR, 0, 0);
       pMesh.userData = { planetId: planet.id };
-      group.add(pMesh);
+      carrier.add(pMesh);
 
       // A giant's rings, as the planet view draws them (its VISUAL stream, globe.ts), in its equatorial plane
       const planetSight = planets.get(planet.id);
@@ -567,15 +579,19 @@ export class UniverseRenderer {
         const ring = ringMesh(rings, planet.temperature, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), pole), {
           toStar: new THREE.Vector3(-1, 0, 0), starColor: starCol, starIntensity: starlightIntensity(planetSight!.starFlux), opacity: 1,
         });
-        ring.position.copy(pMesh.position);
         ring.scale.setScalar(pSize);
-        ring.material.uniforms.planetCentre.value.set(...hostStar.position).add(pMesh.position);
         ring.material.uniforms.planetRadius.value = pSize;
-        group.add(ring);
+        carrier.add(ring);
+        this.systemOrbits.follow(planet.id, ({ centre, toStar }) => {
+          ring.material.uniforms.planetCentre.value.copy(centre);
+          ring.material.uniforms.toStar.value.copy(toStar);
+        });
       }
     }
 
-    group.position.set(...hostStar.position);
+    this.systemOrbits.advance(0);
+    this.systemMarkers = markers;
+    this.orbitsMove = !prefersReducedMotion();
     this.systemGroup = group;
     this.scene.add(group);
 
@@ -588,7 +604,7 @@ export class UniverseRenderer {
     this.controls.maxDistance = this.systemMaxDistance;
     this.controls.autoRotate      = true;
     this.controls.autoRotateSpeed = SYSTEM_AUTO_ROTATE_SPEED;
-    this.systemGlobes.start(group, hostStar, system.galaxySeed, system.planets, markers, planets, this.camera, !prefersReducedMotion());
+    this.systemGlobes.start(group, hostStar, system.galaxySeed, system.planets, markers, planets, this.systemOrbits, this.camera, !prefersReducedMotion());
   }
 
   exitSystemView() {
@@ -610,6 +626,8 @@ export class UniverseRenderer {
       this.systemGroup = null;
     }
     this.planetData = [];
+    this.systemMarkers = new Map();
+    this.systemOrbits = new SystemOrbits();
     this.systemHostStar = null;
     this.onPlanetApproach = null;
     this.controls.autoRotate = false;
@@ -628,9 +646,7 @@ export class UniverseRenderer {
    */
   approachPlanet(planet: Planet, sight: PlanetSight = { world: null, physics: null, starFlux: 1 }) {
     if (this.mode !== "system" || !this.systemGroup || !this.systemHostStar) return;
-    const marker = this.systemGroup.children.find(
-      c => c instanceof THREE.Mesh && c.userData.planetId === planet.id,
-    ) as THREE.Mesh<THREE.SphereGeometry> | undefined;
+    const marker = this.systemMarkers.get(planet.id);
     if (!marker) return;
 
     const planetWorld = marker.getWorldPosition(new THREE.Vector3());
@@ -738,17 +754,9 @@ export class UniverseRenderer {
 
     if (this.mode === "planet") return;
     if (this.mode === "system" && this.systemGroup) {
-      const planetMeshes = this.systemGroup.children.filter(
-        c => c instanceof THREE.Mesh && c.userData.planetId !== undefined
-      );
-      const hits = this.raycaster.intersectObjects(planetMeshes);
-      if (hits.length > 0) {
-        const id     = hits[0].object.userData.planetId as number;
-        const planet = this.planetData.find(p => p.id === id) ?? null;
-        this.onPlanetSelected?.(planet);
-      } else {
-        this.onPlanetSelected?.(null);
-      }
+      const hit = this.planetMeshAt(ndc);
+      const id = hit ? hit.userData.planetId as number : null;
+      this.onPlanetSelected?.(id !== null ? this.planetData.find(p => p.id === id) ?? null : null);
       return;
     }
 
@@ -788,8 +796,7 @@ export class UniverseRenderer {
   private planetMeshAt(ndc: THREE.Vector2): THREE.Object3D | null {
     if (!this.systemGroup) return null;
     this.raycaster.setFromCamera(ndc, this.camera);
-    const markers = this.systemGroup.children.filter(c => c instanceof THREE.Mesh && c.userData.planetId !== undefined);
-    return this.raycaster.intersectObjects(markers)[0]?.object ?? null;
+    return this.raycaster.intersectObjects([...this.systemMarkers.values()], false)[0]?.object ?? null;
   }
 
   // ── System view: hover label ──────────────────────────────────────────────
@@ -1006,6 +1013,13 @@ export class UniverseRenderer {
   private startLoop() {
     const tick = () => {
       this.animFrameId = requestAnimationFrame(tick);
+      const now = performance.now();
+      // Planets go round while the system view is shown and the camera is not gliding (never under reduced motion);
+      // a long gap (a hidden tab) counts as one ordinary frame
+      if (this.mode === "system" && this.orbitsMove && !this.tween?.camera) {
+        this.systemOrbits.advance(Math.min(now - this.lastFrameMs, MAX_ORBIT_STEP_MS) / 1000);
+      }
+      this.lastFrameMs = now;
       if (this.pendingBake) {
         this.pendingBake.step(this.renderer);
         if (this.pendingBake.done) this.pendingBake = null;

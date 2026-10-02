@@ -1,5 +1,6 @@
-// What the system view draws besides its planets: the host star as a source of
-// light, the hairline orbits, and the starlight the planets are lit by.
+// What the system view draws besides its planets' globes: the host star as a
+// source of light, the hairline orbits, the starlight the planets are lit by,
+// and the planets' motion round their orbits.
 //
 // Why it exists: the galaxy view draws stars as light (a saturated core inside
 // a soft glow) and the planet view lights its globe with its star. The system
@@ -14,6 +15,12 @@
 // - Light: a point light at the star in its colour (no fall-off: planets are drawn
 //   enlarged, far from true scale, so a true fall-off would only mislead), and a
 //   faint fill so night sides are not pure black.
+// - Orbits (SystemOrbits): each planet circles the star at its true period
+//   relative to the others (Kepler: P ∝ a^1.5 around one star), compressed so
+//   the innermost goes round once a minute. Where each starts is drawn from its
+//   own VISUAL sub-stream; the simulation says nothing about where a planet is
+//   "now". The clock stops while the camera glides and in the planet view, and
+//   never starts under reduced motion.
 //
 // Assumptions and limits: sizes are not to scale. At true scale every planet,
 // and the star itself, would be far smaller than a pixel.
@@ -21,6 +28,8 @@
 // Presentation only: it reads a star's colour and never writes to the simulation.
 
 import * as THREE from "three";
+import type { Planet } from "../simulation/planet";
+import { createRNG, mixSeed, SALT } from "../simulation/rng";
 
 // Limb darkening: brightness at the edge as a share of the centre's (the Sun's is about 0.4 in visible light)
 const LIMB_BRIGHTNESS = 0.45;
@@ -147,4 +156,91 @@ export function disposeSystemGroup(group: THREE.Object3D): void {
       material.dispose();
     }
   });
+}
+
+// ── Orbital motion ───────────────────────────────────────────────────────────
+
+/** The innermost planet goes round once in this many seconds on screen (owner decision). */
+export const INNER_ORBIT_SECONDS = 60;
+// The VISUAL sub-stream a planet's starting angle is drawn from (life.ts uses 1 and 2)
+const ORBIT_PHASE_STREAM = 3;
+
+/** Where a planet is on its orbit now, in world space. */
+export interface OrbitPlace {
+  /** Angle round the orbit from the +x axis, radians, about +y. */
+  angle: number;
+  /** The planet's centre. */
+  centre: THREE.Vector3;
+  /** Unit direction from the planet to its star. */
+  toStar: THREE.Vector3;
+}
+
+/** Something drawn with a planet that must know where it is: its light direction, its centre. */
+export type OrbitFollower = (place: OrbitPlace) => void;
+
+interface Orbit {
+  carrier: THREE.Group;
+  radius: number;
+  startAngle: number;
+  secondsPerOrbit: number;
+  followers: OrbitFollower[];
+}
+
+/** A planet's starting angle round its orbit, radians, from its VISUAL sub-stream. */
+export function orbitStartAngle(planet: Planet, galaxySeed: number): number {
+  return createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.VISUAL, ORBIT_PHASE_STREAM))() * 2 * Math.PI;
+}
+
+/** Seconds on screen for one orbit of this radius, when the innermost of radius `innermost` takes INNER_ORBIT_SECONDS. */
+export function secondsPerOrbit(radius: number, innermost: number): number {
+  return INNER_ORBIT_SECONDS * Math.pow(radius / innermost, 1.5);
+}
+
+/**
+ * The planets of one system going round their star. Each planet's meshes sit
+ * in a carrier group, moved (never turned) round the orbit; the followers keep
+ * the rest in step.
+ */
+export class SystemOrbits {
+  private readonly orbits = new Map<number, Orbit>();
+  private elapsedSeconds = 0;
+  private readonly place: OrbitPlace = { angle: 0, centre: new THREE.Vector3(), toStar: new THREE.Vector3() };
+
+  /** Adds a planet's carrier, centred on the star (the carrier's parent's origin). */
+  add(planet: Planet, carrier: THREE.Group, radius: number, innermost: number, galaxySeed: number): void {
+    this.orbits.set(planet.id, {
+      carrier, radius, startAngle: orbitStartAngle(planet, galaxySeed),
+      secondsPerOrbit: secondsPerOrbit(radius, innermost), followers: [],
+    });
+  }
+
+  /** Calls `follower` whenever the planet moves, and at once. */
+  follow(planetId: number, follower: OrbitFollower): void {
+    const orbit = this.orbits.get(planetId);
+    if (!orbit) return;
+    orbit.followers.push(follower);
+    this.placeOne(orbit);
+  }
+
+  /** The planet's carrier group, whose origin is the planet's centre. */
+  carrierOf(planetId: number): THREE.Group | undefined {
+    return this.orbits.get(planetId)?.carrier;
+  }
+
+  /** Moves the clock on by `seconds` and every planet with it. */
+  advance(seconds: number): void {
+    this.elapsedSeconds += seconds;
+    for (const orbit of this.orbits.values()) this.placeOne(orbit);
+  }
+
+  private placeOne(orbit: Orbit): void {
+    const angle = orbit.startAngle + (this.elapsedSeconds / orbit.secondsPerOrbit) * 2 * Math.PI;
+    orbit.carrier.position.set(orbit.radius * Math.cos(angle), 0, -orbit.radius * Math.sin(angle));
+    orbit.carrier.updateWorldMatrix(true, false);
+    const { place } = this;
+    place.angle = angle;
+    orbit.carrier.getWorldPosition(place.centre);
+    place.toStar.copy(orbit.carrier.position).negate().normalize();
+    for (const follower of orbit.followers) follower(place);
+  }
 }

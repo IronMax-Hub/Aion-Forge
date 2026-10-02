@@ -21,7 +21,11 @@
 // - Bakes are cached by planet (the cache's size), so returning to a system
 //   reuses them; a new universe clears them.
 //
-// Limits: globes do not turn, and city lights and orbital shells (A9) are left
+// Each globe and air shell sits in its planet's carrier (systemView.ts) and
+// follows it round its orbit: its light comes from where the star now is, and a
+// locked planet keeps the same face to it.
+//
+// Limits: globes do not spin, and city lights and orbital shells (A9) are left
 // to the planet view; on a planet this small they would not read.
 //
 // Presentation only: it reads planets and their worlds and never writes them.
@@ -38,6 +42,7 @@ import { atmosphereShell, hasVisibleAtmosphere } from "./planet/atmosphere";
 import { FADE_IN_MS, glowColourOf, globeMaterial, globeOrientation, starlightIntensity } from "./planet/PlanetView";
 import { vegetationOf } from "./planet/life";
 import type { PlanetSight } from "./UniverseRenderer";
+import type { SystemOrbits } from "./systemView";
 
 /**
  * System-view globes kept baked: each ~4.5 MB of GPU memory with its mipmaps.
@@ -64,26 +69,26 @@ interface GlobeJob {
 export class SystemGlobes {
   private readonly cache = new GlobeTextureCache(SYSTEM_GLOBE_CACHE_SIZE, SYSTEM_DETAIL);
   private jobs: GlobeJob[] = [];
-  private group: THREE.Group | null = null;
   private star: Star | null = null;
   private galaxySeed = 0;
   private fade = true;
+  private orbits: SystemOrbits | null = null;
 
   /**
    * Starts drawing a system's planets as globes: adds their air now, and queues
-   * their globes nearest the camera first. `markers` are the planets' spheres in
-   * `group`, by planet id; `sights` what each is drawn from.
+   * their globes nearest the camera first. `markers` are the planets' spheres, by
+   * planet id, each at the origin of its carrier in `orbits`; `sights` what each is drawn from.
    */
   start(
     group: THREE.Group, star: Star, galaxySeed: number, planets: Planet[],
     markers: Map<number, THREE.Mesh<THREE.SphereGeometry, THREE.Material>>, sights: Map<number, PlanetSight>,
-    camera: THREE.Camera, fade: boolean,
+    orbits: SystemOrbits, camera: THREE.Camera, fade: boolean,
   ): void {
     this.stop();
-    this.group = group;
     this.star = star;
     this.galaxySeed = galaxySeed;
     this.fade = fade;
+    this.orbits = orbits;
     group.updateMatrixWorld();
     const [sr, sg, sb] = temperatureToColor(star.temperature);
     const starColor = new THREE.Color(sr, sg, sb);
@@ -92,7 +97,7 @@ export class SystemGlobes {
       const marker = markers.get(planet.id);
       const sight = sights.get(planet.id);
       if (!marker || !sight?.physics) continue;
-      if (hasVisibleAtmosphere(planet)) group.add(this.airOf(planet, sight, marker, starColor));
+      if (hasVisibleAtmosphere(planet)) this.addAir(planet, sight, marker, starColor);
       this.jobs.push({ planet, sight, marker, surface: null, globe: null, fadeStartMs: null });
     }
     const distance = (job: GlobeJob) => job.marker.getWorldPosition(new THREE.Vector3()).distanceTo(camera.position);
@@ -102,8 +107,8 @@ export class SystemGlobes {
   /** Forgets the current system; its meshes leave with its group. */
   stop(): void {
     this.jobs = [];
-    this.group = null;
     this.star = null;
+    this.orbits = null;
   }
 
   /** Whether a globe is still waiting to be baked. */
@@ -136,18 +141,21 @@ export class SystemGlobes {
   private showGlobe(job: GlobeJob, nowMs: number): void {
     const { marker, planet, sight } = job;
     const surface = job.surface!;
-    const toStar = marker.position.clone().negate().normalize();   // the star is at the group's origin
     const [sr, sg, sb] = temperatureToColor(this.star!.temperature);
     const material = globeMaterial(surface, {
-      toStar, starColor: new THREE.Color(sr, sg, sb), starIntensity: starlightIntensity(sight.starFlux),
+      toStar: new THREE.Vector3(1, 0, 0), starColor: new THREE.Color(sr, sg, sb), starIntensity: starlightIntensity(sight.starFlux),
       opacity: this.fade ? 0 : 1, glowColour: glowColourOf(planet.temperature), shimmer: 0, cloudsOnGround: true,
     });
     const globe = new THREE.Mesh(cubeSphereGeometry(GLOBE_SEGMENTS), material);
-    globe.position.copy(marker.position);
     globe.scale.setScalar(marker.geometry.parameters.radius);
-    globe.quaternion.copy(globeOrientation(surface, toStar));
-    material.uniforms.localToWorld.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(globe.quaternion));
-    this.group!.add(globe);
+    marker.parent!.add(globe);
+    // Lit from where the star is; a locked planet's substellar point keeps facing it
+    const turn = new THREE.Matrix4();
+    this.orbits!.follow(planet.id, ({ toStar }) => {
+      material.uniforms.toStar.value.copy(toStar);
+      globe.quaternion.copy(globeOrientation(surface, toStar));
+      material.uniforms.localToWorld.value.setFromMatrix4(turn.makeRotationFromQuaternion(globe.quaternion));
+    });
     job.globe = globe;
     job.fadeStartMs = this.fade ? nowMs : null;
     if (!this.fade) marker.material.visible = false;
@@ -164,19 +172,21 @@ export class SystemGlobes {
     job.marker.material.visible = false;
   }
 
-  /** The planet's air, around its marker. */
-  private airOf(
+  /** The planet's air, round its marker, following it round its orbit. */
+  private addAir(
     planet: Planet, sight: PlanetSight, marker: THREE.Mesh<THREE.SphereGeometry, THREE.Material>, starColor: THREE.Color,
-  ): THREE.Mesh {
+  ): void {
     const radius = marker.geometry.parameters.radius;
     const shell = atmosphereShell(planet.surface!.pressureBar, this.star!.temperature, {
-      toStar: marker.position.clone().negate().normalize(), starColor,
+      toStar: new THREE.Vector3(1, 0, 0), starColor,
       starIntensity: starlightIntensity(sight.starFlux), nightFill: NIGHT_FILL_INTENSITY, opacity: 1,
     }, SYSTEM_SHELL_RADIUS);
-    shell.position.copy(marker.position);
     shell.scale.setScalar(radius);
-    shell.material.uniforms.planetCentre.value.copy(marker.getWorldPosition(new THREE.Vector3()));
     shell.material.uniforms.planetRadius.value = radius;
-    return shell;
+    marker.parent!.add(shell);
+    this.orbits!.follow(planet.id, ({ centre, toStar }) => {
+      shell.material.uniforms.toStar.value.copy(toStar);
+      shell.material.uniforms.planetCentre.value.copy(centre);
+    });
   }
 }

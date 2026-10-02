@@ -17,6 +17,13 @@
 //   adapts, so lit ground looks as bright as flux^(1 + EXPOSURE_POWER) (a
 //   sixteenth of Earth's light looks half as bright, as Aion Forge's globe
 //   lights it) while the sky and star keep their true proportions.
+//   The sky table is built a few rows a frame (SKY_BUDGET_MS) while the star
+//   or camera moves, showing the last whole table meanwhile.
+// - Clouds (src/sky/clouds.ts, shaders/clouds.frag.glsl): a pass over the
+//   whole screen after the ground, finding each pixel's view ray's meeting
+//   with the cloud layer, and writing that depth so ground in front hides
+//   them. They drift about the pole, CLOUD_SECONDS_PER_TURN a turn, except
+//   for viewers who prefer reduced motion (presentation only, as Aion Forge's).
 // - Ground: Lambert lighting of the vertex colours, and molten ground's glow.
 // - Water: one material per patch (they share a program) for the patch's own origin.
 // - Frame time: when frames take longer than SLOW_MS, patches split less
@@ -38,11 +45,15 @@ import { PatchWorkers } from "./workerPool";
 import { DEEP_WATER, GLOW_COLOUR, SEA_ICE, SHALLOW_WATER } from "./palette";
 import { airOf, MIE_ASYMMETRY } from "../sky/air";
 import type { Air } from "../sky/air";
-import { LIGHT_SIZE, lightTable, MULTIPLE_SCATTERING, SKY_COLUMNS, SKY_ROWS, skyTable } from "../sky/scattering";
+import { emptySkyTable, fillSkyRows, LIGHT_SIZE, lightTable, MULTIPLE_SCATTERING, SKY_COLUMNS, SKY_ROWS } from "../sky/scattering";
+import type { SkyTable } from "../sky/scattering";
+import { CLOUD_MAP_HEIGHT, CLOUD_MAP_WIDTH, cloudHeightM, cloudMap } from "../sky/clouds";
+import { mix } from "../forge/random";
 import { discAngularRadius, starColour, starDirection, starFlux } from "../sky/star";
 import atmosphere from "../sky/shaders/atmosphere.glsl?raw";
 import skyVertex from "../sky/shaders/sky.vert.glsl?raw";
 import skyFragment from "../sky/shaders/sky.frag.glsl?raw";
+import cloudsFragment from "../sky/shaders/clouds.frag.glsl?raw";
 import groundVertex from "./shaders/ground.vert.glsl?raw";
 import groundFragment from "./shaders/ground.frag.glsl?raw";
 import waterVertex from "./shaders/water.vert.glsl?raw";
@@ -74,6 +85,10 @@ const MIN_DISC_PIXELS = 3;
 /** The sky table is rebuilt when the camera's height changes by this share (or 1 m), or the star's height cosine by this much. */
 const SKY_HEIGHT_SHARE = 0.01;
 const SKY_SUN_COSINE = 0.002;
+/** Time spent building the sky table in one frame, ms, once there is a table to show. */
+const SKY_BUDGET_MS = 4;
+/** Clouds turn once about the pole in this long, on screen (Aion Forge's drift). */
+const CLOUD_SECONDS_PER_TURN = 900;
 /** Margin on the planet's highest and lowest cells for the detail's relief, at 1 g, m. */
 const RELIEF_MARGIN_M = 3000;
 const FIELD_OF_VIEW_DEG = 60;
@@ -96,8 +111,9 @@ export interface GroundStats {
   splitFactor: number;
   /** Ground height under the camera, m above sea level. */
   groundM: number;
-  /** Time the sky table last took to build, ms. */
+  /** Time the sky table last took to build, ms, and over how many frames. */
   skyMs: number;
+  skyFrames: number;
 }
 
 interface CachedPatch {
@@ -110,7 +126,7 @@ interface CachedPatch {
 }
 
 export class GroundRenderer {
-  readonly stats: GroundStats = { patchesDrawn: 0, patchesBuilding: 0, frameMs: 0, splitFactor: SPLIT_FACTOR, groundM: 0, skyMs: 0 };
+  readonly stats: GroundStats = { patchesDrawn: 0, patchesBuilding: 0, frameMs: 0, splitFactor: SPLIT_FACTOR, groundM: 0, skyMs: 0, skyFrames: 0 };
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
@@ -128,8 +144,14 @@ export class GroundRenderer {
   private skyRayleigh: THREE.DataTexture;
   private skyMie: THREE.DataTexture;
   private skyLight: THREE.DataTexture;
-  /** The camera's radius and the star's height cosine the sky table was built for. */
+  /** The camera's radius and the star's height cosine the sky table shown was built for. */
   private skyBuiltFor: { r: number; sunMu: number } | null = null;
+  /** A sky table being built, its next row, and the time and frames spent so far. */
+  private skyBuilding: { table: SkyTable; row: number; ms: number; frames: number } | null = null;
+  private clouds: THREE.Mesh | null = null;
+  private cloudMaterial: THREE.ShaderMaterial | null = null;
+  private cloudTexture: THREE.DataTexture | null = null;
+  private reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
   private discRadius: number;
   private view: GroundView = { latitudeDeg: 0, longitudeDeg: 0, heightM: 2, yawDeg: 0, pitchDeg: 0 };
   private cameraM: Vec3 = [0, 0, 0];
@@ -206,6 +228,36 @@ export class GroundRenderer {
     this.sky.renderOrder = -1;
     this.scene.add(this.sky);
 
+    if (spec.air.cloudCover > 0) {
+      this.cloudTexture = halfFloatTexture(CLOUD_MAP_WIDTH, CLOUD_MAP_HEIGHT);
+      this.cloudTexture.wrapS = THREE.RepeatWrapping;
+      const margins = cloudMap(spec);
+      const rgba = new Float32Array(margins.length * 4);
+      for (let k = 0; k < margins.length; k++) rgba[k * 4] = margins[k];
+      fillTexture(this.cloudTexture, rgba);
+      // The detail noise's offset, from the seed: integer hashing, so the same in every browser
+      const offset = [1, 2, 3].map((k) => ((mix((spec.seed ^ Math.imul(k, 0x9e3779b9)) | 0) >>> 0) % 1000));
+      this.cloudMaterial = new THREE.ShaderMaterial({
+        vertexShader: skyVertex,
+        fragmentShader: atmosphere + cloudsFragment,
+        transparent: true,
+        depthWrite: false,
+        uniforms: {
+          ...this.atmosphere,
+          screenToWorld: this.skyMaterial.uniforms.screenToWorld,
+          cloudMap: { value: this.cloudTexture },
+          cloudRadius: { value: this.air.radiusM + cloudHeightM(this.air) },
+          cloudTurn: { value: 0 },
+          cloudOffset: { value: new THREE.Vector3(...offset) },
+          cameraForward: { value: new THREE.Vector3() },
+        },
+      });
+      this.clouds = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.cloudMaterial);
+      this.clouds.frustumCulled = false;
+      this.clouds.renderOrder = 10;
+      this.scene.add(this.clouds);
+    }
+
     // Front faces only: the skirts face outwards from their patch, which is the side a crack shows them from;
     // drawn double-sided, their back faces took flipped normals and showed as dark dotted lines
     this.groundMaterial = new THREE.ShaderMaterial({
@@ -263,6 +315,9 @@ export class GroundRenderer {
     this.waterMaterial.dispose();
     this.skyMaterial.dispose();
     this.sky.geometry.dispose();
+    this.clouds?.geometry.dispose();
+    this.cloudMaterial?.dispose();
+    this.cloudTexture?.dispose();
     for (const texture of [this.skyRayleigh, this.skyMie, this.skyLight]) texture.dispose();
     this.renderer.dispose();
   }
@@ -345,22 +400,42 @@ export class GroundRenderer {
     (this.skyMaterial.uniforms.screenToWorld.value as THREE.Matrix4).multiplyMatrices(this.camera.matrixWorld, this.camera.projectionMatrixInverse);
     (this.atmosphere.cameraBody.value as THREE.Vector3).set(...this.cameraM);
     (this.atmosphere.cameraUp.value as THREE.Vector3).copy(upV);
+    if (this.cloudMaterial) this.camera.getWorldDirection(this.cloudMaterial.uniforms.cameraForward.value as THREE.Vector3);
   }
 
-  /** Rebuilds the sky table when the camera's height or the star's height over it has changed enough. */
+  /**
+   * Keeps the sky table up to date: a new one is started when the camera's
+   * height or the star's height over it has changed enough since the one shown,
+   * and built a few rows a frame; the first is built whole.
+   */
   private updateSky(): void {
     const r = Math.hypot(...this.cameraM);
     const sunMu = (this.atmosphere.sunDirection.value as THREE.Vector3).dot(this.atmosphere.cameraUp.value as THREE.Vector3);
     const built = this.skyBuiltFor;
-    const heightM = r - this.air.radiusM;
-    if (built && Math.abs(r - built.r) <= Math.max(1, SKY_HEIGHT_SHARE * Math.abs(heightM)) && Math.abs(sunMu - built.sunMu) <= SKY_SUN_COSINE) return;
+    const stale = !built || Math.abs(r - built.r) > Math.max(1, SKY_HEIGHT_SHARE * Math.abs(r - this.air.radiusM))
+      || Math.abs(sunMu - built.sunMu) > SKY_SUN_COSINE;
+    if (!this.skyBuilding && !stale) return;
+    if (!this.skyBuilding) this.skyBuilding = { table: emptySkyTable(this.air, r, sunMu), row: 0, ms: 0, frames: 0 };
+
+    const building = this.skyBuilding;
     const start = performance.now();
-    const table = skyTable(this.air, r, sunMu);
+    const budget = built ? SKY_BUDGET_MS : Infinity;
+    while (building.row < SKY_ROWS && performance.now() - start < budget) {
+      fillSkyRows(this.air, building.table, building.row, building.row + 1);
+      building.row++;
+    }
+    building.ms += performance.now() - start;
+    building.frames++;
+    if (building.row < SKY_ROWS) return;
+
+    const { table } = building;
     fillTexture(this.skyRayleigh, table.rayleigh);
     fillTexture(this.skyMie, table.mie);
     this.atmosphere.skyHorizon.value = table.horizon;
-    this.skyBuiltFor = { r, sunMu };
-    this.stats.skyMs = performance.now() - start;
+    this.skyBuiltFor = { r: table.r, sunMu: table.sunMu };
+    this.stats.skyMs = building.ms;
+    this.stats.skyFrames = building.frames;
+    this.skyBuilding = null;
   }
 
   private loop = (time: number): void => {
@@ -404,7 +479,9 @@ export class GroundRenderer {
     }
     this.evict();
 
-    this.waterMaterial.uniforms.time.value = (performance.now() - this.start) / 1000;
+    const seconds = (performance.now() - this.start) / 1000;
+    this.waterMaterial.uniforms.time.value = seconds;
+    if (this.cloudMaterial && !this.reducedMotion) this.cloudMaterial.uniforms.cloudTurn.value = (seconds / CLOUD_SECONDS_PER_TURN) * 2 * Math.PI;
     this.stats.patchesDrawn = selection.draw.length;
     this.stats.patchesBuilding = this.workers.busy;
     this.renderer.render(this.scene, this.camera);

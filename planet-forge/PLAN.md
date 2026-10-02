@@ -2,7 +2,7 @@
 
 *Forge a planet from its description, then stand on it*
 
-Planning document · 3 Oct 2026 · PF0–PF3 built; PF3's frame time open; PF4a built; PF4b next
+Planning document · 3 Oct 2026 · PF0–PF3 built; PF3's frame time open; PF4 built; PF4's frame time and look open
 
 Planet Forge takes a description of one planet (its star, body, air and surface) and builds ground you can land on and look around. It is a separate app from Aion Forge, in the same repository. Aion Forge sends it the planets its simulation produces; Planet Forge also runs on its own, from presets or from inputs you type in.
 
@@ -149,7 +149,7 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
   - **Found on screen:** skirts drawn double-sided showed as dark dotted lines along patch edges (back faces take flipped normals); the ground is drawn front faces only. The ground looked very flat: PF2's starting detail gave median slopes of 0.1° over 1 km. A single rougher exponent (0.5) was measured and rejected: 14% of the ground became steeper than 35° over a metre, rock that would vanish where the ground is built coarser. Applied instead (owner decision): a split spectrum, rough above 1 km and smoother below (`detail.ts`), about 0.9° median over 1 km and 4° over 1 m. Mountain ranges (ridges on high ground) come after PF4, once haze shows depth.
 
 ### PF4 Sky and light
-**L** · was D4 · **PF4a built**
+**L** · was D4 · **built**
 
 - **Objective:** A sky that follows from the star and the air.
 - **Deliverables:**
@@ -166,7 +166,16 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
   - **Drawing** (`shaders/atmosphere.glsl`, shared): the sky behind everything from the table; the star's disc at 2·atan(R★ / a), at least 3 pixels across with the same total light, dimmed by the air in front of it, hidden by the sea-level sphere; per vertex the starlight that gets through to the ground, the sky's light by the local star height, and the haze between the camera and the vertex (its share of the sky's light along that direction, by how much the stretch dims against the whole ray); water reflects the sky table.
   - **Brightness** (owner decision): the star's light is 3 × colour × flux (L★ / a²); the exposure is 3 × flux^−0.75, so lit ground looks as bright as flux^0.25 (as Aion Forge's globe lights it) and the sky and star keep their proportions. Light where neither star nor sky reaches: 0.01, until the night sky.
   - **Checked on screen:** a blue-grey day sky with a pale horizon and hills fading into it; sunset light on backlit hills; from 300 km a blue limb; the airless lava world a black sky with a sharp 19° disc.
-  - **Open, for review:** the sky is paler than photographs (blue to red about 1.7 overhead: the channels' wavelengths, shared with A6, cap single scattering near 3, and the grey share lowers it); twilight is dark soon after sunset (single scattering only); the disc saturates to white in tone mapping, low or high; the sky's light on the ground is the sea-level sky's, whatever the ground's height. **Frame time:** in the software renderer used for screenshots, per-vertex haze roughly doubles each patch's cost (about 280 patches at the split factor PF3 drew 540 with, for the same frame time); to measure on the reference machine.
+  - **Open, for review (PF4a):** the sky is paler than photographs (blue to red about 1.7 overhead: the channels' wavelengths, shared with A6, cap single scattering near 3, and the grey share lowers it); twilight is dark soon after sunset (single scattering only); the disc saturates to white in tone mapping, low or high; the sky's light on the ground is the sea-level sky's, whatever the ground's height. **Frame time:** in the software renderer used for screenshots, per-vertex haze roughly doubles each patch's cost (about 280 patches at the split factor PF3 drew 540 with, for the same frame time); to measure on the reference machine.
+
+- **PF4b as built** (owner decisions, 3 Oct 2026; details in each file's header):
+  - **Time of day** (`src/sky/dayClock.ts`): the solar day from the sidereal day and the year, 1 / (1/day − 1/year), or 1/day + 1/year for a world spinning against its orbit (tilt over 90°: Venus's 117 days); the point under the star keeps its latitude (the season fixed while you watch) and moves west once a solar day; a locked world's star stands still, its height 90° less the site's distance from the substellar point. The start is the spec's subsolar point, or latitude 0, longitude 0 for presets. A solar day takes 60 s on screen, as Aion Forge turns a planet once a minute.
+  - **The viewer:** a local-time slider (a 24-hour clock of the local solar day) and *Run the day* replace the sun-height slider; the readout gives the star's height and the day's length; on a locked world the slider is off and says the star stands still.
+  - **The sky table while the star moves:** built a few rows a frame (4 ms), the last whole table shown meanwhile: about 20–40 ms over 5–8 frames in the browser.
+  - **Clouds** (`src/sky/clouds.ts`, `shaders/clouds.frag.glsl`): a latitude–longitude map (512 × 256) of seeded gradient noise from systems half the planet's radius across down to about 200 km, cut at the level that clouds over exactly the spec's share of the area (tested to 0.1%); finer value noise (64 km down to 2 km) roughens edges and thickness on screen. One thin layer a quarter of the air's scale height up (about 2 km on the Earth-like world), drawn over the whole screen after the ground with its depth written, so mountains above it hide it. Lit by the starlight that gets through and the sky's light, darker from the far side of thick cloud; hazed to the camera. Drifting once round the pole in 900 s, as Aion Forge's, except under reduced motion. No shadows on the ground.
+  - **Found on screen:** from orbit height, a sharp-edged clear "continent" in the clouds was a snowy plateau standing above the 2 km layer (3% of the Earth-like world's land is higher), not a fault: drawing clouded points red and clear points green showed the ground in front of the layer there.
+  - **Frame time** (software renderer, relative only): PF3 and PF4a both drew about 2.3 frames a second at the Earth-like test site; with clouds overhead 1.3, then 1.7 after dropping pixels the noise cannot cloud and giving clouds a cheaper haze. **The viewer's frame-time figure ignores intervals over 100 ms** (meant for a hidden tab), so on a slow machine it shows about 30–50 ms while frames take far longer; the frame rate must be measured another way (recommended separately: count frames over a second instead).
+  - **Open, for review:** from below, overcast reads as smooth grey (fine detail stops at 2 km); one layer at one height, so no towering or high cloud; clouds from the ground only within about 160 km (the layer's horizon), so a sky is either overcast or clear more often than broken.
 
 ### PF5 Arrival and the observer
 **M** · was D2 (landing half), D10, and a short form of D9

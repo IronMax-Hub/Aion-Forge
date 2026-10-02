@@ -195,26 +195,41 @@ export interface SkyTable {
   /** RGBA per entry, SKY_COLUMNS × SKY_ROWS, row by row: Rayleigh light and Mie light, before phase. */
   rayleigh: Float32Array;
   mie: Float32Array;
+  /** The camera's radius and the star's zenith cosine the table is for. */
+  r: number;
+  sunMu: number;
   /** The zenith angle of the horizon the rows are packed around. */
   horizon: number;
 }
 
-/** The sky table for a camera at radius r, with the star at zenith cosine sunMu. */
-export function skyTable(air: Air, r: number, sunMu: number): SkyTable {
-  const rayleigh = new Float32Array(SKY_COLUMNS * SKY_ROWS * 4);
-  const mie = new Float32Array(SKY_COLUMNS * SKY_ROWS * 4);
-  const horizon = horizonZenith(air, r);
-  for (let row = 0; row < SKY_ROWS; row++) {
-    const mu = Math.cos(zenithOfRow(row / (SKY_ROWS - 1), horizon));
+/** An empty sky table for a camera at radius r, with the star at zenith cosine sunMu, to fill with fillSkyRows. */
+export function emptySkyTable(air: Air, r: number, sunMu: number): SkyTable {
+  return {
+    rayleigh: new Float32Array(SKY_COLUMNS * SKY_ROWS * 4),
+    mie: new Float32Array(SKY_COLUMNS * SKY_ROWS * 4),
+    r, sunMu, horizon: horizonZenith(air, r),
+  };
+}
+
+/** Fills rows from `from` up to (not including) `to`; the table can be filled a few rows at a time. */
+export function fillSkyRows(air: Air, table: SkyTable, from: number, to: number): void {
+  for (let row = from; row < Math.min(to, SKY_ROWS); row++) {
+    const mu = Math.cos(zenithOfRow(row / (SKY_ROWS - 1), table.horizon));
     for (let column = 0; column < SKY_COLUMNS; column++) {
       const phi = (column / (SKY_COLUMNS - 1)) * Math.PI;
-      const s = scatterAlong(air, r, mu, phi, sunMu);
+      const s = scatterAlong(air, table.r, mu, phi, table.sunMu);
       const at = (row * SKY_COLUMNS + column) * 4;
-      rayleigh.set([...s.rayleigh, 1], at);
-      mie.set([...s.mie, 1], at);
+      table.rayleigh.set([...s.rayleigh, 1], at);
+      table.mie.set([...s.mie, 1], at);
     }
   }
-  return { rayleigh, mie, horizon };
+}
+
+/** The sky table for a camera at radius r, with the star at zenith cosine sunMu. */
+export function skyTable(air: Air, r: number, sunMu: number): SkyTable {
+  const table = emptySkyTable(air, r, sunMu);
+  fillSkyRows(air, table, 0, SKY_ROWS);
+  return table;
 }
 
 /**

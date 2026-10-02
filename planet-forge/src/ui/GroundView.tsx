@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { PlanetSpec } from "../spec/schema";
 import { GroundRenderer } from "../ground/GroundRenderer";
-import { directionOf } from "../terrain/landing";
+import {
+  daysUntilLocalTime, localTime, SECONDS_PER_DAY, solarDayHours, starElevationDeg, starMoves, subsolarAt, sunDirectionAt,
+} from "../sky/dayClock";
 import type { GroundStats } from "../ground/GroundRenderer";
 import { figure } from "./format";
 
@@ -22,21 +24,20 @@ function heightText(m: number): string {
   return m >= 1000 ? `${figure(m / 1000, 3)} km` : `${figure(m, 3)} m`;
 }
 
-/** A direction in the body frame with the sun `elevationDeg` above the site's horizon, towards the south-east. */
-function sunOver(site: { latitudeDeg: number; longitudeDeg: number }, elevationDeg: number): [number, number, number] {
-  const up = directionOf(site.latitudeDeg, site.longitudeDeg);
-  const lon = site.longitudeDeg * (Math.PI / 180);
-  const east = [-Math.sin(lon), 0, -Math.cos(lon)];
-  const north = [up[1] * east[2] - up[2] * east[1], up[2] * east[0] - up[0] * east[2], up[0] * east[1] - up[1] * east[0]];
-  const e = elevationDeg * (Math.PI / 180);
-  const flat = [0, 1, 2].map((k) => (east[k] - north[k]) / Math.SQRT2);
-  return [0, 1, 2].map((k) => Math.cos(e) * flat[k] + Math.sin(e) * up[k]) as [number, number, number];
+/** A share of the day as a 24-hour clock: hh:mm. */
+function clockText(time: number): string {
+  const minutes = Math.floor(time * 24 * 60) % (24 * 60);
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
+function dayText(hours: number): string {
+  return hours >= 48 ? `${figure(hours / 24, 3)} Earth days` : `${figure(hours, 3)} h`;
 }
 
 /**
- * A temporary viewer for checking the ground (PF3): stand above a site, raise
- * or lower the camera, drag to look. PF5 replaces it with the real arrival
- * and the observer camera.
+ * A temporary viewer for checking the ground (PF3) and sky (PF4): stand above
+ * a site, raise or lower the camera, drag to look, and run the day or set the
+ * local time. PF5 replaces it with the real arrival and the observer camera.
  */
 export function GroundView({ spec, site, onClose }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -44,8 +45,10 @@ export function GroundView({ spec, site, onClose }: Props) {
   const [logHeight, setLogHeight] = useState(Math.log10(200));
   const [look, setLook] = useState({ yawDeg: 0, pitchDeg: -10 });
   const [stats, setStats] = useState<GroundStats | null>(null);
-  // The sun's height over the site, from the south-east (a check aid until PF4b brings the time of day)
-  const [sunDeg, setSunDeg] = useState(35);
+  // Solar days since arrival, and whether the day is running (a new planet opens a new viewer: arrival time, paused)
+  const [days, setDays] = useState(0);
+  const [running, setRunning] = useState(false);
+  const moves = starMoves(spec);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const heightM = 10 ** logHeight;
 
@@ -70,8 +73,25 @@ export function GroundView({ spec, site, onClose }: Props) {
   }, [site, heightM, look]);
 
   useEffect(() => {
-    rendererRef.current?.setSunDirection(sunOver(site, sunDeg));
-  }, [site, sunDeg]);
+    rendererRef.current?.setSunDirection(sunDirectionAt(spec, days));
+  }, [spec, days]);
+
+  // The day runs at one solar day per SECONDS_PER_DAY
+  useEffect(() => {
+    if (!running) return;
+    let frame = 0, last = performance.now();
+    const tick = (now: number) => {
+      setDays((d) => d + (now - last) / 1000 / SECONDS_PER_DAY);
+      last = now;
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [running]);
+
+  const subsolar = subsolarAt(spec, days);
+  const time = localTime(subsolar, site.longitudeDeg);
+  const elevation = starElevationDeg(site, subsolar);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -110,20 +130,25 @@ export function GroundView({ spec, site, onClose }: Props) {
           </span>
         </label>
         <label className="field">
-          <span className="field-label">Sun height</span>
+          <span className="field-label">Local time</span>
           <span className="field-input">
-            <input type="range" min={-10} max={90} step={1} value={sunDeg} onChange={(e) => setSunDeg(Number(e.target.value))} />
-            <span className="field-unit ground-height">{sunDeg}°</span>
+            <input type="range" min={0} max={1} step={1 / (24 * 12)} value={time} disabled={!moves} aria-valuetext={clockText(time)}
+              onChange={(e) => setDays(Math.floor(days) + daysUntilLocalTime(spec, site.longitudeDeg, Number(e.target.value)))} />
+            <span className="field-unit ground-height">{clockText(time)}</span>
           </span>
         </label>
+        {moves
+          ? <button className="secondary" onClick={() => setRunning((r) => !r)}>{running ? "Pause the day" : `Run the day (${SECONDS_PER_DAY} s a day)`}</button>
+          : <p className="muted small">Locked to its star: the star stands still.</p>}
         <dl className="ground-readout">
           <dt>Site</dt><dd>{figure(site.latitudeDeg, 4)}°, {figure(site.longitudeDeg, 4)}°</dd>
+          <dt>Star</dt><dd>{figure(Math.round(elevation * 10) / 10 || 0, 3)}° up · day {moves ? dayText(solarDayHours(spec)) : "endless"}</dd>
           <dt>Looking</dt><dd>{Math.round(look.yawDeg)}° from north, {Math.round(look.pitchDeg)}° up</dd>
           {stats && <>
             <dt>Ground</dt><dd>{heightText(stats.groundM)} {stats.groundM < 0 ? "(under the sea)" : "above sea level"}</dd>
             <dt>Patches</dt><dd>{stats.patchesDrawn} drawn, {stats.patchesBuilding} building</dd>
             <dt>Frame</dt><dd>{figure(stats.frameMs, 3)} ms · split ×{figure(stats.splitFactor, 3)}</dd>
-            <dt>Sky table</dt><dd>{figure(stats.skyMs, 2)} ms to build</dd>
+            <dt>Sky table</dt><dd>{figure(stats.skyMs, 2)} ms over {stats.skyFrames} frame{stats.skyFrames === 1 ? "" : "s"}</dd>
           </>}
         </dl>
         <button className="secondary" onClick={onClose}>Back</button>

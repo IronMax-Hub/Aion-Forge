@@ -5,8 +5,8 @@ import { PRESETS } from "../forge/presets";
 import { presetSpec } from "../spec/presetFiles";
 import type { PlanetSpec } from "../spec/schema";
 import example from "../../../contracts/planet-spec/examples/minimal.json";
-import { createCellField } from "./cellField";
-import { createDetail, sumLayers } from "./detail";
+import { bucketOf, createCellField } from "./cellField";
+import { createDetail, layerAmplitudeM, sumLayers } from "./detail";
 import { directionOf } from "./landing";
 import { createMaterials } from "./materials";
 import type { GroundSample, Surface } from "./terrain";
@@ -93,17 +93,26 @@ describe("the terrain", () => {
     }
   });
 
-  it("changes height smoothly, across buckets and cube faces", () => {
+  it("changes height smoothly across every bucket and cube-face edge it crosses", () => {
     const terrain = createTerrain(presetSpec("earth-like"));
-    // A path along the equator crosses four cube faces and many buckets
-    let last = terrain.heightM([1, 0, 0], 1000);
-    for (let i = 1; i <= 4000; i++) {
-      const a = (i / 4000) * 2 * Math.PI;
-      const h = terrain.heightM([Math.cos(a), 0, -Math.sin(a)], 1000);
-      // 10 km steps; no seam would show as a jump far beyond the terrain's slopes
-      expect(Math.abs(h - last)).toBeLessThan(400);
-      last = h;
+    const R = terrain.radiusM;
+    const along = (a: number): Vec3 => [Math.cos(a), 0, -Math.sin(a)];
+    // Walk the equator (four cube faces, many buckets); where the bucket changes, close in on the edge
+    let crossings = 0;
+    const step = 0.002;
+    for (let a = 0; a < 2 * Math.PI; a += step) {
+      if (bucketOf(along(a)) === bucketOf(along(a + step))) continue;
+      let lo = a, hi = a + step;
+      while ((hi - lo) * R > 0.01) {
+        const mid = (lo + hi) / 2;
+        if (bucketOf(along(mid)) === bucketOf(along(lo))) lo = mid; else hi = mid;
+      }
+      // Half a metre either side of the edge: a continuous field changes by about its slope, a seam by its jump
+      const before = terrain.heightM(along(lo - 0.5 / R), 1000), after = terrain.heightM(along(hi + 0.5 / R), 1000);
+      expect(Math.abs(after - before)).toBeLessThan(1);
+      crossings++;
     }
+    expect(crossings).toBeGreaterThan(40);
   });
 
   it("changes heights, when fine layers are left out, by no more than those layers can", () => {
@@ -113,7 +122,7 @@ describe("the terrain", () => {
     const coarse = detail.layersFor(1000);
     // The left-out layers' amplitudes, twice over (the point's and the anchor's), at the strongest region
     const firstLeftOut = Math.floor(coarse);
-    const amplitudes = Array.from({ length: 24 }, (_, k) => 1000 * Math.pow(detail.firstWavelengthM / 1e6, 0.8) * Math.pow(2, -0.8 * k));
+    const amplitudes = Array.from({ length: 24 }, (_, k) => layerAmplitudeM(detail.firstWavelengthM / 2 ** k, spec.body.gravityG));
     const bound = 2 * 1.6 * 1.2 * amplitudes.slice(firstLeftOut).reduce((a, b) => a + b, 0);
     for (const p of POINTS.slice(0, 500)) {
       expect(Math.abs(terrain.heightM(p, 1) - terrain.heightM(p, 1000))).toBeLessThan(bound);
@@ -251,6 +260,14 @@ describe("the materials", () => {
 });
 
 describe("the detail's layers", () => {
+  it("follow the split spectrum: rough above 1 km, smoother below, weaker with gravity", () => {
+    const at = (w: number) => layerAmplitudeM(w, 1);
+    expect(at(1e6)).toBeCloseTo(2000, 6);
+    expect(at(2e3) / at(1e3)).toBeCloseTo(Math.pow(2, 0.5), 6);
+    expect(at(1e3) / at(5e2)).toBeCloseTo(Math.pow(2, 0.9), 6);
+    expect(layerAmplitudeM(1e4, 0.5)).toBeCloseTo(2 * at(1e4), 6);
+  });
+
   it("fade the last layer in by its fraction", () => {
     expect(sumLayers([1, 2, 4], 2)).toBe(3);
     expect(sumLayers([1, 2, 4], 2.5)).toBe(5);

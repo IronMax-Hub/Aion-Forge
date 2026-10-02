@@ -3,10 +3,17 @@
 //
 // How:
 // - Layers of gradient noise (fBm), the first at the cells' spacing (about
-//   900 km on an Earth-sized world), each half the wavelength of the last and
-//   2^−ROUGHNESS as strong, a common roughness for real terrain. The first
-//   layer's amplitude is AMPLITUDE_M at REFERENCE_WAVELENGTH_M, scaled to the
-//   first wavelength and divided by gravity: lower gravity, rougher ground.
+//   900 km on an Earth-sized world), each half the wavelength of the last.
+// - Strength by wavelength, a split spectrum (owner decision, 3 Oct 2026):
+//   AMPLITUDE_M at REFERENCE_WAVELENGTH_M, falling as wavelength^ROUGH_ABOVE
+//   down to CROSSOVER_M, then as wavelength^SMOOTH_BELOW. Rough above the
+//   crossover, so hills show from altitude; smoother below, so the ground
+//   underfoot stays walkable. One roughness for all scales could not do both:
+//   0.8 left the land flat from 3 km up (0.1° median slope over 1 km); 0.5
+//   made 14% of the ground steeper than 35° over a metre, rock that would
+//   vanish where the ground is built coarser. As built, the Earth-like
+//   preset's land has median slopes of about 0.9° over 1 km and 4° over 1 m.
+//   Divided by gravity: lower gravity, rougher ground.
 // - Regions: a slow seeded field scales the detail between 1 − REGION_SPREAD
 //   and 1 + REGION_SPREAD, so some regions are plains and others rugged.
 // - Levels of detail: the caller names the finest wavelength it needs; layers
@@ -14,7 +21,7 @@
 //   it the wavelength reaches, so heights never jump between levels.
 // - Each layer has its own seed and offset from the spec's seed.
 //
-// Starting values (owner decision, 3 Oct 2026), to tune once the ground is drawn.
+// Mountain ranges (ridges on high ground) are not modelled yet.
 
 import type { PlanetSpec } from "../spec/schema";
 import type { Vec3 } from "../forge/icosphere";
@@ -23,10 +30,12 @@ import { log, pow } from "../forge/detmath";
 import { gradientNoise } from "./gradientNoise";
 
 /** Detail amplitude at the reference wavelength, at 1 g, m. */
-const AMPLITUDE_M = 1000;
+const AMPLITUDE_M = 2000;
 const REFERENCE_WAVELENGTH_M = 1_000_000;
-/** Each layer is 2^−ROUGHNESS as strong as the one twice its wavelength. */
-const ROUGHNESS = 0.8;
+/** Above the crossover, amplitude falls as wavelength^ROUGH_ABOVE; below it, as wavelength^SMOOTH_BELOW. */
+const ROUGH_ABOVE = 0.5;
+const SMOOTH_BELOW = 0.9;
+const CROSSOVER_M = 1000;
 /** Most layers ever summed: from ~900 km to well below a metre. */
 export const MAX_LAYERS = 24;
 /** Regions are this many cell spacings across. */
@@ -58,11 +67,16 @@ export function sumLayers(values: readonly number[], count: number): number {
   return sum;
 }
 
+/** A layer's amplitude at a wavelength, on a planet of this gravity, m: the split spectrum. */
+export function layerAmplitudeM(wavelengthM: number, gravityG: number): number {
+  const above = (w: number) => AMPLITUDE_M * pow(w / REFERENCE_WAVELENGTH_M, ROUGH_ABOVE);
+  const amplitude = wavelengthM >= CROSSOVER_M ? above(wavelengthM) : above(CROSSOVER_M) * pow(wavelengthM / CROSSOVER_M, SMOOTH_BELOW);
+  return amplitude / gravityG;
+}
+
 export function createDetail(spec: PlanetSpec, radiusM: number): Detail {
   const spacing = Math.sqrt((4 * Math.PI) / spec.surface.cells.length);
   const firstWavelengthM = spacing * radiusM;
-  const firstAmplitude = (AMPLITUDE_M * pow(firstWavelengthM / REFERENCE_WAVELENGTH_M, ROUGHNESS)) / spec.body.gravityG;
-  const ratio = pow(2, -ROUGHNESS);
 
   const rng = createRNG(spec.seed);
   // Seeds as the noise takes them (seedHash)
@@ -71,7 +85,7 @@ export function createDetail(spec: PlanetSpec, radiusM: number): Detail {
     seed: draw(),
     offset: [rng() * 256, rng() * 256, rng() * 256] as Vec3,
     wavelength: firstWavelengthM / pow(2, k),
-    amplitude: firstAmplitude * pow(ratio, k),
+    amplitude: layerAmplitudeM(firstWavelengthM / pow(2, k), spec.body.gravityG),
   }));
   const region = { seed: draw(), offset: [rng() * 256, rng() * 256, rng() * 256] as Vec3, wavelength: firstWavelengthM * REGION_SPACINGS };
 

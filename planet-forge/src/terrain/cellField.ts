@@ -71,8 +71,8 @@ function chord(a: Vec3, b: Vec3): number {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-/** The cube face (0–5) and bucket a direction falls in. */
-function bucketOf([x, y, z]: Vec3): number {
+/** The cube face (0–5) and bucket a direction falls in, as one index. */
+export function bucketOf([x, y, z]: Vec3): number {
   const ax = Math.abs(x), ay = Math.abs(y), az = Math.abs(z);
   let face: number, u: number, v: number;
   if (ax >= ay && ax >= az) { face = x > 0 ? 0 : 1; u = y / ax; v = z / ax; }

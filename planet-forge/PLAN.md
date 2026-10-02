@@ -2,7 +2,7 @@
 
 *Forge a planet from its description, then stand on it*
 
-Planning document · 3 Oct 2026 · PF0–PF3 built; PF3's frame time and the terrain's tuning open; PF4 next
+Planning document · 3 Oct 2026 · PF0–PF3 built; PF3's frame time open; PF4 next
 
 Planet Forge takes a description of one planet (its star, body, air and surface) and builds ground you can land on and look around. It is a separate app from Aion Forge, in the same repository. Aion Forge sends it the planets its simulation produces; Planet Forge also runs on its own, from presets or from inputs you type in.
 
@@ -121,7 +121,7 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
 - **Verification:** the same spec gives the same heights; the landing site always matches its observation; the coast stays within half a cell of where the cells put it; land and water away from the site are as the cells say at every cell centre.
 - **As built** (owner decisions, 3 Oct 2026; rules and constants in each file's header):
   - **Large scale** (`cellField.ts`): Aion Forge's Franke–Little blend and radius (0.2 rad for 642 cells, scaled by √(642/N)), with chord distances; cells filed in 16 × 16 buckets per cube face.
-  - **Fine scale** (`detail.ts`, `gradientNoise.ts`): up to 24 layers of gradient noise from the cells' spacing down to 1 m; 1 km at a 1,000 km wavelength at 1 g, divided by gravity; each layer 2^−0.8 as strong as the last; regions 0.4–1.6× as rugged; the last layer fades in, so levels of detail never jump.
+  - **Fine scale** (`detail.ts`, `gradientNoise.ts`): up to 24 layers of gradient noise from the cells' spacing down to 1 m; regions 0.4–1.6× as rugged; the last layer fades in, so levels of detail never jump. Strength (retuned in PF3): 2 km at a 1,000 km wavelength at 1 g, divided by gravity, falling as wavelength^0.5 down to 1 km and wavelength^0.9 below.
   - **Anchoring** (`terrain.ts`): the detail is 0 at every cell centre, so every centre keeps the spec's height and kind, at every level of detail (tested on every preset). Between centres coasts wander with the detail, as on Aion Forge's globe; they always cross between two centres of different kinds, but the detail can also raise islands or sink lakes between centres of one kind, so "within half a cell" is not guaranteed.
   - **Kind:** dry seabed, sea ice or open water below sea level, land ice or land above it, from the cells' ice and dry flags with ragged edges (moved by under ½, so no centre changes kind). Temperature follows local height by the lapse rate where there is air.
   - **Landing pin** (`landing.ts`): full within 1 km, gone by 10 km; one height offset per level of detail, so the site stands at the observed height (at least 5 m on its kind's side of sea level) at every level; the ice flag pulled to what was seen. Tested on three presets with observations that contradict the cells.
@@ -146,7 +146,7 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
   - **Drawing** (`GroundRenderer.ts`, `shaders/water.*.glsl`): camera-relative placement, a logarithmic depth buffer, Lambert ground with molten glow, water with depth colour, Fresnel against a placeholder sky colour, the star's glint and ripples; a black sky until PF4.
   - **Frame time:** the split factor falls to 0.75 when frames run over 20 ms and recovers under 14 ms. Not yet measured reliably: in the app's browser pane an empty frame already takes 40–50 ms on this machine, so the 16 ms target is checked by the owner in a normal browser tab.
   - **The temporary viewer** (`src/ui/GroundView.tsx`): a site picked on the flat map, a height from 2 m to 2,000 km, drag to look, and a sun-height control (the star otherwise sits over the spec's subsolar point or longitude 0, leaving most sites in night until PF4 brings the time of day). PF5 replaces it.
-  - **Found on screen:** skirts drawn double-sided showed as dark dotted lines along patch edges (back faces take flipped normals); the ground is drawn front faces only. The ground looks very flat: PF2's starting detail gives about 25 m of relief at a 10 km wavelength. Tuning it is open (owner decision).
+  - **Found on screen:** skirts drawn double-sided showed as dark dotted lines along patch edges (back faces take flipped normals); the ground is drawn front faces only. The ground looked very flat: PF2's starting detail gave median slopes of 0.1° over 1 km. A single rougher exponent (0.5) was measured and rejected: 14% of the ground became steeper than 35° over a metre, rock that would vanish where the ground is built coarser. Applied instead (owner decision): a split spectrum, rough above 1 km and smoother below (`detail.ts`), about 0.9° median over 1 km and 4° over 1 m. Mountain ranges (ridges on high ground) come after PF4, once haze shows depth.
 
 ### PF4 Sky and light
 **L** · was D4

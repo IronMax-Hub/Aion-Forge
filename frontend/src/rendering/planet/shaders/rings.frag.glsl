@@ -1,6 +1,8 @@
 // Rings (Worlds Up Close A7): a giant's rings, lit by its star, with the
 // planet's shadow across them. The mesh lies in the planet's equatorial plane;
-// vLocal is a point on it in the mesh's own frame (x–y plane).
+// vLocal is a point on it in the mesh's own frame (x–y plane), in planet radii.
+// The planet view draws the planet at the origin with radius 1; the system view
+// places and scales it, and says where through planetCentre and planetRadius.
 
 uniform float innerRadius;
 uniform float outerRadius;
@@ -11,6 +13,8 @@ uniform vec3 toStar;
 uniform vec3 starColor;
 uniform float starIntensity;
 uniform float opacity;
+uniform vec3 planetCentre;      // world; the origin in the planet view
+uniform float planetRadius;     // world units; 1 in the planet view
 
 varying vec3 vLocal;
 varying vec3 vWorldPosition;
@@ -33,7 +37,7 @@ void main() {
 
   // Lit through as well as on the star's side, dimmer edge-on; dark in the planet's shadow
   float lit = 0.25 + 0.75 * abs(dot(ringNormal, toStar));
-  vec3 w = vWorldPosition;
+  vec3 w = (vWorldPosition - planetCentre) / planetRadius;
   float behind = dot(w, toStar);
   float fromAxis = length(w - behind * toStar);
   float shadow = behind < 0.0 ? smoothstep(0.97, 1.03, fromAxis) : 1.0;

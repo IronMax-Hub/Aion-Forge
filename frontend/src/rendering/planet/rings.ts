@@ -48,6 +48,8 @@ export function ringMesh(look: RingLook, temperatureK: number, globeOrientation:
         starColor: { value: light.starColor },
         starIntensity: { value: light.starIntensity },
         opacity: { value: light.opacity },
+        planetCentre: { value: new THREE.Vector3() },
+        planetRadius: { value: 1 },
       },
     }),
   );

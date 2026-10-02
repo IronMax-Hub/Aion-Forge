@@ -10,9 +10,10 @@ import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
 import type { Civilization } from "../simulation/civilization";
 import { SkyBackground } from "./background";
-import { disposeSystemGroup, hostStarObject, orbitLine, systemLights } from "./systemView";
+import { disposeSystemGroup, hostStarObject, orbitLine, systemLights, SYSTEM_STARLIGHT_INTENSITY } from "./systemView";
 import { PlanetView, ORBIT_DISTANCE } from "./planet/PlanetView";
-import { GlobeTextureCache, drawsSurface } from "./planet/globe";
+import { GlobeTextureCache, drawsSurface, giantLookOf } from "./planet/globe";
+import { ringMesh } from "./planet/rings";
 import type { GlobeSurface } from "./planet/globe";
 import type { GlobeBake } from "./planet/globeBake";
 import { civilizationLightsOf, vegetationOf } from "./planet/life";
@@ -154,12 +155,14 @@ function realisticDustColors(particles: GalaxyParticles): Float32Array {
 /** Planetary-system view draws orbits at this many scene units per AU. */
 export const SYSTEM_UNITS_PER_AU = 2.5;
 
-/** What the system view is given besides the system: callbacks and what it labels each planet with. */
+/** What the system view is given besides the system: callbacks and what it labels and draws each planet with. */
 export interface SystemSight {
   /** Called when a planet is double-clicked, to approach it. */
   onPlanetApproach?: ((planet: Planet) => void) | null;
   /** Hover label text per planet id; a planet without one shows no label. */
   planetLabels?: Map<number, string>;
+  /** Each planet's physics by planet id (derivePhysics): giants' spin and tilt, for their rings. */
+  physics?: Map<number, PlanetPhysics>;
 }
 
 /** What the planet view is given about a planet besides the planet itself. */
@@ -499,7 +502,7 @@ export class UniverseRenderer {
     onPlanetSelected: (planet: Planet | null) => void,
     sight: SystemSight = {},
   ) {
-    const { onPlanetApproach = null, planetLabels = new Map() } = sight;
+    const { onPlanetApproach = null, planetLabels = new Map(), physics = new Map() } = sight;
     this.closePlanetView();
     this.planetLabels = planetLabels;
     this.hidePlanetLabel();
@@ -548,6 +551,21 @@ export class UniverseRenderer {
       pMesh.position.set(orbitR, 0, 0);
       pMesh.userData = { planetId: planet.id };
       group.add(pMesh);
+
+      // A giant's rings, as the planet view draws them (its VISUAL stream, globe.ts), in its equatorial plane
+      const giantPhysics = planet.surface === null ? physics.get(planet.id) : undefined;
+      const rings = giantPhysics ? giantLookOf(planet, system.galaxySeed, giantPhysics.rotationPeriodHours).rings : null;
+      if (giantPhysics && rings) {
+        const pole = new THREE.Vector3(0, 1, 0).applyAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.degToRad(giantPhysics.axialTiltDeg));
+        const ring = ringMesh(rings, planet.temperature, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), pole), {
+          toStar: new THREE.Vector3(-1, 0, 0), starColor: starCol, starIntensity: SYSTEM_STARLIGHT_INTENSITY, opacity: 1,
+        });
+        ring.position.copy(pMesh.position);
+        ring.scale.setScalar(pSize);
+        ring.material.uniforms.planetCentre.value.set(...hostStar.position).add(pMesh.position);
+        ring.material.uniforms.planetRadius.value = pSize;
+        group.add(ring);
+      }
     }
 
     group.position.set(...hostStar.position);

@@ -484,6 +484,7 @@ export default function App() {
         const name = `${planetName(planet.hostStarId, planet.orbitalIndex)} · ${PLANET_TYPE_LABEL[planet.type]}`;
         return [planet.id, life === "—" ? name : `${name} · ${life} life`];
       })),
+      physics: new Map(system.planets.map((planet) => [planet.id, derivePhysics(planet, selectedStar, currentSeed, universeConfig)])),
     });
   }, [selectedStar, currentSeed, universeConfig, approachPlanet]);
 

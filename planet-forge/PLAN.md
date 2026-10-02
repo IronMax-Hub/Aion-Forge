@@ -2,7 +2,7 @@
 
 *Forge a planet from its description, then stand on it*
 
-Planning document · 3 Oct 2026 · nothing in this plan has been implemented yet
+Planning document · 3 Oct 2026 · PF0 done; PF1 next
 
 Planet Forge takes a description of one planet (its star, body, air and surface) and builds ground you can land on and look around. It is a separate app from Aion Forge, in the same repository. Aion Forge sends it the planets its simulation produces; Planet Forge also runs on its own, from presets or from inputs you type in.
 
@@ -81,7 +81,7 @@ Sizes: S, M, L, XL, as in the Worlds-Up-Close plan. They are relative sizes, not
 Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge comes last (PF6).
 
 ### PF0 Scaffold and spec
-**M**
+**M** · **done**
 
 - **Objective:** An app that reads, checks and writes Planet Specs.
 - **Deliverables:**

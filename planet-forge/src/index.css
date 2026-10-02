@@ -1,0 +1,151 @@
+/* Planet Forge's design tokens: the dark, plain style of Aion Forge's (copied, not shared) */
+
+:root {
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  --col-void:     #07080A;
+  --col-surface:  #111418;
+  --col-card:     #1B1F25;
+  --col-text-1:   #E8EAED;
+  --col-text-2:   #C5CBD3;
+  --col-text-3:   #A7AFB9;
+  --col-accent:   #E0A458;
+  --col-on-accent:#141413;
+  --col-danger:   #E27A68;
+  --col-border:   #262B32;
+
+  --fs-sm: 12px;
+  --fs-base: 13px;
+  --fs-lg: 16px;
+  --fs-xl: 22px;
+
+  --sp-2: 5px;
+  --sp-3: 8px;
+  --sp-4: 12px;
+  --sp-5: 16px;
+  --sp-6: 24px;
+
+  --radius: 4px;
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  min-height: 100vh;
+  background: var(--col-void);
+  color: var(--col-text-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+}
+
+/* The page */
+
+.app {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: var(--sp-6) 16px;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+}
+
+.app-planet {
+  color: var(--col-text-2);
+  font-size: var(--fs-lg);
+}
+
+.muted { color: var(--col-text-3); }
+
+.notice {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: var(--sp-5);
+  margin-bottom: var(--sp-5);
+}
+
+.notice p { margin: 0 0 var(--sp-3); }
+
+.notice.rejected { border-color: var(--col-danger); }
+
+.errors, .warnings {
+  margin: 0;
+  padding-left: var(--sp-5);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.errors { color: var(--col-danger); }
+.warnings { color: var(--col-text-3); }
+
+button.primary {
+  font: inherit;
+  font-weight: 500;
+  color: var(--col-on-accent);
+  background: var(--col-accent);
+  border: none;
+  border-radius: var(--radius);
+  padding: var(--sp-3) var(--sp-5);
+  cursor: pointer;
+}
+
+button.primary:focus-visible { outline: 2px solid var(--col-text-1); outline-offset: 2px; }
+
+/* A spec's figures */
+
+.spec-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.figures {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.figures h2 {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--col-text-3);
+}
+
+.figures dl { margin: 0; }
+
+.figure-row {
+  display: grid;
+  grid-template-columns: 9em minmax(0, 1fr);
+  gap: var(--sp-3);
+  padding: 2px 0;
+}
+
+.figure-row dt { color: var(--col-text-3); }
+
+.figure-row dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--col-text-1);
+  overflow-wrap: anywhere;
+}

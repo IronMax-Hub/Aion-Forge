@@ -2,7 +2,7 @@
 
 *The one thing Aion Forge and Planet Forge share: a complete description of a single planet.*
 
-Version 1 · draft, not yet implemented (Planet Forge phase PF0 builds it) · 3 Oct 2026
+Version 1 · read and checked by Planet Forge since PF0; not yet exported by Aion Forge (PF6) · 3 Oct 2026
 
 ## Why it exists
 
@@ -19,12 +19,13 @@ All three produce the same document, the Planet Spec, so Planet Forge has one wa
 | File | Contents | Status |
 |---|---|---|
 | `README.md` | this description | written |
-| `planet-spec.v1.schema.json` | the spec as a JSON Schema | PF0 |
-| `examples/*.json` | a few complete specs: the presets and one exported from Aion Forge | PF0, PF6 |
+| `planet-spec.v1.schema.json` | the spec as a JSON Schema (draft 2020-12), generated from Planet Forge's checking code: `npm run schema` in `planet-forge/` | written |
+| `examples/minimal.json` | the smallest spec Planet Forge accepts: an airless rock of 12 cells | written |
+| `examples/*.json` | the presets (PF1) and one exported from Aion Forge (PF6) | to come |
 
 These are data, not code. Neither app imports code from the other or from here; each one checks itself against the schema in its own tests:
 
-- Planet Forge: every preset passes the schema; every example parses.
+- Planet Forge: every example and preset passes its checks, and the schema file is what its checking code generates, so the two cannot drift apart.
 - Aion Forge: what `planetSpecOf(…)` exports passes the schema (a development-only check, PF6).
 
 ## Rules
@@ -34,6 +35,19 @@ These are data, not code. Neither app imports code from the other or from here; 
 - **Versioned.** Every spec carries `specVersion`. A change that removes or reinterprets a field raises the version; adding an optional field does not. Planet Forge rejects a version it does not know, with a clear message, rather than guessing.
 - **Physical units, named in the field.** `temperatureK`, `pressureBar`, `heightKm`. No unitless "scores".
 - **Describes, does not prescribe.** A spec says what the planet is. How it looks from the ground (rocks, valleys, waves) is Planet Forge's to work out from that.
+
+## Checking
+
+Planet Forge checks every spec before reading it (`planet-forge/src/spec/`).
+
+- **Sanity limits only.** Numbers must be finite; sizes, masses, distances, temperatures and the rotation period positive; pressure at least 0; shares within 0–1; latitudes within ±90°, longitudes within ±180°, axial tilt within 0–180°; the seed a whole number within its range. There are no "plausible ranges": an unusual but real planet is never rejected.
+- **Rules across fields**, which the JSON Schema cannot express and Planet Forge checks itself:
+  - each cell's direction is a unit vector, to within 0.001 (room for rounding);
+  - the gas shares add up to 1, to within 0.001, unless there are no gases at all;
+  - there are between 12 and 20,000 cells (the upper limit keeps a spec's URL a sensible size).
+- **Unknown fields** are ignored and listed as warnings, so a spec with a newer optional field still reads. A gas name outside the list is an error, not an unknown field.
+- **An unknown `specVersion`** is rejected, naming the versions Planet Forge reads.
+- **Errors name their place**, as in code: `surface.cells[12][3]: …`.
 
 ## Frame
 
@@ -150,7 +164,9 @@ Aion Forge opens Planet Forge at
 
 where `<encoded>` is the spec's JSON, compressed with `deflate-raw` (the browser's `CompressionStream`) and written in base64url. The part after `#` never reaches a server.
 
-Size: random cell values, which compress worse than real ones, measured 27 KB as JSON and about 13 KB encoded. That fits comfortably in a URL.
+Size: 642 cells with smooth values rounded as an export would round them measured about 14 KB encoded (a Planet Forge test keeps it under 20 KB). That fits comfortably in a URL.
+
+Reading a link stops at the first step that fails, with a plain message: not base64url, not compressed data, not JSON, or the spec's own errors. A spec that unpacks to more than 2 MB is refused, so a hostile link cannot inflate into gigabytes.
 
 ## Limits of version 1
 

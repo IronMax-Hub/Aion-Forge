@@ -26,6 +26,8 @@
 
 import * as THREE from "three";
 import type { Planet } from "../../simulation/planet";
+// The overcast rule is the simulation's (clouds.ts): the spectrum reads it too
+export { OVERCAST_BAR, overcastShare } from "../../simulation/clouds";
 import { CUBE_ATLAS_GLSL } from "./cubeFaces";
 import { cubeSphereGeometry } from "./cubeSphere";
 import shellVertex from "./shaders/atmosphere.vert.glsl?raw";
@@ -43,9 +45,6 @@ const CHANNEL_MICRONS: THREE.Vector3Tuple = [0.612, 0.549, 0.465];
 const EARTH_ZENITH_DEPTH: THREE.Vector3Tuple = [0.064, 0.100, 0.196];
 // hc / k, in µm·K: the Planck spectrum's exponent is this over λT
 const PLANCK_MICRON_KELVIN = 14388;
-
-// Overcast share: none below this pressure, all of the sky from the next
-export const OVERCAST_BAR = { from: 10, full: 90 };
 
 // Shell and cloud heights, in planet radii: exaggerated, like the relief, so both read from orbit
 export const SHELL_RADIUS = 1.025;
@@ -75,12 +74,6 @@ export function starSpectrumRGB(temperatureK: number): THREE.Vector3Tuple {
   const radiance = CHANNEL_MICRONS.map((l) => 1 / (l ** 5 * Math.expm1(PLANCK_MICRON_KELVIN / (l * temperatureK))));
   const brightest = Math.max(...radiance);
   return radiance.map((r) => r / brightest) as THREE.Vector3Tuple;
-}
-
-/** Share of the sky a thick atmosphere clouds over, whatever the moisture: 0 below 10 bar, 1 from 90. */
-export function overcastShare(pressureBar: number): number {
-  const x = Math.min(1, Math.max(0, (pressureBar - OVERCAST_BAR.from) / (OVERCAST_BAR.full - OVERCAST_BAR.from)));
-  return x * x * (3 - 2 * x);
 }
 
 /** Cloud turn about the pole, radians, this long after the view opened. */

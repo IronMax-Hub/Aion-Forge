@@ -133,7 +133,7 @@ const GIANT_BULK = {
 } as const;
 // Deep abundances of the condensing gases, Jupiter's (Juno: NH₃ ~3.3e-4, H₂O ~2.5e-3)
 const GIANT_DEEP_NH3 = 3.3e-4;
-const GIANT_DEEP_H2O = 2.5e-3;
+export const GIANT_DEEP_H2O = 2.5e-3;
 // Ammonia ice: saturation anchored at the triple point
 const AMMONIA_TRIPLE_POINT_K = 195.4;
 const AMMONIA_TRIPLE_POINT_BAR = 0.0606;

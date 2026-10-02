@@ -63,7 +63,7 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
   "strong-biosignature":   "Strong biosignature (chemical disequilibrium)",
   "possible-biosignature": "Possible biosignature",
   ambiguous:               "Ambiguous: could be abiotic",
-  atmosphere:              "Atmosphere detected, no biosignature",
+  atmosphere:              "Atmosphere detected; no sign of life at this depth",
   none:                    "No detection at this depth",
 };
 

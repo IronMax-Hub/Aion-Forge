@@ -49,7 +49,7 @@ A gas's significance is √(χ²_without − χ²_with) against the data, the ga
 | O₂ or O₃, with CH₄ | Strong biosignature (chemical disequilibrium) |
 | CH₄ on a temperate (250–350 K) solid world, or N₂O | Possible biosignature |
 | O₂ or O₃ | Ambiguous: could be abiotic |
-| any other gas | Atmosphere detected, no biosignature |
+| any other gas | Atmosphere detected; no sign of life at this depth |
 | nothing | No detection at this depth |
 
 ### B5 · The panel

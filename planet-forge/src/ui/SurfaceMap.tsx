@@ -1,10 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PlanetSpec } from "../spec/schema";
 import { CELL_KIND } from "../spec/schema";
 import { linearToBytes } from "./colour";
+import { terrainMapPixels } from "./terrainMap";
 
-// The map's size in texels: one per degree. Each texel takes its nearest cell,
-// so the map shows exactly what the spec says, cell by cell.
+// The map's size in texels: one per degree. In the Cells view each texel takes
+// its nearest cell, so the map shows exactly what the spec says, cell by cell;
+// the Terrain view samples the terrain (terrainMap.ts).
 const MAP_WIDTH = 360;
 const MAP_HEIGHT = 180;
 /** Ground this hot glows. */
@@ -40,14 +42,41 @@ function cellColour(spec: PlanetSpec, cell: PlanetSpec["surface"]["cells"][numbe
   return colour;
 }
 
+/** The equator, and the landing site if there is one. */
+function drawMarks(ctx: CanvasRenderingContext2D, spec: PlanetSpec) {
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, MAP_HEIGHT / 2);
+  ctx.lineTo(MAP_WIDTH, MAP_HEIGHT / 2);
+  ctx.stroke();
+  if (spec.landing) {
+    const px = ((spec.landing.longitudeDeg + 180) / 360) * MAP_WIDTH;
+    const py = ((90 - spec.landing.latitudeDeg) / 180) * MAP_HEIGHT;
+    ctx.strokeStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(px - 5, py); ctx.lineTo(px + 5, py);
+    ctx.moveTo(px, py - 5); ctx.lineTo(px, py + 5);
+    ctx.stroke();
+  }
+}
+
 /** A flat map of the spec's cells: longitude across, latitude up, for checking a planet before its globe exists. */
 export function SurfaceMap({ spec }: { spec: PlanetSpec }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [view, setView] = useState<"cells" | "terrain">("cells");
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
+    if (view === "terrain") {
+      const image = ctx.createImageData(MAP_WIDTH, MAP_HEIGHT);
+      image.data.set(terrainMapPixels(spec, MAP_WIDTH, MAP_HEIGHT));
+      ctx.putImageData(image, 0, 0);
+      drawMarks(ctx, spec);
+      return;
+    }
     const { cells } = spec.surface;
     const depths = cells.filter((c) => c[6] === CELL_KIND.water).map((c) => spec.surface.seaLevelKm - c[3]);
     const depthRange = Math.max(0.001, ...depths);
@@ -71,30 +100,19 @@ export function SurfaceMap({ spec }: { spec: PlanetSpec }) {
       }
     }
     ctx.putImageData(image, 0, 0);
-
-    // The equator, and the landing site if there is one
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, MAP_HEIGHT / 2);
-    ctx.lineTo(MAP_WIDTH, MAP_HEIGHT / 2);
-    ctx.stroke();
-    if (spec.landing) {
-      const px = ((spec.landing.longitudeDeg + 180) / 360) * MAP_WIDTH;
-      const py = ((90 - spec.landing.latitudeDeg) / 180) * MAP_HEIGHT;
-      ctx.strokeStyle = "#ffffff";
-      ctx.beginPath();
-      ctx.moveTo(px - 5, py); ctx.lineTo(px + 5, py);
-      ctx.moveTo(px, py - 5); ctx.lineTo(px, py + 5);
-      ctx.stroke();
-    }
-  }, [spec]);
+    drawMarks(ctx, spec);
+  }, [spec, view]);
 
   return (
     <figure className="surface-map">
       <canvas ref={canvasRef} width={MAP_WIDTH} height={MAP_HEIGHT}
         aria-label={`Flat map of ${spec.name}'s ${spec.surface.cells.length} surface cells`} role="img" />
       <figcaption>
+        <span className="map-views" role="group" aria-label="Map view">
+          <button className={`preset${view === "cells" ? " selected" : ""}`} aria-pressed={view === "cells"} onClick={() => setView("cells")}>Cells</button>
+          <button className={`preset${view === "terrain" ? " selected" : ""}`} aria-pressed={view === "terrain"} onClick={() => setView("terrain")}>Terrain</button>
+        </span>
+        {view === "cells" ? (
         <span className="map-legend">
           <i style={{ background: "rgb(43,95,138)" }} />Water
           <i style={{ background: "rgb(170,196,218)" }} />Sea ice
@@ -105,7 +123,22 @@ export function SurfaceMap({ spec }: { spec: PlanetSpec }) {
           <i style={{ background: "rgb(214,84,34)" }} />Molten
           {spec.landing && <><i className="cross" />Landing site</>}
         </span>
-        <span className="muted">The spec's cells, flat: a check, not the planet's look. Longitude −180° to 180° across, latitude 90° to −90° down.</span>
+        ) : (
+        <span className="map-legend">
+          <i style={{ background: "rgb(48,104,146)" }} />Water
+          <i style={{ background: "rgb(176,200,222)" }} />Sea ice
+          <i style={{ background: "rgb(236,240,245)" }} />Snow and ice
+          <i style={{ background: "rgb(120,116,110)" }} />Rock
+          <i style={{ background: "rgb(150,116,76)" }} />Soil
+          <i style={{ background: "rgb(196,170,120)" }} />Sand
+          {spec.groundCover && <><i style={{ background: `rgb(${linearToBytes(spec.groundCover.colourLinear).join(",")})` }} />Ground cover</>}
+          <i style={{ background: "rgb(230,96,30)" }} />Molten
+          {spec.landing && <><i className="cross" />Landing site</>}
+        </span>
+        )}
+        <span className="muted">
+          {view === "cells" ? "The spec's cells, flat" : "The terrain, sampled once per degree and shaded by its slopes (exaggerated)"}: a check, not the planet's look. Longitude −180° to 180° across, latitude 90° to −90° down.
+        </span>
       </figcaption>
     </figure>
   );

@@ -2,7 +2,7 @@
 
 *Forge a planet from its description, then stand on it*
 
-Planning document · 3 Oct 2026 · PF0–PF1 done; PF2 next
+Planning document · 3 Oct 2026 · PF0–PF2 done; PF3 next
 
 Planet Forge takes a description of one planet (its star, body, air and surface) and builds ground you can land on and look around. It is a separate app from Aion Forge, in the same repository. Aion Forge sends it the planets its simulation produces; Planet Forge also runs on its own, from presets or from inputs you type in.
 
@@ -110,7 +110,7 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
   - **The page:** preset buttons, the form with its worked-out figures, a seed with a Random button (a random seed is an input; the planet from it is deterministic), the inputs' problems named under a disabled Forge button, and a flat surface map of the cells (a check, not the planet's look; the globe comes in PF5).
 
 ### PF2 Terrain
-**L** · was D1
+**L** · was D1 · **done**
 
 - **Objective:** The height and ground type at any point of the planet, at any scale down to about a metre.
 - **Deliverables:** `src/terrain/`: one CPU height function and one ground-type function.
@@ -119,6 +119,15 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
   - **Ground type** by temperature, moisture, height and slope: soil, rock, sand, snow, ice, molten rock above about 900 K, and the ground-cover tint where it lives.
   - **The landing-site rule:** within a short radius of the site, the terrain is blended towards what the spec's `landing.observed` says was there (land, water or ice; height; colour). One general rule for every planet, not a per-type case.
 - **Verification:** the same spec gives the same heights; the landing site always matches its observation; the coast stays within half a cell of where the cells put it; land and water away from the site are as the cells say at every cell centre.
+- **As built** (owner decisions, 3 Oct 2026; rules and constants in each file's header):
+  - **Large scale** (`cellField.ts`): Aion Forge's Franke–Little blend and radius (0.2 rad for 642 cells, scaled by √(642/N)), with chord distances; cells filed in 16 × 16 buckets per cube face.
+  - **Fine scale** (`detail.ts`, `gradientNoise.ts`): up to 24 layers of gradient noise from the cells' spacing down to 1 m; 1 km at a 1,000 km wavelength at 1 g, divided by gravity; each layer 2^−0.8 as strong as the last; regions 0.4–1.6× as rugged; the last layer fades in, so levels of detail never jump.
+  - **Anchoring** (`terrain.ts`): the detail is 0 at every cell centre, so every centre keeps the spec's height and kind, at every level of detail (tested on every preset). Between centres coasts wander with the detail, as on Aion Forge's globe; they always cross between two centres of different kinds, but the detail can also raise islands or sink lakes between centres of one kind, so "within half a cell" is not guaranteed.
+  - **Kind:** dry seabed, sea ice or open water below sea level, land ice or land above it, from the cells' ice and dry flags with ragged edges (moved by under ½, so no centre changes kind). Temperature follows local height by the lapse rate where there is air.
+  - **Landing pin** (`landing.ts`): full within 1 km, gone by 10 km; one height offset per level of detail, so the site stands at the observed height (at least 5 m on its kind's side of sea level) at every level; the ice flag pulled to what was seen. Tested on three presets with observations that contradict the cells.
+  - **Materials** (`materials.ts`): molten, snow, rock, sand, ground cover and soil shares adding up to 1; slope from the caller. Airless worlds' bare ground is rock (no wind or water to make sand or soil).
+  - **Speed:** about 4.5 µs per height at 1 m detail in Node (5.1 µs for a full sample), after replacing the noise's branching gradient with lookup tables (same values, half the time).
+  - **Check:** the flat map's Terrain view samples the terrain once per degree, coloured by materials and shaded by slope; about 0.2 s to draw.
 
 ### PF3 Terrain renderer
 **XL** · was D3

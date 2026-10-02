@@ -2,7 +2,7 @@
 
 Forge a planet from its description, then stand on it.
 
-**Status: PF1 of [`PLAN.md`](PLAN.md).** Planet Forge sketches a planet from a preset or your inputs, or reads one from its URL, and shows its figures and a flat map of its surface. It does not forge terrain yet.
+**Status: PF2 of [`PLAN.md`](PLAN.md).** Planet Forge sketches a planet from a preset or your inputs, or reads one from its URL, works out its terrain down to about a metre, and shows its figures and a flat map of its cells or its terrain. It does not draw the ground yet.
 
 ## What it is
 
@@ -56,4 +56,5 @@ Pick a preset or change the inputs and press *Forge*, or open a link of the form
 | `src/forge/sketch.ts` | the world sketcher: inputs to a spec's cells (authored rules, not a simulation) |
 | `src/forge/presets.ts` | the five presets' inputs |
 | `src/forge/icosphere.ts`, `noise.ts`, `random.ts`, `detmath.ts` | the grid, seeded noise and randomness, and deterministic maths (copied from Aion Forge) |
-| `src/ui/` | the page: the forge panel, the surface map, a spec's figures |
+| `src/terrain/` | the terrain: the cells blended (`cellField.ts`), the detail (`detail.ts`, `gradientNoise.ts`), height and kind at any point (`terrain.ts`), the landing pin (`landing.ts`), materials (`materials.ts`) |
+| `src/ui/` | the page: the forge panel, the surface map and its terrain view, a spec's figures |

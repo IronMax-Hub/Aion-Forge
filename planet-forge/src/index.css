@@ -347,3 +347,5 @@ button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
   color: var(--col-danger);
   font-size: var(--fs-sm);
 }
+
+.map-views { display: flex; gap: var(--sp-2); }

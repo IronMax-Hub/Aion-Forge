@@ -44,7 +44,7 @@ export function GroundView({ spec, site, onClose }: Props) {
   const [logHeight, setLogHeight] = useState(Math.log10(200));
   const [look, setLook] = useState({ yawDeg: 0, pitchDeg: -10 });
   const [stats, setStats] = useState<GroundStats | null>(null);
-  // The sun's height over the site, from the south-east (a check aid; PF4 brings the time of day)
+  // The sun's height over the site, from the south-east (a check aid until PF4b brings the time of day)
   const [sunDeg, setSunDeg] = useState(35);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const heightM = 10 ** logHeight;
@@ -99,7 +99,7 @@ export function GroundView({ spec, site, onClose }: Props) {
       <div className="ground-controls">
         <div className="ground-title">
           <strong>{spec.name}</strong>
-          <span className="muted">Ground check (PF3): drag to look</span>
+          <span className="muted">Ground and sky check (PF3–PF4): drag to look</span>
         </div>
         <label className="field">
           <span className="field-label">Height</span>
@@ -123,6 +123,7 @@ export function GroundView({ spec, site, onClose }: Props) {
             <dt>Ground</dt><dd>{heightText(stats.groundM)} {stats.groundM < 0 ? "(under the sea)" : "above sea level"}</dd>
             <dt>Patches</dt><dd>{stats.patchesDrawn} drawn, {stats.patchesBuilding} building</dd>
             <dt>Frame</dt><dd>{figure(stats.frameMs, 3)} ms · split ×{figure(stats.splitFactor, 3)}</dd>
+            <dt>Sky table</dt><dd>{figure(stats.skyMs, 2)} ms to build</dd>
           </>}
         </dl>
         <button className="secondary" onClick={onClose}>Back</button>

@@ -2,7 +2,7 @@
 
 *Forge a planet from its description, then stand on it*
 
-Planning document · 3 Oct 2026 · PF0–PF3 built; PF3's frame time open; PF4 next
+Planning document · 3 Oct 2026 · PF0–PF3 built; PF3's frame time open; PF4a built; PF4b next
 
 Planet Forge takes a description of one planet (its star, body, air and surface) and builds ground you can land on and look around. It is a separate app from Aion Forge, in the same repository. Aion Forge sends it the planets its simulation produces; Planet Forge also runs on its own, from presets or from inputs you type in.
 
@@ -149,7 +149,7 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
   - **Found on screen:** skirts drawn double-sided showed as dark dotted lines along patch edges (back faces take flipped normals); the ground is drawn front faces only. The ground looked very flat: PF2's starting detail gave median slopes of 0.1° over 1 km. A single rougher exponent (0.5) was measured and rejected: 14% of the ground became steeper than 35° over a metre, rock that would vanish where the ground is built coarser. Applied instead (owner decision): a split spectrum, rough above 1 km and smoother below (`detail.ts`), about 0.9° median over 1 km and 4° over 1 m. Mountain ranges (ridges on high ground) come after PF4, once haze shows depth.
 
 ### PF4 Sky and light
-**L** · was D4
+**L** · was D4 · **PF4a built**
 
 - **Objective:** A sky that follows from the star and the air.
 - **Deliverables:**
@@ -158,6 +158,15 @@ Order: Planet Forge forges presets first (PF0–PF5); the button in Aion Forge c
   - Time of day from the spec's `subsolar` point: a spinning world's day, compressed as Aion Forge compresses it; a locked world's star fixed in the sky at a height set by the site's distance from the substellar point.
   - Clouds by the spec's cover.
 - **Verification:** the Earth-like preset gives a blue sky; a red dwarf a warmer one; a closer orbit a larger disc; an airless world a black sky with a sharp star.
+- **Split** (owner decision, 3 Oct 2026): PF4a the air, the sky, the star's disc and the light on the ground and water; PF4b the time of day, clouds and the viewer's time control.
+- **PF4a as built** (owner decisions, 3 Oct 2026; rules and constants in each file's header, `src/sky/`):
+  - **The air** (`air.ts`): scale height R·T / (M·g) from the cells' mean temperature, the gases' mean molar mass and gravity. Rayleigh scattering is Aion Forge's A6 Earth depth at 1 bar, scaled by the molecules overhead, P / (M·g), and by the gases' refractivity squared against air's (CO₂ about 2.3× N₂ per molecule, H₂ about 0.2×): the column of air, not pressure alone (owner decision), so on worlds far from 1 g the ground's sky is not as dense as A6's rim. Haze (Mie): Earth's clear-sky 0.025 (Bruneton and Neyret's reference) per unit mass of air overhead, in a layer 0.15 as thick as the air's, Henyey–Greenstein 0.76. No absorption.
+  - **Scattering** (`scattering.ts`): single scattering along each view ray in 32 steps; the starlight's path to each step from the Chapman function's asymptotic form, √(π·x/2)·erfcx(√(x/2)·cos χ), with erfcx in a fitted one-parameter form (within 0.35%): within 0.4% of the stepped column for Earth's air (0.9% at X = 100). An earlier closed form from memory was 13% out near the horizon; the test against the stepped column caught it. Phase functions applied after the march; A6's 35% grey share for light scattered more than once.
+  - **Tables:** the sky table (32 × 128, by angle round from the star and from overhead, rows packed at the horizon as in Hillaire's sky-view table) for the camera's height and the star's height, rebuilt when either changes enough: about 20 ms in Node, 25–40 ms in the browser. The light table (the sky's light on level ground by the star's height) once per planet.
+  - **Drawing** (`shaders/atmosphere.glsl`, shared): the sky behind everything from the table; the star's disc at 2·atan(R★ / a), at least 3 pixels across with the same total light, dimmed by the air in front of it, hidden by the sea-level sphere; per vertex the starlight that gets through to the ground, the sky's light by the local star height, and the haze between the camera and the vertex (its share of the sky's light along that direction, by how much the stretch dims against the whole ray); water reflects the sky table.
+  - **Brightness** (owner decision): the star's light is 3 × colour × flux (L★ / a²); the exposure is 3 × flux^−0.75, so lit ground looks as bright as flux^0.25 (as Aion Forge's globe lights it) and the sky and star keep their proportions. Light where neither star nor sky reaches: 0.01, until the night sky.
+  - **Checked on screen:** a blue-grey day sky with a pale horizon and hills fading into it; sunset light on backlit hills; from 300 km a blue limb; the airless lava world a black sky with a sharp 19° disc.
+  - **Open, for review:** the sky is paler than photographs (blue to red about 1.7 overhead: the channels' wavelengths, shared with A6, cap single scattering near 3, and the grey share lowers it); twilight is dark soon after sunset (single scattering only); the disc saturates to white in tone mapping, low or high; the sky's light on the ground is the sea-level sky's, whatever the ground's height. **Frame time:** in the software renderer used for screenshots, per-vertex haze roughly doubles each patch's cost (about 280 patches at the split factor PF3 drew 540 with, for the same frame time); to measure on the reference machine.
 
 ### PF5 Arrival and the observer
 **M** · was D2 (landing half), D10, and a short form of D9

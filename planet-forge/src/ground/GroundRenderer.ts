@@ -6,10 +6,19 @@
 //   32-bit floats never hold numbers as large as the planet's radius.
 // - A logarithmic depth buffer lets ground a metre away and mountains a
 //   thousand kilometres away share it without flicker.
-// - Ground: Lambert lighting of the vertex colours by the star, a little
-//   ambient light, and molten ground's glow added on top.
-// - Water: water.vert/frag.glsl, one material per patch (they share a program)
-//   for the patch's own origin.
+// - The sky and light (PF4, src/sky/): the sky drawn behind everything from
+//   the sky table, which is rebuilt when the camera's height or the star's
+//   height over it changes enough; the ground and water lit by the starlight
+//   that gets through the air and by the sky's light, and hazed by the air
+//   between them and the camera (shaders/ground.*.glsl, water.*.glsl, and
+//   src/sky/shaders/atmosphere.glsl, which all three share).
+// - Brightness (owner decision): the star's light at the planet scales with
+//   its flux, L★ / a²; the exposure falls as flux^EXPOSURE_POWER, as an eye
+//   adapts, so lit ground looks as bright as flux^(1 + EXPOSURE_POWER) (a
+//   sixteenth of Earth's light looks half as bright, as Aion Forge's globe
+//   lights it) while the sky and star keep their true proportions.
+// - Ground: Lambert lighting of the vertex colours, and molten ground's glow.
+// - Water: one material per patch (they share a program) for the patch's own origin.
 // - Frame time: when frames take longer than SLOW_MS, patches split less
 //   eagerly (the split factor shrinks to at least MIN_SPLIT); with headroom it
 //   recovers. Intervals over IGNORE_MS (a hidden or paused tab) are ignored.
@@ -26,8 +35,16 @@ import { patchIndices } from "./patchBuilder";
 import type { PatchData } from "./patchBuilder";
 import { selectPatches } from "./quadtree";
 import { PatchWorkers } from "./workerPool";
-import { starColour, starDirection } from "./light";
 import { DEEP_WATER, GLOW_COLOUR, SEA_ICE, SHALLOW_WATER } from "./palette";
+import { airOf, MIE_ASYMMETRY } from "../sky/air";
+import type { Air } from "../sky/air";
+import { LIGHT_SIZE, lightTable, MULTIPLE_SCATTERING, SKY_COLUMNS, SKY_ROWS, skyTable } from "../sky/scattering";
+import { discAngularRadius, starColour, starDirection, starFlux } from "../sky/star";
+import atmosphere from "../sky/shaders/atmosphere.glsl?raw";
+import skyVertex from "../sky/shaders/sky.vert.glsl?raw";
+import skyFragment from "../sky/shaders/sky.frag.glsl?raw";
+import groundVertex from "./shaders/ground.vert.glsl?raw";
+import groundFragment from "./shaders/ground.frag.glsl?raw";
 import waterVertex from "./shaders/water.vert.glsl?raw";
 import waterFragment from "./shaders/water.frag.glsl?raw";
 
@@ -44,10 +61,19 @@ const CACHE_SIZE = 600;
 const MAX_REQUESTS = 64;
 /** The ripples repeat over this distance in every direction, m (water.frag.glsl). */
 const RIPPLE_REPEAT_M = 1000;
-const AMBIENT = 0.04;
+/** The star's light at the planet, before the air, where its flux is Earth's. */
 const SUN_INTENSITY = 3;
-/** Until PF4 draws the sky, water reflects this colour. */
-const PLACEHOLDER_SKY: Vec3 = [0.18, 0.26, 0.40];
+/** The exposure at Earth's flux: the eye's adaptation to daylight, so a clear sky reads as a mid blue. */
+const EARTH_EXPOSURE = 3;
+/** The exposure follows flux to this power (owner decision: lit ground looks as bright as flux^0.25). */
+const EXPOSURE_POWER = -0.75;
+/** Light where neither star nor sky reaches, until the night sky is drawn (later). */
+const NIGHT_LIGHT = 0.01;
+/** The star's disc is drawn at least this many pixels across, with the same total light. */
+const MIN_DISC_PIXELS = 3;
+/** The sky table is rebuilt when the camera's height changes by this share (or 1 m), or the star's height cosine by this much. */
+const SKY_HEIGHT_SHARE = 0.01;
+const SKY_SUN_COSINE = 0.002;
 /** Margin on the planet's highest and lowest cells for the detail's relief, at 1 g, m. */
 const RELIEF_MARGIN_M = 3000;
 const FIELD_OF_VIEW_DEG = 60;
@@ -70,6 +96,8 @@ export interface GroundStats {
   splitFactor: number;
   /** Ground height under the camera, m above sea level. */
   groundM: number;
+  /** Time the sky table last took to build, ms. */
+  skyMs: number;
 }
 
 interface CachedPatch {
@@ -82,17 +110,27 @@ interface CachedPatch {
 }
 
 export class GroundRenderer {
-  readonly stats: GroundStats = { patchesDrawn: 0, patchesBuilding: 0, frameMs: 0, splitFactor: SPLIT_FACTOR, groundM: 0 };
+  readonly stats: GroundStats = { patchesDrawn: 0, patchesBuilding: 0, frameMs: 0, splitFactor: SPLIT_FACTOR, groundM: 0, skyMs: 0 };
   private renderer: THREE.WebGLRenderer;
-  private light: THREE.DirectionalLight;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private terrain: Terrain;
   private workers: PatchWorkers;
   private cache = new Map<string, CachedPatch>();
   private indices = new THREE.BufferAttribute(patchIndices(), 1);
-  private groundMaterial: THREE.MeshLambertMaterial;
+  private groundMaterial: THREE.ShaderMaterial;
   private waterMaterial: THREE.ShaderMaterial;
+  private skyMaterial: THREE.ShaderMaterial;
+  private sky: THREE.Mesh;
+  private air: Air;
+  /** The uniforms of atmosphere.glsl, one set shared by the sky, ground and water. */
+  private atmosphere: Record<string, THREE.IUniform>;
+  private skyRayleigh: THREE.DataTexture;
+  private skyMie: THREE.DataTexture;
+  private skyLight: THREE.DataTexture;
+  /** The camera's radius and the star's height cosine the sky table was built for. */
+  private skyBuiltFor: { r: number; sunMu: number } | null = null;
+  private discRadius: number;
   private view: GroundView = { latitudeDeg: 0, longitudeDeg: 0, heightM: 2, yawDeg: 0, pitchDeg: 0 };
   private cameraM: Vec3 = [0, 0, 0];
   private deepest: number;
@@ -110,6 +148,7 @@ export class GroundRenderer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = EARTH_EXPOSURE * Math.pow(starFlux(spec), EXPOSURE_POWER);
     this.renderer.setClearColor(0x000000);
     this.camera = new THREE.PerspectiveCamera(FIELD_OF_VIEW_DEG, 1, 0.5, 1e9);
 
@@ -121,41 +160,71 @@ export class GroundRenderer {
     this.highestM = Math.max(...heights) + margin;
     this.lowestM = Math.min(...heights) - margin;
 
-    const sun = starDirection(spec);
-    const colour = starColour(spec.star.temperatureK);
-    const light = new THREE.DirectionalLight(new THREE.Color(...colour), SUN_INTENSITY);
-    light.position.set(...sun);
-    this.light = light;
-    this.scene.add(light, light.target, new THREE.AmbientLight(0xffffff, AMBIENT));
+    this.air = airOf(spec);
+    const flux = starFlux(spec);
+    const irradiance = starColour(spec.star.temperatureK).map((c) => c * SUN_INTENSITY * flux) as Vec3;
+    this.discRadius = discAngularRadius(spec);
+    this.skyRayleigh = halfFloatTexture(SKY_COLUMNS, SKY_ROWS);
+    this.skyMie = halfFloatTexture(SKY_COLUMNS, SKY_ROWS);
+    this.skyLight = halfFloatTexture(LIGHT_SIZE, 1);
+    fillTexture(this.skyLight, lightTable(this.air, irradiance));
+    this.atmosphere = {
+      planetRadius: { value: this.air.radiusM },
+      rayleighScattering: { value: new THREE.Vector3(...this.air.rayleigh) },
+      rayleighHeight: { value: this.air.rayleighHeightM },
+      mieScattering: { value: this.air.mie },
+      mieHeight: { value: this.air.mieHeightM },
+      mieAsymmetry: { value: MIE_ASYMMETRY },
+      multipleScattering: { value: MULTIPLE_SCATTERING },
+      cameraBody: { value: new THREE.Vector3() },
+      cameraUp: { value: new THREE.Vector3(0, 1, 0) },
+      sunDirection: { value: new THREE.Vector3(...starDirection(spec)) },
+      sunIrradiance: { value: new THREE.Vector3(...irradiance) },
+      skyRayleigh: { value: this.skyRayleigh },
+      skyMie: { value: this.skyMie },
+      skySize: { value: new THREE.Vector2(SKY_COLUMNS, SKY_ROWS) },
+      skyHorizon: { value: Math.PI / 2 },
+      skyLight: { value: this.skyLight },
+      skyLightSize: { value: LIGHT_SIZE },
+      nightLight: { value: NIGHT_LIGHT },
+    };
+
+    this.skyMaterial = new THREE.ShaderMaterial({
+      vertexShader: skyVertex,
+      fragmentShader: atmosphere + skyFragment,
+      depthTest: false,
+      depthWrite: false,
+      uniforms: {
+        ...this.atmosphere,
+        screenToWorld: { value: new THREE.Matrix4() },
+        discRadius: { value: this.discRadius },
+        pixelAngle: { value: 0.001 },
+      },
+    });
+    this.sky = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.skyMaterial);
+    this.sky.frustumCulled = false;
+    this.sky.renderOrder = -1;
+    this.scene.add(this.sky);
 
     // Front faces only: the skirts face outwards from their patch, which is the side a crack shows them from;
     // drawn double-sided, their back faces took flipped normals and showed as dark dotted lines
-    this.groundMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
-    // Molten ground glows whatever the light: its glow attribute, added as emission
-    this.groundMaterial.onBeforeCompile = (shader) => {
-      shader.uniforms.glowColour = { value: new THREE.Color(...GLOW_COLOUR) };
-      shader.vertexShader = shader.vertexShader
-        .replace("#include <common>", "#include <common>\nattribute float glow;\nvarying float vGlow;")
-        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvGlow = glow;");
-      shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", "#include <common>\nuniform vec3 glowColour;\nvarying float vGlow;")
-        .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += glowColour * vGlow;");
-    };
+    this.groundMaterial = new THREE.ShaderMaterial({
+      vertexShader: atmosphere + groundVertex,
+      fragmentShader: atmosphere + groundFragment,
+      vertexColors: true,
+      uniforms: { ...this.atmosphere, glowColour: { value: new THREE.Color(...GLOW_COLOUR) } },
+    });
 
     this.waterMaterial = new THREE.ShaderMaterial({
-      vertexShader: waterVertex,
-      fragmentShader: waterFragment,
+      vertexShader: atmosphere + waterVertex,
+      fragmentShader: atmosphere + waterFragment,
       uniforms: {
+        ...this.atmosphere,
         origin: { value: new THREE.Vector3() },
         rippleOrigin: { value: new THREE.Vector3() },
-        sunDirection: { value: new THREE.Vector3(...sun) },
-        sunColour: { value: new THREE.Color(...colour).multiplyScalar(SUN_INTENSITY / Math.PI) },
-        skyColour: { value: new THREE.Color(...PLACEHOLDER_SKY) },
         shallowColour: { value: new THREE.Color(...SHALLOW_WATER) },
         deepColour: { value: new THREE.Color(...DEEP_WATER) },
         seaIceColour: { value: new THREE.Color(...SEA_ICE) },
-        // As Three.js's Lambert lighting: radiance over π
-        ambient: { value: AMBIENT / Math.PI },
         time: { value: 0 },
       },
     });
@@ -169,10 +238,9 @@ export class GroundRenderer {
     this.view = view;
   }
 
-  /** Moves the star to this direction in the body frame (the PF3 viewer's sun control; PF4 brings the time of day). */
+  /** Moves the star to this direction in the body frame (the viewer's sun control; PF4b brings the time of day). */
   setSunDirection(direction: Vec3): void {
-    this.light.position.set(...direction);
-    (this.waterMaterial.uniforms.sunDirection.value as THREE.Vector3).set(...direction);
+    (this.atmosphere.sunDirection.value as THREE.Vector3).set(...direction);
   }
 
   resize(): void {
@@ -181,6 +249,9 @@ export class GroundRenderer {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    const pixelAngle = (FIELD_OF_VIEW_DEG * DEGREE) / height;
+    this.skyMaterial.uniforms.pixelAngle.value = pixelAngle;
+    this.skyMaterial.uniforms.discRadius.value = Math.max(this.discRadius, (MIN_DISC_PIXELS / 2) * pixelAngle);
   }
 
   dispose(): void {
@@ -190,6 +261,9 @@ export class GroundRenderer {
     this.cache.clear();
     this.groundMaterial.dispose();
     this.waterMaterial.dispose();
+    this.skyMaterial.dispose();
+    this.sky.geometry.dispose();
+    for (const texture of [this.skyRayleigh, this.skyMie, this.skyLight]) texture.dispose();
     this.renderer.dispose();
   }
 
@@ -214,13 +288,18 @@ export class GroundRenderer {
       water.setAttribute("seaIce", new THREE.BufferAttribute(data.water.seaIce, 1));
       water.setIndex(this.indices);
       water.computeBoundingSphere();
-      const material = this.waterMaterial.clone();
-      // Shared uniforms stay shared; the patch's own origin is its own
-      for (const name of Object.keys(this.waterMaterial.uniforms)) material.uniforms[name] = this.waterMaterial.uniforms[name];
+      // Shared uniforms stay shared (not cloned: a clone would copy the sky's textures); the patch's own origin is its own
       const [ox, oy, oz] = data.origin;
       const mod = (v: number) => v - Math.floor(v / RIPPLE_REPEAT_M) * RIPPLE_REPEAT_M;
-      material.uniforms.origin = { value: new THREE.Vector3(ox, oy, oz) };
-      material.uniforms.rippleOrigin = { value: new THREE.Vector3(mod(ox), mod(oy), mod(oz)) };
+      const material = new THREE.ShaderMaterial({
+        vertexShader: this.waterMaterial.vertexShader,
+        fragmentShader: this.waterMaterial.fragmentShader,
+        uniforms: {
+          ...this.waterMaterial.uniforms,
+          origin: { value: new THREE.Vector3(ox, oy, oz) },
+          rippleOrigin: { value: new THREE.Vector3(mod(ox), mod(oy), mod(oz)) },
+        },
+      });
       waterMesh = new THREE.Mesh(water, material);
       waterMesh.visible = false;
       this.scene.add(waterMesh);
@@ -262,6 +341,26 @@ export class GroundRenderer {
     // Near plane: a fraction of the height, so close ground is not clipped
     this.camera.near = Math.max(0.05, heightM * 0.1);
     this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld();
+    (this.skyMaterial.uniforms.screenToWorld.value as THREE.Matrix4).multiplyMatrices(this.camera.matrixWorld, this.camera.projectionMatrixInverse);
+    (this.atmosphere.cameraBody.value as THREE.Vector3).set(...this.cameraM);
+    (this.atmosphere.cameraUp.value as THREE.Vector3).copy(upV);
+  }
+
+  /** Rebuilds the sky table when the camera's height or the star's height over it has changed enough. */
+  private updateSky(): void {
+    const r = Math.hypot(...this.cameraM);
+    const sunMu = (this.atmosphere.sunDirection.value as THREE.Vector3).dot(this.atmosphere.cameraUp.value as THREE.Vector3);
+    const built = this.skyBuiltFor;
+    const heightM = r - this.air.radiusM;
+    if (built && Math.abs(r - built.r) <= Math.max(1, SKY_HEIGHT_SHARE * Math.abs(heightM)) && Math.abs(sunMu - built.sunMu) <= SKY_SUN_COSINE) return;
+    const start = performance.now();
+    const table = skyTable(this.air, r, sunMu);
+    fillTexture(this.skyRayleigh, table.rayleigh);
+    fillTexture(this.skyMie, table.mie);
+    this.atmosphere.skyHorizon.value = table.horizon;
+    this.skyBuiltFor = { r, sunMu };
+    this.stats.skyMs = performance.now() - start;
   }
 
   private loop = (time: number): void => {
@@ -275,6 +374,7 @@ export class GroundRenderer {
     }
     this.frame++;
     this.placeCamera();
+    this.updateSky();
 
     const selection = selectPatches({
       camera: this.cameraM, radiusM: this.terrain.radiusM, highestM: this.highestM, lowestM: this.lowestM,
@@ -319,4 +419,21 @@ export class GroundRenderer {
       this.cache.delete(key);
     }
   }
+}
+
+/** An RGBA half-float texture, linearly filtered (WebGL 2 filters half floats everywhere, full floats not). */
+function halfFloatTexture(width: number, height: number): THREE.DataTexture {
+  const texture = new THREE.DataTexture(new Uint16Array(width * height * 4), width, height, THREE.RGBAFormat, THREE.HalfFloatType);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function fillTexture(texture: THREE.DataTexture, values: Float32Array): void {
+  const data = texture.image.data as Uint16Array;
+  for (let k = 0; k < values.length; k++) data[k] = THREE.DataUtils.toHalfFloat(values[k]);
+  texture.needsUpdate = true;
 }

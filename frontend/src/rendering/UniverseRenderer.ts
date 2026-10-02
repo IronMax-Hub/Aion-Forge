@@ -200,6 +200,12 @@ const PLANET_AUTO_ROTATE_SPEED = 0.25;
 const APPROACH_END_DISTANCE = 6;
 // The planets' clock moves at most this much a frame, so a hidden tab does not make them jump
 const MAX_ORBIT_STEP_MS = 100;
+// A focused planet is framed this many of its radii away, and the camera may come no closer than the second
+// (there the planet fills about half the view, and its 256-texel bake is still sharp)
+const FOCUS_FRAME_RADII = 8;
+const FOCUS_MIN_RADII = 3;
+// A press that moves farther than this before release is a drag (turning the view), not a click
+const CLICK_SLOP_PX = 5;
 // A system whose innermost planet lies beyond this is drawn at a larger scale (see renderPlanetarySystem)
 const USUAL_INNER_ORBIT_AU = 0.4;
 // Where the system view's camera starts, relative to the star, at the usual scale
@@ -332,6 +338,10 @@ export class UniverseRenderer {
   private systemMarkers = new Map<number, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
   private orbitsMove = false;
   private lastFrameMs = performance.now();
+  // The planet the system view's camera is on, following it round its orbit; null: the star
+  private focusedPlanetId: number | null = null;
+  private systemScale = 1;
+  private pressedAt: { x: number; y: number } | null = null;
   private pendingBake: GlobeBake | null = null;
   private systemGalaxySeed = 0;
   private systemMaxDistance = DEFAULT_DISTANCE.max;
@@ -375,6 +385,7 @@ export class UniverseRenderer {
 
     canvas.addEventListener("click", this.onClick);
     canvas.addEventListener("dblclick", this.onDoubleClick);
+    canvas.addEventListener("pointerdown", this.onPointerDown);
     canvas.addEventListener("pointermove", this.onPointerMove);
     canvas.addEventListener("pointerleave", this.onPointerLeave);
     window.addEventListener("resize", this.onResize);
@@ -591,6 +602,9 @@ export class UniverseRenderer {
 
     this.systemOrbits.advance(0);
     this.systemMarkers = markers;
+    this.systemScale = scale;
+    this.focusedPlanetId = null;
+    this.controls.minDistance = DEFAULT_DISTANCE.min;
     this.orbitsMove = !prefersReducedMotion();
     this.systemGroup = group;
     this.scene.add(group);
@@ -626,6 +640,8 @@ export class UniverseRenderer {
       this.systemGroup = null;
     }
     this.planetData = [];
+    this.focusedPlanetId = null;
+    this.controls.minDistance = DEFAULT_DISTANCE.min;
     this.systemMarkers = new Map();
     this.systemOrbits = new SystemOrbits();
     this.systemHostStar = null;
@@ -684,8 +700,55 @@ export class UniverseRenderer {
       this.controls.target.copy(this.systemCameraPose.target);
       this.systemCameraPose = null;
     }
+    this.controls.minDistance = this.focusMinDistance();
     this.controls.autoRotate      = true;
     this.controls.autoRotateSpeed = SYSTEM_AUTO_ROTATE_SPEED;
+  }
+
+  // ── System view: focus on a planet ────────────────────────────────────────
+
+  /**
+   * Glides the system view's camera to frame a planet, then keeps it on the
+   * planet as it orbits, circling it; null glides back to the whole system.
+   * Does nothing outside the system view, during an approach, or if already there.
+   */
+  focusPlanet(planet: Planet | null) {
+    if (this.mode !== "system" || !this.systemHostStar || this.tween?.onDone) return;
+    const id = planet?.id ?? null;
+    if (id === this.focusedPlanetId) return;
+    const marker = id !== null ? this.systemMarkers.get(id) : undefined;
+    if (id !== null && !marker) return;
+    this.focusedPlanetId = id;
+
+    // Keep the direction the camera looks from; only the distance and the point it circles change
+    const fromTarget = this.camera.position.clone().sub(this.controls.target).normalize();
+    const to = marker
+      ? marker.getWorldPosition(new THREE.Vector3())
+      : new THREE.Vector3(...this.systemHostStar.position);
+    const distance = marker
+      ? marker.geometry.parameters.radius * FOCUS_FRAME_RADII
+      : SYSTEM_CAMERA_OFFSET.length() * this.systemScale;
+    this.controls.minDistance = this.focusMinDistance();
+    // The planets wait while the camera glides (see the render loop), so the glide ends on the planet
+    this.tween = {
+      from: this.controls.target.clone(), to, t: 0,
+      camera: { from: this.camera.position.clone(), to: to.clone().addScaledVector(fromTarget, distance) },
+    };
+  }
+
+  /** How close the camera may come: to a focused planet, FOCUS_MIN_RADII of its radii. */
+  private focusMinDistance(): number {
+    const marker = this.focusedPlanetId !== null ? this.systemMarkers.get(this.focusedPlanetId) : undefined;
+    return marker ? marker.geometry.parameters.radius * FOCUS_MIN_RADII : DEFAULT_DISTANCE.min;
+  }
+
+  /** Moves the camera with the focused planet, keeping its place relative to it. */
+  private followFocusedPlanet() {
+    const marker = this.focusedPlanetId !== null ? this.systemMarkers.get(this.focusedPlanetId) : undefined;
+    if (!marker || this.mode !== "system" || this.tween) return;
+    const shift = marker.getWorldPosition(new THREE.Vector3()).sub(this.controls.target);
+    this.controls.target.add(shift);
+    this.camera.position.add(shift);
   }
 
   private openPlanetView(
@@ -743,7 +806,15 @@ export class UniverseRenderer {
 
   // ── Click handler ─────────────────────────────────────────────────────────
 
+  private onPointerDown = (e: PointerEvent) => {
+    this.pressedAt = { x: e.clientX, y: e.clientY };
+  };
+
   private onClick = (e: MouseEvent) => {
+    // The end of a drag that turned the view is not a click
+    const pressed = this.pressedAt;
+    this.pressedAt = null;
+    if (pressed && Math.hypot(e.clientX - pressed.x, e.clientY - pressed.y) > CLICK_SLOP_PX) return;
     const canvas = this.renderer.domElement;
     const rect   = canvas.getBoundingClientRect();
     const ndc    = new THREE.Vector2(
@@ -1020,6 +1091,7 @@ export class UniverseRenderer {
         this.systemOrbits.advance(Math.min(now - this.lastFrameMs, MAX_ORBIT_STEP_MS) / 1000);
       }
       this.lastFrameMs = now;
+      this.followFocusedPlanet();
       if (this.pendingBake) {
         this.pendingBake.step(this.renderer);
         if (this.pendingBake.done) this.pendingBake = null;
@@ -1081,6 +1153,7 @@ export class UniverseRenderer {
     cancelAnimationFrame(this.animFrameId);
     this.renderer.domElement.removeEventListener("click", this.onClick);
     this.renderer.domElement.removeEventListener("dblclick", this.onDoubleClick);
+    this.renderer.domElement.removeEventListener("pointerdown", this.onPointerDown);
     this.renderer.domElement.removeEventListener("pointermove", this.onPointerMove);
     this.renderer.domElement.removeEventListener("pointerleave", this.onPointerLeave);
     this.hidePlanetLabel();

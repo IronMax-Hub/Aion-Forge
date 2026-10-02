@@ -209,10 +209,11 @@ export default function App() {
       if (showTimeline)     { setShowTimeline(false);     return; }
       if (comparison)       { setComparison(null);        return; }
       if (orbiting && view === "system") { leaveOrbit(); return; }   // up one level: back to the system
+      if (view === "system" && selectedPlanet) { setSelectedPlanet(null); return; }   // off the planet, to the whole system
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, orbiting, view]);
+  }, [showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, orbiting, view, selectedPlanet]);
 
   const handleRandomize = () => {
     const s = randomSeed();
@@ -541,6 +542,13 @@ export default function App() {
       else discovery.civilizationMilestone();
     }
   }, [selectedBiosphere, selectedPlanet, currentSeed]);
+
+  // In the system view the camera follows the selected planet, or the star when none is selected
+  // (from the view, the table, Escape or the panel's back button); not while in orbit
+  useEffect(() => {
+    if (view !== "system" || orbiting) return;
+    rendererRef.current?.focusPlanet(selectedPlanet);
+  }, [selectedPlanet, view, orbiting]);
 
   function leaveOrbit() {
     setOrbiting(false);

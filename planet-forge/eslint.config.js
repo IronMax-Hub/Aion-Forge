@@ -27,12 +27,12 @@ export default defineConfig([
     },
   },
   {
-    // What decides a planet's cells, heights and kinds must give identical results
+    // What decides a planet's cells, heights and kinds (the sketcher and the terrain) must give identical results
     // in every browser, so it uses src/forge/detmath.ts instead of Math functions
     // that engines may round differently. Math.sqrt, floor, min, max, abs, round
     // and imul are exact and allowed.
-    files: ['src/forge/**/*.ts'],
-    ignores: ['src/forge/**/*.test.ts'],
+    files: ['src/forge/**/*.ts', 'src/terrain/**/*.ts'],
+    ignores: ['src/**/*.test.ts'],
     rules: {
       'no-restricted-properties': ['error',
         ...['exp', 'expm1', 'log', 'log1p', 'log2', 'log10', 'pow', 'cbrt', 'hypot',

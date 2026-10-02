@@ -16,7 +16,7 @@ export function createRNG(seed: number) {
 export type RNG = ReturnType<typeof createRNG>;
 
 /** Scrambles 32 bits (murmur3's finaliser): every input bit moves about half the output bits. */
-function mix(h: number): number {
+export function mix(h: number): number {
   h ^= h >>> 16;
   h = Math.imul(h, 0x7feb352d);
   h ^= h >>> 15;
@@ -25,12 +25,22 @@ function mix(h: number): number {
   return h;
 }
 
-/** A number in [0, 1) for a point of an integer lattice and a seed: the same point always gives the same number. */
-export function latticeValue(seed: number, x: number, y: number, z: number): number {
+/** The seed's part of every lattice hash: work it out once to hash many points with one seed. */
+export function seedHash(seed: number): number {
+  return mix(seed ^ 0x9e3779b9);
+}
+
+/** 32 seeded bits for a point of an integer lattice: the same point always gives the same bits. */
+export function latticeHash(seed: number, x: number, y: number, z: number): number {
   // Each coordinate is mixed in on its own, so (x, y, z) and its permutations differ
-  let h = mix(seed ^ 0x9e3779b9);
+  let h = seedHash(seed);
   h = mix((h + x) | 0);
   h = mix((h + y) | 0);
   h = mix((h + z) | 0);
-  return (h >>> 0) / 0x100000000;
+  return h >>> 0;
+}
+
+/** A number in [0, 1) for a point of an integer lattice and a seed: the same point always gives the same number. */
+export function latticeValue(seed: number, x: number, y: number, z: number): number {
+  return latticeHash(seed, x, y, z) / 0x100000000;
 }

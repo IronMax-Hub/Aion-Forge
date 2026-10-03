@@ -1,17 +1,16 @@
 // Water at sea level (PF3): its colour by depth, the sky reflected by Fresnel,
 // the star's glint, and small moving ripples; sea ice is flat, lit ice. The
-// sky is a fixed colour until PF4 draws it. Presentation only.
+// light (PF4): the starlight that gets through the air and the sky's light,
+// the sky reflected from the sky table, then the haze to the camera
+// (atmosphere.glsl). Presentation only.
 
 #include <common>
 #include <logdepthbuf_pars_fragment>
 
-uniform vec3 sunDirection;
-uniform vec3 sunColour;
-uniform vec3 skyColour;
 uniform vec3 shallowColour;
 uniform vec3 deepColour;
 uniform vec3 seaIceColour;
-uniform float ambient;
+uniform float nightLight;   // as the ground's
 uniform float time;
 
 varying float vDepth;
@@ -19,6 +18,10 @@ varying float vSeaIce;
 varying vec3 vUp;
 varying vec3 vRipple;
 varying vec3 vToCamera;
+varying vec3 vSun;
+varying vec3 vSky;
+varying vec3 vThrough;
+varying vec3 vHaze;
 
 // Water darkens to its deepest colour over this depth, m
 const float DEEP_M = 200.0;
@@ -37,8 +40,8 @@ void main() {
   float distance = length(vToCamera);
 
   if (vSeaIce > 0.5) {
-    float light = max(dot(up, sunDirection), 0.0);
-    gl_FragColor = vec4(seaIceColour * (sunColour * light + ambient), 1.0);
+    vec3 light = vSun * max(dot(up, sunDirection), 0.0) + vSky + nightLight;
+    gl_FragColor = vec4(seaIceColour * light / PI * vThrough + vHaze, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
     return;
@@ -54,13 +57,13 @@ void main() {
   vec3 normal = normalize(up + RIPPLE_STRENGTH * slope * (1.0 - smoothstep(0.0, RIPPLE_FADE_M, distance)));
 
   vec3 water = mix(shallowColour, deepColour, smoothstep(0.0, DEEP_M, vDepth));
-  float light = max(dot(normal, sunDirection), 0.0);
+  vec3 light = vSun * max(dot(normal, sunDirection), 0.0) + vSky + nightLight;
   float fresnel = F0 + (1.0 - F0) * pow(1.0 - max(dot(normal, toCamera), 0.0), 5.0);
   vec3 reflected = reflect(-toCamera, normal);
   float glint = pow(max(dot(reflected, sunDirection), 0.0), GLINT_SHARPNESS) * step(0.0, dot(up, sunDirection));
 
-  vec3 colour = mix(water * (sunColour * light + ambient), skyColour, fresnel) + sunColour * glint * 4.0;
-  gl_FragColor = vec4(colour, 1.0);
+  vec3 colour = mix(water * light / PI, skyRadiance(reflected), fresnel) + vSun / PI * glint * 4.0;
+  gl_FragColor = vec4(colour * vThrough + vHaze, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }

@@ -198,8 +198,15 @@ describe("the sketcher", () => {
   });
 
   it("rescales gas amounts to shares and leaves out the air of an airless world", () => {
-    expect(sketchPlanet(earth(), "custom").air.gases).toEqual({ N2: 0.78, O2: 0.21, H2O: 0.01 });
+    expect(sketchPlanet(earth(), "custom").air.gases).toEqual({ N2: 0.78, O2: 0.21, H2O: 0.01, O3: 3.8e-7 });
+    expect(sketchPlanet({ ...earth(), air: { ...earth().air, ozonePpm: 0 } }, "custom").air.gases).toEqual({ N2: 0.78, O2: 0.21, H2O: 0.01 });
     expect(sketchPlanet({ ...earth(), air: { ...earth().air, pressureBar: 0 } }, "custom").air.gases).toEqual({});
+  });
+
+  it("writes ozone to the part per billion, and names a negative or impossible amount", () => {
+    expect(sketchPlanet({ ...earth(), air: { ...earth().air, ozonePpm: 12.3456 } }, "custom").air.gases.O3).toBe(1.2346e-5);
+    expect(inputProblems({ ...earth(), air: { ...earth().air, ozonePpm: -1 } })).toContain("ozone must be from 0 to under 1,000,000 ppm");
+    expect(inputProblems({ ...earth(), air: { ...earth().air, ozonePpm: 1e6 } })).toHaveLength(1);
   });
 
   it("finds the sea level between the last cell under and the first above", () => {

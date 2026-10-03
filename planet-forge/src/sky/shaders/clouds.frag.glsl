@@ -5,7 +5,7 @@
 // noise of zero average roughens it, and the result sets the cloud's opacity.
 //
 // Light: the starlight that gets through the air to the cloud and the sky's
-// light (atmosphere.glsl), on clouds of albedo CLOUD_ALBEDO. Seen from the
+// light (atmosphere.glsl), on clouds of albedo cloudAlbedo. Seen from the
 // star's side, a cloud is lit; from the other side, thick cloud is darker
 // (UNDERSIDE: little light gets through). Then the haze between the camera
 // and the cloud, cheaper than the ground's (it runs for every clouded pixel):
@@ -26,6 +26,7 @@ uniform vec3 cloudOffset;     // the detail noise's offset, from the seed
 uniform vec3 cameraForward;
 uniform float logDepthBufFC;
 uniform float nightLight;    // as the ground's
+uniform float cloudAlbedo;   // clouds.ts: CLOUD_ALBEDO
 
 varying vec3 vDirection;
 
@@ -36,7 +37,6 @@ const float EDGE = 0.3;
 // The finer noise's largest wavelength, km; each of DETAIL_LAYERS halves it
 const float DETAIL_KM = 64.0;
 const int DETAIL_LAYERS = 6;
-const float CLOUD_ALBEDO = 0.8;
 const float UNDERSIDE = 0.35;
 const float MAX_OPACITY = 0.97;
 
@@ -102,7 +102,7 @@ void main() {
   vec3 light = sunIrradiance * sunTransmittance(p) * max(sunCos, 0.0) + skyLightOn(sunCos) + nightLight;
   bool fromStarSide = (r > cloudRadius) == (sunCos > 0.0);
   float shade = fromStarSide ? 1.0 : mix(1.0, UNDERSIDE, opacity);
-  vec3 colour = CLOUD_ALBEDO * light * shade / ATMOSPHERE_PI;
+  vec3 colour = cloudAlbedo * light * shade / ATMOSPHERE_PI;
 
   vec3 through = transmittanceOf(columnsBetween(c, p));
   gl_FragColor = vec4(colour * through + skyRadiance(d) * (1.0 - through), opacity);

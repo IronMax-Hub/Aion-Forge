@@ -24,8 +24,9 @@
 //   multiple-scattering table, made once per planet) is read at each step of
 //   a view ray, which adds it as it adds the starlight. It is mostly blue in
 //   thin air and whitens as the air thickens, as light scattered many times
-//   mixes its colours. No light from the ground is counted (it is taken as
-//   black). (Replaces A6's fixed 35% grey share, which paled thin skies and
+//   mixes its colours. Starlight reflected by the ground into those
+//   directions that meet it counts too, by the ground's mean colour
+//   (groundAlbedo.ts), as Hillaire's does. (Replaces A6's fixed 35% grey share, which paled thin skies and
 //   left them too dark beside the ground.)
 // - The sky table: for a camera at one height with the star at one height,
 //   the scattered light by the view's angle from overhead (rows) and its angle
@@ -126,8 +127,8 @@ export interface Scattered {
   multiple: Vec3;
 }
 
-/** Where a ray from radius r at zenith cosine mu is inside the air: from `start` to `end`, m; null if never. */
-function insideAir(air: Air, r: number, mu: number): { start: number; end: number } | null {
+/** Where a ray from radius r at zenith cosine mu is inside the air: from `start` to `end`, m, and whether it ends at the ground; null if never. */
+function insideAir(air: Air, r: number, mu: number): { start: number; end: number; ground: boolean } | null {
   const top = air.topM, R = air.radiusM;
   const b = r * mu;
   const outer = b * b - (r * r - top * top);
@@ -136,8 +137,9 @@ function insideAir(air: Air, r: number, mu: number): { start: number; end: numbe
   let end = -b + Math.sqrt(outer);
   if (end <= 0) return null;
   const inner = b * b - (r * r - R * R);
-  if (inner > 0 && -b - Math.sqrt(inner) > 0) end = Math.min(end, -b - Math.sqrt(inner));
-  return { start, end };
+  const ground = inner > 0 && -b - Math.sqrt(inner) > 0;
+  if (ground) end = Math.min(end, -b - Math.sqrt(inner));
+  return { start, end, ground };
 }
 
 /** Each planet's multiple-scattering table, made on first use (it depends only on the air). */
@@ -193,6 +195,19 @@ export function multipleScatteringTable(air: Air): Float32Array {
             once[k] += through * scattering * sunlight * isotropic * ds;
             onward[k] += through * scattering * ds;
             depth[k] += scattering * ds;
+          }
+        }
+        if (span.ground) {
+          // Starlight the ground there reflects, diffusely, back along the ray
+          const x = d[0] * span.end, y = r + d[1] * span.end, w = d[2] * span.end;
+          const rs = Math.sqrt(x * x + y * y + w * w);
+          const sunMuThere = (x * sun[0] + y * sun[1] + w * sun[2]) / rs;
+          const toSun = sunMuThere > 0 ? columnsToSpace(air, rs, sunMuThere) : null;
+          if (toSun) {
+            for (let k = 0; k < 3; k++) {
+              const sunlight = Math.exp(-(air.rayleigh[k] * toSun[0] + air.mie * toSun[1]));
+              once[k] += Math.exp(-depth[k]) * (air.groundAlbedo[k] / Math.PI) * sunlight * sunMuThere;
+            }
           }
         }
       }

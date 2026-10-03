@@ -12,11 +12,10 @@
 //   that gets through the air and by the sky's light, and hazed by the air
 //   between them and the camera (shaders/ground.*.glsl, water.*.glsl, and
 //   src/sky/shaders/atmosphere.glsl, which all three share).
-// - Brightness (owner decision): the star's light at the planet scales with
-//   its flux, L★ / a²; the exposure falls as flux^EXPOSURE_POWER, as an eye
-//   adapts, so lit ground looks as bright as flux^(1 + EXPOSURE_POWER) (a
-//   sixteenth of Earth's light looks half as bright, as Aion Forge's globe
-//   lights it) while the sky and star keep their true proportions.
+// - Brightness (owner decisions): the star's light at the planet scales with
+//   its flux, L★ / a²; the exposure adapts, as an eye does, to the light on
+//   the ground under the camera, within limits (src/sky/exposure.ts), while
+//   the sky and star keep their true proportions.
 //   The sky table is built a few rows a frame (SKY_BUDGET_MS) while the star
 //   or camera moves, showing the last whole table meanwhile.
 // - Clouds (src/sky/clouds.ts, shaders/clouds.frag.glsl): a pass over the
@@ -46,10 +45,12 @@ import { PatchWorkers } from "./workerPool";
 import { FrameMeter } from "./frameMeter";
 import { DEEP_WATER, GLOW_COLOUR, SEA_ICE, SHALLOW_WATER } from "./palette";
 import { airOf, MIE_ASYMMETRY } from "../sky/air";
+import { groundAlbedo } from "../sky/groundAlbedo";
 import type { Air } from "../sky/air";
 import { emptySkyTable, fillSkyRows, LIGHT_SIZE, lightTable, SKY_COLUMNS, SKY_ROWS } from "../sky/scattering";
+import { adaptation, lightOnGround } from "../sky/exposure";
 import type { SkyTable } from "../sky/scattering";
-import { CLOUD_MAP_HEIGHT, CLOUD_MAP_WIDTH, cloudHeightM, cloudMap } from "../sky/clouds";
+import { CLOUD_ALBEDO, CLOUD_MAP_HEIGHT, CLOUD_MAP_WIDTH, cloudHeightM, cloudMap } from "../sky/clouds";
 import { mix } from "../forge/random";
 import { discAngularRadius, starColour, starDirection, starFlux } from "../sky/star";
 import atmosphere from "../sky/shaders/atmosphere.glsl?raw";
@@ -75,12 +76,10 @@ const MAX_REQUESTS = 64;
 const RIPPLE_REPEAT_M = 1000;
 /** The star's light at the planet, before the air, where its flux is Earth's. */
 const SUN_INTENSITY = 3;
-/** The exposure at Earth's flux: the eye's adaptation to daylight, so a clear sky reads as a mid blue. */
+/** The exposure in daylight (exposure.ts: DAYLIGHT), so a clear sky reads as a mid blue. */
 const EARTH_EXPOSURE = 3;
-/** The exposure follows flux to this power (owner decision: lit ground looks as bright as flux^0.25). */
-const EXPOSURE_POWER = -0.75;
-/** Light where neither star nor sky reaches, until the night sky is drawn (later). */
-const NIGHT_LIGHT = 0.01;
+/** Light where neither star nor sky reaches, until the night sky is drawn (later): dim even to an eye adapted to the dark (exposure.ts). */
+const NIGHT_LIGHT = 0.001;
 /** The star's disc is drawn at least this many pixels across, with the same total light. */
 const MIN_DISC_PIXELS = 3;
 /** The sky table is rebuilt when the camera's height changes by this share (or 1 m), or the star's height cosine by this much. */
@@ -114,6 +113,8 @@ export interface GroundStats {
   splitFactor: number;
   /** Ground height under the camera, m above sea level. */
   groundM: number;
+  /** How far the exposure has adapted above daylight's (1 under the star overhead at Earth's flux). */
+  exposure: number;
   /** Time the sky table last took to build, ms, and over how many frames. */
   skyMs: number;
   skyFrames: number;
@@ -129,7 +130,7 @@ interface CachedPatch {
 }
 
 export class GroundRenderer {
-  readonly stats: GroundStats = { patchesDrawn: 0, patchesBuilding: 0, frameMs: 0, framesPerSecond: 0, splitFactor: SPLIT_FACTOR, groundM: 0, skyMs: 0, skyFrames: 0 };
+  readonly stats: GroundStats = { patchesDrawn: 0, patchesBuilding: 0, frameMs: 0, framesPerSecond: 0, splitFactor: SPLIT_FACTOR, groundM: 0, skyMs: 0, skyFrames: 0, exposure: 1 };
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
@@ -148,6 +149,9 @@ export class GroundRenderer {
   private skyMie: THREE.DataTexture;
   private skyMultiple: THREE.DataTexture;
   private skyLight: THREE.DataTexture;
+  /** The light table's values (scattering.ts), and the star's light at the planet: for the exposure. */
+  private skyLightValues: Float32Array;
+  private irradiance: Vec3;
   /** The camera's radius and the star's height cosine the sky table shown was built for. */
   private skyBuiltFor: { r: number; sunMu: number } | null = null;
   /** A sky table being built, its next row, and the time and frames spent so far. */
@@ -175,7 +179,6 @@ export class GroundRenderer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = EARTH_EXPOSURE * Math.pow(starFlux(spec), EXPOSURE_POWER);
     this.renderer.setClearColor(0x000000);
     this.camera = new THREE.PerspectiveCamera(FIELD_OF_VIEW_DEG, 1, 0.5, 1e9);
 
@@ -187,7 +190,7 @@ export class GroundRenderer {
     this.highestM = Math.max(...heights) + margin;
     this.lowestM = Math.min(...heights) - margin;
 
-    this.air = airOf(spec);
+    this.air = airOf(spec, groundAlbedo(spec));
     const flux = starFlux(spec);
     const irradiance = starColour(spec.star.temperatureK).map((c) => c * SUN_INTENSITY * flux) as Vec3;
     this.discRadius = discAngularRadius(spec);
@@ -195,7 +198,9 @@ export class GroundRenderer {
     this.skyMie = halfFloatTexture(SKY_COLUMNS, SKY_ROWS);
     this.skyMultiple = halfFloatTexture(SKY_COLUMNS, SKY_ROWS);
     this.skyLight = halfFloatTexture(LIGHT_SIZE, 1);
-    fillTexture(this.skyLight, lightTable(this.air, irradiance));
+    this.irradiance = irradiance;
+    this.skyLightValues = lightTable(this.air, irradiance);
+    fillTexture(this.skyLight, this.skyLightValues);
     this.atmosphere = {
       planetRadius: { value: this.air.radiusM },
       rayleighScattering: { value: new THREE.Vector3(...this.air.rayleigh) },
@@ -255,6 +260,7 @@ export class GroundRenderer {
           cloudRadius: { value: this.air.radiusM + cloudHeightM(this.air) },
           cloudTurn: { value: 0 },
           cloudOffset: { value: new THREE.Vector3(...offset) },
+          cloudAlbedo: { value: CLOUD_ALBEDO },
           cameraForward: { value: new THREE.Vector3() },
         },
       });
@@ -447,6 +453,14 @@ export class GroundRenderer {
     this.skyBuilding = null;
   }
 
+  /** Sets the exposure from the light on level ground under the camera, as an eye adapts (see the header). */
+  private adaptExposure(): void {
+    const sunMu = (this.atmosphere.sunDirection.value as THREE.Vector3).dot(this.atmosphere.cameraUp.value as THREE.Vector3);
+    const adapted = adaptation(lightOnGround(this.air, this.irradiance, this.skyLightValues, sunMu, NIGHT_LIGHT));
+    this.renderer.toneMappingExposure = EARTH_EXPOSURE * adapted;
+    this.stats.exposure = adapted;
+  }
+
   private loop = (time: number): void => {
     this.animation = requestAnimationFrame(this.loop);
     if (this.meter.frame(time)) {
@@ -460,6 +474,7 @@ export class GroundRenderer {
     this.frame++;
     this.placeCamera();
     this.updateSky();
+    this.adaptExposure();
 
     const selection = selectPatches({
       camera: this.cameraM, radiusM: this.terrain.radiusM, highestM: this.highestM, lowestM: this.lowestM,

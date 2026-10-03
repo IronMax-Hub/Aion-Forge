@@ -28,6 +28,8 @@ const CLOUD_SYSTEM_RADII = 0.5;
 const CLOUD_LAYERS = 5;
 /** The layer's height as a share of the air's scale height (Earth: about 2 km, where low clouds lie). */
 export const CLOUD_HEIGHT_SHARE = 0.25;
+/** How much light the clouds reflect (clouds.frag.glsl draws them so; groundAlbedo.ts counts them). */
+export const CLOUD_ALBEDO = 0.8;
 /** Margins are kept within ±1, so a fully clouded or clear planet stays so whatever the shader adds. */
 const MARGIN_LIMIT = 1;
 const CLOUD_SALT = 0x3c6ef372;

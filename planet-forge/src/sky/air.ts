@@ -79,6 +79,8 @@ export interface Air {
   /** Mie scattering at the ground, per m (the same in every channel); and its scale height, m. */
   mie: number;
   mieHeightM: number;
+  /** The ground's mean colour (groundAlbedo.ts), which sends starlight back into the air; black unless given. */
+  groundAlbedo: Vec3;
 }
 
 /** The gases' shares; air with none named is DEFAULT_GAS. */
@@ -97,7 +99,7 @@ export function scatteringPerMolecule(spec: PlanetSpec): number {
   return gasShares(spec).reduce((sum, [gas, share]) => sum + share * ((REFRACTIVITY[gas] ?? AIR_REFRACTIVITY) / AIR_REFRACTIVITY) ** 2, 0);
 }
 
-export function airOf(spec: PlanetSpec): Air {
+export function airOf(spec: PlanetSpec, groundAlbedo: Vec3 = [0, 0, 0]): Air {
   const radiusM = spec.body.radiusEarth * EARTH_RADIUS_M;
   const cells = spec.surface.cells;
   const temperatureK = cells.reduce((sum, c) => sum + c[4], 0) / cells.length;
@@ -115,5 +117,5 @@ export function airOf(spec: PlanetSpec): Air {
   const rayleigh = RAYLEIGH_CHANNELS.map((share) => (greenDepth * share) / rayleighHeightM) as Vec3;
   const mieDepth = EARTH_MIE_DEPTH * massColumn;
   const mie = mieDepth / mieHeightM;
-  return { radiusM, topM: radiusM + TOP_SCALE_HEIGHTS * rayleighHeightM, rayleigh, rayleighHeightM, mie, mieHeightM };
+  return { radiusM, topM: radiusM + TOP_SCALE_HEIGHTS * rayleighHeightM, rayleigh, rayleighHeightM, mie, mieHeightM, groundAlbedo };
 }

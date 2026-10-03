@@ -10,13 +10,13 @@ uniform float rayleighHeight;      // scale height, m
 uniform float mieScattering;
 uniform float mieHeight;
 uniform float mieAsymmetry;
-uniform float multipleScattering;
 uniform vec3 cameraBody;           // the camera, m from the planet's centre
 uniform vec3 cameraUp;
 uniform vec3 sunDirection;
 uniform vec3 sunIrradiance;        // the star's light at the planet, before the air
 uniform sampler2D skyRayleigh;     // the sky table (scattering.ts): Rayleigh and Mie light before phase
 uniform sampler2D skyMie;
+uniform sampler2D skyMultiple;     // and light scattered more than once, which has no phase
 uniform vec2 skySize;              // columns, rows
 uniform float skyHorizon;          // the zenith angle the table's rows are packed around
 uniform sampler2D skyLight;        // the light table: the sky's light on level ground, by the star's height
@@ -104,9 +104,8 @@ vec2 skyUv(vec3 d) {
 vec3 skyRadiance(vec3 d) {
   vec2 uv = skyUv(d);
   float c = dot(d, sunDirection);
-  vec3 single = sunIrradiance * (rayleighPhase(c) * texture2D(skyRayleigh, uv).rgb + miePhase(c) * texture2D(skyMie, uv).rgb);
-  float grey = dot(single, vec3(0.2126, 0.7152, 0.0722));
-  return mix(single, vec3(grey), multipleScattering);
+  return sunIrradiance * (rayleighPhase(c) * texture2D(skyRayleigh, uv).rgb + miePhase(c) * texture2D(skyMie, uv).rgb
+    + texture2D(skyMultiple, uv).rgb);
 }
 
 // The sky's light on level ground with the star at zenith cosine mu

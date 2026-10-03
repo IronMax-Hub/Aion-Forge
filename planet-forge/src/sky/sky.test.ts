@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { Vec3 } from "../forge/icosphere";
 import type { PlanetSpec } from "../spec/schema";
 import { presetSpec } from "../spec/presetFiles";
-import { airOf, molarMass, scatteringPerMolecule } from "./air";
+import { airOf, molarMass, RAYLEIGH_CHANNELS, scatteringPerMolecule } from "./air";
 import type { Air } from "./air";
 import {
-  chapman, horizonZenith, lightTable, LIGHT_SIZE, rowOfZenith, scatterAlong, SKY_COLUMNS, SKY_ROWS, skyRadiance, skyTable,
+  chapman, horizonZenith, lightTable, miePhase, rayleighPhase, LIGHT_SIZE, rowOfZenith, scatterAlong, SKY_COLUMNS, SKY_ROWS, skyRadiance, skyTable,
   transmittanceToSpace, zenithOfRow,
 } from "./scattering";
 import { discAngularRadius, starColour, starFlux } from "./star";
@@ -40,10 +40,35 @@ describe("the air", () => {
     const air = airOf(earth);
     expect(air.rayleighHeightM).toBeGreaterThan(8000);
     expect(air.rayleighHeightM).toBeLessThan(8800);
-    // Optical depth straight up is the ground's scattering times the scale height: A6's Earth depths
+    // Optical depth straight up is the ground's scattering times the scale height: 0.1 in green, red and blue by the spectrum
     const depth = air.rayleigh.map((b) => b * air.rayleighHeightM);
-    expect(depth[0]).toBeCloseTo(0.064, 2);
-    expect(depth[2]).toBeCloseTo(0.196, 2);
+    expect(depth[1]).toBeCloseTo(0.100, 3);
+    expect(depth[0]).toBeCloseTo(0.0518, 3);
+    expect(depth[2]).toBeCloseTo(0.2389, 3);
+  });
+
+  it("scatters each channel as the whole spectrum does, seen through the CIE observer", () => {
+    // Wyman, Sloan and Shirley's (2013) fit of the CIE 1931 2° observer, and XYZ to linear sRGB
+    const lobe = (x: number, mu: number, below: number, above: number) => Math.exp(-0.5 * ((x - mu) / (x < mu ? below : above)) ** 2);
+    const xbar = (l: number) => 1.056 * lobe(l, 599.8, 37.9, 31.0) + 0.362 * lobe(l, 442.0, 16.0, 26.7) - 0.065 * lobe(l, 501.1, 20.4, 26.2);
+    const ybar = (l: number) => 0.821 * lobe(l, 568.8, 46.9, 40.5) + 0.286 * lobe(l, 530.9, 16.3, 31.1);
+    const zbar = (l: number) => 1.217 * lobe(l, 437.0, 11.8, 36.0) + 0.681 * lobe(l, 459.0, 26.0, 13.8);
+    const toRGB = [[3.2406, -1.5372, -0.4986], [-0.9689, 1.8758, 0.0415], [0.0557, -0.2040, 1.0570]];
+    const rgbOf = (spectrum: (l: number) => number) => {
+      const xyz = [0, 0, 0];
+      for (let l = 380; l <= 780; l += 5) {
+        const w = spectrum(l);
+        xyz[0] += w * xbar(l); xyz[1] += w * ybar(l); xyz[2] += w * zbar(l);
+      }
+      return toRGB.map((row) => row[0] * xyz[0] + row[1] * xyz[1] + row[2] * xyz[2]);
+    };
+    for (const temperatureK of [3200, 5772, 10000]) {
+      const planck = (l: number) => 1 / ((l * 1e-9) ** 5 * Math.expm1(1.4388e-2 / (l * 1e-9 * temperatureK)));
+      const direct = rgbOf(planck), scattered = rgbOf((l) => planck(l) * (550 / l) ** 4.05);
+      const weights = [0, 1, 2].map((k) => scattered[k] / direct[k] / (scattered[1] / direct[1]));
+      expect(Math.abs(weights[0] - RAYLEIGH_CHANNELS[0])).toBeLessThan(0.04);
+      expect(Math.abs(weights[2] - RAYLEIGH_CHANNELS[2])).toBeLessThan(0.12);
+    }
   });
 
   it("follows the column of air: lower gravity, more air overhead and a deeper sky", () => {
@@ -118,7 +143,28 @@ describe("the sky", () => {
     const [r, g, b] = zenithSky(earth);
     expect(b).toBeGreaterThan(g);
     expect(g).toBeGreaterThan(r);
-    expect(b / r).toBeGreaterThan(1.5);
+    expect(b / r).toBeGreaterThan(3);
+  });
+
+  it("is blue, not violet, under a hot star: green stays above red", () => {
+    const [r, g, b] = zenithSky(variant(earth, (s) => { s.star.temperatureK = 10_000; }));
+    expect(b).toBeGreaterThan(g);
+    expect(g).toBeGreaterThan(r);
+  });
+
+  it("gains light scattered more than once: a little in thin air, most of it in thick air", () => {
+    const share = (spec: PlanetSpec) => {
+      const air = airOf(spec);
+      const s = scatterAlong(air, air.radiusM + 2, 1, 0, Math.SQRT1_2);
+      const single = rayleighPhase(Math.SQRT1_2) * s.rayleigh[1] + miePhase(Math.SQRT1_2) * s.mie[1];
+      return s.multiple[1] / (single + s.multiple[1]);
+    };
+    const thin = share(variant(earth, (s) => { s.air.pressureBar = 0.1; })), normal = share(earth);
+    const thick = share(variant(earth, (s) => { s.air.pressureBar = 10; }));
+    expect(thin).toBeLessThan(normal);
+    expect(normal).toBeGreaterThan(0.05);
+    expect(normal).toBeLessThan(0.5);
+    expect(thick).toBeGreaterThan(0.5);
   });
 
   it("is warmer under a red dwarf", () => {

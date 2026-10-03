@@ -47,7 +47,7 @@ import { FrameMeter } from "./frameMeter";
 import { DEEP_WATER, GLOW_COLOUR, SEA_ICE, SHALLOW_WATER } from "./palette";
 import { airOf, MIE_ASYMMETRY } from "../sky/air";
 import type { Air } from "../sky/air";
-import { emptySkyTable, fillSkyRows, LIGHT_SIZE, lightTable, MULTIPLE_SCATTERING, SKY_COLUMNS, SKY_ROWS } from "../sky/scattering";
+import { emptySkyTable, fillSkyRows, LIGHT_SIZE, lightTable, SKY_COLUMNS, SKY_ROWS } from "../sky/scattering";
 import type { SkyTable } from "../sky/scattering";
 import { CLOUD_MAP_HEIGHT, CLOUD_MAP_WIDTH, cloudHeightM, cloudMap } from "../sky/clouds";
 import { mix } from "../forge/random";
@@ -146,6 +146,7 @@ export class GroundRenderer {
   private atmosphere: Record<string, THREE.IUniform>;
   private skyRayleigh: THREE.DataTexture;
   private skyMie: THREE.DataTexture;
+  private skyMultiple: THREE.DataTexture;
   private skyLight: THREE.DataTexture;
   /** The camera's radius and the star's height cosine the sky table shown was built for. */
   private skyBuiltFor: { r: number; sunMu: number } | null = null;
@@ -192,6 +193,7 @@ export class GroundRenderer {
     this.discRadius = discAngularRadius(spec);
     this.skyRayleigh = halfFloatTexture(SKY_COLUMNS, SKY_ROWS);
     this.skyMie = halfFloatTexture(SKY_COLUMNS, SKY_ROWS);
+    this.skyMultiple = halfFloatTexture(SKY_COLUMNS, SKY_ROWS);
     this.skyLight = halfFloatTexture(LIGHT_SIZE, 1);
     fillTexture(this.skyLight, lightTable(this.air, irradiance));
     this.atmosphere = {
@@ -201,13 +203,13 @@ export class GroundRenderer {
       mieScattering: { value: this.air.mie },
       mieHeight: { value: this.air.mieHeightM },
       mieAsymmetry: { value: MIE_ASYMMETRY },
-      multipleScattering: { value: MULTIPLE_SCATTERING },
       cameraBody: { value: new THREE.Vector3() },
       cameraUp: { value: new THREE.Vector3(0, 1, 0) },
       sunDirection: { value: new THREE.Vector3(...starDirection(spec)) },
       sunIrradiance: { value: new THREE.Vector3(...irradiance) },
       skyRayleigh: { value: this.skyRayleigh },
       skyMie: { value: this.skyMie },
+      skyMultiple: { value: this.skyMultiple },
       skySize: { value: new THREE.Vector2(SKY_COLUMNS, SKY_ROWS) },
       skyHorizon: { value: Math.PI / 2 },
       skyLight: { value: this.skyLight },
@@ -324,7 +326,7 @@ export class GroundRenderer {
     this.clouds?.geometry.dispose();
     this.cloudMaterial?.dispose();
     this.cloudTexture?.dispose();
-    for (const texture of [this.skyRayleigh, this.skyMie, this.skyLight]) texture.dispose();
+    for (const texture of [this.skyRayleigh, this.skyMie, this.skyMultiple, this.skyLight]) texture.dispose();
     this.renderer.dispose();
   }
 
@@ -437,6 +439,7 @@ export class GroundRenderer {
     const { table } = building;
     fillTexture(this.skyRayleigh, table.rayleigh);
     fillTexture(this.skyMie, table.mie);
+    fillTexture(this.skyMultiple, table.multiple);
     this.atmosphere.skyHorizon.value = table.horizon;
     this.skyBuiltFor = { r: table.r, sunMu: table.sunMu };
     this.stats.skyMs = building.ms;

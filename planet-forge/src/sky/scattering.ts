@@ -15,9 +15,18 @@
 //   the scattering's angular shape (its phase function: Rayleigh's, and
 //   Henyey–Greenstein's for haze) is applied after the march, by the shader.
 //   The tables therefore hold Rayleigh and Mie light separately, before phase.
-// - Light scattered more than once mixes the colours back together; as in
-//   Aion Forge's A6, a share MULTIPLE_SCATTERING of the light is taken as that
-//   mixed, grey part.
+// - Light scattered more than once, by Hillaire's method (2020): for a point
+//   at each height with the star at each height, the once-scattered light
+//   arriving from every direction (MULTIPLE_DIRECTIONS of them, scattered
+//   evenly, as if by an isotropic phase), and the share of light that a
+//   scattering sends on to scatter again, f; light scattered any number of
+//   times more is that first light times 1 / (1 − f). The table (the
+//   multiple-scattering table, made once per planet) is read at each step of
+//   a view ray, which adds it as it adds the starlight. It is mostly blue in
+//   thin air and whitens as the air thickens, as light scattered many times
+//   mixes its colours. No light from the ground is counted (it is taken as
+//   black). (Replaces A6's fixed 35% grey share, which paled thin skies and
+//   left them too dark beside the ground.)
 // - The sky table: for a camera at one height with the star at one height,
 //   the scattered light by the view's angle from overhead (rows) and its angle
 //   round from the star's direction (columns; the sky is symmetric about the
@@ -45,10 +54,11 @@ export const LIGHT_SIZE = 64;
 /** Rings and directions round sampled when summing the sky's light on the ground. */
 const LIGHT_RINGS = 8;
 const LIGHT_DIRECTIONS = 16;
-/** Share of the scattered light taken as scattered more than once, its colours mixed (A6). */
-export const MULTIPLE_SCATTERING = 0.35;
-/** Linear RGB luminance weights. */
-const LUMINANCE: Vec3 = [0.2126, 0.7152, 0.0722];
+/** The multiple-scattering table's size: heights (packed towards the ground) by the star's zenith cosine, −1 to 1. */
+export const MULTIPLE_SIZE = 32;
+/** Directions summed for each entry, and steps along each. */
+const MULTIPLE_DIRECTIONS = 64;
+const MULTIPLE_STEPS = 20;
 /** The camera is kept at least this far above the sphere at sea level, for the sky's sake, m. */
 const MIN_CAMERA_HEIGHT_M = 1;
 
@@ -109,10 +119,105 @@ export function miePhase(cosAngle: number, g = MIE_ASYMMETRY): number {
   return (1 - g * g) / (4 * Math.PI * Math.pow(1 + g * g - 2 * g * cosAngle, 1.5));
 }
 
-/** Rayleigh and Mie light gathered along one view ray, before phase. */
+/** Light gathered along one view ray: Rayleigh and Mie light from the star, before phase; and light scattered more than once. */
 export interface Scattered {
   rayleigh: Vec3;
   mie: Vec3;
+  multiple: Vec3;
+}
+
+/** Where a ray from radius r at zenith cosine mu is inside the air: from `start` to `end`, m; null if never. */
+function insideAir(air: Air, r: number, mu: number): { start: number; end: number } | null {
+  const top = air.topM, R = air.radiusM;
+  const b = r * mu;
+  const outer = b * b - (r * r - top * top);
+  if (outer <= 0) return null;
+  const start = Math.max(0, -b - Math.sqrt(outer));
+  let end = -b + Math.sqrt(outer);
+  if (end <= 0) return null;
+  const inner = b * b - (r * r - R * R);
+  if (inner > 0 && -b - Math.sqrt(inner) > 0) end = Math.min(end, -b - Math.sqrt(inner));
+  return { start, end };
+}
+
+/** Each planet's multiple-scattering table, made on first use (it depends only on the air). */
+const multipleTables = new WeakMap<Air, Float32Array>();
+
+/** The multiple-scattering table entry's height above sea level for a coordinate 0–1 (packed towards the ground). */
+function multipleHeightM(air: Air, u: number): number {
+  return (air.topM - air.radiusM) * u * u;
+}
+
+/**
+ * The multiple-scattering table (Hillaire 2020): for each height and star
+ * height, the light scattered more than once arriving at a point, per unit of
+ * the star's irradiance and per unit of scattering there, RGB.
+ */
+export function multipleScatteringTable(air: Air): Float32Array {
+  const cached = multipleTables.get(air);
+  if (cached) return cached;
+  const table = new Float32Array(MULTIPLE_SIZE * MULTIPLE_SIZE * 3);
+  multipleTables.set(air, table);
+  if (air.rayleigh.every((b) => b === 0) && air.mie === 0) return table;
+
+  // Directions spread evenly over the sphere (a Fibonacci lattice)
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const directions = Array.from({ length: MULTIPLE_DIRECTIONS }, (_, k) => {
+    const y = 1 - (2 * (k + 0.5)) / MULTIPLE_DIRECTIONS, ring = Math.sqrt(1 - y * y);
+    return [ring * Math.cos(golden * k), y, ring * Math.sin(golden * k)];
+  });
+  const isotropic = 1 / (4 * Math.PI);
+
+  for (let row = 0; row < MULTIPLE_SIZE; row++) {
+    const r = Math.max(air.radiusM + MIN_CAMERA_HEIGHT_M, air.radiusM + multipleHeightM(air, row / (MULTIPLE_SIZE - 1)));
+    for (let column = 0; column < MULTIPLE_SIZE; column++) {
+      const sunMu = -1 + (2 * column) / (MULTIPLE_SIZE - 1);
+      const sun = [Math.sqrt(1 - sunMu * sunMu), sunMu, 0];
+      const once: Vec3 = [0, 0, 0], onward: Vec3 = [0, 0, 0];
+      for (const d of directions) {
+        const span = insideAir(air, r, d[1]);
+        if (!span) continue;
+        const ds = (span.end - span.start) / MULTIPLE_STEPS;
+        const depth: Vec3 = [0, 0, 0];
+        for (let i = 0; i < MULTIPLE_STEPS; i++) {
+          const t = span.start + (i + 0.5) * ds;
+          const x = d[0] * t, y = r + d[1] * t, w = d[2] * t;
+          const rs = Math.sqrt(x * x + y * y + w * w);
+          const h = Math.max(0, rs - air.radiusM);
+          const rayleighDensity = Math.exp(-h / air.rayleighHeightM), mieDensity = Math.exp(-h / air.mieHeightM);
+          const toSun = columnsToSpace(air, rs, (x * sun[0] + y * sun[1] + w * sun[2]) / rs);
+          for (let k = 0; k < 3; k++) {
+            const scattering = air.rayleigh[k] * rayleighDensity + air.mie * mieDensity;
+            const through = Math.exp(-(depth[k] + (scattering * ds) / 2));
+            const sunlight = toSun ? Math.exp(-(air.rayleigh[k] * toSun[0] + air.mie * toSun[1])) : 0;
+            once[k] += through * scattering * sunlight * isotropic * ds;
+            onward[k] += through * scattering * ds;
+            depth[k] += scattering * ds;
+          }
+        }
+      }
+      const at = (row * MULTIPLE_SIZE + column) * 3;
+      for (let k = 0; k < 3; k++) {
+        // Averages over the sphere: the isotropic phase times the whole sphere's 4π
+        const first = once[k] / MULTIPLE_DIRECTIONS, f = onward[k] / MULTIPLE_DIRECTIONS;
+        table[at + k] = first / (1 - Math.min(f, 0.99));
+      }
+    }
+  }
+  return table;
+}
+
+/** The multiple-scattering table read at a height and star zenith cosine, bilinearly. */
+function multipleAt(air: Air, table: Float32Array, heightM: number, sunMu: number, out: Vec3): void {
+  const u = Math.sqrt(Math.max(0, Math.min(1, heightM / (air.topM - air.radiusM)))) * (MULTIPLE_SIZE - 1);
+  const v = ((Math.max(-1, Math.min(1, sunMu)) + 1) / 2) * (MULTIPLE_SIZE - 1);
+  const r0 = Math.min(MULTIPLE_SIZE - 2, Math.floor(u)), c0 = Math.min(MULTIPLE_SIZE - 2, Math.floor(v));
+  const fu = u - r0, fv = v - c0;
+  for (let k = 0; k < 3; k++) {
+    const a = table[(r0 * MULTIPLE_SIZE + c0) * 3 + k], b = table[(r0 * MULTIPLE_SIZE + c0 + 1) * 3 + k];
+    const c = table[((r0 + 1) * MULTIPLE_SIZE + c0) * 3 + k], e = table[((r0 + 1) * MULTIPLE_SIZE + c0 + 1) * 3 + k];
+    out[k] = (a + (b - a) * fv) * (1 - fu) + (c + (e - c) * fv) * fu;
+  }
 }
 
 /**
@@ -121,22 +226,17 @@ export interface Scattered {
  * the ray leaves the air or meets the sphere at sea level.
  */
 export function scatterAlong(air: Air, r: number, mu: number, phi: number, sunMu: number): Scattered {
-  const rayleigh: Vec3 = [0, 0, 0], mie: Vec3 = [0, 0, 0];
+  const rayleigh: Vec3 = [0, 0, 0], mie: Vec3 = [0, 0, 0], multiple: Vec3 = [0, 0, 0];
   r = Math.max(r, air.radiusM + MIN_CAMERA_HEIGHT_M);
-  const top = air.topM, R = air.radiusM;
+  const R = air.radiusM;
   const sinMu = Math.sqrt(Math.max(0, 1 - mu * mu));
   const direction = [sinMu * Math.cos(phi), mu, sinMu * Math.sin(phi)];
   const sun = [Math.sqrt(Math.max(0, 1 - sunMu * sunMu)), sunMu, 0];
-
-  // Where the ray is inside the air
-  const b = r * mu;
-  const outer = b * b - (r * r - top * top);
-  if (outer <= 0) return { rayleigh, mie };
-  const start = Math.max(0, -b - Math.sqrt(outer));
-  let end = -b + Math.sqrt(outer);
-  if (end <= 0) return { rayleigh, mie };
-  const inner = b * b - (r * r - R * R);
-  if (inner > 0 && -b - Math.sqrt(inner) > 0) end = Math.min(end, -b - Math.sqrt(inner));
+  const span = insideAir(air, r, mu);
+  if (!span) return { rayleigh, mie, multiple };
+  const { start, end } = span;
+  const table = multipleScatteringTable(air);
+  const again: Vec3 = [0, 0, 0];
 
   const length = end - start;
   const depth: Vec3 = [0, 0, 0];
@@ -151,23 +251,25 @@ export function scatterAlong(air: Air, r: number, mu: number, phi: number, sunMu
     const mieDensity = Math.exp(-h / air.mieHeightM);
     const sunMuHere = (x * sun[0] + y * sun[1] + w * sun[2]) / rs;
     const toSun = columnsToSpace(air, rs, sunMuHere);
+    multipleAt(air, table, h, sunMuHere, again);
     for (let k = 0; k < 3; k++) {
-      const step = (air.rayleigh[k] * rayleighDensity + air.mie * mieDensity) * ds;
-      const through = toSun ? Math.exp(-(depth[k] + step / 2 + air.rayleigh[k] * toSun[0] + air.mie * toSun[1])) : 0;
+      const scattering = air.rayleigh[k] * rayleighDensity + air.mie * mieDensity;
+      const step = scattering * ds;
+      const seen = Math.exp(-(depth[k] + step / 2));
+      const through = toSun ? seen * Math.exp(-(air.rayleigh[k] * toSun[0] + air.mie * toSun[1])) : 0;
       rayleigh[k] += air.rayleigh[k] * rayleighDensity * ds * through;
       mie[k] += air.mie * mieDensity * ds * through;
+      multiple[k] += scattering * again[k] * ds * seen;
       depth[k] += step;
     }
   }
-  return { rayleigh, mie };
+  return { rayleigh, mie, multiple };
 }
 
 /** Light scattered towards the viewer, from what a ray gathered, the angle to the star and the star's irradiance. */
 export function radianceOf(scattered: Scattered, cosToStar: number, irradiance: Vec3): Vec3 {
   const pr = rayleighPhase(cosToStar), pm = miePhase(cosToStar);
-  const single = [0, 1, 2].map((k) => irradiance[k] * (pr * scattered.rayleigh[k] + pm * scattered.mie[k]));
-  const grey = single[0] * LUMINANCE[0] + single[1] * LUMINANCE[1] + single[2] * LUMINANCE[2];
-  return single.map((s) => s + (grey - s) * MULTIPLE_SCATTERING) as Vec3;
+  return [0, 1, 2].map((k) => irradiance[k] * (pr * scattered.rayleigh[k] + pm * scattered.mie[k] + scattered.multiple[k])) as Vec3;
 }
 
 /** The view's zenith angle at the horizon from radius r: below it, rays meet the ground. */
@@ -195,6 +297,8 @@ export interface SkyTable {
   /** RGBA per entry, SKY_COLUMNS × SKY_ROWS, row by row: Rayleigh light and Mie light, before phase. */
   rayleigh: Float32Array;
   mie: Float32Array;
+  /** RGBA per entry: light scattered more than once (no phase: it comes from every direction). */
+  multiple: Float32Array;
   /** The camera's radius and the star's zenith cosine the table is for. */
   r: number;
   sunMu: number;
@@ -207,6 +311,7 @@ export function emptySkyTable(air: Air, r: number, sunMu: number): SkyTable {
   return {
     rayleigh: new Float32Array(SKY_COLUMNS * SKY_ROWS * 4),
     mie: new Float32Array(SKY_COLUMNS * SKY_ROWS * 4),
+    multiple: new Float32Array(SKY_COLUMNS * SKY_ROWS * 4),
     r, sunMu, horizon: horizonZenith(air, r),
   };
 }
@@ -221,6 +326,7 @@ export function fillSkyRows(air: Air, table: SkyTable, from: number, to: number)
       const at = (row * SKY_COLUMNS + column) * 4;
       table.rayleigh.set([...s.rayleigh, 1], at);
       table.mie.set([...s.mie, 1], at);
+      table.multiple.set([...s.multiple, 1], at);
     }
   }
 }

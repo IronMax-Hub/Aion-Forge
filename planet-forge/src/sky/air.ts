@@ -9,14 +9,23 @@
 // - The air thins exponentially, with scale height H = R·T / (M·g): T the
 //   cells' mean temperature, M the gases' mean molar mass, g the surface gravity.
 // - Rayleigh scattering (scatters blue most): Earth's optical depth straight up
-//   at 1 bar, per channel (Aion Forge's A6: 0.0088·λ^−4.05 at the same
-//   wavelengths), scaled by the number of molecules overhead, P / (M·g)
+//   at 1 bar, per channel, scaled by the number of molecules overhead, P / (M·g)
 //   against Earth's air, and by how strongly the gases scatter, (n − 1)²
 //   against air's, n each gas's refractive index. Thin air gives a dark sky,
 //   low gravity a hazier one; CO₂ scatters about 2.3 times as strongly as N₂.
 // - Mie scattering (haze, the glow around the star): Earth's clear-sky haze
 //   per unit mass of air overhead, the same at every wavelength, in a layer
 //   AEROSOL_HEIGHT_SHARE as thick as the air's. An airless world has none.
+// - The channels' Rayleigh depths are what the whole spectrum gives, not the
+//   law sampled at one wavelength per channel: green is Earth's depth at
+//   550 nm (0.0088·λ^−4.05 µm, A6's), and red and blue are scaled by how much
+//   of sunlight scattered as λ^−4.05 each channel sees, against sunlight
+//   itself, integrating against the CIE 1931 observer into linear sRGB. That
+//   gives red 0.52 and blue 2.39 times green (within 0.04 for stars from
+//   3,200 to 10,000 K), where sampling at 612 and 465 nm, as A6 does, gave
+//   0.64 and 1.96: so a Rayleigh sky is as blue as it is (about 3.8 times as
+//   much blue as red under the Sun, against 2.1), and still never violet.
+//   This departs from A6, whose rim keeps the sampled depths (fix after PF4).
 //
 // Assumptions: one temperature for the whole column (an isothermal
 // atmosphere); scattering only, no absorption (extinction equals scattering);
@@ -34,8 +43,9 @@ const GAS_CONSTANT = 8.314462618;
 /** Earth's air: mean molar mass, kg/mol, and refractivity (n − 1) in visible light. */
 const AIR_MOLAR_MASS = 0.028964;
 const AIR_REFRACTIVITY = 2.93e-4;
-/** Earth's Rayleigh optical depth straight up at 1 bar and 1 g, red, green, blue (A6's, at 612, 549 and 465 nm). */
-const EARTH_RAYLEIGH_DEPTH: Vec3 = [0.064, 0.100, 0.196];
+/** Earth's Rayleigh optical depth straight up at 1 bar and 1 g in green, and red's and blue's against it (the spectrum through the CIE observer; above). */
+const EARTH_RAYLEIGH_GREEN = 0.100;
+export const RAYLEIGH_CHANNELS: Vec3 = [0.518, 1, 2.389];
 /** Earth's clear-sky haze (aerosol optical depth straight up) at 1 bar and 1 g: Bruneton and Neyret's (2008) 21 per Mm over a 1.2 km layer. */
 const EARTH_MIE_DEPTH = 0.025;
 /** The haze layer's scale height as a share of the air's (Earth: about 1.2 of 8.4 km). */
@@ -101,7 +111,9 @@ export function airOf(spec: PlanetSpec): Air {
   const moleculeColumn = massColumn * (AIR_MOLAR_MASS / mass);
   const perMolecule = scatteringPerMolecule(spec);
   // A depth straight up, τ, is the ground's scattering times the scale height
-  const rayleigh = EARTH_RAYLEIGH_DEPTH.map((depth) => (depth * moleculeColumn * perMolecule) / rayleighHeightM) as Vec3;
-  const mie = (EARTH_MIE_DEPTH * massColumn) / mieHeightM;
+  const greenDepth = EARTH_RAYLEIGH_GREEN * moleculeColumn * perMolecule;
+  const rayleigh = RAYLEIGH_CHANNELS.map((share) => (greenDepth * share) / rayleighHeightM) as Vec3;
+  const mieDepth = EARTH_MIE_DEPTH * massColumn;
+  const mie = mieDepth / mieHeightM;
   return { radiusM, topM: radiusM + TOP_SCALE_HEIGHTS * rayleighHeightM, rayleigh, rayleighHeightM, mie, mieHeightM };
 }

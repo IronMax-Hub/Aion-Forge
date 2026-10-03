@@ -147,7 +147,7 @@ export function GroundView({ spec, site, onClose }: Props) {
           {stats && <>
             <dt>Ground</dt><dd>{heightText(stats.groundM)} {stats.groundM < 0 ? "(under the sea)" : "above sea level"}</dd>
             <dt>Patches</dt><dd>{stats.patchesDrawn} drawn, {stats.patchesBuilding} building</dd>
-            <dt>Frame</dt><dd>{figure(stats.frameMs, 3)} ms · split ×{figure(stats.splitFactor, 3)}</dd>
+            <dt>Frame</dt><dd>{stats.frameMs > 0 ? `${figure(stats.frameMs, 3)} ms (${figure(stats.framesPerSecond, 3)} a second)` : "measuring…"} · split ×{figure(stats.splitFactor, 3)}</dd>
             <dt>Sky table</dt><dd>{figure(stats.skyMs, 2)} ms over {stats.skyFrames} frame{stats.skyFrames === 1 ? "" : "s"}</dd>
           </>}
         </dl>

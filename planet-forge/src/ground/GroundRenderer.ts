@@ -28,7 +28,8 @@
 // - Water: one material per patch (they share a program) for the patch's own origin.
 // - Frame time: when frames take longer than SLOW_MS, patches split less
 //   eagerly (the split factor shrinks to at least MIN_SPLIT); with headroom it
-//   recovers. Intervals over IGNORE_MS (a hidden or paused tab) are ignored.
+//   recovers. The frame time is counted over each second (frameMeter.ts):
+//   every frame counts, however slow; a hidden tab's pause does not.
 // Presentation only.
 
 import * as THREE from "three";
@@ -42,6 +43,7 @@ import { patchIndices } from "./patchBuilder";
 import type { PatchData } from "./patchBuilder";
 import { selectPatches } from "./quadtree";
 import { PatchWorkers } from "./workerPool";
+import { FrameMeter } from "./frameMeter";
 import { DEEP_WATER, GLOW_COLOUR, SEA_ICE, SHALLOW_WATER } from "./palette";
 import { airOf, MIE_ASYMMETRY } from "../sky/air";
 import type { Air } from "../sky/air";
@@ -65,7 +67,6 @@ const SPLIT_FACTOR = 2;
 const MIN_SPLIT = 0.75;
 const SLOW_MS = 20;
 const FAST_MS = 14;
-const IGNORE_MS = 100;
 /** Built patches kept for reuse. */
 const CACHE_SIZE = 600;
 /** Patches asked for at once; the rest wait for the next frame's selection. */
@@ -107,7 +108,9 @@ export interface GroundView {
 export interface GroundStats {
   patchesDrawn: number;
   patchesBuilding: number;
+  /** Mean frame time over the last second, ms, and frames drawn in it per second. */
   frameMs: number;
+  framesPerSecond: number;
   splitFactor: number;
   /** Ground height under the camera, m above sea level. */
   groundM: number;
@@ -126,7 +129,7 @@ interface CachedPatch {
 }
 
 export class GroundRenderer {
-  readonly stats: GroundStats = { patchesDrawn: 0, patchesBuilding: 0, frameMs: 0, splitFactor: SPLIT_FACTOR, groundM: 0, skyMs: 0, skyFrames: 0 };
+  readonly stats: GroundStats = { patchesDrawn: 0, patchesBuilding: 0, frameMs: 0, framesPerSecond: 0, splitFactor: SPLIT_FACTOR, groundM: 0, skyMs: 0, skyFrames: 0 };
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
@@ -159,7 +162,8 @@ export class GroundRenderer {
   private highestM: number;
   private lowestM: number;
   private frame = 0;
-  private lastTime = 0;
+  private meter = new FrameMeter();
+  private onVisibility = (): void => { if (document.hidden) this.meter.restart(); };
   private animation = 0;
   private start = performance.now();
 
@@ -283,6 +287,7 @@ export class GroundRenderer {
 
     this.workers = new PatchWorkers(spec, (patch) => this.addPatch(patch));
     this.resize();
+    document.addEventListener("visibilitychange", this.onVisibility);
     this.animation = requestAnimationFrame(this.loop);
   }
 
@@ -308,6 +313,7 @@ export class GroundRenderer {
 
   dispose(): void {
     cancelAnimationFrame(this.animation);
+    document.removeEventListener("visibilitychange", this.onVisibility);
     this.workers.dispose();
     for (const patch of this.cache.values()) this.disposePatch(patch);
     this.cache.clear();
@@ -440,10 +446,11 @@ export class GroundRenderer {
 
   private loop = (time: number): void => {
     this.animation = requestAnimationFrame(this.loop);
-    const interval = this.lastTime ? time - this.lastTime : 0;
-    this.lastTime = time;
-    if (interval > 0 && interval < IGNORE_MS) {
-      this.stats.frameMs = this.stats.frameMs ? this.stats.frameMs * 0.9 + interval * 0.1 : interval;
+    if (this.meter.frame(time)) {
+      this.stats.frameMs = this.meter.frameMs;
+      this.stats.framesPerSecond = this.meter.framesPerSecond;
+    }
+    if (this.stats.frameMs > 0) {
       if (this.stats.frameMs > SLOW_MS) this.stats.splitFactor = Math.max(MIN_SPLIT, this.stats.splitFactor * 0.98);
       else if (this.stats.frameMs < FAST_MS) this.stats.splitFactor = Math.min(SPLIT_FACTOR, this.stats.splitFactor * 1.01);
     }

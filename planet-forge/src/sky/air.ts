@@ -26,6 +26,16 @@
 //   0.64 and 1.96: so a Rayleigh sky is as blue as it is (about 3.8 times as
 //   much blue as red under the Sun, against 2.1), and still never violet.
 //   This departs from A6, whose rim keeps the sampled depths (fix after PF4).
+// - Ozone absorbs (it does not scatter) in its Chappuis band, orange and red
+//   light most: taken as a Gaussian peaking at 5.2e−21 cm² at 600 nm, 60 nm
+//   wide (close to measured cross-sections from 450 to 700 nm), and per
+//   channel by the same integration as the Rayleigh strengths: red 5.6, green
+//   3.3, blue about 0 (×1e−21 cm²; the integration gives a little below 0 for
+//   blue, an artefact of sRGB's red lobe, kept at 0). Earth's 0.38 ppm gives
+//   0.029 straight up in green, as measured. It is why Earth's twilight sky is
+//   deep blue overhead: the starlight reaching the high air has crossed long
+//   paths of ozone. Ozone is taken as mixed evenly through the air (Earth's
+//   lies mostly 15–35 km up), so its paths have the same closed form.
 //
 // Assumptions: one temperature for the whole column (an isothermal
 // atmosphere); scattering only, no absorption (extinction equals scattering);
@@ -46,6 +56,10 @@ const AIR_REFRACTIVITY = 2.93e-4;
 /** Earth's Rayleigh optical depth straight up at 1 bar and 1 g in green, and red's and blue's against it (the spectrum through the CIE observer; above). */
 const EARTH_RAYLEIGH_GREEN = 0.100;
 export const RAYLEIGH_CHANNELS: Vec3 = [0.518, 1, 2.389];
+/** Ozone's absorption cross-section per channel, cm² (above). */
+export const OZONE_CROSS_SECTION_CM2: Vec3 = [5.6e-21, 3.3e-21, 0];
+const AVOGADRO = 6.02214076e23;
+const PASCALS_PER_BAR = 1e5;
 /** Earth's clear-sky haze (aerosol optical depth straight up) at 1 bar and 1 g: Bruneton and Neyret's (2008) 21 per Mm over a 1.2 km layer. */
 const EARTH_MIE_DEPTH = 0.025;
 /** The haze layer's scale height as a share of the air's (Earth: about 1.2 of 8.4 km). */
@@ -75,6 +89,8 @@ export interface Air {
   topM: number;
   /** Rayleigh scattering at the ground, per m, red, green, blue; and its scale height, m. */
   rayleigh: Vec3;
+  /** Ozone's absorption at the ground, per m, red, green, blue; mixed through the air, so with the Rayleigh scale height. */
+  ozone: Vec3;
   rayleighHeightM: number;
   /** Mie scattering at the ground, per m (the same in every channel); and its scale height, m. */
   mie: number;
@@ -115,7 +131,10 @@ export function airOf(spec: PlanetSpec, groundAlbedo: Vec3 = [0, 0, 0]): Air {
   // A depth straight up, τ, is the ground's scattering times the scale height
   const greenDepth = EARTH_RAYLEIGH_GREEN * moleculeColumn * perMolecule;
   const rayleigh = RAYLEIGH_CHANNELS.map((share) => (greenDepth * share) / rayleighHeightM) as Vec3;
+  // Ozone molecules overhead, per cm²: the air's, P / (m·g), times ozone's share
+  const ozoneColumn = ((spec.air.pressureBar * PASCALS_PER_BAR) / ((mass / AVOGADRO) * gravity) / 1e4) * (spec.air.gases.O3 ?? 0);
+  const ozone = OZONE_CROSS_SECTION_CM2.map((sigma) => (sigma * ozoneColumn) / rayleighHeightM) as Vec3;
   const mieDepth = EARTH_MIE_DEPTH * massColumn;
   const mie = mieDepth / mieHeightM;
-  return { radiusM, topM: radiusM + TOP_SCALE_HEIGHTS * rayleighHeightM, rayleigh, rayleighHeightM, mie, mieHeightM, groundAlbedo };
+  return { radiusM, topM: radiusM + TOP_SCALE_HEIGHTS * rayleighHeightM, rayleigh, ozone, rayleighHeightM, mie, mieHeightM, groundAlbedo };
 }

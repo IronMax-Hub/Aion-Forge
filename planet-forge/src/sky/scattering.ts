@@ -109,7 +109,12 @@ function columnsToSpace(air: Air, r: number, mu: number): [number, number] | nul
 export function transmittanceToSpace(air: Air, r: number, mu: number): Vec3 {
   const columns = columnsToSpace(air, r, mu);
   if (!columns) return [0, 0, 0];
-  return air.rayleigh.map((b) => Math.exp(-(b * columns[0] + air.mie * columns[1]))) as Vec3;
+  return [0, 1, 2].map((k) => Math.exp(-dimming(air, k, columns[0], columns[1]))) as Vec3;
+}
+
+/** The optical depth in channel k of Rayleigh and Mie columns (m at ground density): scattering, and ozone's absorption, which follows the air. */
+function dimming(air: Air, k: number, rayleighColumn: number, mieColumn: number): number {
+  return (air.rayleigh[k] + air.ozone[k]) * rayleighColumn + air.mie * mieColumn;
 }
 
 export function rayleighPhase(cosAngle: number): number {
@@ -190,11 +195,12 @@ export function multipleScatteringTable(air: Air): Float32Array {
           const toSun = columnsToSpace(air, rs, (x * sun[0] + y * sun[1] + w * sun[2]) / rs);
           for (let k = 0; k < 3; k++) {
             const scattering = air.rayleigh[k] * rayleighDensity + air.mie * mieDensity;
-            const through = Math.exp(-(depth[k] + (scattering * ds) / 2));
-            const sunlight = toSun ? Math.exp(-(air.rayleigh[k] * toSun[0] + air.mie * toSun[1])) : 0;
+            const extinction = dimming(air, k, rayleighDensity, mieDensity);
+            const through = Math.exp(-(depth[k] + (extinction * ds) / 2));
+            const sunlight = toSun ? Math.exp(-dimming(air, k, toSun[0], toSun[1])) : 0;
             once[k] += through * scattering * sunlight * isotropic * ds;
             onward[k] += through * scattering * ds;
-            depth[k] += scattering * ds;
+            depth[k] += extinction * ds;
           }
         }
         if (span.ground) {
@@ -205,7 +211,7 @@ export function multipleScatteringTable(air: Air): Float32Array {
           const toSun = sunMuThere > 0 ? columnsToSpace(air, rs, sunMuThere) : null;
           if (toSun) {
             for (let k = 0; k < 3; k++) {
-              const sunlight = Math.exp(-(air.rayleigh[k] * toSun[0] + air.mie * toSun[1]));
+              const sunlight = Math.exp(-dimming(air, k, toSun[0], toSun[1]));
               once[k] += Math.exp(-depth[k]) * (air.groundAlbedo[k] / Math.PI) * sunlight * sunMuThere;
             }
           }
@@ -269,9 +275,9 @@ export function scatterAlong(air: Air, r: number, mu: number, phi: number, sunMu
     multipleAt(air, table, h, sunMuHere, again);
     for (let k = 0; k < 3; k++) {
       const scattering = air.rayleigh[k] * rayleighDensity + air.mie * mieDensity;
-      const step = scattering * ds;
+      const step = dimming(air, k, rayleighDensity, mieDensity) * ds;
       const seen = Math.exp(-(depth[k] + step / 2));
-      const through = toSun ? seen * Math.exp(-(air.rayleigh[k] * toSun[0] + air.mie * toSun[1])) : 0;
+      const through = toSun ? seen * Math.exp(-dimming(air, k, toSun[0], toSun[1])) : 0;
       rayleigh[k] += air.rayleigh[k] * rayleighDensity * ds * through;
       mie[k] += air.mie * mieDensity * ds * through;
       multiple[k] += scattering * again[k] * ds * seen;

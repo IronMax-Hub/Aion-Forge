@@ -17,6 +17,8 @@ export interface SketchInputs {
     pressureBar: number;
     /** Relative amounts; rescaled to add up to 1. */
     gases: { N2: number; O2: number; CO2: number; CH4: number; H2O: number };
+    /** Ozone, parts per million of the air (Earth's: about 0.38); apart from the gases above, whose amounts are far larger. */
+    ozonePpm: number;
     cloudCover: number;
   };
   surface: {
@@ -31,6 +33,8 @@ export interface SketchInputs {
 }
 
 const SUN_TEMPERATURE_K = 5772;
+/** Ozone at or above this many ppm would leave no room for the other gases. */
+const OZONE_PPM_LIMIT = 1_000_000;
 /** An airless, black body at 1 AU from the Sun: 278.6 K. */
 const EQUILIBRIUM_AT_1AU_K = 278.6;
 /** The share of starlight a typical planet reflects, for the equilibrium-temperature guide (Earth's: 0.3). */
@@ -112,6 +116,7 @@ export function inputProblems(inputs: SketchInputs): string[] {
   if (!(inputs.air.pressureBar >= 0)) problems.push("the pressure must be 0 or more");
   if (Object.values(inputs.air.gases).some((amount) => !(amount >= 0))) problems.push("gas amounts must be 0 or more");
   if (inputs.air.pressureBar > 0 && !Object.values(inputs.air.gases).some((amount) => amount > 0)) problems.push("air needs at least one gas");
+  if (!(inputs.air.ozonePpm >= 0 && inputs.air.ozonePpm < OZONE_PPM_LIMIT)) problems.push(`ozone must be from 0 to under ${OZONE_PPM_LIMIT.toLocaleString("en")} ppm`);
   share(inputs.air.cloudCover, "cloud cover");
   share(inputs.surface.oceanShare, "the ocean share");
   positive(inputs.surface.meanTemperatureK, "the mean temperature");

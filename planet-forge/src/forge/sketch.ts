@@ -70,13 +70,17 @@ function clamp01(x: number): number {
   return Math.min(1, Math.max(0, x));
 }
 
-/** Gas shares from the inputs' relative amounts, adding up to 1; none if the planet has no air. */
+/** Gas shares from the inputs' relative amounts, with ozone's share from its ppm, adding up to 1; none if the planet has no air. */
 function gasShares(inputs: SketchInputs): PlanetSpec["air"]["gases"] {
   const entries = Object.entries(inputs.air.gases).filter(([, amount]) => amount > 0);
   const total = entries.reduce((sum, [, amount]) => sum + amount, 0);
   if (inputs.air.pressureBar <= 0 || total <= 0) return {};
-  const shares = entries.map(([gas, amount]) => [gas, amount / total] as const).filter(([, share]) => share >= TRACE_SHARE);
-  return Object.fromEntries(shares.map(([gas, share]) => [gas, round(share, 4)]));
+  // Ozone to the part per billion (it is far below the others' 4-decimal shares); the rest share what is left
+  const ozone = Math.round(inputs.air.ozonePpm * 1000) / 1e9;
+  const shares = entries.map(([gas, amount]) => [gas, (amount / total) * (1 - ozone)] as const).filter(([, share]) => share >= TRACE_SHARE);
+  const gases: PlanetSpec["air"]["gases"] = Object.fromEntries(shares.map(([gas, share]) => [gas, round(share, 4)]));
+  if (ozone > 0) gases.O3 = ozone;
+  return gases;
 }
 
 /** The sea level that puts `share` of these heights under water: halfway between the last cell under and the first above (cells of equal height stay on one side, so the share can be off by those). */

@@ -99,6 +99,7 @@ export function ForgePanel({ onForge }: Props) {
           ))}
         </div>
         <p className="muted small">Gases in relative amounts; they are scaled to add up to 100%.</p>
+        <NumberField label="Ozone" unit="ppm" value={inputs.air.ozonePpm} min={0} onChange={(v) => edit((d) => { d.air.ozonePpm = v; })} />
         <NumberField label="Cloud cover" unit="0–1" value={inputs.air.cloudCover} min={0} max={1} onChange={(v) => edit((d) => { d.air.cloudCover = v; })} />
         <p className="derived">Water boils at {figure(f.boilingK, 4)} K under this air</p>
       </fieldset>

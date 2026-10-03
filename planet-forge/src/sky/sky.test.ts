@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Vec3 } from "../forge/icosphere";
 import type { PlanetSpec } from "../spec/schema";
 import { presetSpec } from "../spec/presetFiles";
-import { airOf, molarMass, RAYLEIGH_CHANNELS, scatteringPerMolecule } from "./air";
+import { airOf, molarMass, OZONE_CROSS_SECTION_CM2, RAYLEIGH_CHANNELS, scatteringPerMolecule } from "./air";
 import type { Air } from "./air";
 import {
   chapman, horizonZenith, lightTable, miePhase, rayleighPhase, LIGHT_SIZE, rowOfZenith, scatterAlong, SKY_COLUMNS, SKY_ROWS, skyRadiance, skyTable,
@@ -33,6 +33,28 @@ function zenithSky(spec: PlanetSpec): Vec3 {
   return skyRadiance(air, air.radiusM + 2, UP, sunAt(45), irradiance, UP);
 }
 
+// Wyman, Sloan and Shirley's (2013) fit of the CIE 1931 2° observer, and XYZ to linear sRGB
+const lobe = (x: number, mu: number, below: number, above: number) => Math.exp(-0.5 * ((x - mu) / (x < mu ? below : above)) ** 2);
+const xbar = (l: number) => 1.056 * lobe(l, 599.8, 37.9, 31.0) + 0.362 * lobe(l, 442.0, 16.0, 26.7) - 0.065 * lobe(l, 501.1, 20.4, 26.2);
+const ybar = (l: number) => 0.821 * lobe(l, 568.8, 46.9, 40.5) + 0.286 * lobe(l, 530.9, 16.3, 31.1);
+const zbar = (l: number) => 1.217 * lobe(l, 437.0, 11.8, 36.0) + 0.681 * lobe(l, 459.0, 26.0, 13.8);
+const TO_RGB = [[3.2406, -1.5372, -0.4986], [-0.9689, 1.8758, 0.0415], [0.0557, -0.2040, 1.0570]];
+
+/** A spectrum (of wavelength, nm) seen as linear sRGB. */
+function rgbOf(spectrum: (l: number) => number): number[] {
+  const xyz = [0, 0, 0];
+  for (let l = 380; l <= 780; l += 5) {
+    const w = spectrum(l);
+    xyz[0] += w * xbar(l); xyz[1] += w * ybar(l); xyz[2] += w * zbar(l);
+  }
+  return TO_RGB.map((row) => row[0] * xyz[0] + row[1] * xyz[1] + row[2] * xyz[2]);
+}
+
+/** Planck's law at this temperature, by wavelength in nm. */
+function planckAt(temperatureK: number): (l: number) => number {
+  return (l) => 1 / ((l * 1e-9) ** 5 * Math.expm1(1.4388e-2 / (l * 1e-9 * temperatureK)));
+}
+
 const luminance = (c: Vec3) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 
 describe("the air", () => {
@@ -48,27 +70,25 @@ describe("the air", () => {
   });
 
   it("scatters each channel as the whole spectrum does, seen through the CIE observer", () => {
-    // Wyman, Sloan and Shirley's (2013) fit of the CIE 1931 2° observer, and XYZ to linear sRGB
-    const lobe = (x: number, mu: number, below: number, above: number) => Math.exp(-0.5 * ((x - mu) / (x < mu ? below : above)) ** 2);
-    const xbar = (l: number) => 1.056 * lobe(l, 599.8, 37.9, 31.0) + 0.362 * lobe(l, 442.0, 16.0, 26.7) - 0.065 * lobe(l, 501.1, 20.4, 26.2);
-    const ybar = (l: number) => 0.821 * lobe(l, 568.8, 46.9, 40.5) + 0.286 * lobe(l, 530.9, 16.3, 31.1);
-    const zbar = (l: number) => 1.217 * lobe(l, 437.0, 11.8, 36.0) + 0.681 * lobe(l, 459.0, 26.0, 13.8);
-    const toRGB = [[3.2406, -1.5372, -0.4986], [-0.9689, 1.8758, 0.0415], [0.0557, -0.2040, 1.0570]];
-    const rgbOf = (spectrum: (l: number) => number) => {
-      const xyz = [0, 0, 0];
-      for (let l = 380; l <= 780; l += 5) {
-        const w = spectrum(l);
-        xyz[0] += w * xbar(l); xyz[1] += w * ybar(l); xyz[2] += w * zbar(l);
-      }
-      return toRGB.map((row) => row[0] * xyz[0] + row[1] * xyz[1] + row[2] * xyz[2]);
-    };
     for (const temperatureK of [3200, 5772, 10000]) {
-      const planck = (l: number) => 1 / ((l * 1e-9) ** 5 * Math.expm1(1.4388e-2 / (l * 1e-9 * temperatureK)));
+      const planck = planckAt(temperatureK);
       const direct = rgbOf(planck), scattered = rgbOf((l) => planck(l) * (550 / l) ** 4.05);
       const weights = [0, 1, 2].map((k) => scattered[k] / direct[k] / (scattered[1] / direct[1]));
       expect(Math.abs(weights[0] - RAYLEIGH_CHANNELS[0])).toBeLessThan(0.04);
       expect(Math.abs(weights[2] - RAYLEIGH_CHANNELS[2])).toBeLessThan(0.12);
     }
+  });
+
+  it("absorbs in ozone's Chappuis band as the whole spectrum does: red most, blue hardly", () => {
+    const chappuis = (l: number) => 5.2e-21 * Math.exp(-0.5 * ((l - 600) / 60) ** 2);
+    const planck = planckAt(5772);
+    const direct = rgbOf(planck), absorbed = rgbOf((l) => planck(l) * chappuis(l));
+    for (let k = 0; k < 3; k++) expect(Math.max(0, absorbed[k] / direct[k])).toBeCloseTo(OZONE_CROSS_SECTION_CM2[k], 22);
+    // Earth's 0.38 ppm: about 0.029 straight up in green, as measured (Earth's ozone column, about 300 Dobson units)
+    const air = airOf(earth);
+    expect(air.ozone[1] * air.rayleighHeightM).toBeGreaterThan(0.025);
+    expect(air.ozone[1] * air.rayleighHeightM).toBeLessThan(0.033);
+    expect(airOf(variant(earth, (s) => { delete s.air.gases.O3; })).ozone).toEqual([0, 0, 0]);
   });
 
   it("follows the column of air: lower gravity, more air overhead and a deeper sky", () => {
@@ -179,6 +199,20 @@ describe("the sky", () => {
     const normal = zenithSky(earth);
     expect(luminance(thin)).toBeLessThan(0.05 * luminance(normal));
     expect(thick[2] / thick[0]).toBeLessThan(normal[2] / normal[0]);
+  });
+
+  it("stays blue overhead in twilight with ozone, where without it the sky is grey", () => {
+    const twilight = (spec: PlanetSpec) => {
+      const air = airOf(spec);
+      return skyRadiance(air, air.radiusM + 2, UP, sunAt(-3), [3, 3, 3], UP);
+    };
+    const withOzone = twilight(earth), without = twilight(variant(earth, (s) => { delete s.air.gases.O3; }));
+    // Ozone taken as mixed through the air (air.ts) gives a little under twice the blue; Earth's, in its layer high up, more
+    expect(withOzone[2] / withOzone[0]).toBeGreaterThan(1.7 * (without[2] / without[0]));
+    expect(withOzone[2] / withOzone[0]).toBeGreaterThan(2.2);
+    // By day ozone hardly changes the sky: a short path through it
+    const day = zenithSky(earth), dayWithout = zenithSky(variant(earth, (s) => { delete s.air.gases.O3; }));
+    expect(day[2] / day[0]).toBeLessThan(1.15 * (dayWithout[2] / dayWithout[0]));
   });
 
   it("is black on an airless world", () => {

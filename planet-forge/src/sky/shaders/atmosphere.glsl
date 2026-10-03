@@ -6,6 +6,7 @@
 
 uniform float planetRadius;
 uniform vec3 rayleighScattering;   // at the ground, per m, red, green, blue
+uniform vec3 ozoneAbsorption;      // at the ground, per m; ozone follows the air, so it shares the Rayleigh columns
 uniform float rayleighHeight;      // scale height, m
 uniform float mieScattering;
 uniform float mieHeight;
@@ -50,7 +51,7 @@ vec2 columnsToSpace(vec3 p, vec3 d) {
 }
 
 vec3 transmittanceOf(vec2 columns) {
-  return exp(-(rayleighScattering * columns.x + mieScattering * columns.y));
+  return exp(-((rayleighScattering + ozoneAbsorption) * columns.x + mieScattering * columns.y));
 }
 
 // What gets through from p to the star: none where the planet is in the way

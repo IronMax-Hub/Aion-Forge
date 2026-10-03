@@ -204,6 +204,7 @@ export class GroundRenderer {
     this.atmosphere = {
       planetRadius: { value: this.air.radiusM },
       rayleighScattering: { value: new THREE.Vector3(...this.air.rayleigh) },
+      ozoneAbsorption: { value: new THREE.Vector3(...this.air.ozone) },
       rayleighHeight: { value: this.air.rayleighHeightM },
       mieScattering: { value: this.air.mie },
       mieHeight: { value: this.air.mieHeightM },

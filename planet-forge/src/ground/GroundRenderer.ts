@@ -66,6 +66,11 @@ import waterFragment from "./shaders/water.frag.glsl?raw";
 const FINEST_SPACING_M = 1;
 const SPLIT_FACTOR = 2;
 const MIN_SPLIT = 0.75;
+// DIAG (temporary, frame-time pass): switches from ?diag=noaa,noclouds,nosky,nowater,noground,scale=0.5,split=0.75
+const DIAG = new Set((new URLSearchParams(window.location.search).get("diag") ?? "").split(",").filter(Boolean));
+const diagNumber = (name: string) => Number([...DIAG].find((d) => d.startsWith(name + "="))?.slice(name.length + 1) ?? NaN);
+const DIAG_SPLIT = diagNumber("split");
+const DIAG_SCALE = diagNumber("scale") || 1;
 const SLOW_MS = 20;
 const FAST_MS = 14;
 /** Built patches kept for reuse. */
@@ -176,8 +181,8 @@ export class GroundRenderer {
 
   constructor(canvas: HTMLCanvasElement, spec: PlanetSpec) {
     this.canvas = canvas;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !DIAG.has("noaa"), logarithmicDepthBuffer: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2) * DIAG_SCALE);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.setClearColor(0x000000);
     this.camera = new THREE.PerspectiveCamera(FIELD_OF_VIEW_DEG, 1, 0.5, 1e9);
@@ -239,8 +244,9 @@ export class GroundRenderer {
     this.sky.frustumCulled = false;
     this.sky.renderOrder = -1;
     this.scene.add(this.sky);
+    this.sky.visible = !DIAG.has("nosky");
 
-    if (spec.air.cloudCover > 0) {
+    if (spec.air.cloudCover > 0 && !DIAG.has("noclouds")) {
       this.cloudTexture = halfFloatTexture(CLOUD_MAP_WIDTH, CLOUD_MAP_HEIGHT);
       this.cloudTexture.wrapS = THREE.RepeatWrapping;
       const margins = cloudMap(spec);
@@ -410,6 +416,11 @@ export class GroundRenderer {
     this.camera.lookAt(forward);
     // Near plane: a fraction of the height, so close ground is not clipped
     this.camera.near = Math.max(0.05, heightM * 0.1);
+    if (DIAG.has("far")) {
+      // DIAG: nothing beyond the horizon is visible: the camera's tangent to the lowest ground plus the highest ground's tangent
+      const R = this.terrain.radiusM, low = R + this.lowestM, high = R + this.highestM;
+      this.camera.far = Math.sqrt(Math.max(r * r - low * low, 0)) + Math.sqrt(Math.max(high * high - low * low, 0));
+    }
     this.camera.updateProjectionMatrix();
     this.camera.updateMatrixWorld();
     (this.skyMaterial.uniforms.screenToWorld.value as THREE.Matrix4).multiplyMatrices(this.camera.matrixWorld, this.camera.projectionMatrixInverse);
@@ -468,7 +479,8 @@ export class GroundRenderer {
       this.stats.frameMs = this.meter.frameMs;
       this.stats.framesPerSecond = this.meter.framesPerSecond;
     }
-    if (this.stats.frameMs > 0) {
+    if (DIAG_SPLIT > 0) this.stats.splitFactor = DIAG_SPLIT;
+    else if (this.stats.frameMs > 0) {
       if (this.stats.frameMs > SLOW_MS) this.stats.splitFactor = Math.max(MIN_SPLIT, this.stats.splitFactor * 0.98);
       else if (this.stats.frameMs < FAST_MS) this.stats.splitFactor = Math.min(SPLIT_FACTOR, this.stats.splitFactor * 1.01);
     }
@@ -497,8 +509,9 @@ export class GroundRenderer {
       }
       const [x, y, z] = [patch.origin[0] - this.cameraM[0], patch.origin[1] - this.cameraM[1], patch.origin[2] - this.cameraM[2]];
       patch.ground.position.set(x, y, z);
-      patch.ground.visible = true;
-      if (patch.water) {
+      // DIAG: seabed wholly under opaque water is never seen
+      patch.ground.visible = !DIAG.has("noground") && !(DIAG.has("skipsea") && patch.water !== null && patch.highestM < 0);
+      if (patch.water && !DIAG.has("nowater")) {
         patch.water.position.set(x, y, z);
         patch.water.visible = true;
       }

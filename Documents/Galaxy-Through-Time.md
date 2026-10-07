@@ -130,7 +130,7 @@ In this universe the steepest drop of all is between light-using life and an oxy
 ### Issues this plan fixes on the way
 
 1. **The greenhouse warms worlds that have no energy to trap.** `greenhouseK` in `climate.ts` returns a warming in kelvin set by pressure, CO₂, CH₄ and water vapour, and the loop adds it to the starlight temperature however little starlight arrives. 297 solid planets beyond 10 AU (median 24.6 AU) are warmer than 273 K today. 458 worlds with open water receive starlight that alone would hold them below 150 K. 379 solid planets in that starlight band are above freezing, and every one of them has thick or crushing air. Real greenhouses multiply the energy they hold, and a planet at 25 AU under 90 bar would be frozen. Moons far from their star and rogue planets with no star would inherit the error, so step 5a fixes it (IH2).
-2. **Civilization dates are placed, not lived.** `buildMilestones` dates each milestone as `age · (1 − threshold / 1.1) · (0.8 to 1.2)`, independently of the collapse loop, and only for the stages the *final* tech level allows. Among the 89 civilizations there are 47 pairs of milestones dated out of order (a later stage further in the past than an earlier one), and 4 collapses dated before the industry they ended. A civilization that fell keeps only the milestones its ruined level still reaches. Its collapse cause is one of six sentences picked at random, not something the simulation knows. Deep Time, SETI and contact all need to know when things happened, so DT1 steps civilizations through time.
+2. **Civilization dates are placed, not lived.** `buildMilestones` dates each milestone as `age · (1 − threshold / 1.1) · (0.8 to 1.2)`, independently of the collapse loop, and only for the stages the *final* tech level allows. Among the 89 civilizations there are 47 consecutive pairs of milestones dated out of order (a later stage further in the past than the one before it; 58 pairs counting non-adjacent ones, in 45 of the 89 civilizations), and 4 collapses dated before the industry they ended. A civilization that fell keeps only the milestones its ruined level still reaches. Its collapse cause is one of six sentences picked at random, not something the simulation knows. Deep Time, SETI and contact all need to know when things happened, so DT1 steps civilizations through time.
 3. **The galaxy forms after its oldest stars.** The timeline draws the galaxy's formation 10–13 Gyr ago (`recordCosmicEvents` in `history.ts`), but the oldest star is 13.70 Gyr old. Fixed in DT7.
 4. **`rogue` is a planet type that nothing produces.** Fixed in step 7.
 5. **The survey computes facts for every planet but keeps only per-system summaries.** The filter, the atlas, encyclopedia comparisons and Deep Time need facts for every world. Fixed in EN0.
@@ -185,6 +185,7 @@ flowchart LR
   RP --> GA
   EN0 --> GA
   DT2 --> SE1
+  DT1 --> CC1
   SE7 --> CC2
   SE6 --> CC4
 ```
@@ -248,7 +249,7 @@ Every clause has a source the simulation already holds:
 - **Deliverables:**
   - `simulation/universeIndex.ts`: the `UniverseIndex` type; `indexRowsFor(system, star, galaxySeed, config)`, which the survey calls once per system; and `mergeIndices(parts)`, which joins chunks in star order.
   - `LifeSurvey` gains `index: UniverseIndex`. The worker pool merges the chunk indices in star order, exactly as `mergeSurveys` merges `systems` today.
-  - `WorldHistory` gains one additive output, `everLiquidWater`: whether any step had liquid water that was not steam. No outcome changes.
+  - `WorldHistory` gains one additive output, `everLiquidWater`: whether any step had liquid water, open or under ice (a non-zero liquid share in any band, `bandOcean`), while its oceans were not steam. This is the definition that gives the 4,431 in the funnel; counting any step with water and no steam would give 4,771. No outcome changes.
 - **Implementation:**
   - A struct of typed arrays with one row per world, in star order and then planet index order. A chunk's rows then concatenate directly, and its buffers move from a worker without copying (the `postMessage` transfer list).
   - Columns, and what reads them:
@@ -280,6 +281,7 @@ Every clause has a source the simulation already holds:
   - Designations stay as they are: `Star 1300` and planet `1300 c` (`starName`, `planetName`). Moons (step 5) add a lower-case Roman numeral after a hyphen, `1300 c-ii`, the convention proposed for exomoons. Rogue planets keep their birth designation, `1300 e`, with "rogue" in their title.
   - A citation adds the universe for text copied out of the app: `AF-U-0001-86A0 · 1300 c` (`makeUniverseId`).
   - Your form `AF-1300-c` is decision 1.
+  - `makeUniverseId` reads only the seed, and steps 3–7 and DT1 change what a seed produces. A citation therefore also names the rules version, and marks non-default parameters: `AF-U-0001-86A0 · v10 · 1300 c` (decision 1).
   - The entry model:
 
     ```ts
@@ -326,7 +328,7 @@ Every clause has a source the simulation already holds:
     6. Today, from the surface: "Frozen over today; liquid water lies under the ice.", "Covered by ocean.", or "Its oceans were lost to space {x} ago."
   - **Facts by kind.** A planet's: designation, type, orbit, period, mass, radius, gravity, escape velocity, day length or "tidally locked", tilt, ocean / land / ice, pressure and class, mean temperature and range, the three most abundant gases (from `atmosphereComposition`), habitability, life stage, living lineages, largest organism, first mind, civilization stage. A star's: spectral type, mass, age, share of its lifespan used, luminosity, temperature, distance from the galaxy's centre, its planets and which have life; [Fe/H] from MZ2 and its companion from BS1. A biosphere's: stage, living lineages, food-chain levels, largest body, oldest living lineage, the light users' pigment (absorption peak), with a link to the field guide. A civilization's: its species (field-guide designation such as `1300 c · L-17`, body mass, habitat), stage, age, population, fire, the gases it adds to its air.
   - **Chronicle.** The planet's world events, life's beginning and end, life's firsts, its mass extinctions, its mind, and its civilization's milestones, with the timeline's summaries.
-  - **Notable.** Ranks against the universe, read from the index, and only for measures in the top or bottom 5%: "Life here is older than 97% of the galaxy's.", "One of 95 worlds with complex life." Plus `isRare` with its reason ("rare: a temperate ocean world, 240–310 K").
+  - **Notable.** Ranks against the universe, read from the index, and only for measures in the top or bottom 5%: "Life here is older than 97% of the galaxy's.", "One of 95 worlds with complex life." Plus `isRare` with its reason ("rare: a temperate ocean world, 240–310 K"). `isRare` is stored as a bare flag, so `planet.ts` gains an additive `rareReason` beside it rather than the entry repeating the rule. `MASS_EXTINCTION_SHARE` (history.ts) is exported for the same reason.
   - **Limits by kind.** A planet: "Its continents were drawn once and never move." and "When life began is a chance event in this model; its date is not predicted by the conditions." A biosphere: "The record keeps at most 32 living lineages at once." A civilization: "Curiosity, cooperation and resilience were drawn by chance: no evolved trait supplies them yet." Until DT1 also: "Its milestone dates are placed by formula, not lived." A star: "How it formed is not modelled." and "Stars that died before today are not in the galaxy."
   - **The galaxy's entry:** type, number of stars, age of the oldest, worlds where life began and the first of them, minds, civilizations and how many endure, and the steepest gate of its Great Filter (after GF1).
   - **Style.** Numbers to three significant figures, durations in Gyr or Myr by `formatGyr`, units always, and no adjective that is not a measure: "remarkable" appears only with its reason.
@@ -364,10 +366,10 @@ The Great Filter (Hanson 1998) asks which step on the way from dead matter to a 
   | # | Gate | A world passes when |
   |---|---|---|
   | 1 | Solid surface | it has a surface |
-  | 2 | Liquid water | some step of its history had liquid water that was not steam (`everLiquidWater`) |
+  | 2 | Liquid water | some step of its history had liquid water, open or under ice, and no steam (`everLiquidWater`, EN0) |
   | 3 | Life | life began |
   | 4 | Starlight | a lineage used light (the first `light`) |
-  | 5 | Oxygen | its air oxidised at or after its first light user (oxygen left only by escaping water does not count) |
+  | 5 | Oxygen | its air oxidised at or after its first light user (oxygen left only by escaping water does not count). The `oxidation` event is recorded once, so a world first oxidised by escaping water does not pass even if life adds oxygen later |
   | 6 | Multicellular | a body above 10⁻⁹ kg appeared (the first `multicellular`) |
   | 7 | Mind | a mind appeared |
   | 8 | Fire | open fire is possible today (`canSustainFire`); from DT1, at some step while its civilization lived |
@@ -538,7 +540,7 @@ Every generation of stars returns heavier elements to the gas the next generatio
 
   This is the simplest form of a galaxy that turns its gas into stars while fresh gas falls in: the metallicity approaches the yield, faster where stars form faster ("inside-out" formation). Checks: today's gradient between R = 0.4 and 0.6 is about −0.05 dex per kpc (observed: about −0.06). At the Sun's distance, stars born at 1, 3, 6 and 13.7 Gyr have [Fe/H] of about −0.8, −0.4, −0.1 and +0.1.
 
-  One law serves every galaxy type. An elliptical's stars sit closer to its centre (`posElliptical`), so they come out metal-rich even when old; an irregular's are spread out. The differences come from where the stars are, not from constants per type (decision 7).
+  One law serves every galaxy type. An elliptical's stars sit closer to its centre (`posElliptical`), so they come out metal-rich even when old; an irregular's sit between the two. Measured median distance from the centre in the disc plane, as a share of the scale: spirals 0.61–0.64, the irregular 0.52, ellipticals 0.33–0.36 (seeds 100000, 3141592, 137035, 271828, 404040, 161803); the oldest stars of an elliptical are still metal-poor (about −0.5 for a star born at 1 Gyr at R = 0.34). The differences come from where the stars are, not from constants per type (decision 7).
 - **Verification:** Z rises with t and falls with R; the Sun's reference point; Z stays within its floor and its ceiling.
 
 #### MZ2 Each star's metallicity
@@ -635,7 +637,7 @@ Measured: the 2,031 frozen living worlds have water layers with a median depth o
 
   ```text
   d = (651 W/m / q) · ln(271 K / T_surface)
-      shell thickness, for conduction through ice whose conductivity is 651/T W/(m·K) (Klinger 1980)
+      shell thickness, for conduction through ice whose conductivity is 651/T W/(m·K) (Petrenko & Whitworth 1999; Klinger 1980 gives 567/T, which makes every shell 13% thinner)
   liquid under a frozen band = the area deeper than d below sea level
                              = areaBelow(band.hypsometry, seaLevel − d)
   ```
@@ -649,7 +651,7 @@ Measured: the 2,031 frozen living worlds have water layers with a median depth o
 
 - **Objective:** Record what heat from inside changed.
 - **Depends on:** IH3.
-- **Deliverables:** Stats columns: open water today, living worlds frozen over, worlds frozen solid, life ended by freezing solid, systems with organisms. Expected: far fewer warm worlds far from their stars (the 458 measured above), and some frozen living worlds frozen solid. Recorded against decisions 9 and 10.
+- **Deliverables:** Stats columns: open water today, living worlds frozen over, worlds frozen solid, life ended by freezing solid, systems with organisms. Expected: far fewer warm worlds far from their stars (the 458 measured above), and many frozen living worlds frozen solid: applying IH1 and IH3 to today's records at each world's mean temperature, 851 of the 2,031 (42%) have a shell thicker than their water (823 with Klinger's conductivity), before IH2 cools anything. Recorded against decisions 9 and 10.
 - **Verification:** The harness run.
 
 ### Step 5 — Moons
@@ -707,7 +709,7 @@ Giant planets build satellite systems in the disks around them, and those moons 
   τ_eff   = min(1, (q_int + q_tidal) / q_full)     tidal heat also drives volcanism and vent energy
   ```
 
-  Io check: 9 × 10¹³ W, 2.2 W/m² (measured: about 2.5). Europa: 0.2 W/m². Heat is constant over a moon's life; orbital evolution is not modelled.
+  Io check: 9 × 10¹³ W, 2.2 W/m² (measured: about 2.5). Europa: 0.2 W/m², four times the 0.05 W/m² that IH3 uses for it; through IH3 that gives Europa a 3.3 km shell instead of 13 km, below the 10–30 km estimated. Io's k₂/Q describes a hot, partly molten body and overstates an icy moon's heat (decision 34). Heat is constant over a moon's life; orbital evolution is not modelled.
 - **Verification:** The Io and Europa references; heat rises with planet mass, moon radius and eccentricity, and falls as the sixth power of distance.
 
 #### MO4 Moons as worlds
@@ -721,7 +723,8 @@ Giant planets build satellite systems in the disks around them, and those moons 
   - Interior heat plus tidal heat (IH1, MO3); escape (AE2) with the moon's own escape velocity.
   - Not locked to its star: annual-mean insolation with its planet's tilt.
   - Its own life, minds and civilizations, read by the existing biosphere and civilization code.
-  - The threshold is decision 11. At Europa's mass, about 1,700 moons per universe would run histories instead of about 1,100.
+  - The threshold is decision 11. Estimated from the MO2 and MO5 rules over seed 100000's planets: about 880 moons of giants and 530 large moons of rocky planets reach 0.018 M⊕, about 1,400 histories in all; at Europa's mass, moons of giants alone number about 1,300.
+  - Water: under the planets' rule (`waterDepthKm` = W · 33.75 km · g with W at most 1, and W reduced in proportion below 0.1 M⊕) a Ganymede-mass moon at the median water draw holds under 1 km of water and a Europa-mass one about 0.2 km, where the real moons hold on the order of 100 km. With heat from inside alone (q ≈ 0.014 W/m² for a Ganymede-mass body at 4.6 Gyr) its shell would be about 40 km, so a moon keeps liquid only with tidal heat approaching 1 W/m². Without a water rule of their own, moons will almost never have hidden oceans (decision 35).
   - Counts: civilizations on moons are included in `civilizationCount`. Living moons get their own count (`lifeBearingMoons`), shown beside planets and not added to the stored `lifeBearingPlanets` (decision 13).
 - **Verification:** An icy Ganymede-mass moon of a Jupiter-mass planet at 5 AU keeps liquid under its ice only with enough heat; moons' histories are deterministic; survey time is measured (MO7).
 
@@ -877,7 +880,7 @@ Planets do not only form; some are thrown out. Two neighbours too close to share
 - **Objective:** A rogue's world history with no starlight at all.
 - **Depends on:** RP2, IH3.
 - **Deliverables:** Zero irradiance from the first step of a rogue's history.
-- **Implementation:** T_eff = T_int and T_mean = T_int · (1 + G / 255) (IH2). Liquid water exists only under ice, where IH3 allows. Chemical energy follows τ. There is no light, no UV and no XUV escape. None of what follows is written as a rule; it comes out of the rules above. A water-rich rogue (formed beyond its snow line, with about 17 km of water at Earth's gravity) keeps a dark ocean under a few kilometres of ice while its interior is warm. Vent life can begin there, but it never meets light, never oxidises its air and stays microbial. As the interior cools, the shell thickens, and the ocean may freeze solid, ending its life (`"frozen-solid"`, IH3).
+- **Implementation:** T_eff = T_int and T_mean = T_int · (1 + G / 255) (IH2). Liquid water exists only under ice, where IH3 allows. Chemical energy follows τ. There is no light, no UV and no XUV escape. None of what follows is written as a rule; it comes out of the rules above. A water-rich rogue (formed beyond its snow line, with about 17 km of water at Earth's gravity) keeps a dark ocean under about 8 km of ice while its interior is young and warm (an Earth-mass rogue at 0.5 Gyr: q ≈ 0.15 W/m²). Vent life can begin there, but it never meets light, never oxidises its air and stays microbial. As the interior cools, the shell thickens, and the ocean may freeze solid (for that Earth-mass rogue, after about 6 Gyr), ending its life (`"frozen-solid"`, IH3).
 - **Verification:** No light ever reaches a rogue; no rogue oxidises; a dry rogue freezes solid; a water-rich one with enough heat keeps liquid; determinism.
 
 #### RP4 Rogues on screen
@@ -979,7 +982,7 @@ One cosmic clock runs the whole galaxy from its first stars to today. Stars appe
   - `generateCivilization` returns the present state read from the chronicle (its interface unchanged, so panels and the survey keep working) plus `chronicle`.
   - `WorldHistory` records one byte per step from the mind's appearance: whether open fire was possible at that step, read from that step's air and land with today's three thresholds.
 - **Implementation:**
-  - Kept: the species (its first four draws from the CIV stream, unchanged); the growth driver g, cohesion, efficiency and collapse risk (their four draws, unchanged); the stage thresholds; the population rule; the fire ceiling.
+  - Kept: the species (its first four draws from the CIV stream, unchanged); the drawn potential, cohesion, efficiency and collapse risk (their four draws, unchanged); the growth driver g (no draw); the stage thresholds; the population rule; the fire ceiling.
   - Stepped at 0.1 Gyr from the mind's appearance to the present, or to the species' end:
 
     ```text
@@ -999,7 +1002,7 @@ One cosmic clock runs the whole galaxy from its first stars to today. Stars appe
   - Output: `CivilizationChronicle { states: { tGyr, techLevel, stage, population, cohesion }[]; events: { kind, tGyr }[] }`, with a state kept only when the stage changes or a collapse strikes.
   - Efficiency, collapse risk, the replaced final check and a clamp on negative growth are decision 33.
   - Rules bump to v17. Tuning target: the civilization stage mix within ±25% of rules v16 under the default parameters, with the terminal-collapse threshold as the constant to tune.
-- **Verification:** Milestone order inversions: none (47 today). Every collapse comes after the stage it ends; the present state equals the chronicle's last state; the fire ceiling holds at every step; species traits are unchanged from v16; determinism.
+- **Verification:** Milestone order inversions: none (47 consecutive pairs today). Every collapse comes after the stage it ends; the present state equals the chronicle's last state; the fire ceiling holds at every step; species traits are unchanged from v16; determinism.
 
 #### DT2 Chronicles in the survey
 `infrastructure` · **M**
@@ -1019,7 +1022,7 @@ One cosmic clock runs the whole galaxy from its first stars to today. Stars appe
 - **Depends on:** DT2.
 - **Deliverables:** `simulation/deepTime.ts`: `starAt(star, T)`, `worldAt(row, T)`, and `galaxyCountsAt(T)`.
 - **Implementation:**
-  - `starAt`: absent before its birth. Otherwise its class is `classify(mass, T − birth, lifespan)` (exported from `star.ts`), with the temperature and luminosity of that class: on the main sequence `luminosityAt`; in other phases the generation rules, using the star's own temperature draw, which is kept on `Star` as `temperatureDraw` (the draw is already taken, so storing it changes nothing).
+  - `starAt`: absent before its birth. Otherwise its class is `classify(mass, T − birth, lifespan)` (private in `star.ts` today; DT3 exports it), with the temperature and luminosity of that class: on the main sequence `luminosityAt`; in other phases the generation rules, using the star's own temperature draw, which is kept on `Star` as `temperatureDraw` (the draw is already taken, so storing it changes nothing).
   - `worldAt`: it exists from its formation (the timeline's rule), with its life stage and civilization stage at T from DT2. Rogues' positions at T come from RP2, and companions from BS1.
   - Galaxy counts at T: stars shining, worlds with life, minds, active civilizations, and civilizations at the industrial stage or later ("radio-loud").
 - **Verification:** `starAt(star, 13.7)` deep-equals the star; a star's class never goes backwards in time; the number of stars born never falls as T rises.
@@ -1323,7 +1326,7 @@ These are estimates to measure, as CLAUDE.md §11 asks; nothing is optimised bef
 | Funnel and breakdowns | ≤ 20 ms | main | scans of about 10,000 rows |
 | Escape, per world history | ≤ +5% | worker | a few numbers per step |
 | Heat from inside and ice shells | ≤ +10% | worker | one area lookup per frozen band per step |
-| Moons | survey time ≤ +25% | worker | about 1,100 more histories at 0.018 M⊕ (decision 14) |
+| Moons | survey time ≤ +25% | worker | about 1,400 more histories at 0.018 M⊕ (MO4 estimate; decision 14) |
 | Binaries | ≤ +5% | worker | a second luminosity per step |
 | Rogue planets | about 0% | worker | they were planets already |
 | Atlas filter or layer change | ≤ 5 ms | main | |
@@ -1358,9 +1361,10 @@ If the survey goes over its budget, the first thing measured is which bodies can
 
 | Risk | Effect | Mitigation |
 |---|---|---|
-| Escape strips red-dwarf worlds wholesale | Far fewer living worlds | AE4 measures by host class; K tuned with a stated reason, or the owner records the drift. A hand estimate (review, 7 Oct 2026) puts the crossover for an Earth in the habitable zone near 3,500 K: about 0.55 X_crit at 3,900 K (keeps ~70%), about 2.3 X_crit at 2,700 K (keeps nothing). f_sat is the X-ray share only (Wright et al. 2011), so the full XUV is higher still. The ±25% target is unlikely to hold; decision 26 settles this before AE2 |
-| The greenhouse correction heats hot worlds | More steam and lava worlds; the habitable zone's inner edge moves out | IH2 multiplies the greenhouse by T_eff / 255 K on both sides: a wet 90-bar world at T_eq 500 K goes from about 684 K to about 853 K. IH4 also records the runaway share and the lava-world count |
+| Escape strips many living worlds | Far fewer living worlds | A preview of AE1–AE2 as written (K = 10), applied to today's records of seed 100000: 2,631 of the 7,134 solid planets and 782 of the 3,297 living worlds (24%) end with no air. Red dwarfs are not singled out: 359 of the 1,443 living worlds around stars below 3,900 K (25%), 423 of the 1,854 around hotter stars (23%). Most red-dwarf living worlds receive less than a tenth of Earth's starlight (1,160 of 1,443: warm only from thick air, Issue 1); among the 82 that receive 0.5–2 times Earth's, 48 (58%) are stripped. f_sat is the X-ray share only (Wright et al. 2011), so the full XUV is higher still. AE4 measures by host class; decision 26 settles the target before AE2 |
+| The greenhouse correction heats hot worlds | More steam and lava worlds; the habitable zone's inner edge moves out | IH2 multiplies the greenhouse by T_eff / 255 K on both sides: a dry 90-bar CO₂ world at T_eq 500 K goes from about 684 K to about 861 K. IH4 also records the runaway share and the lava-world count |
 | Far and starless worlds warmed by air that would have frozen | Warm rogues and far moons that should be frozen | The model has no air freezing out: CO₂ condenses near 195 K and N₂ near 63–77 K, yet RP3 applies their greenhouse at T_eff ≈ 40 K. Real warm rogues need hydrogen air (Stevenson 1999). Decision 28 |
+| Moons have too little water for hidden oceans | Step 5's ocean moons almost never appear | The planets' water rule gives Ganymede- and Europa-mass moons 0.2–0.8 km of water; liquid under ice then needs tidal heat approaching 1 W/m² (MO4). Decision 35 |
 | Tidal heat without a ceiling | Inner moons of super-Jupiters become molten worlds | At fixed a / R_p, Ė grows as M_p^2.5: a 13 Jupiter-mass giant's inner moon gets roughly 600 × Io's heat, over 1,000 W/m². Real bodies self-limit (melt lowers Q). MO7 counts tidally molten moons; decision 29 |
 | SETI false candidates never occur | A feature and its test that never run | With Gaussian noise in flux density and a threshold of SNR 10, the largest of 10⁹ channels lands near 6σ (chance per channel above 10σ about 10⁻²³). Decision 32 |
 | Thin air plus R3 boils oceans | Runaway greenhouses that should not happen | Measured in AE4; decision 6 |
@@ -1378,7 +1382,7 @@ If the survey goes over its budget, the first thing measured is which bodies can
 
 | # | Question | Recommendation | Needed before |
 |---:|---|---|---|
-| 1 | Keep the designations `Star 1300` and `1300 c`, with a citation line `AF-U-0001-86A0 · 1300 c`, or adopt your form `AF-1300-c` on every screen? | Keep, and add the citation: every screen already uses the current form | EN1 |
+| 1 | Keep the designations `Star 1300` and `1300 c`, with a citation line `AF-U-0001-86A0 · v10 · 1300 c` that names the rules version (and marks non-default parameters), or adopt your form `AF-1300-c` on every screen? | Keep, and add the citation: every screen already uses the current form. The rules version is needed because a seed's planets change at every outcome-changing step | EN1 |
 | 2 | Seeded variety of phrasing in entries? | No: one template per fact, as a catalogue would | EN2 |
 | 3 | The twelve gates as defined, with fire read from today's air until DT1? | Accept | GF1 |
 | 4 | Store funnels with saved experiments? | No: shown live; the experiment's summary names the gates that moved | GF4 |
@@ -1403,14 +1407,17 @@ If the survey goes over its budget, the first thing measured is which bodies can
 | 23 | Does contact need a confirmed signal from the listening post? | Yes; the civilization's record stays readable without one | CC6 |
 | 24 | Reply timing? | Answered from their state when the question arrives; the delay is reported, not waited for | CC4 |
 | 25 | A discovery category for signals? | Reuse "extraordinary-civilizations", so the backend needs no change | SE7 |
-| 26 | Escape will strip most Earth-mass worlds in the habitable zones of stars cooler than about 3,500 K (see Risks). Accept that outcome in advance, as JWST's bare TRAPPIST-1 b and c suggest, or set K and f_sat (X-ray only, or full XUV) knowing it? | Decide before AE2, so that K is not tuned afterwards to rescue a count | AE2 |
+| 26 | Escape will strip about a quarter of living worlds (782 of 3,297 in the preview; see Risks), and most red-dwarf worlds that receive Earth-like starlight. Accept that outcome in advance, as JWST's bare TRAPPIST-1 b and c suggest, or set K and f_sat (X-ray only, or full XUV) knowing it? | Decide before AE2, so that K is not tuned afterwards to rescue a count | AE2 |
 | 27 | No open water below water's triple point (0.006 bar in total): a new rule introduced with escape | Accept, named as its own rule in `physics.md` | AE2 |
 | 28 | Air that should freeze out on far and starless worlds: a rule (gases condense below their freezing points, removing their greenhouse), or a "what the record cannot show" line? | A limit line now; a condensation rule only if IH4 and RP5 show it matters | IH2 |
 | 29 | Tidal heat: no ceiling, or a cap where a moon's interior melts? | No ceiling at first; count molten moons in MO7, then decide | MO3 |
-| 30 | Satellite system mass: 10⁻⁴ of the planet (Canup & Ward 2006), or 2 × 10⁻⁴ (Jupiter's Galilean moons)? At 10⁻⁴ a Jupiter-mass planet rarely has a moon above 0.018 M⊕ | 10⁻⁴, with the consequence stated | MO2 |
-| 31 | Neighbour spacing: 2√3 mutual Hill radii (Gladman 1993, two planets alone), or about 8–10 (Chambers et al. 1996, many planets over billions of years), which throws out far more planets? | Measure both before RP1 is built | RP1 |
+| 30 | Satellite system mass: 10⁻⁴ of the planet (Canup & Ward 2006), or 2 × 10⁻⁴ (Jupiter's Galilean moons)? At 10⁻⁴ about half of Jupiter-mass planets (250–400 M⊕) get a moon above 0.018 M⊕; at 2 × 10⁻⁴ nearly all do | 10⁻⁴, with the consequence stated | MO2 |
+| 31 | Neighbour spacing: 2√3 mutual Hill radii (Gladman 1993, two planets alone), or about 8–10 (Chambers et al. 1996, many planets over billions of years)? Measured: 229 of the 6,793 neighbouring pairs are closer than 2√3, and 1,133 closer than 10 | Decide before RP1; 10 would throw out about five times as many planets | RP1 |
 | 32 | SETI noise: power noise (exponential, many false alarms, as in real searches), or candidates flagged at about 6σ and confirmed at 10σ three times in a row? | Two thresholds: keeps the noise model and makes false candidates appear | SE3 |
 | 33 | Civilization chronicle against today's code: resource efficiency contains `techLevel · 0.3` and collapse risk reads efficiency, so both must be either fixed (from the drawn potential) or recomputed each step; the terminal-collapse rule replaces today's final check (`collapseRisk > 0.55`); `growthDriver` can be as low as −0.15, so tech must be clamped at zero | Recompute each step; state the replaced check; clamp | DT1 |
+| 34 | k₂/Q for moons: Io's 0.015 for every moon (Europa then gets 0.2 W/m² and a 3.3 km shell), or a lower value for icy moons? | A lower value for icy moons (formed beyond the snow line), chosen so that Europa's shell falls within the 10–30 km estimated; recorded in `physics.md` | MO3 |
+| 35 | Moons' water: the planets' rule (at most W · 33.75 km · g, reduced below 0.1 M⊕), which leaves Ganymede- and Europa-mass moons 0.2–0.8 km of water and almost no hidden oceans, or a rule of their own for moons formed beyond their planet's snow line (ice-rich, a large share of their mass)? | A rule of their own, since hidden oceans are one of the reasons for step 5a; without it, record that moon oceans do not appear | MO2 |
+| 36 | XUV saturation time: 0.1 Gyr at and above 3,900 K but 0.8 Gyr just below it, so by 4.6 Gyr a world's XUV fluence jumps about fivefold across one kelvin of host temperature. Make t_sat continuous (for example rising from 0.1 Gyr for G stars to 0.8 Gyr at 3,900 K)? | Yes, continuous; the flare activity rule keeps its own cut-off | AE1 |
 
 ## Not in this plan
 
@@ -1427,4 +1434,4 @@ If the survey goes over its budget, the first thing measured is which bodies can
 
 ---
 
-*Prepared for the Aion Forge `ccr-5fa42206-l8tt5a` branch at commit `cb92a1a` (rules v10). Measurements from seed 100000 with default parameters, all 2,000 stars, made with the simulation's own modules on a 4-core machine. Decisions on Deep Time (a), Option A and the build order recorded from the project owner's answers on 3 Oct 2026.*
+*Prepared for the Aion Forge `ccr-5fa42206-l8tt5a` branch at commit `cb92a1a` (rules v10). Measurements from seed 100000 with default parameters, all 2,000 stars, made with the simulation's own modules on a 4-core machine. Decisions on Deep Time (a), Option A and the build order recorded from the project owner's answers on 3 Oct 2026. Checked again on 7 Oct 2026 with an independent script over the same seed: every value in [Starting point](#starting-point) reproduces, as do the measured figures in steps 3–7, SE1 and the Risks (the two definitions that needed stating are now in EN0 and Issue 2). The previews of escape and ice shells and the moon counts are estimates from the rules as written, not runs of the new rules.*

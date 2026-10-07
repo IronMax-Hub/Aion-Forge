@@ -20,7 +20,7 @@ function planet(overrides: Partial<Planet> = {}): Planet {
   const hostStarId = overrides.hostStarId ?? 1;
   return {
     id: 2, key: planetKey(hostStarId, 2), hostStarId, orbitalRadius: 1, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
-    temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8, isRare: false, surface: null, life: null, worldEvents: [], ...overrides,
+    temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8, isRare: false, surface: null, life: null, worldEvents: [], everLiquidWater: false, ...overrides,
   };
 }
 
@@ -179,6 +179,9 @@ describe("stars that have left the main sequence", () => {
     expect(h.steps).toBe(0);
     expect(h.events).toEqual([]);
     expect(h.present.meanK).toBeGreaterThan(0);
+    // Its oceans today are liquid water all the same (EN0)
+    expect(h.present.oceanFraction).toBeGreaterThan(0);
+    expect(h.everLiquidWater).toBe(true);
   });
 });
 
@@ -227,6 +230,19 @@ describe("across a universe", () => {
     expect(share("runaway-greenhouse") + share("oceans-lost")).toBeGreaterThan(0.02);
     expect(share("thaws")).toBeGreaterThan(0.02);
     expect(worlds.some(({ history: h }) => h.present.oceanFraction > 0.1 && h.present.meanK > 273 && h.present.meanK < 310)).toBe(true);
+  });
+
+  it("records whether liquid water ever lay on the surface, open or under ice, at a step or today (EN0)", () => {
+    const liquid = (bandOcean: Float64Array) => bandOcean.some((share) => share > 0);
+    let wet = 0;
+    for (const { history: h } of worlds) {
+      expect(h.everLiquidWater).toBe(h.snapshots!.some((s) => liquid(s.bandOcean)) || liquid(h.final.bandOcean));
+      // Steam is not liquid: no step whose oceans had boiled counts
+      for (const s of h.snapshots!) if (s.steam) expect(liquid(s.bandOcean)).toBe(false);
+      if (h.everLiquidWater) wet++;
+    }
+    expect(wet).toBeGreaterThan(0);
+    expect(wet).toBeLessThan(worlds.length);
   });
 
   it("draws events per step, so the same planet's history does not depend on its neighbours", () => {

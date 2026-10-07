@@ -45,6 +45,9 @@
 //   7. Record    a snapshot of the step, when asked for.
 // After the last step, the present day is solved on all 642 cells (R5), and
 // life's lineages are summarised for the biosphere (evolution/phylogeny.ts, C2.5).
+// Two facts are kept for the universe index (EN0), and change nothing: whether
+// liquid water ever lay on the surface, and when the oxygen life makes would on
+// its own first have oxidised the air, against the same sinks.
 //
 // Gravity (owner decisions): water is W · 33.75 km · g deep (geography.ts);
 // outgassed gas becomes pressure ∝ τ·g² (gas per unit planet mass, spread over
@@ -243,6 +246,23 @@ export interface WorldHistory {
   life: EvolutionState | null;
   /** What the biosphere is read from (C2.5): life's lineages as the history left them; null if life never began. */
   phylogeny: PhylogenySummary | null;
+  /**
+   * Whether liquid water, open or under ice, lay on the surface at any step or
+   * today (EN0). Steam is not liquid, and water below the oceans-lost threshold
+   * fills nothing. A world whose star is younger than the loop's start runs no
+   * steps; its oceans today still count.
+   */
+  everLiquidWater: boolean;
+  /**
+   * The first step at which the oxygen life makes would on its own have
+   * oxidised the air (EN0): the loop carries a second O₂ level, made by the same
+   * life and taken by the same volcanic and crust sinks, with no oxygen from
+   * escaping water and a crust that only life's oxygen has oxidised, and this
+   * is when it first reached OXIDATION_O2_BAR. Gyr after the star formed; null
+   * if never. The `oxidation` event, by contrast, is the real air's, whatever
+   * made its oxygen.
+   */
+  lifeOxygenGyr: number | null;
 }
 
 export interface WorldHistoryOptions {
@@ -343,6 +363,10 @@ export function runWorldHistory(
   let moist = false;
   let oceansLost = physics.waterInventory < OCEANS_LOST_WATER;
   let oxidised = false;
+  let everLiquidWater = false;
+  let lifeOxygenGyr: number | null = null;
+  // The air's O₂ and unoxidised crust as life's oxygen alone would have left them (EN0)
+  let lifeOnly = { o2: 0, crust: 1 };
 
   /** Total surface pressure: the background, the gases, and steam while the oceans are boiled. */
   const pressureOf = (co2: number, o2: number, ch4: number, water: number, steam: boolean) =>
@@ -438,16 +462,23 @@ export function runWorldHistory(
     // O₂ relaxes towards production / respiration however fast life turns it over
     const production = O2_PRODUCTION_BAR_PER_GYR * state.lightBiomass * g;
     const respiration = O2_RESPIRATION_PER_GYR * state.totalBiomass;
-    const o2Living = respiration > 0
-      ? production / respiration + (state.o2Bar - production / respiration) * exp(-respiration * dt)
-      : state.o2Bar + production * dt;
-    const o2Supplied = o2Living + PHOTOLYSIS_O2_BAR_PER_WATER * waterLost * g * g;
+    /** O₂ after this step's production and respiration, from a starting level. */
+    const breathed = (o2Start: number) => respiration > 0
+      ? production / respiration + (o2Start - production / respiration) * exp(-respiration * dt)
+      : o2Start + production * dt;
     const volcanicSink = VOLCANIC_O2_SINK_BAR_PER_GYR * tau * dt;
-    const crustDemand = CRUST_O2_SINK_BAR_PER_GYR * state.unoxidisedCrust * dt;
-    const volcanicTaken = Math.min(o2Supplied, volcanicSink);
-    const crustTaken = Math.min(o2Supplied - volcanicTaken, crustDemand);
-    const o2 = o2Supplied - volcanicTaken - crustTaken;
-    const unoxidisedCrust = Math.max(0, state.unoxidisedCrust - crustTaken / CRUST_O2_CAPACITY_BAR);
+    /** The O₂ and unoxidised crust left once volcanic gases, then the crust, have taken their share of the supply. */
+    const afterSinks = (supplied: number, crust: number) => {
+      const crustDemand = CRUST_O2_SINK_BAR_PER_GYR * crust * dt;
+      const volcanicTaken = Math.min(supplied, volcanicSink);
+      const crustTaken = Math.min(supplied - volcanicTaken, crustDemand);
+      return { o2: supplied - volcanicTaken - crustTaken, crust: Math.max(0, crust - crustTaken / CRUST_O2_CAPACITY_BAR) };
+    };
+    const { o2, crust: unoxidisedCrust } =
+      afterSinks(breathed(state.o2Bar) + PHOTOLYSIS_O2_BAR_PER_WATER * waterLost * g * g, state.unoxidisedCrust);
+    // The same air with life's oxygen alone (EN0): no oxygen from escaping water, and a crust only life has oxidised
+    lifeOnly = afterSinks(breathed(lifeOnly.o2), lifeOnly.crust);
+    if (lifeOxygenGyr === null && lifeOnly.o2 >= OXIDATION_O2_BAR) lifeOxygenGyr = t;
     // dCH₄/dt = production − destruction·CH₄, solved exactly over the step (the
     // destruction is fast, ~0.1 Gyr, so an explicit step would wipe it out each time)
     // Methanogens work anaerobically: only the anaerobic share of a cell's metabolism makes methane
@@ -463,6 +494,7 @@ export function runWorldHistory(
     const steam = water >= OCEANS_LOST_WATER && climate.meanK >= boilingK;
     if (steam && !state.steam && step > 1) events.push({ kind: "runaway-greenhouse", tGyr: t });
     seaLevelKm = fillOceans(water, steam);
+    everLiquidWater ||= bandOcean.some((share) => share > 0);
 
     // 5. Climate transitions. The first step sets the starting climate: a world
     // frozen or steaming from its first step records no transition into it.
@@ -524,6 +556,7 @@ export function runWorldHistory(
       openOceanFraction: climate.openOceanFraction, openLandFraction: climate.openLandFraction,
       bandK: climate.bandK, iced: climate.iced,
       steam, pressureBar: pressureOf(state.co2Bar, state.o2Bar, state.ch4Bar, state.water, steam) };
+    everLiquidWater = state.bandOcean.some((share) => share > 0);
   }
 
   const present = solvePresentClimate(geography, {
@@ -532,5 +565,5 @@ export function runWorldHistory(
   }, seaLevelKm, state.steam, physics.axialTiltDeg, physics.tidallyLocked, state.iced);
 
   const phylogeny = life && summarizePhylogeny(life, mind, state.tGyr);
-  return { final: state, present, events, steps: stepCount, snapshots, life, phylogeny };
+  return { final: state, present, events, steps: stepCount, snapshots, life, phylogeny, everLiquidWater, lifeOxygenGyr };
 }

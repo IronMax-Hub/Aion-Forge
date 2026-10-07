@@ -9,7 +9,8 @@
 // stars are cut into chunks of STARS_PER_CHUNK in star order. A worker
 // receives a seed, parameters and one chunk's star range, regenerates the stars
 // with the same pure simulation modules the main thread uses (once per
-// universe, then kept), surveys its chunk and posts the partial survey back.
+// universe, then kept), surveys its chunk and posts the partial survey back,
+// moving its index's buffers rather than copying them.
 // The pool (surveyPool.ts) merges the chunks in star order, which gives
 // exactly the survey of the whole universe in one pass.
 //
@@ -22,6 +23,7 @@ import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import type { Star } from "../simulation/star";
 import { surveyLife } from "../simulation/lifeSurvey";
 import type { LifeSurvey } from "../simulation/lifeSurvey";
+import { indexBuffers, mergeIndices } from "../simulation/universeIndex";
 
 /** Stars per chunk: small enough to share the work evenly among workers and to report progress often. */
 export const STARS_PER_CHUNK = 50;
@@ -63,12 +65,14 @@ function starsOf(seed: number, config: UniverseConfig): Star[] {
   return starsCache.stars;
 }
 
-/** Survey one chunk of a universe's stars and post the partial survey. */
-export function runSurveyChunk(request: ChunkRequest, post: (message: ChunkMessage) => void): void {
+/** Survey one chunk of a universe's stars and post the partial survey, with the buffers it can move. */
+export function runSurveyChunk(
+  request: ChunkRequest, post: (message: ChunkMessage, transfer?: ArrayBuffer[]) => void,
+): void {
   const { generation, seed, config, chunk, from, to } = request;
   try {
     const survey = surveyLife(starsOf(seed, config).slice(from, to), seed, config);
-    post({ kind: "chunk", generation, chunk, survey });
+    post({ kind: "chunk", generation, chunk, survey }, indexBuffers(survey.index));
   } catch (err) {
     post({ kind: "error", generation, message: err instanceof Error ? err.message : String(err) });
   }
@@ -82,5 +86,6 @@ export function mergeSurveys(parts: LifeSurvey[]): LifeSurvey {
     everLifePlanets: parts.reduce((sum, p) => sum + p.everLifePlanets, 0),
     civilizationCount: parts.reduce((sum, p) => sum + p.civilizationCount, 0),
     systems: parts.flatMap((p) => p.systems),
+    index: mergeIndices(parts.map((p) => p.index)),
   };
 }

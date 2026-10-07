@@ -10,6 +10,8 @@ import { buildGalaxyConfig } from "../simulation/galaxy";
 import { generateStarsFor, STAR_COUNT, UNIVERSE_AGE_GYR } from "../simulation/star";
 import { surveyLife } from "../simulation/lifeSurvey";
 import type { LifeSurvey } from "../simulation/lifeSurvey";
+import { INDEX_COLUMNS, indexBuffers, packIndex } from "../simulation/universeIndex";
+import type { IndexRow } from "../simulation/universeIndex";
 
 function surveyOnMainThread(seed: number, config = makeConfig(seed)): LifeSurvey {
   const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
@@ -78,6 +80,21 @@ describe("survey worker pool", { timeout: FULL_SURVEY_TIMEOUT_MS }, () => {
     expect(result.kind === "result" && result.survey).toEqual(surveyOnMainThread(42, config));
   });
 
+  it("moves each chunk's index buffers to the main thread rather than copying them", () => {
+    let posted: { message: ChunkMessage; transfer?: ArrayBuffer[] } | undefined;
+    runSurveyChunk({ generation: 1, seed: 42, config: makeConfig(42), chunk: 0, from: 0, to: STARS_PER_CHUNK },
+      (message, transfer) => { posted = { message, transfer }; });
+    const { message, transfer } = posted!;
+    expect(message.kind).toBe("chunk");
+    if (message.kind !== "chunk") return;
+    expect(message.survey.index.count).toBe(message.survey.totalPlanets);
+    expect(transfer).toEqual(indexBuffers(message.survey.index));
+    // What postMessage does with a transfer list: the copy keeps the rows, the sender's buffers are emptied
+    const moved = structuredClone(message, { transfer });
+    expect(moved.survey.index.count).toBe(message.survey.index.count);
+    expect(message.survey.index.starId.byteLength).toBe(0);
+  });
+
   it("reports rising progress after each chunk, tagged with the request's generation", () => {
     const progress = messages.filter((m) => m.kind === "progress").map((m) => m.kind === "progress" && m.fraction);
     expect(progress.length).toBe(CHUNKS - 1);
@@ -92,7 +109,10 @@ describe("survey pool", () => {
   // Each chunk answers with its star range in place of a real survey
   const canned = (r: ChunkRequest): ChunkMessage => ({
     kind: "chunk", generation: r.generation, chunk: r.chunk,
-    survey: { totalPlanets: r.to - r.from, lifeBearingPlanets: r.chunk, everLifePlanets: r.chunk, civilizationCount: r.generation, systems: [] },
+    survey: {
+      totalPlanets: r.to - r.from, lifeBearingPlanets: r.chunk, everLifePlanets: r.chunk, civilizationCount: r.generation,
+      systems: [], index: packIndex([]),
+    },
   });
 
   it("covers every star once, in chunks, with no more workers than its size", () => {
@@ -137,12 +157,20 @@ describe("survey pool", () => {
     expect(seen.map((m) => [m.kind, m.generation])).toEqual([["error", 1], ["result", 2]]);
   });
 
-  it("merges chunks by adding their counts and joining their systems in star order", () => {
+  it("merges chunks by adding their counts and joining their systems and index rows in star order", () => {
     const system = (starId: number) => ({ starId, mostAdvancedStage: "microbial" as const, lifePlanetCount: 1, civilizationStage: null });
+    const row = (starId: number, planetIndex: number): IndexRow => ({
+      ...(Object.fromEntries(INDEX_COLUMNS.map((column) => [column, NaN])) as IndexRow), starId, planetIndex, massEarths: starId + planetIndex / 10,
+    });
     expect(mergeSurveys([
-      { totalPlanets: 3, lifeBearingPlanets: 1, everLifePlanets: 2, civilizationCount: 0, systems: [system(2)] },
-      { totalPlanets: 4, lifeBearingPlanets: 2, everLifePlanets: 3, civilizationCount: 1, systems: [system(51), system(60)] },
-    ])).toEqual({ totalPlanets: 7, lifeBearingPlanets: 3, everLifePlanets: 5, civilizationCount: 1, systems: [system(2), system(51), system(60)] });
+      { totalPlanets: 3, lifeBearingPlanets: 1, everLifePlanets: 2, civilizationCount: 0, systems: [system(2)],
+        index: packIndex([row(2, 0), row(2, 1), row(3, 0)]) },
+      { totalPlanets: 4, lifeBearingPlanets: 2, everLifePlanets: 3, civilizationCount: 1, systems: [system(51), system(60)],
+        index: packIndex([row(51, 0), row(60, 0), row(60, 2), row(60, 3)]) },
+    ])).toEqual({
+      totalPlanets: 7, lifeBearingPlanets: 3, everLifePlanets: 5, civilizationCount: 1, systems: [system(2), system(51), system(60)],
+      index: packIndex([row(2, 0), row(2, 1), row(3, 0), row(51, 0), row(60, 0), row(60, 2), row(60, 3)]),
+    });
   });
 
   it("uses one worker per core, less one for the interface", () => {
@@ -157,7 +185,7 @@ describe("survey pool", () => {
  * seed, so the client's plumbing is tested without running real surveys.
  */
 function cannedSurvey(seed: number): LifeSurvey {
-  return { totalPlanets: seed, lifeBearingPlanets: 1, everLifePlanets: 1, civilizationCount: 0, systems: [] };
+  return { totalPlanets: seed, lifeBearingPlanets: 1, everLifePlanets: 1, civilizationCount: 0, systems: [], index: packIndex([]) };
 }
 
 /** A stand-in worker that holds requests until the test answers them. */

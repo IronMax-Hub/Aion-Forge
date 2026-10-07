@@ -58,6 +58,8 @@ export interface Planet {
   life: PlanetLife | null;
   /** What happened to the planet over its world history, dated (C2.7); empty for giants, which have none. */
   worldEvents: WorldEvent[];
+  /** Whether liquid water ever lay on its surface, open or under ice (WorldHistory.everLiquidWater); false for giants. */
+  everLiquidWater: boolean;
 }
 
 /** A planet's life: its dates, Gyr after its star formed, and what its lineages became (C2.5). */
@@ -66,6 +68,8 @@ export interface PlanetLife {
   /** Null while life lasts. */
   endedGyr: number | null;
   phylogeny: PhylogenySummary;
+  /** When the oxygen life makes would on its own first have oxidised the air (WorldHistory.lifeOxygenGyr); null if never. */
+  oxygenGyr: number | null;
 }
 
 /** The present-day surface of a solid planet, as the world history left it (A3). */
@@ -344,6 +348,7 @@ export function generatePlanetsFor(
       surface: null,
       life: null,
       worldEvents: [],
+      everLiquidWater: false,
     };
 
     if (mass > GIANT_PLANET_MASS) {
@@ -353,8 +358,10 @@ export function generatePlanetsFor(
       const { physics, history } = worldOf(planet, star, galaxySeed, config);
       planet.surface = presentSurface(history.present, physics, history.final);
       planet.worldEvents = history.events;
+      planet.everLiquidWater = history.everLiquidWater;
       planet.life = history.life && {
         startedGyr: history.life.startedGyr, endedGyr: history.life.endedGyr, phylogeny: history.phylogeny!,
+        oxygenGyr: history.lifeOxygenGyr,
       };
       planet.temperature = history.present.meanK;
       planet.atmosphere = atmosphereClassOf(history.final.pressureBar);

@@ -212,7 +212,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 
 ## Current Status
 
-**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.7 and C2.10, and Phase B, B1–B6 (simulation rules v10)**
+**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.7 and C2.10, and Phase B, B1–B6, and The Galaxy Through Time EN0 (simulation rules v10)**
 
 ### Simulation
 
@@ -233,7 +233,7 @@ Distances in light-years use a display convention — the default galaxy radius 
 * Historical event recording and timeline replay
 * Configurable laws of physics with experiment comparison
 * Universe persistence, library, export/import, and discovery collections
-* Life survey run in a background worker; saved counts are marked when they were made under older simulation rules
+* Life survey run in a background worker; saved counts are marked when they were made under older simulation rules. The survey also keeps every world's facts in one index (`universeIndex.ts`) for the encyclopedia, Great Filter and atlas to come (`Documents/Galaxy-Through-Time.md`)
 * Determinism tests for every simulation layer, among some 250 tests
 
 The simulation rules carry a version number (`frontend/src/simulation/version.ts`). It rises whenever a change alters what a seed produces, so older saved figures can be recognised.

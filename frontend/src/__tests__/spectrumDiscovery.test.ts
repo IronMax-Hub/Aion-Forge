@@ -11,7 +11,7 @@ const seed = 7777;
 const planetAt = (starId: number, index: number): Planet => ({
   id: index, key: planetKey(starId, index), hostStarId: starId, orbitalRadius: 1, orbitalIndex: index, type: "rocky", size: 1,
   mass: 1, temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5,
-  habitabilityScore: 0.8, isRare: false, surface: null, life: null, worldEvents: [],
+  habitabilityScore: 0.8, isRare: false, surface: null, life: null, worldEvents: [], everLiquidWater: false,
 });
 const here = planetAt(12, 1);
 const detection = (verdict: Verdict): Detection => ({

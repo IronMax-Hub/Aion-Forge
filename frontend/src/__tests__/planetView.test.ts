@@ -11,7 +11,7 @@ const star: Star = {
 };
 const planet: Planet = {
   id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "ocean", size: 1.5, mass: 2,
-  temperature: 290, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8, isRare: false, surface: null, life: null, worldEvents: [],
+  temperature: 290, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8, isRare: false, surface: null, life: null, worldEvents: [], everLiquidWater: false,
 };
 const towardStar = new THREE.Vector3(-1, 0, 0);
 

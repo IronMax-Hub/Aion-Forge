@@ -146,7 +146,8 @@ function peakPopulation(species: Species, planet: Planet, techLevel: number): nu
 // Tech levels from here up are industrial or beyond
 const INDUSTRIAL_TECH_LEVEL = 0.42;
 
-function techLevelToStage(level: number, collapsed: boolean): TechStage {
+/** The stage a tech level reaches; any level of a civilization that has finally collapsed is "collapsed". */
+export function techLevelToStage(level: number, collapsed: boolean): TechStage {
   if (collapsed) return "collapsed";
   if (level < 0.20) return "primitive";
   if (level < INDUSTRIAL_TECH_LEVEL) return "agricultural";

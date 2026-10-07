@@ -30,7 +30,7 @@ function earth(copy: number, config?: UniverseConfig): WorldHistory {
   const planet: Planet = {
     id: 2, key: planetKey(copy, 2), hostStarId: copy, orbitalRadius: 1, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
     temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5,
-    habitabilityScore: 0.8, isRare: false, surface: null, life: null, worldEvents: [],
+    habitabilityScore: 0.8, isRare: false, surface: null, life: null, worldEvents: [], everLiquidWater: false,
   };
   return runWorldHistory(planet, earthPhysics, buildGeography(planet, earthPhysics, 42), sun, 42, config, { keepSnapshots: true });
 }
@@ -77,7 +77,10 @@ describe("the origin of life", () => {
     const ended = worlds.filter(({ history }) => history.life?.endedGyr != null);
     expect(ended.length).toBeGreaterThan(0);
     for (const { star, planet, history } of ended) {
-      expect(planet.life).toEqual({ startedGyr: history.life!.startedGyr, endedGyr: history.life!.endedGyr, phylogeny: history.phylogeny });
+      expect(planet.life).toEqual({
+        startedGyr: history.life!.startedGyr, endedGyr: history.life!.endedGyr, phylogeny: history.phylogeny,
+        oxygenGyr: history.lifeOxygenGyr,
+      });
       expect(history.phylogeny!.livingLineages).toBe(0);
       expect(history.life!.endedGyr!).toBeGreaterThanOrEqual(history.life!.startedGyr);
       expect(generateBiosphere(planet, star).hasLife).toBe(false);
@@ -127,6 +130,42 @@ describe("life's air", () => {
     expect(oxidised.length).toBeGreaterThan(0);
     for (const ch4 of oxidised) expect(ch4).toBeLessThan(1e-3);
     expect([...oxidised].sort((a, b) => a - b)[Math.floor(oxidised.length / 2)]).toBeLessThan(1e-6);
+  });
+
+  it("dates life's own oxygen after the first light user, never from escaping water (EN0)", () => {
+    let dated = 0;
+    for (const { history } of [...worlds, ...earths.map((h) => ({ history: h }))]) {
+      const firstLight = history.life?.firsts.find((f) => f.kind === "light")?.tGyr;
+      if (firstLight === undefined) {
+        expect(history.lifeOxygenGyr).toBeNull();
+        continue;
+      }
+      if (history.lifeOxygenGyr === null) continue;
+      dated++;
+      expect(history.lifeOxygenGyr).toBeGreaterThan(firstLight);
+      expect(history.snapshots!.some((s) => s.tGyr === history.lifeOxygenGyr)).toBe(true);
+    }
+    expect(dated).toBeGreaterThan(0);
+    // With no water lost, life's oxygen is all the air's: both oxidise it at the same step
+    let same = 0;
+    for (const { physics, history } of worlds) {
+      if (history.final.water < physics.waterInventory) continue;
+      expect(history.lifeOxygenGyr).toBe(history.events.find((e) => e.kind === "oxidation")?.tGyr ?? null);
+      if (history.lifeOxygenGyr !== null) same++;
+    }
+    expect(same).toBeGreaterThan(0);
+    // An Earth whose light users thrive holds its air oxidised by its own oxygen
+    for (const h of earths.filter((e) => e.final.lightBiomass > 0.1)) expect(h.lifeOxygenGyr).not.toBeNull();
+    // A lifeless world oxidised by escaping water has no life's oxygen
+    const dry = { ...makeConfig(42), emergenceSensitivity: 0 };
+    const planet: Planet = {
+      id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 0.3, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
+      temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5,
+      habitabilityScore: 0.8, isRare: false, surface: null, life: null, worldEvents: [], everLiquidWater: false,
+    };
+    const scorched = runWorldHistory(planet, earthPhysics, buildGeography(planet, earthPhysics, 42), sun, 42, dry);
+    expect(scorched.events.some((e) => e.kind === "oxidation")).toBe(true);
+    expect(scorched.lifeOxygenGyr).toBeNull();
   });
 
   it("keeps a lifeless planet's air exactly as it was without life", () => {

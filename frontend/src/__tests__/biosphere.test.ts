@@ -25,7 +25,7 @@ function planetWith(summary: PhylogenySummary, endedGyr: number | null = null): 
   return {
     id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
     temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5,
-    habitabilityScore: 0.8, isRare: false, surface: null, life: { startedGyr: 0.6, endedGyr, phylogeny: summary }, worldEvents: [],
+    habitabilityScore: 0.8, isRare: false, surface: null, life: { startedGyr: 0.6, endedGyr, phylogeny: summary, oxygenGyr: null }, worldEvents: [], everLiquidWater: false,
   };
 }
 

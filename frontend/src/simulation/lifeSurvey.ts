@@ -1,7 +1,7 @@
 // Life survey: walks every star system once and records what life each one holds.
 // It only reads the planet, biosphere and civilization generators, so a seed always
 // yields the same survey. The totals feed universe snapshots; the per-system entries
-// feed the galaxy's life markers.
+// feed the galaxy's life markers; the index keeps every world's facts (EN0).
 
 import type { Star } from "./star";
 import type { UniverseConfig } from "./config";
@@ -11,6 +11,8 @@ import { generateBiosphere } from "./biosphere";
 import type { LifeStage } from "./biosphere";
 import { generateCivilization } from "./civilization";
 import type { TechStage } from "./civilization";
+import { indexRowsFor, packIndex } from "./universeIndex";
+import type { IndexRow, UniverseIndex } from "./universeIndex";
 
 /** Life stages that count as organisms. Prebiotic chemistry is not yet life. */
 export const ORGANISM_STAGES: readonly LifeStage[] = ["microbial", "multicellular", "complex", "dominant"];
@@ -33,6 +35,7 @@ export interface LifeSurvey {
   everLifePlanets: number;      // every planet where life began, living or not (R8)
   civilizationCount: number;
   systems: SystemLife[];        // only systems with organisms, in star order
+  index: UniverseIndex;         // every world, in star and planet order (EN0)
 }
 
 /** How often, in stars, the survey reports its progress. */
@@ -51,11 +54,13 @@ export function surveyLife(
   let everLifePlanets = 0;
   let civilizationCount = 0;
   const systems: SystemLife[] = [];
+  const rows: IndexRow[] = [];
 
   for (const [index, star] of stars.entries()) {
     if (onProgress && index > 0 && index % SURVEY_PROGRESS_INTERVAL === 0) onProgress(index, stars.length);
     const system = planetsOf(star);
     totalPlanets += system.planets.length;
+    rows.push(...indexRowsFor(system, star, seed, cfg));
 
     let mostAdvanced = -1;
     let lifePlanetCount = 0;
@@ -92,5 +97,5 @@ export function surveyLife(
     }
   }
 
-  return { totalPlanets, lifeBearingPlanets, everLifePlanets, civilizationCount, systems };
+  return { totalPlanets, lifeBearingPlanets, everLifePlanets, civilizationCount, systems, index: packIndex(rows) };
 }

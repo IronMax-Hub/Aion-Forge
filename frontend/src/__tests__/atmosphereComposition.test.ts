@@ -34,7 +34,7 @@ const earthSurface: PlanetSurface = {
 const earth: Planet = {
   id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
   temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8,
-  isRare: false, surface: earthSurface, life: null, worldEvents: [],
+  isRare: false, surface: earthSurface, life: null, worldEvents: [], everLiquidWater: false,
 };
 const civ = (techStage: TechStage, population = 8): Civilization => ({
   id: 0, speciesId: 0, planetId: 2, ageGyr: 0.1, population, techStage, techLevel: 0.5, socialCohesion: 0.5,
@@ -128,6 +128,7 @@ describe("nitrous oxide", () => {
       livingLineages: 20, diversity: 0.6, largestLog10BodyMassKg: 1, foodChainLevels: 3, totalBiomass, traitSpread: 0.4,
       recentSurvival: 0.9, lethalCatastrophes: [], mind: null, firsts: [],
     },
+    oxygenGyr: null,
   });
   const n2oBar = (planet: Planet) => {
     const c = atmosphereComposition(planet, null);

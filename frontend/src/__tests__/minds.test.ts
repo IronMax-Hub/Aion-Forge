@@ -90,7 +90,7 @@ function planetWith(mind: MindSummary | null, surface: PlanetSurface = earthAir,
   return {
     id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
     temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8,
-    isRare: false, surface, life: { startedGyr: 0.6, endedGyr, phylogeny }, worldEvents: [],
+    isRare: false, surface, life: { startedGyr: 0.6, endedGyr, phylogeny, oxygenGyr: null }, worldEvents: [], everLiquidWater: false,
   };
 }
 const civOf = (planet: Planet) => generateCivilization(generateBiosphere(planet, star), planet, 42);

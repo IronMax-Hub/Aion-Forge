@@ -369,7 +369,7 @@ const FIRST_EVENT: Partial<Record<FirstKind, { summary: string; importance: Impo
 };
 
 // Share of living lineages a catastrophe must end to count as a mass extinction, and as a severe one
-const MASS_EXTINCTION_SHARE = 0.25;
+export const MASS_EXTINCTION_SHARE = 0.25;
 const SEVERE_EXTINCTION_SHARE = 0.5;
 
 // ── AF-097: Civilizational event recording ────────────────────────────────────

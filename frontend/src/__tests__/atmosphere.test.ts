@@ -34,7 +34,7 @@ function planetWith(pressureBar: number | null): Planet {
   return {
     id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: surface ? "rocky" : "gas-giant",
     size: 1, mass: surface ? 1 : 100, temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5,
-    habitabilityScore: 0.5, isRare: false, surface, life: null, worldEvents: [],
+    habitabilityScore: 0.5, isRare: false, surface, life: null, worldEvents: [], everLiquidWater: false,
   };
 }
 const towardStar = new THREE.Vector3(1, 0, 0);

@@ -28,7 +28,7 @@ const earthSurface: PlanetSurface = {
 const earth: Planet = {
   id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
   temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8,
-  isRare: false, surface: earthSurface, life: null, worldEvents: [],
+  isRare: false, surface: earthSurface, life: null, worldEvents: [], everLiquidWater: false,
 };
 const hotJupiter: Planet = { ...earth, type: "gas-giant", mass: 318, size: 11.2, temperature: 1400, surface: null };
 

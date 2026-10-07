@@ -6,7 +6,7 @@ import type { ChunkRequest, ChunkMessage } from "./surveyTask";
 // The DOM typings describe `self` as a window; inside a worker it is the worker scope
 const scope = self as unknown as {
   onmessage: ((event: MessageEvent<ChunkRequest>) => void) | null;
-  postMessage(message: ChunkMessage): void;
+  postMessage(message: ChunkMessage, transfer: Transferable[]): void;
 };
 
-scope.onmessage = (event) => runSurveyChunk(event.data, (message) => scope.postMessage(message));
+scope.onmessage = (event) => runSurveyChunk(event.data, (message, transfer = []) => scope.postMessage(message, transfer));

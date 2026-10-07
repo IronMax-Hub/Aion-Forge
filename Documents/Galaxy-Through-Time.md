@@ -60,6 +60,7 @@ Step 5a is new in this document. Moons need it, because tidal heat keeps an ocea
 | **Decided · Deep Time** | (a) The whole galaxy over time | One cosmic clock, 0 to 13.7 Gyr, drives the galaxy view, the life and civilization markers, the atlas and the timeline. The planet view stays present-day. |
 | **Decided · Communication** | Option A: answers come from the simulation | Every message, culture profile and answer is assembled from simulated facts by fixed templates. No language model is used. The same seed always gives the same answers, and nothing is said that the record does not hold. |
 | **Decided · Order** | Encyclopedia → Great Filter → escape → metallicity → heat from inside → moons → binaries → rogues → atlas → Deep Time → SETI → communication | Stage 1 changes no seed. Stage 2 changes outcomes one step at a time. Stages 3 and 4 use everything before them. |
+| **Decided · Stage 1** | Decisions 1–4 as recommended | Designations stay `Star 1300` and `1300 c`, with a citation that names the rules version; one template per fact; the twelve gates, with gate 5 judged by life's own oxygen; funnels shown live, not stored. |
 | **Consequence** | Rules version 10 → 17 | Seven steps change outcomes: 3, 4, 5a, 5, 6, 7, and phase-let DT1 of step 9. Each bumps the version once, as R10 set. Saved universes are marked and can be recounted, as they are today. |
 
 ## Starting point
@@ -99,17 +100,17 @@ Massive stars live briefly, so nearly all of those shining today (618 of the 665
 
 ### The Great Filter as the universe stands
 
-The same universe, read as a funnel. Each gate counts the worlds that passed every gate above it. The definitions are in GF1.
+The same universe, read as a funnel. Each gate counts the worlds that passed every gate above it. The definitions are in GF1, and the counts are read from EN0's index (8 Oct 2026). Before those definitions were settled, at commit `cb92a1a`, gate 2 counted the history's steps alone (4,431), and gate 5 the real air's first oxidation at or after the first light user (355, of which 268 reached the multicellular gate).
 
 | Gate | Worlds | Share of the gate above |
 |---|---:|---:|
 | Planets | 8,537 | |
 | Solid surface | 7,134 | 84% |
-| Liquid water at some time | 4,431 | 62% |
-| Life began | 4,167 | 94% |
+| Liquid water at some time | 4,730 | 66% |
+| Life began | 4,167 | 88% |
 | Life used starlight | 1,706 | 41% |
-| Oxygen built up after that | 355 | 21% |
-| A multicellular body | 268 | 75% |
+| Oxygen built up after that | 334 | 20% |
+| A multicellular body | 271 | 81% |
 | A mind | 86 | 32% |
 | Open fire possible today | 37 | 43% |
 | Industry reached | 22 | 59% |
@@ -117,7 +118,7 @@ The same universe, read as a funnel. Each gate counts the worlds that passed eve
 | Spaceflight reached | 3 | 23% |
 | Still active today | 3 | 100% |
 
-In this universe the steepest drop of all is between light-using life and an oxygenated sky, and the waits are long. Medians: 1.6 Gyr from life's origin to the first light users, 0.8 Gyr more to oxygen, and 8.1 Gyr from life's origin to a mind. Of all 90 worlds with a mind, 52 cannot make fire today: 29 have no exposed land, 26 too little oxygen and 10 too thin an air (a world can fail more than one). Another 622 worlds have oxygen from escaping water and no light-using life at all; these are the spectrum's deliberate false positives.
+In this universe the steepest drop of all is between light-using life and an oxygenated sky, and the waits are long. Medians: 1.6 Gyr from life's origin to the first light users, 0.7 Gyr more to oxygen, and 8.1 Gyr from life's origin to a mind. Of all 90 worlds with a mind, 52 cannot make fire today: 29 have no exposed land, 26 too little oxygen and 10 too thin an air (a world can fail more than one). Another 622 worlds have oxygen from escaping water and no light-using life at all; these are the spectrum's deliberate false positives.
 
 ### What the universe does not have yet
 
@@ -266,7 +267,7 @@ Every clause has a source the simulation already holds:
 - **Deliverables:**
   - `simulation/universeIndex.ts`: the `UniverseIndex` type; `indexRowsFor(system, star, galaxySeed, config)`, which the survey calls once per system; and `mergeIndices(parts)`, which joins chunks in star order.
   - `LifeSurvey` gains `index: UniverseIndex`. The worker pool merges the chunk indices in star order, exactly as `mergeSurveys` merges `systems` today.
-  - `WorldHistory` gains one additive output, `everLiquidWater`: whether any step had liquid water, open or under ice (a non-zero liquid share in any band, `bandOcean`), while its oceans were not steam. This is the definition that gives the 4,431 in the funnel; counting any step with water and no steam would give 4,771. A second additive output, `lifeOxygenGyr`: the first step at which the oxygen life makes would on its own hold the air at the oxidation level (its production over its respiration rate, the equilibrium the loop already solves, at or above `OXIDATION_O2_BAR`), or null. No outcome changes.
+  - `WorldHistory` gains one additive output, `everLiquidWater`: whether liquid water, open or under ice (a non-zero liquid share in any band, `bandOcean`), lay on the surface at any step or today; steam is not liquid. For seed 100000 this gives the 4,730 in the funnel: 4,431 worlds at some step, and 299 more whose star is younger than the loop's start (0.5 Gyr), which run no steps but hold liquid oceans today. (Counting every step with any water and no steam would give 4,771.) A second additive output, `lifeOxygenGyr`: the first step at which the oxygen life makes would on its own have oxidised the air, or null. The loop carries a second O₂ level, made by the same life and taken by the same volcanic and crust sinks, with no oxygen from escaping water and a crust only life's oxygen has oxidised; `lifeOxygenGyr` is when it first reaches `OXIDATION_O2_BAR`. `Planet` carries both (`everLiquidWater`, and `life.oxygenGyr`). No outcome changes.
 - **Implementation:**
   - A struct of typed arrays with one row per world, in star order and then planet index order. A chunk's rows then concatenate directly, and its buffers move from a worker without copying (the `postMessage` transfer list).
   - Columns, and what reads them:
@@ -285,8 +286,9 @@ Every clause has a source the simulation already holds:
     | civilization stage today, highest stage reached, industry date, collapses, species ended ago | 3 × Uint8, 2 × Float32 | filter, atlas, SETI |
 
   - About 100 bytes per row, under 1 MB for the 8,537 planets of seed 100000. The index is cached with its survey (the client keeps the 16 most recent).
-  - The two air flags are read once per living world from `atmosphereComposition`, in the worker. No spectra are computed.
+  - The two air flags are read once per world from `atmosphereComposition`, in the worker: it costs microseconds, and reading every world needs no rule about which worlds can hold those gases. No spectra are computed.
 - **Verification:** For seeds 100000, 42 and 7777, every row equals what `generatePlanetsFor`, `generateBiosphere` and `generateCivilization` give on the main thread. The pooled index deep-equals a single-worker run. The survey's existing totals are unchanged, and survey time rises by under 5%.
+- **Built** 8 Oct 2026. For seeds 100000, 42 and 7777, every star: every row equals the generators on the main thread, and every planet and survey total is identical to the code before EN0. The survey takes at most 2.4% longer on one core, about the spread between runs (65.5 s → 66.8 s for seed 100000). Seed 100000's index holds 8,537 rows in 870,774 bytes (102 per row). Two definitions were settled while building. `everLiquidWater` also counts today's oceans, so that the 299 worlds of stars younger than 0.5 Gyr do not read as never wet while they hold liquid oceans. `lifeOxygenGyr` carries life's oxygen against the sinks: as first written, life's production over its respiration passed 1,609 of 1,706 light-using worlds, because nothing took the oxygen away (decision 3).
 
 #### EN1 Designations and the entry model
 `presentation` · **S**
@@ -297,7 +299,7 @@ Every clause has a source the simulation already holds:
 - **Implementation:**
   - Designations stay as they are: `Star 1300` and planet `1300 c` (`starName`, `planetName`). Moons (step 5) add a lower-case Roman numeral after a hyphen, `1300 c-ii`, the convention proposed for exomoons. Rogue planets keep their birth designation, `1300 e`, with "rogue" in their title.
   - A citation adds the universe for text copied out of the app: `AF-U-0001-86A0 · 1300 c` (`makeUniverseId`).
-  - Your form `AF-1300-c` is decision 1.
+  - Your form `AF-1300-c` was decision 1: you chose to keep the current designations and add the citation.
   - `makeUniverseId` reads only the seed, and steps 3–7 and DT1 change what a seed produces. A citation therefore also names the rules version, and marks non-default parameters: `AF-U-0001-86A0 · v10 · 1300 c` (decision 1).
   - The entry model:
 
@@ -383,10 +385,10 @@ The Great Filter (Hanson 1998) asks which step on the way from dead matter to a 
   | # | Gate | A world passes when |
   |---|---|---|
   | 1 | Solid surface | it has a surface |
-  | 2 | Liquid water | some step of its history had liquid water, open or under ice, and no steam (`everLiquidWater`, EN0) |
+  | 2 | Liquid water | liquid water, open or under ice and not steam, lay on its surface at some step of its history or today (`everLiquidWater`, EN0) |
   | 3 | Life | life began |
   | 4 | Starlight | a lineage used light (the first `light`) |
-  | 5 | Oxygen | the oxygen its life makes would on its own hold the air at the oxidation level at some step (`lifeOxygenGyr`, EN0; decision 3). Oxygen left only by escaping water does not count, and a world first oxidised by escaping water is judged by its life rather than dropped: the once-recorded `oxidation` event would drop 92 light-using worlds of seed 100000, 60 of which went on to multicellular life |
+  | 5 | Oxygen | the oxygen its life makes would on its own have oxidised the air at some step, against the same volcanic and crust sinks and with no oxygen from escaping water (`lifeOxygenGyr`, EN0; decision 3). The real air's first `oxidation` event is not used: it is recorded once and counts escaping water's oxygen too, so it would drop 92 light-using worlds of seed 100000 that escaping water oxidised first (life alone would have oxidised 3 of them) and pass 24 whose air escaping water's oxygen helped oxidise |
   | 6 | Multicellular | a body above 10⁻⁹ kg appeared (the first `multicellular`) |
   | 7 | Mind | a mind appeared |
   | 8 | Fire | open fire is possible today (`canSustainFire`); from DT1, at some step while its civilization lived |
@@ -398,7 +400,7 @@ The Great Filter (Hanson 1998) asks which step on the way from dead matter to a 
   After steps 5 and 7, moons and rogue planets join as worlds, with a selector: planets, moons, rogues, or all.
 
   The universe's filter is the gate with the lowest pass share among gates that at least 10 worlds reach, so that tiny numbers cannot name it.
-- **Verification:** Counts never rise down the funnel; they equal direct counts for three seeds; for seed 100000 they reproduce the table in [Starting point](#the-great-filter-as-the-universe-stands) through gate 4, and from gate 5 on they may be higher by up to the 92 worlds the table's once-recorded oxidation dropped (decision 3).
+- **Verification:** Counts never rise down the funnel; they equal direct counts for three seeds; for seed 100000 they reproduce the table in [Starting point](#the-great-filter-as-the-universe-stands).
 
 #### GF2 Where worlds stop
 `presentation` · **M**
@@ -1415,10 +1417,10 @@ If the survey goes over its budget, the first thing measured is which bodies can
 
 | # | Question | Recommendation | Needed before |
 |---:|---|---|---|
-| 1 | Keep the designations `Star 1300` and `1300 c`, with a citation line `AF-U-0001-86A0 · v10 · 1300 c` that names the rules version (and marks non-default parameters), or adopt your form `AF-1300-c` on every screen? | Keep, and add the citation: every screen already uses the current form. The rules version is needed because a seed's planets change at every outcome-changing step | EN1 |
-| 2 | Seeded variety of phrasing in entries? | No: one template per fact, as a catalogue would | EN2 |
-| 3 | The twelve gates as defined, with fire read from today's air until DT1? | Accept, with gate 5 judged by life's own oxygen (`lifeOxygenGyr`, EN0) rather than by the first `oxidation` event, which is recorded once: as defined, the gate drops 92 light-using worlds of seed 100000 that escaping water oxidised first, 60 of which went on to multicellular life (against 268 that pass). Fire read from today's air until DT1 | GF1 |
-| 4 | Store funnels with saved experiments? | No: shown live; the experiment's summary names the gates that moved | GF4 |
+| 1 | Keep the designations `Star 1300` and `1300 c`, with a citation line `AF-U-0001-86A0 · v10 · 1300 c` that names the rules version (and marks non-default parameters), or adopt your form `AF-1300-c` on every screen? | **Decided 8 Oct 2026, as recommended.** Keep, and add the citation: every screen already uses the current form. The rules version is needed because a seed's planets change at every outcome-changing step | EN1 |
+| 2 | Seeded variety of phrasing in entries? | **Decided 8 Oct 2026, as recommended.** No: one template per fact, as a catalogue would | EN2 |
+| 3 | The twelve gates as defined, with fire read from today's air until DT1? | **Decided 8 Oct 2026, as recommended.** Accept, with gate 5 judged by life's own oxygen (`lifeOxygenGyr`, EN0) rather than by the first `oxidation` event, which is recorded once: as defined, the gate drops 92 light-using worlds of seed 100000 that escaping water oxidised first, 60 of which went on to multicellular life (against 268 that pass). Fire read from today's air until DT1. **Refined 8 Oct 2026, once EN0 was built:** life's production over its respiration alone passed 1,609 of 1,706 light-using worlds, since nothing took the oxygen away. Gate 5 now reads life's oxygen against the same volcanic and crust sinks, with no oxygen from escaping water: 334 pass (3 of the 92), and 271 reach the multicellular gate | GF1 |
+| 4 | Store funnels with saved experiments? | **Decided 8 Oct 2026, as recommended.** No: shown live; the experiment's summary names the gates that moved | GF4 |
 | 5 | Escape: r = 1 − (X / X_crit)², K = 10, acting on all gases? | Accept, with K held inside the window the Solar System allows (about 3.6–11, decision 26) rather than tuned to counts | AE2 |
 | 6 | If escape alone doubles runaway greenhouses, revisit the water-phase rule (R3) before tuning K? Physics: a runaway is set by absorbed flux above a radiation limit (about 282 W/m² for Earth-like gravity and air), not by background pressure. R3's boiling rule happens to match it when the air is gone (268 K against 266 K), but under thick air it keeps oceans on worlds past the limit | Yes; if R3 is revisited, trigger the runaway from absorbed flux, taking 282 W/m² as the reference for Earth's gravity and 1 bar of nitrogen, not as a universal switch: the limit shifts with gravity and background gas, and clouds act through the albedo | AE4 |
 | 7 | One enrichment law for every galaxy type? | Yes: star positions already differ by type | MZ1 |
@@ -1476,4 +1478,4 @@ If the survey goes over its budget, the first thing measured is which bodies can
 
 ---
 
-*Prepared for the Aion Forge `ccr-5fa42206-l8tt5a` branch at commit `cb92a1a` (rules v10). Measurements from seed 100000 with default parameters, all 2,000 stars, made with the simulation's own modules on a 4-core machine. Decisions on Deep Time (a), Option A and the build order recorded from the project owner's answers on 3 Oct 2026. Checked again on 7 Oct 2026 with an independent script over the same seed: every value in [Starting point](#starting-point) reproduces, as do the measured figures in steps 3–7, SE1 and the Risks (the two definitions that needed stating are now in EN0 and Issue 2). The previews of escape and ice shells and the moon counts are estimates from the rules as written, not runs of the new rules.*
+*Prepared for the Aion Forge `ccr-5fa42206-l8tt5a` branch at commit `cb92a1a` (rules v10). Measurements from seed 100000 with default parameters, all 2,000 stars, made with the simulation's own modules on a 4-core machine. Decisions on Deep Time (a), Option A and the build order recorded from the project owner's answers on 3 Oct 2026; decisions 1–4, as recommended, on 8 Oct 2026. Checked again on 7 Oct 2026 with an independent script over the same seed: every value in [Starting point](#starting-point) reproduces, as do the measured figures in steps 3–7, SE1 and the Risks (the two definitions that needed stating are now in EN0 and Issue 2). The previews of escape and ice shells and the moon counts are estimates from the rules as written, not runs of the new rules.*

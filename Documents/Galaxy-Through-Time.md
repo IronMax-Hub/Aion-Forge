@@ -59,7 +59,7 @@ Step 5a is new in this document. Moons need it, because tidal heat keeps an ocea
 |---|---|---|
 | **Decided · Deep Time** | (a) The whole galaxy over time | One cosmic clock, 0 to 13.7 Gyr, drives the galaxy view, the life and civilization markers, the atlas and the timeline. The planet view stays present-day. |
 | **Decided · Communication** | Option A: answers come from the simulation | Every message, culture profile and answer is assembled from simulated facts by fixed templates. No language model is used. The same seed always gives the same answers, and nothing is said that the record does not hold. |
-| **Decided · Order** | Encyclopedia → Great Filter → escape → metallicity → moons → binaries → rogues → atlas → Deep Time → SETI → communication | Stage 1 changes no seed. Stage 2 changes outcomes one step at a time. Stages 3 and 4 use everything before them. |
+| **Decided · Order** | Encyclopedia → Great Filter → escape → metallicity → heat from inside → moons → binaries → rogues → atlas → Deep Time → SETI → communication | Stage 1 changes no seed. Stage 2 changes outcomes one step at a time. Stages 3 and 4 use everything before them. |
 | **Consequence** | Rules version 10 → 17 | Seven steps change outcomes: 3, 4, 5a, 5, 6, 7, and phase-let DT1 of step 9. Each bumps the version once, as R10 set. Saved universes are marked and can be recounted, as they are today. |
 
 ## Starting point
@@ -483,13 +483,13 @@ Measured: by the bolometric form of that index, 2,737 of the 7,134 solid planets
     |---|---:|---:|---:|---:|
     | Earth | 11.2 | 1 | 0.10 | 99% |
     | Venus | 10.4 | 0.72 | 0.26 | 93% |
-    | Titan-like (as a planet) | 2.6 | 9.5 | 0.36 | 87% |
+    | Titan-like (as a planet) | 2.64 | 9.5 | 0.36 | 87% |
     | Ganymede-like | 2.7 | 5.2 | 1.0 | 0% |
     | Mars | 5.0 | 1.52 | 1.1 | 0% |
     | Mercury | 4.3 | 0.39 | 32 | 0% |
     | Moon-like | 2.4 | 1 | 49 | 0% |
 
-  - Water keeps its own loss rule (the moist greenhouse). Below water's triple point (0.006 bar in total) there is no open water: oceans are ice, or, from IH3, liquid only beneath ice.
+  - Water keeps its own loss rule (the moist greenhouse). Below water's triple point (0.006 bar in total) there is no open water: oceans are ice, or, from IH3, liquid only beneath ice (decision 27).
   - Today's class is read from the final pressure, as now (`atmosphereClassOf`). `formationAtmosphere` stays the class the world formed with.
   - Escape draws nothing; it is deterministic.
   - An interaction to measure: thinner air lowers the boiling point, and R3's water-phase rule turns the oceans of a world above its boiling point to steam. If escape alone doubles the share of runaway greenhouses, the water-phase rule is revisited before K is tuned (decision 6).
@@ -997,6 +997,7 @@ One cosmic clock runs the whole galaxy from its first stars to today. Stars appe
   - Collapse descriptions say what the record holds ("Technology fell by 38% and cohesion by 25%") instead of one of six causes picked at random (decision 20).
   - Per-step draws come from `mixSeed(galaxySeed, starId, planetIndex, SALT.CIV, step, purpose)`, so changing one rule touches only its own draws.
   - Output: `CivilizationChronicle { states: { tGyr, techLevel, stage, population, cohesion }[]; events: { kind, tGyr }[] }`, with a state kept only when the stage changes or a collapse strikes.
+  - Efficiency, collapse risk, the replaced final check and a clamp on negative growth are decision 33.
   - Rules bump to v17. Tuning target: the civilization stage mix within ±25% of rules v16 under the default parameters, with the terminal-collapse threshold as the constant to tune.
 - **Verification:** Milestone order inversions: none (47 today). Every collapse comes after the stage it ends; the present state equals the chronicle's last state; the fire ceiling holds at every step; species traits are unchanged from v16; determinism.
 
@@ -1124,7 +1125,7 @@ Listen for civilizations from one place in the galaxy, with a stated instrument,
   ```
 
   - With a 300 m dish and 300 s, an Earth-strength signal (2 × 10¹³ W) is audible within about 2,000 ly, and the measured civilizations within about 1,800 to 35,000 ly.
-  - Each listen measures the true SNR plus a normal draw from `mixSeed(galaxySeed, postKey, targetStarId, SALT.SETI, listenNumber)`. Noise also makes false candidates: in each listen, the strongest noise peak among 10⁹ channels is a Gumbel draw, and above the threshold it is a candidate that the next listen does not repeat. A detection is confirmed by three listens in a row above the threshold.
+  - Each listen measures the true SNR plus a normal draw from `mixSeed(galaxySeed, postKey, targetStarId, SALT.SETI, listenNumber)`. Noise also makes false candidates: in each listen, the strongest noise peak among 10⁹ channels is a Gumbel draw, and above the threshold it is a candidate that the next listen does not repeat. A detection is confirmed by three listens in a row above the threshold. As written, false candidates cannot occur at a threshold of 10σ (decision 32).
   - Light time: a signal heard at T left its source at T − d/c, and is read from the chronicle at that moment. Civilizations at the industrial stage or later have been so for 0.48–4.74 Gyr, while light crosses the galaxy in 110,000 years, so the delay rarely changes what is heard. When it does, the panel says so, for example (illustrative figure) "this signal left them 41,000 years ago; they have collapsed since".
 - **Verification:** SNR rises as √t and as D²; the 2,000 ly reference; the same listen always gives the same result; over many targets a real signal repeats and a noise candidate does not; silent civilizations are never confirmed.
 
@@ -1357,7 +1358,11 @@ If the survey goes over its budget, the first thing measured is which bodies can
 
 | Risk | Effect | Mitigation |
 |---|---|---|
-| Escape strips red-dwarf worlds wholesale | Far fewer living worlds | AE4 measures by host class; K tuned with a stated reason, or the owner records the drift |
+| Escape strips red-dwarf worlds wholesale | Far fewer living worlds | AE4 measures by host class; K tuned with a stated reason, or the owner records the drift. A hand estimate (review, 7 Oct 2026) puts the crossover for an Earth in the habitable zone near 3,500 K: about 0.55 X_crit at 3,900 K (keeps ~70%), about 2.3 X_crit at 2,700 K (keeps nothing). f_sat is the X-ray share only (Wright et al. 2011), so the full XUV is higher still. The ±25% target is unlikely to hold; decision 26 settles this before AE2 |
+| The greenhouse correction heats hot worlds | More steam and lava worlds; the habitable zone's inner edge moves out | IH2 multiplies the greenhouse by T_eff / 255 K on both sides: a wet 90-bar world at T_eq 500 K goes from about 684 K to about 853 K. IH4 also records the runaway share and the lava-world count |
+| Far and starless worlds warmed by air that would have frozen | Warm rogues and far moons that should be frozen | The model has no air freezing out: CO₂ condenses near 195 K and N₂ near 63–77 K, yet RP3 applies their greenhouse at T_eff ≈ 40 K. Real warm rogues need hydrogen air (Stevenson 1999). Decision 28 |
+| Tidal heat without a ceiling | Inner moons of super-Jupiters become molten worlds | At fixed a / R_p, Ė grows as M_p^2.5: a 13 Jupiter-mass giant's inner moon gets roughly 600 × Io's heat, over 1,000 W/m². Real bodies self-limit (melt lowers Q). MO7 counts tidally molten moons; decision 29 |
+| SETI false candidates never occur | A feature and its test that never run | With Gaussian noise in flux density and a threshold of SNR 10, the largest of 10⁹ channels lands near 6σ (chance per channel above 10σ about 10⁻²³). Decision 32 |
 | Thin air plus R3 boils oceans | Runaway greenhouses that should not happen | Measured in AE4; decision 6 |
 | The greenhouse correction cools far worlds | Fewer warm worlds; the habitable zone narrows | It removes an artefact; measured in IH4; ±25% or an owner decision |
 | Ice shells end life on many frozen worlds | The surprise "most life lives in the dark" weakens | Measured; whatever happens is recorded as it is |
@@ -1380,7 +1385,7 @@ If the survey goes over its budget, the first thing measured is which bodies can
 | 5 | Escape: r = 1 − (X / X_crit)², K = 10, acting on all gases? | Accept as starting values | AE2 |
 | 6 | If escape alone doubles runaway greenhouses, revisit the water-phase rule (R3) before tuning K? | Yes | AE4 |
 | 7 | One enrichment law for every galaxy type? | Yes: star positions already differ by type | MZ1 |
-| 8 | Planet masses proportional to the disk's solids (α = 1), dropping planets below 0.018 M⊕, with the giant–metallicity slope measured rather than forced? | Accept | MZ3 |
+| 8 | Planet masses proportional to the disk's solids (α = 1), dropping planets below 0.018 M⊕, with the giant–metallicity slope measured rather than forced? Alternative: scale only the giants' path, since small planets' occurrence barely depends on metallicity (Buchhave et al. 2012; Petigura et al. 2018), whereas α = 1 for every planet turns old stars' Earths into bodies of about 0.16–0.4 M⊕ | Accept, and compare small-planet masses by [Fe/H] in MZ5 | MZ3 |
 | 9 | The greenhouse multiplies the energy it holds (fixing Issue 1)? | Yes | IH2 |
 | 10 | Liquid under ice only where the heat from below allows (ice shells)? | Yes, knowing that some frozen living worlds will freeze solid | IH3 |
 | 11 | The smallest moon with a world history? | 0.018 M⊕, the smallest planet: Ganymede-sized moons yes, Europa-sized no | MO4 |
@@ -1394,10 +1399,18 @@ If the survey goes over its budget, the first thing measured is which bodies can
 | 19 | The planet view under the clock? | Present day only; Approach returns the clock to Now; the "ancestors of today's stars" limit is stated | DT6 |
 | 20 | Civilization chronicle: terminal collapse when cohesion is below 0.25, and collapse text from the record instead of six random causes? | Accept | DT1 |
 | 21 | SETI distances: the display convention becomes the physical scale for signals? | Yes: it is already how distances are shown | SE2 |
-| 22 | SETI anchor: Earth today = tech level 0.64, 8 billion people, 2 × 10¹³ W, tenfold per 0.2 of tech level? | Accept | SE1 |
+| 22 | SETI anchor: Earth today = tech level 0.64, 8 billion people, 2 × 10¹³ W, tenfold per 0.2 of tech level? Note: 2 × 10¹³ W is Arecibo's radar, beamed into about a millionth of the sky; treating it as sent in every direction overstates Earth's ordinary leakage by many orders of magnitude, and this choice alone sets the 2,000 ly range | Decide explicitly: either keep it as a stated "always pointed at the listener" convention, or anchor on leakage | SE1 |
 | 23 | Does contact need a confirmed signal from the listening post? | Yes; the civilization's record stays readable without one | CC6 |
 | 24 | Reply timing? | Answered from their state when the question arrives; the delay is reported, not waited for | CC4 |
 | 25 | A discovery category for signals? | Reuse "extraordinary-civilizations", so the backend needs no change | SE7 |
+| 26 | Escape will strip most Earth-mass worlds in the habitable zones of stars cooler than about 3,500 K (see Risks). Accept that outcome in advance, as JWST's bare TRAPPIST-1 b and c suggest, or set K and f_sat (X-ray only, or full XUV) knowing it? | Decide before AE2, so that K is not tuned afterwards to rescue a count | AE2 |
+| 27 | No open water below water's triple point (0.006 bar in total): a new rule introduced with escape | Accept, named as its own rule in `physics.md` | AE2 |
+| 28 | Air that should freeze out on far and starless worlds: a rule (gases condense below their freezing points, removing their greenhouse), or a "what the record cannot show" line? | A limit line now; a condensation rule only if IH4 and RP5 show it matters | IH2 |
+| 29 | Tidal heat: no ceiling, or a cap where a moon's interior melts? | No ceiling at first; count molten moons in MO7, then decide | MO3 |
+| 30 | Satellite system mass: 10⁻⁴ of the planet (Canup & Ward 2006), or 2 × 10⁻⁴ (Jupiter's Galilean moons)? At 10⁻⁴ a Jupiter-mass planet rarely has a moon above 0.018 M⊕ | 10⁻⁴, with the consequence stated | MO2 |
+| 31 | Neighbour spacing: 2√3 mutual Hill radii (Gladman 1993, two planets alone), or about 8–10 (Chambers et al. 1996, many planets over billions of years), which throws out far more planets? | Measure both before RP1 is built | RP1 |
+| 32 | SETI noise: power noise (exponential, many false alarms, as in real searches), or candidates flagged at about 6σ and confirmed at 10σ three times in a row? | Two thresholds: keeps the noise model and makes false candidates appear | SE3 |
+| 33 | Civilization chronicle against today's code: resource efficiency contains `techLevel · 0.3` and collapse risk reads efficiency, so both must be either fixed (from the drawn potential) or recomputed each step; the terminal-collapse rule replaces today's final check (`collapseRisk > 0.55`); `growthDriver` can be as low as −0.15, so tech must be clamped at zero | Recompute each step; state the replaced check; clamp | DT1 |
 
 ## Not in this plan
 

@@ -461,6 +461,8 @@ Measured: by the bolometric form of that index, 2,737 of the 7,134 solid planets
 
   The fluence over a step uses the exact integral of the power law with that step's L_bol, so the result does not depend on the step length. The fluence a world receives before its history begins (the first 0.5 Gyr, mostly the saturated phase) is the loop's starting value.
 
+  This law describes stars whose magnetic activity comes from a convective envelope: late F, G, K and M stars. Stars above about 7,000 K have no such envelope and are X-ray faint (L_X / L_bol about 10⁻⁷ or less), so the law overstates their XUV by orders of magnitude. The model's mass draw makes this matter: 606 of seed 100000's 2,000 stars are main-sequence stars above 7,000 K, with 1,984 solid planets and 61 living worlds (decision 37).
+
   Check: the Sun today gives 7.4 × 10⁻⁴ × 46^(−1.23) ≈ 6.7 × 10⁻⁶ L☉, within a factor of two of the measured value of about 3.4 × 10⁻⁶ L☉.
 - **Verification:** The XUV falls monotonically after saturation and is continuous at t_sat; red dwarfs stay saturated longer; fluence over two adjacent intervals equals the fluence over both.
 
@@ -479,7 +481,7 @@ Measured: by the bolometric form of that index, 2,737 of the 7,134 solid planets
   ```
 
   - At each step the background gas is P_bg,0 · r(t), and CO₂, O₂ and CH₄ each lose the same share the background lost in that step: escape takes the whole air, not one gas. A world past its shoreline (r = 0) keeps nothing, so whatever its volcanoes add in a step is lost in that step.
-  - The squared form leaves worlds well inside the shoreline almost untouched and strips those near it quickly, as the sharp boundary in the Solar System suggests. With K = 10, around a Sun-like star at 4.6 Gyr:
+  - The squared form leaves worlds well inside the shoreline almost untouched and strips those near it quickly, as the sharp boundary in the Solar System suggests. r is a share, so the same fluence strips 90 bar as completely as 0.1 bar. Escape driven by XUV removes a mass of gas in proportion to the energy received, so in nature a thicker atmosphere lasts longer (decision 38). With K = 10, around a Sun-like star at 4.6 Gyr:
 
     | Body | v_esc (km/s) | Orbit (AU) | X / X_crit | Keeps |
     |---|---:|---:|---:|---:|
@@ -491,7 +493,8 @@ Measured: by the bolometric form of that index, 2,737 of the 7,134 solid planets
     | Mercury | 4.3 | 0.39 | 32 | 0% |
     | Moon-like | 2.4 | 1 | 49 | 0% |
 
-  - Water keeps its own loss rule (the moist greenhouse). Below water's triple point (0.006 bar in total) there is no open water: oceans are ice, or, from IH3, liquid only beneath ice (decision 27).
+  - Water keeps its own loss rule (the moist greenhouse). R3 boils the oceans when the mean temperature passes the boiling point under the air alone. With no air left, that point is 268 K, close to the equilibrium temperature at which a water world absorbs more than the runaway limit, about 282 W/m² (T_eq ≈ 266 K; Goldblatt et al. 2013). So escape does not make runaways that the physics would not. Measured: of the 1,720 worlds with open water today, the preview strips 446, and 201 of those absorb more than the limit. The opposite gap already exists: under thick air the model keeps oceans on worlds absorbing more than the limit (decision 6).
+  - Below water's triple point (0.006 bar in total) there is no open water: oceans are ice, or, from IH3, liquid only beneath ice (decision 27).
   - Today's class is read from the final pressure, as now (`atmosphereClassOf`). `formationAtmosphere` stays the class the world formed with.
   - Escape draws nothing; it is deterministic.
   - An interaction to measure: thinner air lowers the boiling point, and R3's water-phase rule turns the oceans of a world above its boiling point to steam. If escape alone doubles the share of runaway greenhouses, the water-phase rule is revisited before K is tuned (decision 6).
@@ -549,7 +552,7 @@ Every generation of stars returns heavier elements to the gas the next generatio
 - **Objective:** Give every star the metallicity of the gas it formed from.
 - **Depends on:** MZ1.
 - **Deliverables:** `Star.metallicity`, [Fe/H] in dex.
-- **Implementation:** [Fe/H] = log10 Z(R★, t_birth) + a normal scatter of 0.1 dex from a new stream, `mixSeed(galaxySeed, starId, SALT.METALLICITY)`, with t_birth = 13.7 Gyr − age. The star stream (`SALT.STAR`) is untouched, so positions, masses and ages stay bit-identical. Metallicity's effect on the star itself is not modelled: metal-poor stars are slightly hotter and shorter-lived.
+- **Implementation:** [Fe/H] = log10 Z(R★, t_birth) + a normal scatter of 0.1 dex from a new stream, `mixSeed(galaxySeed, starId, SALT.METALLICITY)`, with t_birth = 13.7 Gyr − age. The star stream (`SALT.STAR`) is untouched, so positions, masses and ages stay bit-identical. The observed scatter at fixed age near the Sun is about 0.2 dex, much of it from stars migrating radially, which is not modelled. Metallicity's effect on the star itself is not modelled: metal-poor stars are slightly hotter and shorter-lived.
 - **Verification:** Stars are unchanged apart from the new field; the scatter's standard deviation over the population is 0.1 dex; determinism.
 
 #### MZ3 Planets from the disk's solids
@@ -623,7 +626,8 @@ Measured: the 2,031 frozen living worlds have water layers with a median depth o
   T_k    = T_mean + contrast(P) · (S_k − 1) · T_eq⁴ / T_eff⁴      only the starlight is uneven
   ```
 
-  - For Earth, T_eff = 255.02 K and T_mean = 288.03 K, 0.03 K warmer than today: in effect unchanged. Everywhere else the greenhouse now scales with the energy the air holds: the same 90 bar keeps a world at 1 AU hot and leaves one at 25 AU frozen. In the limit of a thin grey atmosphere, greenhouse warming is proportional to the effective temperature; this is that limit, anchored on Earth.
+  - For Earth, T_eff = 255.02 K and T_mean = 288.03 K, 0.03 K warmer than today: in effect unchanged. Everywhere else the greenhouse now scales with the energy the air holds: the same 90 bar keeps a world at 1 AU hot and leaves one at 25 AU frozen. For a grey atmosphere of fixed optical depth, the surface temperature is proportional to the effective temperature (T_s = T_eff · (1 + ¾τ)^¼); this is that rule, anchored on Earth.
+  - `greenhouseK` doubles its dry warming for a wet world (`VAPOUR_FEEDBACK`, from the water inventory) whatever its temperature. Below freezing, water vapour's pressure falls tenfold for every 15–25 K of cooling (Clausius–Clapeyron over ice), so a frozen world at 150 K has essentially no vapour greenhouse. `atmosphereComposition` already reads vapour from Clausius–Clapeyron; the climate does not (decision 39).
   - `equilibriumTemperatureK` floors luminosity at 10⁻⁴. That floor is removed where a flux of exactly zero is meant (rogue planets, step 7).
 - **Verification:** The Earth reference is unchanged within 0.1 K. A wet 90-bar reference world at 25 AU around the Sun falls below 273 K. For a world with no starlight, T_mean = T_int · (1 + G / 255). Band contrast is unchanged where T_int is far below T_eq. Revision 1's thermostat, hysteresis and snowball-escape tests still pass.
 
@@ -688,6 +692,8 @@ Giant planets build satellite systems in the disks around them, and those moons 
 
   Draws come from `mixSeed(galaxySeed, starId, planetIndex, SALT.MOON, …)`.
 
+  A moon also needs the air it formed with, which sets its background gas (R6). It takes an atmosphere class by the planets' rule (`pickAtmosphere`, one draw from `SALT.MOON`), and escape (AE2) then decides how much it keeps. A Titan-like moon at 9.5 AU keeps its air; a Ganymede-like one at 5.2 AU loses it, as in the Solar System.
+
   Measured: 286 giants are heavy enough (720 M⊕ or more) that four moons sharing 10⁻⁴ of their mass would each pass 0.018 M⊕, and 432 (320 M⊕ or more) that each would pass Europa's 0.008 M⊕. Only 2 giants have no room inside half their Hill radius.
 
   The heaviest giants (up to 4,000 M⊕) have satellite systems of up to 0.4 M⊕, so their largest moons can be heavier than Mars and, under the existing rules, keep air (above 0.05 M⊕). Pandora-like moons are therefore a consequence of super-Jupiters, not a separate rule.
@@ -710,7 +716,7 @@ Giant planets build satellite systems in the disks around them, and those moons 
   ```
 
   Io check: 9 × 10¹³ W, 2.2 W/m² (measured: about 2.5). Europa: 0.2 W/m², four times the 0.05 W/m² that IH3 uses for it; through IH3 that gives Europa a 3.3 km shell instead of 13 km, below the 10–30 km estimated. Io's k₂/Q describes a hot, partly molten body and overstates an icy moon's heat (decision 34). Heat is constant over a moon's life; orbital evolution is not modelled.
-- **Verification:** The Io and Europa references; heat rises with planet mass, moon radius and eccentricity, and falls as the sixth power of distance.
+- **Verification:** The Io and Europa references; heat rises with planet mass (as M_p^2.5 once n = √(G M_p / a³)), moon radius and eccentricity, and falls with distance as a^−7.5 (a⁻⁶ from the tide, a^−1.5 from the orbital rate).
 
 #### MO4 Moons as worlds
 `simulation` · **L**
@@ -736,6 +742,7 @@ Giant planets build satellite systems in the disks around them, and those moons 
 - **Deliverables:** Large moons in `moons.ts`; tilt wander in `worldHistory.ts`.
 - **Implementation:**
   - A solid planet has one large moon with chance 0.25 (one of the Sun's four rocky planets has one). This is a roll, as the origin of life is, because giant impacts are not simulated. Its mass ratio is log-uniform 0.002–0.03 (the Moon: 0.0123), its orbit 30–60 planet radii. It runs a history only if it passes the moon threshold.
+  - A tilt wanders because other planets' pull makes its precession resonate with their orbits (Laskar et al. 1993), so a planet with no siblings in its system keeps its tilt.
   - A moon with a mass ratio of 0.01 or more holds its planet's tilt steady. Without one, the tilt wanders: each world-history step adds a normal step with σ = 5°, reflected to stay within ±20° of the formation tilt and within 0–90° (Lissauer, Barnes & Chambers 2012; decision 12). Tidally locked planets do not wander, because their bands face the star.
   - Band insolation is recomputed when the tilt changes (`bandGeometry`: 18 bands, cheap). The present-day solve uses the final tilt.
   - Draws: the moon from `SALT.MOON`; the wander from the WORLD stream with a new purpose, `PURPOSE.TILT = 4`.
@@ -795,7 +802,7 @@ About half of Sun-like stars have a companion. A companion adds light that brigh
   μ = m₂ / (m₁ + m₂)                                          (Holman & Wiegert 1999)
   ```
 
-  A planet drawn between the two limits cannot stay. It is removed, with its draws taken and its index left as a gap; from step 7 it becomes a rogue planet. Planets beyond the P-type limit orbit both stars.
+  A planet drawn between the two limits cannot stay. It is removed, with its draws taken and its index left as a gap; from step 7 it becomes a rogue planet. In nature a companion also truncates the disk, so many such planets would never have formed rather than been thrown out; counting them all as rogues is a choice (decision 17). Planets beyond the P-type limit orbit both stars.
 - **Verification:** The limits at reference values of μ and e; no planet is left between them; single stars are unaffected.
 
 #### BS3 Light from two stars
@@ -849,7 +856,7 @@ Planets do not only form; some are thrown out. Two neighbours too close to share
   two neighbours closer than 2√3 · R_H cannot both stay (Gladman 1993): the lighter is thrown out
   ```
 
-  The rule is applied from the innermost pair outward until no pair is too close. Measured: 229 of the 6,793 neighbouring pairs are closer than this today, 227 of them involving a giant, and the lighter member's median mass is 1.08 M⊕. So roughly 230 planets per universe, with a median mass close to Earth's, would be thrown out by their giant neighbours, before binaries add theirs.
+  The rule is applied from the innermost pair outward until no pair is too close. Measured: 229 of the 6,793 neighbouring pairs are closer than this today, 227 of them involving a giant, and the lighter member's median mass is 1.08 M⊕. So roughly 230 planets per universe, with a median mass close to Earth's, would be thrown out by their giant neighbours, before binaries add theirs. Ejection rather than collision needs the heavier planet's escape velocity to exceed √2 times the orbital velocity (a Safronov number above 1). 226 of the 229 pairs meet it, so "thrown out" holds; the other 3, close in (median 0.24 AU), would more likely collide.
 
   Not modelled: the survivor keeps its orbit (real scattering would make it eccentric or move it), and collisions.
 - **Verification:** No neighbouring pair closer than the limit remains; the lighter planet is the one removed; removed planets' draws are taken.
@@ -870,7 +877,7 @@ Planets do not only form; some are thrown out. Two neighbours too close to share
     R★ = the birth star's distance from the galaxy's centre
     ```
 
-    It keeps its star's distance from the centre and height above the disc, and drifts along its orbit around the galaxy, as shear spreads ejected bodies along their orbit rather than away from it. Over 5 Gyr at 3 km/s that is about 15 kpc of arc (decision 16). The galaxy's rotation, which would carry star and rogue alike, is not modelled, as for stars.
+    It keeps its star's distance from the centre and height above the disc, and drifts along its orbit around the galaxy, as shear spreads ejected bodies along their orbit rather than away from it. For a flat rotation curve, a kick Δv along the orbit moves the rogue's guiding radius by R★ · Δv / v_c and makes it drift relative to its star at almost exactly Δv, which is this rule. A forward kick makes it fall behind; since the direction is a draw, that changes nothing. Over 5 Gyr at 3 km/s that is about 15 kpc of arc (decision 16). The galaxy's rotation, which would carry star and rogue alike, is not modelled, as for stars.
   - Designation: "1300 e · rogue, from Star 1300".
 - **Verification:** The rogue count equals the planets removed; a rogue's physics equals its planet's before ejection; its position stays at its star's distance from the centre.
 
@@ -1202,7 +1209,7 @@ Your flow, in order: observe a civilization, receive its messages, study its cul
   | Their history | stages, collapses and recoveries, in their years | 2,000 |
   | Their sky | the civilizations they can hear (SE6), with directions | 1,000 |
 
-  Sections arrive in order at log₂(1 + SNR₁ₛ) bits per second, Shannon's limit for one 1 Hz channel, where SNR₁ₛ is the signal-to-noise in one second. A signal with an SNR of 10 in 300 s delivers the whole message (about 17,500 bits) in about 7 hours; a faint one takes days.
+  Sections arrive in order at log₂(1 + SNR₁ₛ) bits per second, Shannon's limit for one 1 Hz channel, where SNR₁ₛ is the ratio of signal power to noise power in the channel, S · A_eff / (k · T_sys · Δν). That is √2 times SE3's detection SNR after one second. A signal with an SNR of 10 in 300 s delivers the whole message (about 17,500 bits) in about 6 hours; a faint one takes days.
 
   The assumption is stated in the panel: a signal carries a description of its senders, and decoding it yields facts the simulation holds. This is the model's convention, in the spirit of the Arecibo message and the Voyager record, not a claim about real civilizations.
 - **Verification:** The section facts equal the record; the bits received rise with listening time and with SNR.
@@ -1387,18 +1394,18 @@ If the survey goes over its budget, the first thing measured is which bodies can
 | 3 | The twelve gates as defined, with fire read from today's air until DT1? | Accept | GF1 |
 | 4 | Store funnels with saved experiments? | No: shown live; the experiment's summary names the gates that moved | GF4 |
 | 5 | Escape: r = 1 − (X / X_crit)², K = 10, acting on all gases? | Accept as starting values | AE2 |
-| 6 | If escape alone doubles runaway greenhouses, revisit the water-phase rule (R3) before tuning K? | Yes | AE4 |
+| 6 | If escape alone doubles runaway greenhouses, revisit the water-phase rule (R3) before tuning K? Physics: a runaway is set by absorbed flux above about 282 W/m², not by background pressure. R3's boiling rule happens to match it when the air is gone (268 K against 266 K), but under thick air it keeps oceans on worlds past the limit | Yes; if R3 is revisited, trigger the runaway from absorbed flux | AE4 |
 | 7 | One enrichment law for every galaxy type? | Yes: star positions already differ by type | MZ1 |
 | 8 | Planet masses proportional to the disk's solids (α = 1), dropping planets below 0.018 M⊕, with the giant–metallicity slope measured rather than forced? Alternative: scale only the giants' path, since small planets' occurrence barely depends on metallicity (Buchhave et al. 2012; Petigura et al. 2018), whereas α = 1 for every planet turns old stars' Earths into bodies of about 0.16–0.4 M⊕ | Accept, and compare small-planet masses by [Fe/H] in MZ5 | MZ3 |
 | 9 | The greenhouse multiplies the energy it holds (fixing Issue 1)? | Yes | IH2 |
 | 10 | Liquid under ice only where the heat from below allows (ice shells)? | Yes, knowing that some frozen living worlds will freeze solid | IH3 |
 | 11 | The smallest moon with a world history? | 0.018 M⊕, the smallest planet: Ganymede-sized moons yes, Europa-sized no | MO4 |
-| 12 | How far a tilt wanders without a large moon? | Within ±20° (Lissauer et al. 2012), rather than chaotically over 0–85° (Laskar et al. 1993) | MO5 |
+| 12 | How far a tilt wanders without a large moon? | Within ±20° (Lissauer et al. 2012), rather than chaotically over 0–85° (Laskar et al. 1993); and only in systems with other planets, whose pull drives it | MO5 |
 | 13 | Moons in stored counts? | Civilizations include moons; "life-bearing planets" stays planets; living moons are shown separately | MO4 |
 | 14 | Survey time after moons? | Accept up to +25%, measured; the physics skip rule before anything else if it is more | MO7 |
 | 15 | Planets of their own around companion stars? | Not in this plan | BS1 |
 | 16 | How rogue planets drift? | Along their star's orbit around the galaxy, at their ejection speed | RP2 |
-| 17 | When rogue planets are ejected? | During assembly, so a rogue's whole history is starless | RP2 |
+| 17 | When rogue planets are ejected? And are planets in a companion's forbidden zone thrown out, or never formed? | During assembly, so a rogue's whole history is starless; companion-forbidden planets count as rogues, stated as a simplification | RP2 |
 | 18 | Deep Time's range? | From the galaxy's formation to the present, with no future | DT4 |
 | 19 | The planet view under the clock? | Present day only; Approach returns the clock to Now; the "ancestors of today's stars" limit is stated | DT6 |
 | 20 | Civilization chronicle: terminal collapse when cohesion is below 0.25, and collapse text from the record instead of six random causes? | Accept | DT1 |
@@ -1418,6 +1425,9 @@ If the survey goes over its budget, the first thing measured is which bodies can
 | 34 | k₂/Q for moons: Io's 0.015 for every moon (Europa then gets 0.2 W/m² and a 3.3 km shell), or a lower value for icy moons? | A lower value for icy moons (formed beyond the snow line), chosen so that Europa's shell falls within the 10–30 km estimated; recorded in `physics.md` | MO3 |
 | 35 | Moons' water: the planets' rule (at most W · 33.75 km · g, reduced below 0.1 M⊕), which leaves Ganymede- and Europa-mass moons 0.2–0.8 km of water and almost no hidden oceans, or a rule of their own for moons formed beyond their planet's snow line (ice-rich, a large share of their mass)? | A rule of their own, since hidden oceans are one of the reasons for step 5a; without it, record that moon oceans do not appear | MO2 |
 | 36 | XUV saturation time: 0.1 Gyr at and above 3,900 K but 0.8 Gyr just below it, so by 4.6 Gyr a world's XUV fluence jumps about fivefold across one kelvin of host temperature. Make t_sat continuous (for example rising from 0.1 Gyr for G stars to 0.8 Gyr at 3,900 K)? | Yes, continuous; the flare activity rule keeps its own cut-off | AE1 |
+| 37 | XUV of stars above about 7,000 K, which have no convective envelope: the f_sat law (orders of magnitude too strong), or the photosphere's own extreme-ultraviolet share (its blackbody, as `environment.ts` already does for UV)? | The photosphere's share above 7,000 K; the f_sat law below | AE1 |
+| 38 | Escape as a share of the air (r, as written) or as a mass removed, so that thick atmospheres last longer? | Keep the share for this step, calibrated on the Solar System, and record the limitation; revisit if AE4 shows thick-air worlds stripped that a mass rule would keep | AE2 |
+| 39 | The greenhouse's water-vapour doubling: from the water inventory alone (today), or also from temperature through Clausius–Clapeyron, so cold worlds lose it? | From temperature too, inside IH2, since IH2 is where cold worlds' warmth is corrected | IH2 |
 
 ## Not in this plan
 

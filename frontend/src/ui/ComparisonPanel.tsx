@@ -2,7 +2,8 @@ import type { UniverseComparison } from "../simulation/experiment";
 
 interface Props {
   comparison: UniverseComparison;
-  onSave: () => void;
+  /** Absent when this build saves nothing: the Save button is hidden. */
+  onSave?: () => void;
   onClose: () => void;
 }
 
@@ -12,7 +13,7 @@ export function ComparisonPanel({ comparison: cmp, onSave, onClose }: Props) {
       <div className="timeline-header">
         <div className="tl-panel-label">Experiment Results</div>
         <div style={{ display: "flex", gap: 4 }}>
-          <button className="tl-filter-btn" onClick={onSave}>Save</button>
+          {onSave && <button className="tl-filter-btn" onClick={onSave}>Save</button>}
           <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
       </div>

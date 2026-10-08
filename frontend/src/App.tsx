@@ -279,6 +279,7 @@ export default function App() {
 
   // Load saved data once, after importing any data this browser saved before the database existed
   useEffect(() => {
+    if (!api.STORAGE_ENABLED) return;
     let cancelled = false;
     importLocalDataOnce()
       .then(() => Promise.all([api.fetchUniverses(), api.fetchDiscoveries(), api.fetchExperiments(), api.fetchBookmarks()]))
@@ -843,13 +844,15 @@ export default function App() {
                 Set as baseline
               </button>
             )}
-            <button className="btn" onClick={toggleHistoryPanel} aria-pressed={showHistoryPanel}>
-              {showHistoryPanel ? "Close log" : "Experiment log"}
-            </button>
+            {api.STORAGE_ENABLED && (
+              <button className="btn" onClick={toggleHistoryPanel} aria-pressed={showHistoryPanel}>
+                {showHistoryPanel ? "Close log" : "Experiment log"}
+              </button>
+            )}
           </div>
         </section>
 
-        <section className="console-section">
+        {api.STORAGE_ENABLED && <section className="console-section">
           <h2 className="console-section-label">Saved universes</h2>
           <div className="controls">
             <button className="btn primary" onClick={handleSaveToGallery} disabled={snapshotPending} title="Save this universe to the library">
@@ -863,7 +866,7 @@ export default function App() {
             Import universe file…
             <input type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
           </label>
-        </section>
+        </section>}
 
         {universeTimeline && (
           <section className="console-section">
@@ -913,7 +916,7 @@ export default function App() {
         {comparison && (
           <ComparisonPanel
             comparison={comparison}
-            onSave={handleSaveExperiment}
+            onSave={api.STORAGE_ENABLED ? handleSaveExperiment : undefined}
             onClose={() => setComparison(null)}
           />
         )}
@@ -948,9 +951,9 @@ export default function App() {
             galaxySeed={currentSeed}
             onClose={() => setSelectedStar(null)}
             onExplore={handleExploreSystem}
-            onSaveDiscovery={handleSaveDiscovery}
+            onSaveDiscovery={api.STORAGE_ENABLED ? handleSaveDiscovery : undefined}
             bookmarked={isSelectedStarBookmarked}
-            onToggleBookmark={handleToggleBookmark}
+            onToggleBookmark={api.STORAGE_ENABLED ? handleToggleBookmark : undefined}
           />
         ) : view === "system" && selectedPlanet && selectedStar && !selectedBiosphere ? (
           <PlanetPanel
@@ -959,7 +962,7 @@ export default function App() {
             galaxySeed={currentSeed}
             civilization={selectedPlanetCivilization}
             discoveries={discoveries}
-            onSaveDiscovery={handleSaveDiscovery}
+            onSaveDiscovery={api.STORAGE_ENABLED ? handleSaveDiscovery : undefined}
             world={selectedWorld}
             physics={selectedPhysics}
             orbiting={orbiting}

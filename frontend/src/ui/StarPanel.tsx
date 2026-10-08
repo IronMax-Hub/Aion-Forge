@@ -10,7 +10,8 @@ interface Props {
   onExplore: () => void;
   onSaveDiscovery?: (item: DiscoveryItem) => void;
   bookmarked: boolean;
-  onToggleBookmark: () => void;
+  /** Absent when this build saves nothing: the bookmark button is hidden. */
+  onToggleBookmark?: () => void;
 }
 
 const CAN_HAVE_PLANETS: Record<string, boolean> = {
@@ -92,13 +93,15 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
           >
             Open system
           </button>
-          <button
-            className={`inspector-btn${bookmarked ? " bookmarked" : ""}`}
-            onClick={onToggleBookmark}
-            aria-label={bookmarked ? "Remove bookmark" : "Bookmark star"}
-          >
-            {bookmarked ? "★" : "☆"}
-          </button>
+          {onToggleBookmark && (
+            <button
+              className={`inspector-btn${bookmarked ? " bookmarked" : ""}`}
+              onClick={onToggleBookmark}
+              aria-label={bookmarked ? "Remove bookmark" : "Bookmark star"}
+            >
+              {bookmarked ? "★" : "☆"}
+            </button>
+          )}
           {onSaveDiscovery && star.isRare && (
             <button
               className="inspector-btn"

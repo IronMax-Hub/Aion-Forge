@@ -10,11 +10,13 @@
     "preview": "vite preview",
     "test": "vitest run",
     "stats": "node stats/run.mjs",
-    "android": "npm run build && cap sync android && cd android && ./gradlew assembleDebug"
+    "android": "tsc -b && vite build --mode android && cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",
     "@capacitor/core": "8.5.3",
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/ibm-plex-sans": "5.3.0",
     "@types/three": "^0.184.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

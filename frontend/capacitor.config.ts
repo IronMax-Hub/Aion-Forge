@@ -6,6 +6,8 @@ const config: CapacitorConfig = {
   appId: 'com.aionforge.app',
   appName: 'Aion Forge',
   webDir: 'dist',
+  // Matches --col-void, so the page never flashes white while it loads
+  backgroundColor: '#07080A',
 }
 
 export default config

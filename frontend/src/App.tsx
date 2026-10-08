@@ -47,6 +47,8 @@ import { importLocalDataOnce } from "./api/importLocalData";
 import { createSurveyClient } from "./workers/surveyClient";
 import { createSurveyPool, surveyPoolSize } from "./workers/surveyPool";
 import SurveyWorker from "./workers/survey.worker?worker";
+import { DrawerHead, DrawerRail } from "./ui/Drawer";
+import { initialDrawerOpen, rememberDrawerOpen } from "./ui/layout";
 import "./App.css";
 
 const surveyClient = createSurveyClient(() =>
@@ -63,6 +65,11 @@ const LIFE_MARKERS_KEY = "aion-forge-life-markers";
 
 function readLifeMarkersPreference(): boolean {
   try { return localStorage.getItem(LIFE_MARKERS_KEY) === "on"; } catch { return false; }
+}
+
+/** What the dock is showing: it opens by itself whenever this changes. */
+function dockSubjectOf(view: View, star: Star | null, planet: Planet | null): string {
+  return `${view}|${star?.id ?? ""}|${planet?.key ?? ""}`;
 }
 
 function storageErrorMessage(err: unknown): string {
@@ -123,6 +130,17 @@ export default function App() {
   const [currentSystem, setCurrentSystem] = useState<PlanetarySystem | null>(null);
   const [viewScale,     setViewScale]     = useState<ViewScale | null>(null);
   const [showLifeMarkers, setShowLifeMarkers] = useState<boolean>(readLifeMarkersPreference);
+
+  // Drawers (M2): the sidebar and the dock each hide down to a rail. A hidden
+  // dock stays hidden only while the same thing is selected; selecting something
+  // else opens it, so a selection is never made out of sight.
+  const [sidebarOpen, setSidebarOpen] = useState(() => initialDrawerOpen("sidebar"));
+  const dockSubject = dockSubjectOf(view, selectedStar, selectedPlanet);
+  const [dockHiddenOn, setDockHiddenOn] = useState<string | null>(
+    () => initialDrawerOpen("dock") ? null : dockSubjectOf("galaxy", null, null));
+  const dockOpen = dockHiddenOn !== dockSubject;
+  const showSidebar = (open: boolean) => { setSidebarOpen(open); rememberDrawerOpen("sidebar", open); };
+  const showDock    = (open: boolean) => { setDockHiddenOn(open ? null : dockSubject); rememberDrawerOpen("dock", open); };
 
   // Audio — initialize on first user interaction (browser requirement)
   const audioInitRef = useRef(false);
@@ -716,7 +734,7 @@ export default function App() {
   };
 
   return (
-    <div className="app">
+    <div className={`app${sidebarOpen ? "" : " sidebar-closed"}${dockOpen ? "" : " dock-closed"}`}>
 
       {/* ── Top bar: identity, location, seed ── */}
       <header className="topbar">
@@ -788,96 +806,99 @@ export default function App() {
 
       {/* ── Left sidebar: the universe as a whole ── */}
       <aside className="sidebar" aria-label="Universe">
-        <section className="console-section">
-          <h2 className="console-section-label">Universe</h2>
-          <dl className="kv">
-            <dt>Morphology</dt><dd className="kv-text">{universeId ? galaxyType : "—"}</dd>
-            <dt>Stars</dt><dd>{universeId ? starCount.toLocaleString() : "—"}</dd>
-            <dt>Particles</dt><dd>{GALAXY_PARTICLE_COUNT.toLocaleString()}</dd>
-          </dl>
-        </section>
-
-        <section className="console-section">
-          <h2 className="console-section-label">Overlays</h2>
-          <button
-            type="button"
-            className="switch"
-            role="switch"
-            aria-checked={showLifeMarkers}
-            onClick={() => setShowLifeMarkers(on => !on)}
-            title="Mark every star system that holds life"
-          >
-            <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
-            Life markers
-          </button>
-        </section>
-
-        <section className="console-section">
-          <div className="console-section-head">
-            <h2 className="console-section-label">Physical parameters</h2>
-            <span className={`console-section-note${isDefaultConfig ? "" : " modified"}`}>{isDefaultConfig ? "Default" : "Modified"}</span>
-          </div>
-          <dl className="kv">
-            {(Object.keys(CONFIG_LABELS) as (keyof typeof CONFIG_LABELS)[]).map((key) => (
-              <div className="kv-row" key={key}>
-                <dt>{CONFIG_LABELS[key]}</dt><dd>{universeConfig[key].toFixed(2)}×</dd>
-              </div>
-            ))}
-          </dl>
-          <div className="controls">
-            <button className="btn" onClick={toggleConfigPanel} aria-pressed={showConfigPanel}>
-              {showConfigPanel ? "Close parameters" : "Edit parameters…"}
-            </button>
-          </div>
-        </section>
-
-        <section className="console-section">
-          <h2 className="console-section-label">Comparison</h2>
-          <div className="controls">
-            {baselineSnapshot ? (
-              <>
-                <button className="btn primary" onClick={handleCompare} disabled={snapshotPending}>Compare with baseline</button>
-                <span className="hint" style={{ alignSelf: "center" }}>baseline set</span>
-              </>
-            ) : (
-              <button className="btn" onClick={handleSetBaseline} disabled={snapshotPending} title="Use this universe as the baseline for comparison">
-                Set as baseline
-              </button>
-            )}
-            {api.STORAGE_ENABLED && (
-              <button className="btn" onClick={toggleHistoryPanel} aria-pressed={showHistoryPanel}>
-                {showHistoryPanel ? "Close log" : "Experiment log"}
-              </button>
-            )}
-          </div>
-        </section>
-
-        {api.STORAGE_ENABLED && <section className="console-section">
-          <h2 className="console-section-label">Saved universes</h2>
-          <div className="controls">
-            <button className="btn primary" onClick={handleSaveToGallery} disabled={snapshotPending} title="Save this universe to the library">
-              Save universe
-            </button>
-            <button className="btn" onClick={toggleGallery} aria-pressed={showGallery}>
-              {showGallery ? "Close library" : `Library (${gallery.length})`}
-            </button>
-          </div>
-          <label className="import-zone">
-            Import universe file…
-            <input type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
-          </label>
-        </section>}
-
-        {universeTimeline && (
+        {!sidebarOpen && <DrawerRail title="Universe" side="left" onShow={() => showSidebar(true)} />}
+        <div className="drawer-body" hidden={!sidebarOpen}>
+          <DrawerHead title="Universe" side="left" onHide={() => showSidebar(false)} />
           <section className="console-section">
-            <h2 className="console-section-label">History</h2>
+            <dl className="kv">
+              <dt>Morphology</dt><dd className="kv-text">{universeId ? galaxyType : "—"}</dd>
+              <dt>Stars</dt><dd>{universeId ? starCount.toLocaleString() : "—"}</dd>
+              <dt>Particles</dt><dd>{GALAXY_PARTICLE_COUNT.toLocaleString()}</dd>
+            </dl>
+          </section>
+
+          <section className="console-section">
+            <h2 className="console-section-label">Overlays</h2>
+            <button
+              type="button"
+              className="switch"
+              role="switch"
+              aria-checked={showLifeMarkers}
+              onClick={() => setShowLifeMarkers(on => !on)}
+              title="Mark every star system that holds life"
+            >
+              <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
+              Life markers
+            </button>
+          </section>
+
+          <section className="console-section">
+            <div className="console-section-head">
+              <h2 className="console-section-label">Physical parameters</h2>
+              <span className={`console-section-note${isDefaultConfig ? "" : " modified"}`}>{isDefaultConfig ? "Default" : "Modified"}</span>
+            </div>
+            <dl className="kv">
+              {(Object.keys(CONFIG_LABELS) as (keyof typeof CONFIG_LABELS)[]).map((key) => (
+                <div className="kv-row" key={key}>
+                  <dt>{CONFIG_LABELS[key]}</dt><dd>{universeConfig[key].toFixed(2)}×</dd>
+                </div>
+              ))}
+            </dl>
             <div className="controls">
-              <button className="btn timeline-open-btn" onClick={toggleTimeline} aria-pressed={showTimeline}>
-                {showTimeline ? "Close timeline" : "Timeline"}
+              <button className="btn" onClick={toggleConfigPanel} aria-pressed={showConfigPanel}>
+                {showConfigPanel ? "Close parameters" : "Edit parameters…"}
               </button>
             </div>
           </section>
-        )}
+
+          <section className="console-section">
+            <h2 className="console-section-label">Comparison</h2>
+            <div className="controls">
+              {baselineSnapshot ? (
+                <>
+                  <button className="btn primary" onClick={handleCompare} disabled={snapshotPending}>Compare with baseline</button>
+                  <span className="hint" style={{ alignSelf: "center" }}>baseline set</span>
+                </>
+              ) : (
+                <button className="btn" onClick={handleSetBaseline} disabled={snapshotPending} title="Use this universe as the baseline for comparison">
+                  Set as baseline
+                </button>
+              )}
+              {api.STORAGE_ENABLED && (
+                <button className="btn" onClick={toggleHistoryPanel} aria-pressed={showHistoryPanel}>
+                  {showHistoryPanel ? "Close log" : "Experiment log"}
+                </button>
+              )}
+            </div>
+          </section>
+
+          {api.STORAGE_ENABLED && <section className="console-section">
+            <h2 className="console-section-label">Saved universes</h2>
+            <div className="controls">
+              <button className="btn primary" onClick={handleSaveToGallery} disabled={snapshotPending} title="Save this universe to the library">
+                Save universe
+              </button>
+              <button className="btn" onClick={toggleGallery} aria-pressed={showGallery}>
+                {showGallery ? "Close library" : `Library (${gallery.length})`}
+              </button>
+            </div>
+            <label className="import-zone">
+              Import universe file…
+              <input type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
+            </label>
+          </section>}
+
+          {universeTimeline && (
+            <section className="console-section">
+              <h2 className="console-section-label">History</h2>
+              <div className="controls">
+                <button className="btn timeline-open-btn" onClick={toggleTimeline} aria-pressed={showTimeline}>
+                  {showTimeline ? "Close timeline" : "Timeline"}
+                </button>
+              </div>
+            </section>
+          )}
+        </div>
       </aside>
 
       {/* ── Stage: the rendered universe, with tool panels floating over it ── */}
@@ -944,66 +965,70 @@ export default function App() {
 
       {/* ── Right dock: whatever is selected ── */}
       <aside className="dock" aria-label="Selection">
-        {view === "galaxy" && selectedStar ? (
-          <StarPanel
-            key={`${currentSeed}-${selectedStar.id}`}
-            star={selectedStar}
-            galaxySeed={currentSeed}
-            onClose={() => setSelectedStar(null)}
-            onExplore={handleExploreSystem}
-            onSaveDiscovery={api.STORAGE_ENABLED ? handleSaveDiscovery : undefined}
-            bookmarked={isSelectedStarBookmarked}
-            onToggleBookmark={api.STORAGE_ENABLED ? handleToggleBookmark : undefined}
-          />
-        ) : view === "system" && selectedPlanet && selectedStar && !selectedBiosphere ? (
-          <PlanetPanel
-            planet={selectedPlanet}
-            star={selectedStar}
-            galaxySeed={currentSeed}
-            civilization={selectedPlanetCivilization}
-            discoveries={discoveries}
-            onSaveDiscovery={api.STORAGE_ENABLED ? handleSaveDiscovery : undefined}
-            world={selectedWorld}
-            physics={selectedPhysics}
-            orbiting={orbiting}
-            onClose={handleExitSystem}
-            onBack={orbiting ? leaveOrbit : handleBackToStar}
-            onApproach={handleApproach}
-            onLeaveOrbit={leaveOrbit}
-            onScanBiosphere={handleScanBiosphere}
-          />
-        ) : view === "biosphere" && selectedBiosphere ? (
-          <BiospherePanel
-            key={selectedPlanet?.key}
-            biosphere={selectedBiosphere}
-            hasMind={selectedPlanet?.life?.phylogeny.mind != null}
-            specimens={selectedFieldGuide?.specimens ?? null}
-            selectedLineageId={currentLifeView?.lineageId ?? null}
-            onSelectLineage={selectLineage}
-            onOpenTree={() => setTreeOpen(true)}
-            onBack={handleBackToPlanet}
-            onClose={handleExitSystem}
-            onScanCivilization={handleScanCivilization}
-          />
-        ) : view === "civilization" && selectedCivilization && selectedSpecies ? (
-          <CivilizationPanel
-            civilization={selectedCivilization}
-            species={selectedSpecies}
-            onBack={handleBackToBiosphere}
-            onClose={handleExitSystem}
-          />
-        ) : view === "system" && currentSystem && selectedStar ? (
-          <SystemPanel
-            system={currentSystem}
-            star={selectedStar}
-            onSelectPlanet={handleSelectPlanetFromTable}
-          />
-        ) : (
-          <div className="dock-empty">
-            <p className="dock-empty-title">Nothing selected</p>
-            <p className="dock-empty-body">Click a star in the galaxy to inspect it.</p>
-          </div>
-        )}
+        {!dockOpen && <DrawerRail title="Selection" side="right" onShow={() => showDock(true)} />}
+        <div className="drawer-body" hidden={!dockOpen}>
+          <DrawerHead title="Selection" side="right" onHide={() => showDock(false)} />
+          {view === "galaxy" && selectedStar ? (
+            <StarPanel
+              key={`${currentSeed}-${selectedStar.id}`}
+              star={selectedStar}
+              galaxySeed={currentSeed}
+              onClose={() => setSelectedStar(null)}
+              onExplore={handleExploreSystem}
+              onSaveDiscovery={api.STORAGE_ENABLED ? handleSaveDiscovery : undefined}
+              bookmarked={isSelectedStarBookmarked}
+              onToggleBookmark={api.STORAGE_ENABLED ? handleToggleBookmark : undefined}
+            />
+          ) : view === "system" && selectedPlanet && selectedStar && !selectedBiosphere ? (
+            <PlanetPanel
+              planet={selectedPlanet}
+              star={selectedStar}
+              galaxySeed={currentSeed}
+              civilization={selectedPlanetCivilization}
+              discoveries={discoveries}
+              onSaveDiscovery={api.STORAGE_ENABLED ? handleSaveDiscovery : undefined}
+              world={selectedWorld}
+              physics={selectedPhysics}
+              orbiting={orbiting}
+              onClose={handleExitSystem}
+              onBack={orbiting ? leaveOrbit : handleBackToStar}
+              onApproach={handleApproach}
+              onLeaveOrbit={leaveOrbit}
+              onScanBiosphere={handleScanBiosphere}
+            />
+          ) : view === "biosphere" && selectedBiosphere ? (
+            <BiospherePanel
+              key={selectedPlanet?.key}
+              biosphere={selectedBiosphere}
+              hasMind={selectedPlanet?.life?.phylogeny.mind != null}
+              specimens={selectedFieldGuide?.specimens ?? null}
+              selectedLineageId={currentLifeView?.lineageId ?? null}
+              onSelectLineage={selectLineage}
+              onOpenTree={() => setTreeOpen(true)}
+              onBack={handleBackToPlanet}
+              onClose={handleExitSystem}
+              onScanCivilization={handleScanCivilization}
+            />
+          ) : view === "civilization" && selectedCivilization && selectedSpecies ? (
+            <CivilizationPanel
+              civilization={selectedCivilization}
+              species={selectedSpecies}
+              onBack={handleBackToBiosphere}
+              onClose={handleExitSystem}
+            />
+          ) : view === "system" && currentSystem && selectedStar ? (
+            <SystemPanel
+              system={currentSystem}
+              star={selectedStar}
+              onSelectPlanet={handleSelectPlanetFromTable}
+            />
+          ) : (
+            <div className="dock-empty">
+              <p className="dock-empty-title">Nothing selected</p>
+              <p className="dock-empty-body">Click a star in the galaxy to inspect it.</p>
+            </div>
+          )}
+        </div>
       </aside>
 
       {/* ── Status bar ── */}

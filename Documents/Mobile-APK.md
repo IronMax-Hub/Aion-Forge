@@ -106,6 +106,16 @@ Owner decision M-D: panels collapse on the desktop too.
   - **Overlays** (timeline, library, config, experiment log, comparison, tree of life) open full screen with a close button.
   - **Sizing:** tap targets at least 44 CSS px (about 7 mm here); body text at least 13 px; nothing tappable in the outer 8 px of the top and bottom (curved) edges.
 - The open/collapsed state of each drawer and panel is kept in browser storage, as a convenience only.
+- **As built (2026-10-08):**
+  - `ui/Drawer.tsx` (header bar with hide button; rail with open button) and `ui/layout.ts` (`COMPACT_QUERY`, start state). Rails: 32 px on the desktop, 44 px on the phone, labelled "Universe" and "Selection".
+  - **One collapse per drawer, not per panel.** The dock shows one panel at a time (star, system, planet, biosphere or civilization), so hiding the dock hides whichever panel it holds.
+  - A hidden dock opens by itself when the selection changes (on the desktop too), so a selection is never made out of sight. It stays hidden while the same thing is selected.
+  - Open/hidden is remembered on the desktop only; on the phone both start hidden every time.
+  - Phone: the drawers are 280 px and 340 px and slide over the view. The top bar is 44 px and everything still fits, so no actions moved. Buttons are at least 36 px tall; close and hide buttons are 40 px.
+  - **Status line floats instead of being hidden.** It lies over the bottom of the view on a dark fade, so survey progress, the scale bar and sound control stay.
+  - Tool panels (timeline, parameters, comparison, tree of life) cover the whole screen below the top bar, rails included.
+  - Camera cutout: `viewport-fit=cover` plus padding from Capacitor's `--safe-area-inset-*` (or `env()`). Android 14 still letterboxes the cutout. On Android 15+, which draws under it, the padding keeps content clear.
+  - `UniverseRenderer` now follows its canvas with a `ResizeObserver` instead of window `resize`, so the view resizes when a drawer opens or hides. The constructor's `setSize` no longer writes inline CSS, which also fixes the old 0×0 canvas in a tab that loads hidden.
 
 ### M3 — Touch input
 - **Picking stars:** a tap selects the star nearest the finger within about 24 CSS px. The distance is measured on the screen, not in world units, so it doesn't change with zoom. Mouse picking stays as it is.

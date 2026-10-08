@@ -48,7 +48,9 @@ import { createSurveyClient } from "./workers/surveyClient";
 import { createSurveyPool, surveyPoolSize } from "./workers/surveyPool";
 import SurveyWorker from "./workers/survey.worker?worker";
 import { DrawerHead, DrawerRail } from "./ui/Drawer";
-import { initialDrawerOpen, rememberDrawerOpen } from "./ui/layout";
+import { initialDrawerOpen, isCompactScreen, rememberDrawerOpen } from "./ui/layout";
+import { App as NativeApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 import "./App.css";
 
 const surveyClient = createSurveyClient(() =>
@@ -221,21 +223,27 @@ export default function App() {
     try { localStorage.setItem(LIFE_MARKERS_KEY, showLifeMarkers ? "on" : "off"); } catch { /* preference not kept */ }
   }, [showLifeMarkers]);
 
+  /** Closes the topmost tool panel, if one is open. Shared by Escape and the phone's back gesture. */
+  const closeTopPanel = useCallback((): boolean => {
+    if (showGallery)      { setShowGallery(false);      return true; }
+    if (showConfigPanel)  { setShowConfigPanel(false);  return true; }
+    if (showHistoryPanel) { setShowHistoryPanel(false); return true; }
+    if (showTimeline)     { setShowTimeline(false);     return true; }
+    if (comparison)       { setComparison(null);        return true; }
+    return false;
+  }, [showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison]);
+
   // Global Escape key: close overlays in priority order, then navigate back
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (showGallery)      { setShowGallery(false);      return; }
-      if (showConfigPanel)  { setShowConfigPanel(false);  return; }
-      if (showHistoryPanel) { setShowHistoryPanel(false); return; }
-      if (showTimeline)     { setShowTimeline(false);     return; }
-      if (comparison)       { setComparison(null);        return; }
+      if (closeTopPanel()) return;
       if (orbiting && view === "system") { leaveOrbit(); return; }   // up one level: back to the system
       if (view === "system" && selectedPlanet) { setSelectedPlanet(null); return; }   // off the planet, to the whole system
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, orbiting, view, selectedPlanet]);
+  }, [closeTopPanel, orbiting, view, selectedPlanet]);
 
   const handleRandomize = () => {
     const s = randomSeed();
@@ -677,6 +685,37 @@ export default function App() {
     setSelectedCivilization(null);
     setSelectedSpecies(null);
   };
+
+  /**
+   * The phone's back gesture (M4): one step back, from the top. Closes the tree
+   * of life or a tool panel, then an open Universe drawer, then walks back up
+   * civilization → biosphere → planet (out of orbit) → system → galaxy → no star.
+   * Returns false when there is nothing left to go back from.
+   */
+  const stepBack = (): boolean => {
+    if (treeShown)                               { setTreeOpen(false);         return true; }
+    if (closeTopPanel())                                                        return true;
+    if (sidebarOpen && isCompactScreen())        { showSidebar(false);         return true; }
+    if (view === "civilization")                 { handleBackToBiosphere();    return true; }
+    if (view === "biosphere")                    { handleBackToPlanet();       return true; }
+    if (orbiting)                                { leaveOrbit();               return true; }
+    if (view === "system" && selectedPlanet)     { handleBackToStar();         return true; }
+    if (view === "system")                       { handleExitSystem();         return true; }
+    if (selectedStar)                            { setSelectedStar(null);      return true; }
+    return false;
+  };
+
+  // In the phone app, back steps back; with nothing left, it leaves the app.
+  // The listener is added once and always calls the latest stepBack.
+  const stepBackRef = useRef(stepBack);
+  useEffect(() => { stepBackRef.current = stepBack; });
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listener = NativeApp.addListener("backButton", () => {
+      if (!stepBackRef.current()) void NativeApp.exitApp();
+    });
+    return () => { void listener.then((handle) => handle.remove()); };
+  }, []);
 
   const isDefaultConfig = Object.keys(DEFAULT_CONFIG).every(
     (k) => Math.abs((universeConfig[k as keyof typeof DEFAULT_CONFIG] as number) - DEFAULT_CONFIG[k as keyof typeof DEFAULT_CONFIG]) < 0.005

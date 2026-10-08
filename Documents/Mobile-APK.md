@@ -118,6 +118,7 @@ Owner decision M-D: panels collapse on the desktop too.
   - `UniverseRenderer` now follows its canvas with a `ResizeObserver` instead of window `resize`, so the view resizes when a drawer opens or hides. The constructor's `setSize` no longer writes inline CSS, which also fixes the old 0×0 canvas in a tab that loads hidden.
 
 ### M3 — Touch input
+- **Not needed (owner, 2026-10-09):** on the phone, taps already pick stars reliably, the page doesn't zoom, and the planet panel already had an **Approach** button (missed when this plan was written). Nothing below was built.
 - **Picking stars:** a tap selects the star nearest the finger within about 24 CSS px. The distance is measured on the screen, not in world units, so it doesn't change with zoom. Mouse picking stays as it is.
 - **Click slop:** 10 px for touch, 5 px for mouse.
 - **Planets in the system view:** the first tap focuses the planet and shows its label, replacing hover. The planet panel gets an **"Approach"** button, replacing double-click on touch. Double-click still works with a mouse.
@@ -129,6 +130,7 @@ Owner decision M-D: panels collapse on the desktop too.
 - The back gesture runs the same "close overlays in priority order, then go back" logic as Escape (`App.tsx:206`). That logic moves into one function that both call.
 - In the galaxy view with nothing open, back exits the app.
 - Uses `@capacitor/app` (`backButton` event), only inside the APK.
+- **As built:** `stepBack()` in `App.tsx` closes, in order: the tree of life, a tool panel (`closeTopPanel()`, shared with Escape), an open Universe drawer (phone only). Then it walks back civilization → biosphere → planet → out of orbit → system → galaxy → no star selected. With nothing left, back leaves the app. Escape on the desktop keeps its old, shorter behaviour; it now calls the shared `closeTopPanel()`.
 
 ### M5 — Performance on this phone
 Measure first; change only what measurement shows (constitution §11). Measured over USB with Chrome's remote debugging (`chrome://inspect`) into the app's WebView. The debug APK allows this.

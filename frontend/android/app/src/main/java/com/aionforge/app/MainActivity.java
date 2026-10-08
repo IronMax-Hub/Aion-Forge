@@ -1,5 +1,7 @@
 package com.aionforge.app;
 
+import android.os.Bundle;
+
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -7,6 +9,12 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(KeepAwakePlugin.class);   // the app's own plugin, registered before the bridge starts
+        super.onCreate(savedInstanceState);
+    }
 
     /**
      * Full screen (owner decision M-C): the status and navigation bars stay hidden.

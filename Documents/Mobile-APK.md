@@ -146,6 +146,22 @@ Measure first; change only what measurement shows (constitution §11). Measured 
 - **Keep the screen on during the survey** (owner decision M-C): set while the survey runs, cleared when it ends (Capacitor keep-awake plugin or Android `FLAG_KEEP_SCREEN_ON`).
 - **Backgrounding:** if the app goes to the background during the survey, Android may pause the WebView. Check that the survey continues or resumes when the app is brought back, and doesn't restart from zero.
 
+- **Measured on the owner's phone (2026-10-09), seed 100000, by stopwatch and a temporary timing readout (not kept):**
+
+  | Build / setting | First chunk done | Survey total |
+  |---|---|---|
+  | App, default HyperOS battery saver | ~2:30 | ~4:30 |
+  | Phone's Chrome browser | — | ~2:00 |
+  | App, Battery saver **No restrictions**, 7 workers, first survey after launch | 74–77 s | 138–145 s |
+  | Same, 4 workers | — | 159 s |
+  | Same, 7 workers, after another survey in the session | 11 s | 84 s |
+
+  - **HyperOS's default battery saver for new apps more than doubled the time.** "No restrictions" is now an install step (`frontend/android/README.md`).
+  - **7 workers beat 4,** so the little cores help; the pool stays at `cores − 1`.
+  - **The first survey after launch pays a one-time ~60 s warm-up:** first-round chunks run ~5× slower than later ones. The desktop shows the same pattern at a fraction of a second (1.2 s vs 0.9 s per chunk). Likely the engine's background optimizing compiler starved of CPU while all cores run workers; **not confirmed** (needs USB profiling). Left as an optional later investigation.
+  - Interface and rendering: smooth (owner); no change needed.
+- **As built:** while a survey runs, the status line shows elapsed seconds (`Surveying life… 0% · 45 s`, desktop too), and the screen stays on through the app's own small `KeepAwake` plugin (`KeepAwakePlugin.java`, `src/native/keepAwake.ts`; does nothing in a browser).
+
 ### M6 — Same universe on the phone, tests, install guide
 - On the phone, generate seeds 100000 and 271828. Compare counts and a hash of all planets with the desktop. The engine uses `detmath`, and the phone's WebView runs the same V8 engine as desktop Chrome, so they should match. A mismatch would be a bug, not something to tune away.
 - `npm test`, `npx eslint .` and `npx tsc -b --noEmit` pass. The desktop layout is checked in the browser.

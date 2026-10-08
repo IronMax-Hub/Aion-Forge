@@ -51,6 +51,7 @@ import { DrawerHead, DrawerRail } from "./ui/Drawer";
 import { initialDrawerOpen, isCompactScreen, rememberDrawerOpen } from "./ui/layout";
 import { App as NativeApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
+import { setKeepAwake } from "./native/keepAwake";
 import "./App.css";
 
 const surveyClient = createSurveyClient(() =>
@@ -98,6 +99,11 @@ export default function App() {
   const [starCount, setStarCount]   = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [surveyProgress, setSurveyProgress] = useState<number | null>(null);   // null when no survey is running
+  // Seconds the running survey has taken, shown beside its progress: on a phone
+  // the first round of chunks can take a minute before progress moves (M5)
+  const [surveySeconds, setSurveySeconds] = useState(0);
+  const surveyStartRef = useRef(0);
+  const surveying = surveyProgress !== null;
   const [surveyError, setSurveyError] = useState<string | null>(null);
   // Snapshots are built from the life survey, so their buttons wait for it
   const snapshotPending = isGenerating || surveyProgress !== null;
@@ -193,6 +199,8 @@ export default function App() {
       ui.universeLoad();
       ambientLayer.setContext("galaxy");
       // Survey life off the main thread: it feeds the snapshot and the life markers
+      surveyStartRef.current = performance.now();
+      setSurveySeconds(0);
       surveyClient.request(s, config, {
         onProgress: setSurveyProgress,
         onResult: (survey) => {
@@ -217,6 +225,14 @@ export default function App() {
     return () => renderer.dispose();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // While a survey runs: count its seconds, and keep the phone's screen on (M5)
+  useEffect(() => {
+    setKeepAwake(surveying);
+    if (!surveying) return;
+    const timer = setInterval(() => setSurveySeconds(Math.round((performance.now() - surveyStartRef.current) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [surveying]);
 
   useEffect(() => {
     rendererRef.current?.setLifeMarkersVisible(showLifeMarkers);
@@ -755,7 +771,7 @@ export default function App() {
 
   let statusText = "Ready";
   if (isGenerating)                                                          statusText = "Generating…";
-  else if (surveyProgress !== null)                                         statusText = `Surveying life… ${Math.round(surveyProgress * 100)}%`;
+  else if (surveyProgress !== null)                                         statusText = `Surveying life… ${Math.round(surveyProgress * 100)}% · ${surveySeconds} s`;
   else if (view === "galaxy" && !selectedStar)                              statusText = "Select a star to inspect it";
   else if (view === "galaxy" && selectedStar)                               statusText = "Open the system to see its planets";
   else if (view === "system" && orbiting)                                   statusText = "Drag to look around the planet; scroll to change altitude";

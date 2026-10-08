@@ -78,6 +78,7 @@ Each step is committed separately after review, as with earlier plans.
   - Full screen: hide the status and navigation bars (immersive mode). A swipe from the edge shows them briefly.
   - Draw into the camera cutout area, with the web page using safe-area insets (M2).
 - Done when: the APK installs on the phone, opens, generates the default universe and shows the galaxy. Layout still cramped.
+- **As built (2026-10-08, runs on the owner's phone):** Capacitor 8.5.3, which compiles against API 36 (minSdk 24) with build-tools 35.0.0 and Gradle 8.14.3. Google replaced `sdkmanager` with the `android` CLI (`android --no-metrics sdk install …`); licences are accepted by installing. Vite `base` left at `/`: Capacitor serves the app from the root of `https://localhost`, so absolute paths, workers and shaders load as they are. Full screen is done in `MainActivity.java` (re-hides the bars on regaining focus). The camera cutout stays letterboxed (Android 14 default) until M2 adds safe-area handling. Machine paths live outside the repo: `android/local.properties` (gitignored) and `~/.gradle/gradle.properties` (`org.gradle.java.home`). Icon and splash are still Capacitor's defaults.
 
 ### M1 — Saving off on the phone (owner decision M-A)
 - The APK build sets a Vite flag (for example `VITE_STORAGE=off`). With it, these are hidden: Save universe, the Library's saved and discoveries tabs, star bookmarks and the experiment log. Nothing calls `/api`, so there are no "cannot reach the API" errors.

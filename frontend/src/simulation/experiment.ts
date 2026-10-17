@@ -2,6 +2,8 @@ import type { UniverseConfig } from "./config";
 import { CONFIG_LABELS } from "./config";
 import type { LifeSurvey } from "./lifeSurvey";
 import { SIMULATION_RULES_VERSION } from "./version";
+import { funnelOf } from "./greatFilter";
+import type { Funnel } from "./greatFilter";
 
 // ── Universe snapshot (AF-123) ────────────────────────────────────────────────
 
@@ -13,6 +15,8 @@ export interface UniverseSnapshot {
   civilizationCount: number;
   legendaryEvents: number;
   totalPlanets: number;
+  /** The Great Filter funnel (GF4). Kept in memory only: funnels are not stored (decision 4). */
+  funnel: Funnel;
 }
 
 /** The counts that describe a universe, from its star count and life survey. */
@@ -25,6 +29,7 @@ export function buildSnapshot(seed: number, config: UniverseConfig, starCount: n
     civilizationCount: survey.civilizationCount,
     legendaryEvents: 0,   // the timeline is built only on request, so snapshots do not count it
     totalPlanets: survey.totalPlanets,
+    funnel: funnelOf(survey.index),
   };
 }
 
@@ -38,12 +43,55 @@ export interface ComparisonRow {
   unit: string;
 }
 
+/** How one gate of the Great Filter moved between two universes (GF4). */
+export interface GateShift {
+  label: string;
+  baselinePassed: number;
+  experimentPassed: number;
+  /** Pass shares of the worlds that reached the gate; NaN where none did. */
+  baselineShare: number;
+  experimentShare: number;
+}
+
 export interface UniverseComparison {
   baseline: UniverseSnapshot;
   experiment: UniverseSnapshot;
   rows: ComparisonRow[];
+  /** Every gate, in funnel order. */
+  gates: GateShift[];
+  /** The gates whose pass share moved most, largest first (at most MOVED_GATES_NAMED). */
+  movedGates: GateShift[];
   summary: string;
   surprises: string[];
+}
+
+/** How many moved gates a comparison names, and the least move (in pass share) that counts. */
+const MOVED_GATES_NAMED = 2;
+const MIN_GATE_MOVE = 0.01;
+
+function gateShifts(baseline: Funnel, experiment: Funnel): GateShift[] {
+  return baseline.steps.map((step, g) => ({
+    label: step.gate.label,
+    baselinePassed: step.passed,
+    experimentPassed: experiment.steps[g].passed,
+    baselineShare: step.share,
+    experimentShare: experiment.steps[g].share,
+  }));
+}
+
+/** The gates whose pass share moved by at least MIN_GATE_MOVE, largest move first. */
+function movedGatesOf(gates: GateShift[]): GateShift[] {
+  const move = (g: GateShift) => Math.abs(g.experimentShare - g.baselineShare);
+  return gates
+    .filter((g) => !Number.isNaN(g.baselineShare) && !Number.isNaN(g.experimentShare) && move(g) >= MIN_GATE_MOVE)
+    .sort((a, b) => move(b) - move(a))
+    .slice(0, MOVED_GATES_NAMED);
+}
+
+/** "The gate “A mind” passed 6% of the worlds that reached it, against 32%." */
+function gateSentence(g: GateShift): string {
+  const pct = (share: number) => `${Math.round(share * 100)}%`;
+  return `The gate “${g.label}” passed ${pct(g.experimentShare)} of the worlds that reached it, against ${pct(g.baselineShare)}.`;
 }
 
 export function compareUniverses(
@@ -88,10 +136,13 @@ export function compareUniverses(
     },
   ];
 
-  const summary = buildComparativeSummary(baseline, experiment, rows);
+  const gates = gateShifts(baseline.funnel, experiment.funnel);
+  const movedGates = movedGatesOf(gates);
+  // The saved experiment keeps this text, so it names the gates that moved
+  const summary = [buildComparativeSummary(baseline, experiment, rows), ...movedGates.map(gateSentence)].join(" ");
   const surprises = detectSurprises(baseline, experiment);
 
-  return { baseline, experiment, rows, summary, surprises };
+  return { baseline, experiment, rows, gates, movedGates, summary, surprises };
 }
 
 // ── AF-124: Comparative prose summary ────────────────────────────────────────

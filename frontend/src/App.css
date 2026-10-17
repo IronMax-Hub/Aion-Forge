@@ -2220,3 +2220,13 @@ button.gf-row:focus-visible { outline: 1px solid var(--col-accent); }
 .gf-worlds th:last-child { text-align: right; }
 .gf-worlds td { padding: var(--sp-1) var(--sp-3) var(--sp-1) 0; border-top: 1px solid var(--col-border-1); }
 .gf-worlds .entry-link { font-family: var(--font-mono); }
+
+/* Great Filter in the comparison (GF4) */
+.compare-funnel { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4) var(--sp-6); border-top: 1px solid var(--col-border-1); }
+.gf-compare { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); color: var(--col-text-2); }
+.gf-compare th { text-align: left; font-weight: 400; color: var(--col-text-3); padding: var(--sp-1) var(--sp-3) var(--sp-1) 0; }
+.gf-compare thead th { color: var(--col-text-4); font-weight: 500; }
+.gf-compare td { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; padding: var(--sp-1) 0 var(--sp-1) var(--sp-3); }
+.gf-compare tbody tr { border-top: 1px solid var(--col-border-1); }
+.gf-compare tr.moved th,
+.gf-compare tr.moved td { color: var(--col-accent); }

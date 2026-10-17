@@ -6,6 +6,8 @@ interface Props {
   onClose: () => void;
 }
 
+const shareText = (share: number) => (Number.isNaN(share) ? "—" : `${Math.round(share * 100)}%`);
+
 export function ComparisonPanel({ comparison: cmp, onSave, onClose }: Props) {
   return (
     <div className="compare-panel" role="dialog" aria-label="Experiment comparison results">
@@ -36,6 +38,27 @@ export function ComparisonPanel({ comparison: cmp, onSave, onClose }: Props) {
             </div>
           );
         })}
+      </div>
+
+      <div className="compare-funnel">
+        <div className="section-head">
+          <span className="section-title">Great Filter</span>
+          <span className="section-note">passed · share of the gate above</span>
+        </div>
+        <table className="gf-compare">
+          <thead>
+            <tr><th scope="col">Gate</th><th scope="col">Baseline</th><th scope="col">Experiment</th></tr>
+          </thead>
+          <tbody>
+            {cmp.gates.map((g) => (
+              <tr key={g.label} className={cmp.movedGates.includes(g) ? "moved" : undefined}>
+                <th scope="row">{g.label}</th>
+                <td>{g.baselinePassed.toLocaleString("en-US")} <span className="gf-share">{shareText(g.baselineShare)}</span></td>
+                <td>{g.experimentPassed.toLocaleString("en-US")} <span className="gf-share">{shareText(g.experimentShare)}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {cmp.surprises.length > 0 && (

@@ -37,6 +37,8 @@ import { layoutTree } from "./ui/treeOfLife";
 import { TreeOfLifePanel } from "./ui/TreeOfLifePanel";
 import { bodyPlans } from "./rendering/life/morphology";
 import { ScaleBar } from "./ui/ScaleBar";
+import { GreatFilterPanel } from "./ui/GreatFilterPanel";
+import type { GateId } from "./simulation/greatFilter";
 import { EncyclopediaPanel, EntryActions, EntryView } from "./ui/EncyclopediaPanel";
 import { subjectKey } from "./ui/encyclopedia/subjects";
 import { biosphereEntry, civilizationEntry, galaxyEntry, planetEntry, starEntry } from "./ui/encyclopedia/entries";
@@ -94,6 +96,9 @@ export default function App() {
   const [surveyIndex, setSurveyIndex] = useState<UniverseIndex | null>(null);
   // The entry floating over the stage (EN3): the galaxy's, or a world's opened from another panel
   const [encyclopediaSubject, setEncyclopediaSubject] = useState<SubjectRef | null>(null);
+  // The Great Filter panel (GF3), and the gate whose breakdown it shows
+  const [showGreatFilter, setShowGreatFilter] = useState(false);
+  const [filterGate, setFilterGate] = useState<GateId | null>(null);
 
   const [seed, setSeed]             = useState<number>(() => randomSeed());
   const [inputSeed, setInputSeed]   = useState<string>("");
@@ -164,6 +169,7 @@ export default function App() {
     setSurveyError(null);
     setSurveyIndex(null);
     setEncyclopediaSubject(null);
+    setFilterGate(null);
     systemRecordsRef.current = new Map();
     rendererRef.current?.exitSystemView();
 
@@ -225,6 +231,7 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (encyclopediaSubject) { setEncyclopediaSubject(null); return; }
+      if (showGreatFilter)  { setShowGreatFilter(false);  return; }
       if (showGallery)      { setShowGallery(false);      return; }
       if (showConfigPanel)  { setShowConfigPanel(false);  return; }
       if (showHistoryPanel) { setShowHistoryPanel(false); return; }
@@ -235,7 +242,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [encyclopediaSubject, showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, orbiting, view, selectedPlanet]);
+  }, [encyclopediaSubject, showGreatFilter, showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, orbiting, view, selectedPlanet]);
 
   const handleRandomize = () => {
     const s = randomSeed();
@@ -465,24 +472,27 @@ export default function App() {
     setSelectedSpecies(null);
     setView("system");
     setOrbiting(true);
-    if (selectedStar) {
+    // The planet's own star: the system view keeps this callback, so it must not read the selection
+    const star = populationRef.current?.stars[planet.hostStarId];
+    if (star) {
       // What the planet view draws: the planet's own world, kept from opening the system, lit by its star
       const sight = systemSightsRef.current.get(planet.key) ?? (() => {
-        const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, selectedStar, currentSeed, universeConfig) : null;
-        const biosphere = systemBiosphereRef.current.get(planet.id) ?? generateBiosphere(planet, selectedStar);
-        return planetSightOf(planet, selectedStar, world, biosphere, generateCivilization(biosphere, planet, currentSeed).civilization);
+        const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, star, currentSeed, universeConfig) : null;
+        const biosphere = systemBiosphereRef.current.get(planet.id) ?? generateBiosphere(planet, star);
+        return planetSightOf(planet, star, world, biosphere, generateCivilization(biosphere, planet, currentSeed).civilization);
       })();
       rendererRef.current?.approachPlanet(planet, sight);
     }
     ui.inspect();
-  }, [selectedStar, currentSeed, universeConfig, planetSightOf]);
+  }, [currentSeed, universeConfig, planetSightOf]);
 
-  const handleExploreSystem = useCallback(() => {
-    if (!selectedStar || !rendererRef.current) return;
+  /** Opens a star's planetary system: makes it, keeps its worlds, and shows it. Returns its planets. */
+  const exploreSystem = useCallback((star: Star): Planet[] => {
+    if (!rendererRef.current) return [];
     // Each solid planet's world is kept from making the system (solidWorldOf would build the same again):
     // the system and planet views draw its surface from it
     const worlds = new Map<number, SolidWorld>();
-    const system = generatePlanetsFor(selectedStar, currentSeed, universeConfig, (planet, star, seed, cfg) => {
+    const system = generatePlanetsFor(star, currentSeed, universeConfig, (planet, star, seed, cfg) => {
       const world = solidWorldOf(planet, star, seed, cfg);
       worlds.set(planet.id, world);
       return world;
@@ -490,15 +500,15 @@ export default function App() {
 
     const biospheres = new Map<number, Biosphere>();
     for (const planet of system.planets) {
-      const bio = generateBiosphere(planet, selectedStar);
+      const bio = generateBiosphere(planet, star);
       biospheres.set(planet.id, bio);
     }
     systemBiosphereRef.current = biospheres;
-    systemRecordsRef.current.set(selectedStar.id, { planets: system.planets, worlds });
+    systemRecordsRef.current.set(star.id, { planets: system.planets, worlds });
     const civilizations = new Map(system.planets.map((planet) =>
       [planet.id, generateCivilization(biospheres.get(planet.id)!, planet, currentSeed)]));
     const sights = new Map(system.planets.map((planet) => [planet.key, planetSightOf(
-      planet, selectedStar, worlds.get(planet.id) ?? null, biospheres.get(planet.id)!, civilizations.get(planet.id)!.civilization,
+      planet, star, worlds.get(planet.id) ?? null, biospheres.get(planet.id)!, civilizations.get(planet.id)!.civilization,
     )]));
     systemSightsRef.current = sights;
     setSystemSights(sights);
@@ -508,7 +518,7 @@ export default function App() {
         const bio = biospheres.get(planet.id)!;
         const civResult = civilizations.get(planet.id)!;
         return {
-          planet, star: selectedStar, bio,
+          planet, star: star, bio,
           civ: civResult.civilization ?? undefined,
           species: civResult.species ?? undefined,
         };
@@ -525,7 +535,7 @@ export default function App() {
     ui.panelOpen();
     ambientLayer.setContext("system");
 
-    rendererRef.current.renderPlanetarySystem(system, selectedStar, (planet) => {
+    rendererRef.current.renderPlanetarySystem(system, star, (planet) => {
       setSelectedPlanet(planet);
       setSelectedBiosphere(null);
       ui.inspect();
@@ -538,7 +548,12 @@ export default function App() {
       })),
       planets: new Map(system.planets.map((planet) => [planet.id, sights.get(planet.key)!])),
     });
-  }, [selectedStar, currentSeed, universeConfig, approachPlanet, planetSightOf]);
+    return system.planets;
+  }, [currentSeed, universeConfig, approachPlanet, planetSightOf]);
+
+  const handleExploreSystem = useCallback(() => {
+    if (selectedStar) exploreSystem(selectedStar);
+  }, [selectedStar, exploreSystem]);
 
   const handleScanBiosphere = useCallback(() => {
     if (!selectedPlanet || !selectedStar) return;
@@ -668,6 +683,20 @@ export default function App() {
     if (ref.kind === "biosphere") return biosphereEntry(planet, star, world, ctx);
     return civilizationEntry(planet, star, world, ctx);
   }, [currentSeed, universeConfig, surveyIndex, systemRecordOf]);
+
+  /** Opens a world's system, selects it, and shows its entry (GF3: from the worlds stopped at a gate). */
+  const openWorld = (starId: number, planetIndex: number) => {
+    const star = populationRef.current?.stars[starId];
+    if (!star) return;
+    if (orbiting) leaveOrbit();
+    setSelectedStar(star);
+    setSelectedCivilization(null);
+    setSelectedSpecies(null);
+    const planet = exploreSystem(star).find((p) => p.id === planetIndex) ?? null;
+    setSelectedPlanet(planet);
+    setShowGreatFilter(false);
+    setEncyclopediaSubject({ kind: "planet", starId, planetIndex });
+  };
 
   const entryActions = (entry: Entry) => (
     <EntryActions entry={entry} universeSeed={currentSeed} discoveries={discoveries} onSaveDiscovery={handleSaveDiscovery} />
@@ -941,6 +970,21 @@ export default function App() {
           </div>
         </section>
 
+        <section className="console-section">
+          <h2 className="console-section-label">Great Filter</h2>
+          <div className="controls">
+            <button
+              className="btn"
+              onClick={() => { initAudio(); setShowGreatFilter((v) => !v); }}
+              aria-pressed={showGreatFilter}
+              disabled={!universeId}
+              title="Count the worlds that pass each step from a solid surface to a lasting civilization"
+            >
+              {showGreatFilter ? "Close filter" : "Great Filter"}
+            </button>
+          </div>
+        </section>
+
         {universeTimeline && (
           <section className="console-section">
             <h2 className="console-section-label">History</h2>
@@ -1003,6 +1047,17 @@ export default function App() {
             selectedId={currentLifeView?.lineageId ?? null}
             onSelect={selectLineage}
             onClose={() => setTreeOpen(false)}
+          />
+        )}
+
+        {showGreatFilter && (
+          <GreatFilterPanel
+            index={surveyIndex}
+            stars={populationRef.current?.stars ?? []}
+            gate={filterGate}
+            onGate={setFilterGate}
+            onOpenWorld={openWorld}
+            onClose={() => setShowGreatFilter(false)}
           />
         )}
 

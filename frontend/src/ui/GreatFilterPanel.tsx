@@ -10,14 +10,19 @@
 // Choosing a gate shows its breakdown (GF2) and the worlds stopped there,
 // each of which opens its system and its entry.
 //
+// Many seeds (GF5): the funnel of consecutive seeds from the one on screen,
+// under the same laws, surveyed one after another in the worker pool, with
+// each gate's median and range. Cancel stops before the next seed; the
+// survey already running finishes in the background and is cached.
+//
 // Limits: it reads the universe index, so it waits for the life survey; it
 // shows shares, never causes.
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Star } from "../simulation/star";
 import type { UniverseIndex } from "../simulation/universeIndex";
 import { CIVILIZATION_STAGE_CODES } from "../simulation/universeIndex";
-import { breakdown, funnelOf, GATES, quantile, stoppedAt } from "../simulation/greatFilter";
+import { breakdown, funnelOf, GATES, quantile, spreadOf, stoppedAt } from "../simulation/greatFilter";
 import type { Funnel, GateId } from "../simulation/greatFilter";
 import { TECH_STAGE_LABEL } from "../simulation/civilization";
 import { formatGyr, formatInt, formatPercent, formatPressure, formatSig, planetName, starName } from "./format";
@@ -32,6 +37,10 @@ interface Props {
   /** Opens a world's system and its entry. */
   onOpenWorld: (starId: number, planetIndex: number) => void;
   onClose: () => void;
+  /** The seed on screen: many-seed runs start from it. */
+  seed: number;
+  /** Surveys another seed under the current laws, off the main thread (GF5). */
+  surveySeed: (seed: number) => Promise<UniverseIndex>;
 }
 
 /** The most stopped worlds listed under a gate. */
@@ -192,7 +201,75 @@ function Breakdown({ index, stars, gate, onOpenWorld }: {
   );
 }
 
-export function GreatFilterPanel({ index, stars, gate, onGate, onOpenWorld, onClose }: Props) {
+// How many seeds a many-seed run may survey (the plan's range), and the default
+const MIN_SEEDS = 5;
+const MAX_SEEDS = 50;
+const DEFAULT_SEEDS = 10;
+
+/** The funnel over consecutive seeds: each gate's median and range (GF5). */
+function ManySeeds({ seed, surveySeed }: { seed: number; surveySeed: Props["surveySeed"] }) {
+  const [count, setCount] = useState(DEFAULT_SEEDS);
+  const [run, setRun] = useState<{ seeds: number[]; funnels: Map<number, Funnel>; running: boolean } | null>(null);
+  const cancelled = useRef(false);
+  useEffect(() => () => { cancelled.current = true; }, []);
+
+  const start = async () => {
+    cancelled.current = false;
+    const seeds = Array.from({ length: count }, (_, i) => seed + i);
+    setRun({ seeds, funnels: new Map(), running: true });
+    for (const s of seeds) {
+      if (cancelled.current) break;
+      const funnel = funnelOf(await surveySeed(s));
+      if (cancelled.current) break;
+      setRun((r) => r && { ...r, funnels: new Map(r.funnels).set(s, funnel) });
+    }
+    setRun((r) => r && { ...r, running: false });
+  };
+  const cancel = () => { cancelled.current = true; setRun((r) => r && { ...r, running: false }); };
+  // Keyed by seed and sorted inside spreadOf, so the order seeds finish in does not matter
+  const spread = useMemo(() => (run && run.funnels.size > 0 ? spreadOf([...run.funnels.values()]) : null), [run]);
+
+  return (
+    <section className="inspector-section gf-many" aria-label="Many seeds">
+      <div className="section-head">
+        <h4 className="section-title">Many seeds</h4>
+        <span className="section-note">luck or laws?</span>
+      </div>
+      <div className="gf-many-controls">
+        <label className="gf-many-count">
+          Seeds
+          <input
+            className="seed-input" type="number" min={MIN_SEEDS} max={MAX_SEEDS} value={count} disabled={run?.running}
+            onChange={(e) => setCount(Math.min(MAX_SEEDS, Math.max(MIN_SEEDS, Math.round(Number(e.target.value) || MIN_SEEDS))))}
+          />
+        </label>
+        {run?.running
+          ? <button type="button" className="tl-filter-btn" onClick={cancel}>Cancel</button>
+          : <button type="button" className="tl-filter-btn" onClick={() => void start()}>Run</button>}
+        <span className="gf-many-status" role="status">
+          {run ? `${run.funnels.size} of ${run.seeds.length} seeds${run.running ? "…" : run.funnels.size < run.seeds.length ? " (cancelled)" : ""}` : `seeds ${seed}–${seed + count - 1}, under these laws`}
+        </span>
+      </div>
+      {spread && (
+        <table className="gf-compare">
+          <thead><tr><th scope="col">Gate</th><th scope="col">Median</th><th scope="col">Range</th><th scope="col">Share</th></tr></thead>
+          <tbody>
+            {spread.map((g) => (
+              <tr key={g.gate.id}>
+                <th scope="row">{g.gate.label}</th>
+                <td>{formatInt(g.passed.median)}</td>
+                <td>{formatInt(g.passed.min)}–{formatInt(g.passed.max)}</td>
+                <td>{shareText(g.share.median)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
+export function GreatFilterPanel({ index, stars, gate, onGate, onOpenWorld, onClose, seed, surveySeed }: Props) {
   const funnel = useMemo(() => (index ? funnelOf(index) : null), [index]);
   const filterStep = funnel?.steps.find((s) => s.gate.id === funnel.filter) ?? null;
   return (
@@ -212,6 +289,7 @@ export function GreatFilterPanel({ index, stars, gate, onGate, onOpenWorld, onCl
             </p>
             <FunnelBars funnel={funnel} gate={gate} onGate={onGate} />
             {gate && <Breakdown index={index} stars={stars} gate={gate} onOpenWorld={onOpenWorld} />}
+            <ManySeeds seed={seed} surveySeed={surveySeed} />
             <p className="gf-limits">
               Fire is read from today's air and land, and a civilization's stages from its final tech level, until civilizations are lived
               step by step (Deep Time). Moons and rogue planets are not yet worlds.

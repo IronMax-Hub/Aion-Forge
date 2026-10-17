@@ -1,4 +1,4 @@
-// The Great Filter, measured (Galaxy Through Time, GF1 and GF2).
+// The Great Filter, measured (Galaxy Through Time, GF1, GF2 and GF5).
 //
 // Why it exists: the Great Filter (Hanson 1998) asks which step from dead
 // matter to a lasting civilization is the hard one. Here it is counted rather
@@ -15,6 +15,9 @@
 // the dated gates, how long the passing worlds waited, and how many stopped
 // worlds have had less time than half of them needed: "not yet" rather than
 // "perhaps never". At the fire gate, which of fire's three conditions fail.
+//
+// Many seeds (GF5): the median and range of each gate over several
+// universes under the same laws, to tell a universe's luck from its laws.
 //
 // Assumptions and limits:
 // - Gate 5 reads life's own oxygen against the volcanic and crust sinks
@@ -255,4 +258,29 @@ export function breakdown(index: UniverseIndex, stars: readonly Star[], gate: Ga
     waiting,
     fire,
   };
+}
+
+// ── Many seeds (GF5) ─────────────────────────────────────────────────────────
+
+/** One gate across many universes: the median and range of the worlds that passed it, and of its pass share. */
+export interface GateSpread {
+  gate: Gate;
+  passed: { median: number; min: number; max: number };
+  /** Over the universes where at least one world reached the gate; NaN where none did. */
+  share: { median: number; min: number; max: number };
+}
+
+/** The spread of each gate over several funnels. Each gate's values are sorted first, so the order the funnels come in does not matter. */
+export function spreadOf(funnels: readonly Funnel[]): GateSpread[] {
+  const summary = (values: number[]) => {
+    const sorted = values.filter((v) => !Number.isNaN(v)).sort((a, b) => a - b);
+    return sorted.length === 0
+      ? { median: NaN, min: NaN, max: NaN }
+      : { median: quantile(sorted, 0.5), min: sorted[0], max: sorted[sorted.length - 1] };
+  };
+  return GATES.map((gate, g) => ({
+    gate,
+    passed: summary(funnels.map((f) => f.steps[g].passed)),
+    share: summary(funnels.map((f) => f.steps[g].share)),
+  }));
 }

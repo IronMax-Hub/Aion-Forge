@@ -2230,3 +2230,11 @@ button.gf-row:focus-visible { outline: 1px solid var(--col-accent); }
 .gf-compare tbody tr { border-top: 1px solid var(--col-border-1); }
 .gf-compare tr.moved th,
 .gf-compare tr.moved td { color: var(--col-accent); }
+
+/* Many seeds (GF5) */
+.gf-many { border-top: 1px solid var(--col-border-1); padding-top: var(--sp-5); }
+.gf-many h4.section-title { margin: 0; }
+.gf-many-controls { display: flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-sm); color: var(--col-text-3); }
+.gf-many-count { display: flex; align-items: center; gap: var(--sp-3); }
+.gf-many-count input { width: 56px; }
+.gf-many-status { color: var(--col-text-4); font-family: var(--font-mono); font-size: var(--fs-xs); }

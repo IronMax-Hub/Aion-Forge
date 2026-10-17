@@ -1058,6 +1058,8 @@ export default function App() {
             onGate={setFilterGate}
             onOpenWorld={openWorld}
             onClose={() => setShowGreatFilter(false)}
+            seed={currentSeed}
+            surveySeed={(s) => surveyClient.survey(s, universeConfig).then((survey) => survey.index)}
           />
         )}
 

@@ -7,7 +7,7 @@ import { generatePlanetsFor } from "../simulation/planet";
 import { generateBiosphere } from "../simulation/biosphere";
 import { canSustainFire, generateCivilization, techLevelToStage } from "../simulation/civilization";
 import { surveyLife } from "../simulation/lifeSurvey";
-import { breakdown, FILTER_MIN_ARRIVING, funnelOf, GATES, quantile, stoppedAt } from "../simulation/greatFilter";
+import { breakdown, FILTER_MIN_ARRIVING, funnelOf, GATES, quantile, spreadOf, stoppedAt } from "../simulation/greatFilter";
 import type { UniverseIndex } from "../simulation/universeIndex";
 
 function starsOf(seed: number): Star[] {
@@ -123,5 +123,26 @@ describe("where worlds stop", () => {
     expect(quantile([1, 2, 3, 4], 0.5)).toBe(2.5);
     expect(quantile([5], 0.5)).toBe(5);
     expect(quantile([], 0.5)).toBeNaN();
+  });
+});
+
+describe("many seeds", () => {
+  it("reproduces one universe's funnel from one seed", () => {
+    const funnel = funnelOf(indexOf100000());
+    const spread = spreadOf([funnel]);
+    spread.forEach((g, i) => {
+      expect(g.passed).toEqual({ median: funnel.steps[i].passed, min: funnel.steps[i].passed, max: funnel.steps[i].passed });
+    });
+  });
+
+  it("gives the same medians whatever order the seeds finish in", () => {
+    const funnels = [11, 12, 13, 14, 15].map((seed) => funnelOf(surveyLife(starsOf(seed).slice(0, 120), seed, makeConfig(seed)).index));
+    const forward = spreadOf(funnels);
+    expect(spreadOf([...funnels].reverse())).toEqual(forward);
+    expect(spreadOf([funnels[2], funnels[0], funnels[4], funnels[1], funnels[3]])).toEqual(forward);
+    for (const g of forward) {
+      expect(g.passed.min).toBeLessThanOrEqual(g.passed.median);
+      expect(g.passed.median).toBeLessThanOrEqual(g.passed.max);
+    }
   });
 });

@@ -12,6 +12,10 @@
 //
 // Since C2.3b: worlds that ever had life, worlds living today, and the median
 // time life began (after the loop's start, 0.5 Gyr after the star formed).
+//
+// Since GF6: the Great Filter funnel, the worlds passing each of the twelve
+// gates (simulation/greatFilter.ts), read from the survey's index, so every
+// later physics step records how it moves the filter.
 
 import { makeConfig, PRESETS } from "../src/simulation/config";
 import { buildGalaxyConfig } from "../src/simulation/galaxy";
@@ -26,6 +30,7 @@ import { buildGeography } from "../src/simulation/geography";
 import { runWorldHistory, FORMATION_DELAY_GYR } from "../src/simulation/worldHistory";
 import type { UniverseConfig } from "../src/simulation/config";
 import { EARTH_PATH, firstsOrder } from "./earthPath";
+import { funnelOf, GATES } from "../src/simulation/greatFilter";
 
 export const SEEDS = [100000, 42, 7777];
 
@@ -60,6 +65,8 @@ export interface Row {
   geography: Geographies;
   history: Histories;
   surveyMs: number;      // the whole pass: survey, geography and histories
+  /** Worlds passing each Great Filter gate, in GATES order (GF6). */
+  funnel: number[];
 }
 
 const median = (values: number[]) => {
@@ -155,6 +162,7 @@ export function measureUniverse(presetName: string, seed: number): Row {
       ms: historyMs,
     },
     surveyMs,
+    funnel: funnelOf(survey.index).steps.map((step) => step.passed),
   };
 }
 
@@ -196,6 +204,20 @@ export function table(rows: Row[]): string {
   const percent = (share: number) => `${(share * 100).toFixed(1)}%`;
   for (const { preset, seed, survey, lockedShare: locked, geography: g, history: h, surveyMs } of rows) {
     lines.push(`| ${preset} | ${seed} | ${survey.totalPlanets} | ${percent(locked)} | ${g.solidPlanets} | ${percent(g.medianOcean)} | ${percent(g.oceanWorldShare)} | ${percent(g.dryShare)} | ${percent(h.frozeShare)} | ${percent(h.runawayShare)} | ${percent(h.oceansLostShare)} | ${percent(h.oxidisedShare)} | ${percent(h.liquidTodayShare)} | ${percent(h.noLandRunawayShare)} | ${percent(h.everLifeShare)} | ${percent(h.livingShare)} | ${Number.isNaN(h.medianLifeStartGyr) ? "–" : h.medianLifeStartGyr.toFixed(1)} | ${survey.lifeBearingPlanets} | ${survey.systems.length} | ${stageMix(survey)} | ${survey.civilizationCount} | ${earthPathCell(h.mindOrders)} | ${surveyMs.toFixed(1)} | ${g.ms.toFixed(0)} | ${h.ms.toFixed(0)} |`);
+  }
+  return lines.join("\n");
+}
+
+/** The Great Filter funnel of every universe, as a Markdown table (GF6). */
+export function funnelTable(rows: Row[]): string {
+  const lines = [
+    "Great Filter: worlds passing each gate (and every gate above it).",
+    "",
+    `| Preset | Seed | Planets | ${GATES.map((g) => g.label).join(" | ")} |`,
+    `|---|---:|---:|${GATES.map(() => "---:").join("|")}|`,
+  ];
+  for (const { preset, seed, survey, funnel } of rows) {
+    lines.push(`| ${preset} | ${seed} | ${survey.totalPlanets} | ${funnel.join(" | ")} |`);
   }
   return lines.join("\n");
 }

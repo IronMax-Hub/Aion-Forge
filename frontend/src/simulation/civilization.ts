@@ -227,9 +227,9 @@ function collapseNote(_species: Species, rng: () => number): string {
 // comes from the world, not from who evolved: an aquatic mind is capped
 // because it has no fire, and so is a land mind under thin or oxygen-poor air.
 
-const FIRE_MIN_LAND = 0.01;          // share of the surface that is exposed, ice-free land
-const FIRE_MIN_PRESSURE_BAR = 0.5;
-const FIRE_MIN_O2_BAR = 0.16;        // oxygen partial pressure (Earth: 0.21)
+export const FIRE_MIN_LAND = 0.01;   // share of the surface that is exposed, ice-free land
+export const FIRE_MIN_PRESSURE_BAR = 0.5;
+export const FIRE_MIN_O2_BAR = 0.16;        // oxygen partial pressure (Earth: 0.21)
 // Without fire, technology stops just short of industry
 const FIRELESS_TECH_CEILING = INDUSTRIAL_TECH_LEVEL - 1e-9;
 

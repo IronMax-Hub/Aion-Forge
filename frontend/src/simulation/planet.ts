@@ -263,6 +263,22 @@ function presentSurface(present: PresentClimate, physics: PlanetPhysics, final: 
   };
 }
 
+// ── Rarity ────────────────────────────────────────────────────────────────────
+
+/**
+ * Why a planet is rare, in words, or null if it is not: the one rule behind
+ * `isRare`, kept here so the encyclopedia (EN2) can say why without repeating it.
+ */
+export function rareReasonOf(planet: Planet): string | null {
+  const tempK = planet.temperature;
+  if (planet.type === "ocean" && tempK > 240 && tempK < 310) return "a temperate ocean world, 240–310 K";
+  if (planet.type === "lava" && planet.mass < 0.5) return "a lava world under half an Earth mass";
+  if (planet.type === "rocky" && tempK > 220 && tempK < 320 && planet.atmosphere === "moderate") {
+    return "a temperate rocky world, 220–320 K, under moderate air";
+  }
+  return null;
+}
+
 // ── Public API (AF-036) ───────────────────────────────────────────────────────
 
 /** What a solid planet's surface is made from: its physics, its geography and its history. */
@@ -369,11 +385,7 @@ export function generatePlanetsFor(
     }
     planet.habitabilityScore = calcHabitability(planet.type, planet.atmosphere, resourceAbundance, planet.surface);
 
-    const tempK = planet.temperature;
-    planet.isRare =
-      planet.type === "ocean" && tempK > 240 && tempK < 310 ||
-      planet.type === "lava"  && mass < 0.5 ||
-      (planet.type === "rocky" && tempK > 220 && tempK < 320 && planet.atmosphere === "moderate");
+    planet.isRare = rareReasonOf(planet) !== null;
     return planet;
   });
 

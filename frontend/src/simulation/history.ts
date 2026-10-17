@@ -3,7 +3,7 @@ import type { GalaxyParticles } from "./galaxy";
 import type { StellarPopulation, Star } from "./star";
 import { MAIN_SEQUENCE_END_FRACTION, REMNANT_FRACTION } from "./star";
 import type { Planet } from "./planet";
-import type { Biosphere } from "./biosphere";
+import type { Biosphere, ExtinctionEvent } from "./biosphere";
 import type { Civilization, Species } from "./civilization";
 import type { WorldEventKind } from "./worldHistory";
 import type { FirstKind } from "./evolution/engine";
@@ -222,16 +222,24 @@ export function recordStellarEvents(
 
 // ── AF-095: Planetary event recording ────────────────────────────────────────
 
+/**
+ * Gyr before present that a planet finished forming: planets assemble within
+ * the star's first ~100 Myr, outer ones slightly later. The timeline and the
+ * encyclopedia (EN2) date formation by this one rule.
+ */
+export function planetFormedAgo(planet: Planet, star: Star): number {
+  return Math.max(0.001, star.age - (PLANET_FORMATION_DELAY_GYR + planet.orbitalIndex * 0.01));
+}
+
 export function recordPlanetaryEvents(
   planet: Planet,
   hostStar: Star,
   seed: number
 ): HistoricalEvent[] {
   const events: HistoricalEvent[] = [];
-  // Planets assemble within the star's first ~100 Myr, outer ones slightly later.
   // Later milestones are dated as time elapsed after formation, so they always
   // follow it — and precede the world history, which starts 0.5 Gyr after the star (worldHistory.ts).
-  const formedAgo = Math.max(0.001, hostStar.age - (PLANET_FORMATION_DELAY_GYR + planet.orbitalIndex * 0.01));
+  const formedAgo = planetFormedAgo(planet, hostStar);
   const afterFormation = (gyr: number) => Math.max(0.001, formedAgo - gyr);
 
   // Formation
@@ -289,16 +297,18 @@ export function recordPlanetaryEvents(
   for (const e of planet.worldEvents) planetEvent(e.tGyr, WORLD_EVENT[e.kind].summary, WORLD_EVENT[e.kind].importance);
   if (planet.life) {
     planetEvent(planet.life.startedGyr, LIFE_BEGAN, "significant");
-    if (planet.life.endedGyr !== null) planetEvent(planet.life.endedGyr, "The last life on this world died out.", "legendary");
+    if (planet.life.endedGyr !== null) planetEvent(planet.life.endedGyr, LIFE_ENDED, "legendary");
   }
 
   return events;
 }
 
-const LIFE_BEGAN = "Life began, as a single kind of cell in the dark water.";
+// What the timeline and the encyclopedia (EN2) say when life begins and when it ends
+export const LIFE_BEGAN = "Life began, as a single kind of cell in the dark water.";
+export const LIFE_ENDED = "The last life on this world died out.";
 
-/** The world history's events in the timeline (Revision 1, C2.7). */
-const WORLD_EVENT: Record<WorldEventKind, { summary: string; importance: Importance }> = {
+/** The world history's events in the timeline (Revision 1, C2.7) and the encyclopedia (EN2). */
+export const WORLD_EVENT: Record<WorldEventKind, { summary: string; importance: Importance }> = {
   "star-leaves-main-sequence": { summary: "Its star left the main sequence, and its light began to change.", importance: "historic" },
   "freezes-over":       { summary: "Ice spread from the poles until the planet froze over.", importance: "major" },
   thaws:                { summary: "The ice retreated and the planet thawed.", importance: "major" },
@@ -340,20 +350,25 @@ export function recordBiologicalEvents(
 
   // Every lethal catastrophe (owner decision), graded by the share of living lineages it ended
   for (const ext of bio.extinctions) {
-    const percent = Math.round(ext.severityLoss * 100);
     const mass = ext.severityLoss >= MASS_EXTINCTION_SHARE;
     events.push({
       id: nextId(), universeSeed: seed,
       timestampGyr: Math.max(0.001, ext.timeAgo),
       category: "biological", subjectId,
-      summary: mass
-        ? `Mass extinction: ${ext.cause} ended ${percent}% of living lineages.`
-        : `${ext.cause[0].toUpperCase()}${ext.cause.slice(1)} ended ${percent}% of living lineages.`,
+      summary: extinctionSummary(ext),
       importance: ext.severityLoss >= SEVERE_EXTINCTION_SHARE ? "historic" : mass ? "major" : "minor",
     });
   }
 
   return events;
+}
+
+/** What the timeline and the encyclopedia (EN2) say of a catastrophe that ended lineages. */
+export function extinctionSummary(ext: ExtinctionEvent): string {
+  const percent = Math.round(ext.severityLoss * 100);
+  return ext.severityLoss >= MASS_EXTINCTION_SHARE
+    ? `Mass extinction: ${ext.cause} ended ${percent}% of living lineages.`
+    : `${ext.cause[0].toUpperCase()}${ext.cause.slice(1)} ended ${percent}% of living lineages.`;
 }
 
 /**
@@ -362,7 +377,7 @@ export function recordBiologicalEvents(
  * consumer is not among the plan's events, and the first mind is the
  * civilization's own "An intelligent species evolved".
  */
-const FIRST_EVENT: Partial<Record<FirstKind, { summary: string; importance: Importance }>> = {
+export const FIRST_EVENT: Partial<Record<FirstKind, { summary: string; importance: Importance }>> = {
   light:         { summary: "The first organisms that live on starlight appeared.", importance: "significant" },
   multicellular: { summary: "Life grew beyond single cells: the first bodies heavier than a microgram.", importance: "major" },
   land:          { summary: "Life first moved onto land.", importance: "major" },
@@ -373,6 +388,11 @@ export const MASS_EXTINCTION_SHARE = 0.25;
 const SEVERE_EXTINCTION_SHARE = 0.5;
 
 // ── AF-097: Civilizational event recording ────────────────────────────────────
+
+/** What the timeline and the encyclopedia (EN2) say when a civilization's species evolved. */
+export function mindAroseSummary(species: Species): string {
+  return `An intelligent species evolved — curious, ${species.cooperation > 0.6 ? "cooperative" : "competitive"}, and aware of their own existence.`;
+}
 
 export function recordCivilizationalEvents(
   civ: Civilization,
@@ -388,7 +408,7 @@ export function recordCivilizationalEvents(
     timestampGyr: civ.ageGyr,
     category: "civilizational",
     subjectId: `planet-${planet.key}`,
-    summary: `An intelligent species evolved — curious, ${species.cooperation > 0.6 ? "cooperative" : "competitive"}, and aware of their own existence.`,
+    summary: mindAroseSummary(species),
     importance: "legendary",
   });
 

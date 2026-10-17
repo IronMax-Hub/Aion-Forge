@@ -7,7 +7,8 @@ import { generatePlanetsFor } from "../simulation/planet";
 import { generateBiosphere } from "../simulation/biosphere";
 import { canSustainFire, generateCivilization, techLevelToStage } from "../simulation/civilization";
 import { surveyLife } from "../simulation/lifeSurvey";
-import { FILTER_MIN_ARRIVING, funnelOf, GATES } from "../simulation/greatFilter";
+import { breakdown, FILTER_MIN_ARRIVING, funnelOf, GATES, quantile, stoppedAt } from "../simulation/greatFilter";
+import type { UniverseIndex } from "../simulation/universeIndex";
 
 function starsOf(seed: number): Star[] {
   const config = makeConfig(seed);
@@ -46,10 +47,15 @@ function directGates(seed: number, stars: Star[]): number[] {
   return out;
 }
 
+// Seed 100000 whole, for the plan's table
+const SEED = 100000;
+const seedStars = starsOf(SEED);
+let fullIndex: UniverseIndex | null = null;
+const indexOf100000 = () => (fullIndex ??= surveyLife(seedStars, SEED, makeConfig(SEED)).index);
+
 describe("the Great Filter funnel", () => {
   it("reproduces the plan's funnel for seed 100000, and never rises", () => {
-    const seed = 100000;
-    const funnel = funnelOf(surveyLife(starsOf(seed), seed, makeConfig(seed)).index);
+    const funnel = funnelOf(indexOf100000());
     expect(funnel.worlds).toBe(8537);
     expect(funnel.steps.map((s) => s.passed)).toEqual([7134, 4730, 4167, 1706, 334, 271, 86, 37, 22, 13, 3, 3]);
     for (let g = 1; g < funnel.steps.length; g++) {
@@ -69,5 +75,53 @@ describe("the Great Filter funnel", () => {
       const named = funnel.steps.find((s) => s.gate.id === funnel.filter);
       if (named) expect(named.arrived).toBeGreaterThanOrEqual(FILTER_MIN_ARRIVING);
     }
+  });
+});
+
+describe("where worlds stop", () => {
+  it("splits the worlds at every gate into those that stopped and those that passed", () => {
+    const index = indexOf100000();
+    const funnel = funnelOf(index);
+    for (const [g, gate] of GATES.entries()) {
+      const b = breakdown(index, seedStars, gate.id);
+      expect(b.arrived).toBe(funnel.steps[g].arrived);
+      expect(b.passed).toBe(funnel.steps[g].passed);
+      expect(b.stopped + b.passed).toBe(b.arrived);
+      expect(stoppedAt(index, gate.id).length).toBe(b.stopped);
+      for (const c of b.conditions) {
+        for (const share of [c.stopped, c.passed]) {
+          if (!Number.isNaN(share)) {
+            expect(share).toBeGreaterThanOrEqual(0);
+            expect(share).toBeLessThanOrEqual(1);
+          }
+        }
+      }
+      if (b.waiting) {
+        expect(b.waiting.passedWaitsGyr.length).toBe(b.passed);
+        for (const w of b.waiting.passedWaitsGyr) expect(w).toBeGreaterThanOrEqual(0);
+        if (b.stopped > 0) {
+          expect(b.waiting.stoppedUnderMedian).toBeGreaterThanOrEqual(0);
+          expect(b.waiting.stoppedUnderMedian).toBeLessThanOrEqual(1);
+        }
+      }
+      expect(b.waiting !== null).toBe(["light", "oxygen", "multicellular", "mind"].includes(gate.id));
+      expect(b.fire !== null).toBe(gate.id === "fire");
+    }
+  });
+
+  it("counts which of fire's conditions fail where minds have no fire", () => {
+    const index = indexOf100000();
+    const fire = breakdown(index, seedStars, "fire");
+    expect(fire.stopped).toBe(86 - 37);
+    // Every stopped world fails at least one condition, and none fails more than the stopped count
+    const { noLand, thinAir, lowOxygen } = fire.fire!;
+    expect(noLand + thinAir + lowOxygen).toBeGreaterThanOrEqual(fire.stopped);
+    for (const n of [noLand, thinAir, lowOxygen]) expect(n).toBeLessThanOrEqual(fire.stopped);
+  });
+
+  it("interpolates quantiles", () => {
+    expect(quantile([1, 2, 3, 4], 0.5)).toBe(2.5);
+    expect(quantile([5], 0.5)).toBe(5);
+    expect(quantile([], 0.5)).toBeNaN();
   });
 });

@@ -192,9 +192,12 @@ describe("UV at the surface", () => {
     const planet: Planet = { ...earth, orbitalRadius: 0.1 };
     const context = environmentContext(planet, derivePhysics(planet, dwarf, seed, config), dwarf, config);
     const step = earthSteps.snapshots[0];
-    const young = environmentFor({ ...step, tGyr: 0.6, luminosity: 0.01, ozone: 0 }, context).surfaceUV;
-    const old = environmentFor({ ...step, tGyr: 8, luminosity: 0.01, ozone: 0 }, context).surfaceUV;
-    expect(young).toBeGreaterThan(3 * old);
+    const uvAt = (tGyr: number) => environmentFor({ ...step, tGyr, luminosity: 0.01, ozone: 0 }, context).surfaceUV;
+    // One activity curve (AE1, decision 42): flares stay at full strength until the star's
+    // saturation time (4.4 Gyr at 3,300 K), then fade as a power law
+    expect(uvAt(4)).toBe(uvAt(0.6));
+    expect(uvAt(8)).toBeLessThan(uvAt(0.6));
+    expect(uvAt(12)).toBeLessThan(uvAt(8));
   });
 });
 

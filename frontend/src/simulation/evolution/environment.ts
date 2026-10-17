@@ -27,9 +27,11 @@
 // - UV at the surface (owner decision), relative to the Sun's at 1 AU with no
 //   air or ozone: the star's steady UV, its blackbody share at 200–315 nm
 //   relative to the Sun's, times its flux; plus, for red dwarfs (below
-//   3,900 K on the main sequence), flare UV that fades with age, over an
-//   activity lifetime from ~0.8 Gyr for early M dwarfs to ~8 Gyr for late ones
-//   (West et al. 2008). Then dimmed by the air, like light, and by ozone:
+//   3,900 K on the main sequence), flare UV at full strength until the star's
+//   activity saturation time (~0.8 Gyr for early M dwarfs to ~8 Gyr for late
+//   ones, West et al. 2008), then fading as a power law: the activity curve
+//   the XUV reads too (star.ts, AE1; decision 42; before AE1 flares faded
+//   exponentially from birth). Then dimmed by the air, like light, and by ozone:
 //   × (1 − ozone).
 // - Gravity, tectonic activity (the engine's chemical energy follows it), and
 //   the air's CO₂, O₂, CH₄ and ozone.
@@ -48,7 +50,7 @@
 
 import { exp, log } from "../detmath";
 import type { Star } from "../star";
-import { mainSequenceEndGyr, temperatureAt } from "../star";
+import { activityAt, mainSequenceEndGyr, PLANCK_C2_NM_K, saturationTimeGyr, temperatureAt } from "../star";
 import type { BandGeometry } from "../climate";
 import { bandGeometry } from "../climate";
 import { BAND_COUNT } from "../geography";
@@ -74,13 +76,11 @@ const WIEN_NM_K = 2.8978e6;
 // UV band that harms life (UV-B and UV-C reaching the ground), nm
 const UV_BAND_NM = { from: 200, to: 315 };
 // Second radiation constant hc/k, nm·K
-const PLANCK_C2_NM_K = 1.4388e7;
 const SOLAR_TEMPERATURE_K = 5772;
 const UV_INTEGRATION_STEPS = 64;   // Simpson intervals; even
 
-// Red-dwarf flares (West et al. 2008): active lifetime from M0 to M7
+// Red dwarfs flare: below this temperature, on the main sequence (C2.2 owner decision; kept by decision 36)
 const FLARING_BELOW_K = 3900;
-const FLARE_LIFETIME = { hotK: 3900, hotGyr: 0.8, coolK: 2700, coolGyr: 8 };
 /** Time-averaged flare UV per unit of starlight at full activity, relative to the Sun's steady UV per unit of starlight. */
 const FLARE_UV_AT_FULL_ACTIVITY = 1;
 
@@ -159,13 +159,13 @@ export function uvShare(temperatureK: number): number {
 
 const SOLAR_UV_SHARE = uvShare(SOLAR_TEMPERATURE_K);
 
-/** How active a red dwarf's flaring is, 0–1: full at birth, fading over its activity lifetime; 0 for other stars. */
+/**
+ * How active a red dwarf's flaring is, 0–1: the star's magnetic activity (star.ts, the curve the XUV
+ * reads too: full until its saturation time, then a power law; decision 42); 0 for other stars.
+ */
 export function flareActivity(temperatureK: number, onMainSequence: boolean, tGyr: number): number {
   if (!onMainSequence || temperatureK >= FLARING_BELOW_K) return 0;
-  const { hotK, hotGyr, coolK, coolGyr } = FLARE_LIFETIME;
-  const share = Math.min(1, Math.max(0, (hotK - temperatureK) / (hotK - coolK)));
-  const lifetimeGyr = hotGyr + (coolGyr - hotGyr) * share;
-  return exp(-tGyr / lifetimeGyr);
+  return activityAt(saturationTimeGyr(temperatureK), tGyr);
 }
 
 /** Share of starlight and UV the air lets through at a surface pressure. */

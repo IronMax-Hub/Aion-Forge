@@ -54,15 +54,17 @@ let fullIndex: UniverseIndex | null = null;
 const indexOf100000 = () => (fullIndex ??= surveyLife(seedStars, SEED, makeConfig(SEED)).index);
 
 describe("the Great Filter funnel", () => {
-  it("reproduces the plan's funnel for seed 100000, and never rises", () => {
+  it("counts seed 100000's funnel, and never rises", () => {
     const funnel = funnelOf(indexOf100000());
     expect(funnel.worlds).toBe(8537);
-    expect(funnel.steps.map((s) => s.passed)).toEqual([7134, 4730, 4167, 1706, 334, 271, 86, 37, 22, 13, 3, 3]);
+    // The plan's table is rules v10 (… 334, 271 …); rules v11's activity curve (AE1) holds red dwarfs'
+    // flares at full strength longer, which moves the oxygen and multicellular gates by one and two worlds
+    expect(funnel.steps.map((s) => s.passed)).toEqual([7134, 4730, 4167, 1706, 333, 269, 86, 37, 22, 13, 3, 3]);
     for (let g = 1; g < funnel.steps.length; g++) {
       expect(funnel.steps[g].arrived).toBe(funnel.steps[g - 1].passed);
       expect(funnel.steps[g].passed).toBeLessThanOrEqual(funnel.steps[g].arrived);
     }
-    // The steepest gate that at least ten worlds reach: light-using life to an oxygenated sky (20%)
+    // The steepest gate that at least ten worlds reach: light-using life to an oxygenated sky (about 20%)
     expect(funnel.filter).toBe("oxygen");
   });
 

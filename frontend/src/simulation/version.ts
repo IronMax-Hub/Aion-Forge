@@ -8,13 +8,14 @@
 // a recount instead of silently showing numbers the current rules do not produce.
 //
 // When it changes: once for each build step of the Worlds Up Close plan that
-// changes outcomes (see Worlds-Up-Close-Revision-1.md, R10). Presentation-only
-// changes never bump it.
+// changes outcomes (see Worlds-Up-Close-Revision-1.md, R10), and of the Galaxy
+// Through Time plan (v11: step 3, atmospheric escape, from AE1's activity
+// curve on). Presentation-only changes never bump it.
 //
 // Limits: it records which rules made a record, not what those rules were. An
 // older version cannot be re-run; a recount always uses the current rules.
 
-export const SIMULATION_RULES_VERSION = 10;
+export const SIMULATION_RULES_VERSION = 11;
 
 /** Whether a record's numbers were produced by rules older than the current ones. */
 export function countedUnderOlderRules(rulesVersion: number): boolean {

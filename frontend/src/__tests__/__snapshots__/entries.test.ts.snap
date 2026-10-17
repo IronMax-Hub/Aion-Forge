@@ -32,7 +32,7 @@ exports[`reference entries > a frozen living world 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v10 · 0000 f",
+  "citation": "AF-U-0001-86A0 · v11 · 0000 f",
   "designation": "0000 f",
   "facts": [
     {
@@ -209,7 +209,7 @@ exports[`reference entries > a gas giant and its star 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v10 · 0006 f",
+  "citation": "AF-U-0001-86A0 · v11 · 0006 f",
   "designation": "0006 f",
   "facts": [
     {
@@ -336,7 +336,7 @@ exports[`reference entries > a gas giant and its star 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v10 · Star 0006",
+  "citation": "AF-U-0001-86A0 · v11 · Star 0006",
   "designation": "Star 0006",
   "facts": [
     {
@@ -577,7 +577,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v10 · 0006 e",
+  "citation": "AF-U-0001-86A0 · v11 · 0006 e",
   "designation": "0006 e",
   "facts": [
     {
@@ -838,7 +838,7 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v10 · 0006 e",
+  "citation": "AF-U-0001-86A0 · v11 · 0006 e",
   "designation": "0006 e",
   "facts": [
     {
@@ -1023,7 +1023,7 @@ exports[`reference entries > an Earth-like world 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v10 · 0022 c",
+  "citation": "AF-U-0001-86A0 · v11 · 0022 c",
   "designation": "0022 c",
   "facts": [
     {
@@ -1288,7 +1288,7 @@ exports[`reference entries > an ocean world with complex life 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v10 · 0075 c",
+  "citation": "AF-U-0001-86A0 · v11 · 0075 c",
   "designation": "0075 c",
   "facts": [
     {
@@ -1808,7 +1808,7 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v10 · 0075 c",
+  "citation": "AF-U-0001-86A0 · v11 · 0075 c",
   "designation": "0075 c",
   "facts": [
     {
@@ -1906,7 +1906,7 @@ exports[`reference entries > the galaxy 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v10 · Galaxy",
+  "citation": "AF-U-0001-86A0 · v11 · Galaxy",
   "designation": "Galaxy",
   "facts": [
     {

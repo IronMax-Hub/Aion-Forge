@@ -1,5 +1,5 @@
 import { createRNG, SALT } from "./rng";
-import { pow, log, sin, cos } from "./detmath";
+import { pow, log, sin, cos, exp } from "./detmath";
 import type { GalaxyConfig } from "./galaxy";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
@@ -157,9 +157,14 @@ export function stellarRadiusAU(star: Star): number {
 /** The star's luminosity t Gyr after it formed, in solar luminosities. */
 export function luminosityAt(star: Star, tGyr: number): number {
   const msEnd = mainSequenceEndGyr(star);
-  const leftMainSequence = star.age >= msEnd;
-  if (leftMainSequence && tGyr >= msEnd) return star.luminosity;
+  if (star.age >= msEnd && tGyr >= msEnd) return star.luminosity;
+  return mainSequenceTrack(star, tGyr);
+}
 
+/** The main-sequence luminosity track, L☉, linear in time; for a star that has left it, extended to any t. */
+function mainSequenceTrack(star: Star, tGyr: number): number {
+  const msEnd = mainSequenceEndGyr(star);
+  const leftMainSequence = star.age >= msEnd;
   const [tRef, lRef] = leftMainSequence
     ? [msEnd / 2, mainSequenceLuminosity(star.mass)]
     : [star.age, star.luminosity];
@@ -181,6 +186,152 @@ export function temperatureAt(star: Star, tGyr: number): number {
   const radius = mainSequenceRadius(star.mass);
   const t = SOLAR_TEMPERATURE_K * pow(mainSequenceLuminosity(star.mass) / (radius * radius), 0.25);
   return Math.min(hi, Math.max(lo, t));
+}
+
+// ── Magnetic activity and extreme ultraviolet (Galaxy Through Time AE1) ──────
+//
+// Why it exists: a young star's extreme ultraviolet (XUV: X-rays and EUV,
+// below 100 nm) heats its planets' upper air, and a world whose gravity is
+// weak for the dose it receives loses that air to space (AE2). Red dwarfs'
+// flares (evolution/environment.ts) come from the same magnetic activity, so
+// both read one activity curve here (decision 42).
+//
+// The activity curve: saturated (1) until the saturation time t_sat, then a
+// power law, (t / t_sat)^(−1.23) (Ribas et al. 2005). t_sat is continuous in
+// the star's main-sequence temperature (decision 36): 0.1 Gyr for G stars and
+// hotter (5,200 K and above), rising linearly to 0.8 Gyr at 3,900 K, then to
+// 8 Gyr at 2,700 K and below (West et al. 2008's activity lifetimes, which set
+// the red-dwarf flares before AE1).
+//
+// XUV luminosity, L☉:
+//   L_XUV(t) = L_bol(t) · (s · f_sat · activity(t) · envelope(T) + photosphere(T))
+//   f_sat = 10^(−3.13), the saturated share (Wright et al. 2011)
+//   envelope(T): 1 up to 6,500 K, falling linearly to 0 at 7,500 K. Stars above
+//     about 7,000 K have no convective envelope and are X-ray faint, so the
+//     activity law fades out across that range rather than at one temperature
+//     (decision 37).
+//   photosphere(T): the blackbody's own share below 100 nm (decision 37),
+//     negligible for cool stars, dominant for hot ones.
+//   s scales the activity law so today's Sun (5,772 K, 4.6 Gyr, 1 L☉) gives its
+//     measured XUV, 3.4 × 10⁻⁶ L☉; unscaled, the law gives it about twice that.
+// After the main sequence the XUV is held at its value at the main sequence's
+// end: cool giants are X-ray faint, and the law would otherwise give a giant
+// 500 times the main-sequence XUV (a modelling choice). A white dwarf's own
+// photospheric ultraviolet is not included.
+//
+// The fluence over an interval is integrated exactly: on the main sequence
+// luminosityAt is linear in time, and a linear function times a power law has
+// a closed-form integral, so the total never depends on how a history is
+// divided into steps.
+//
+// Limits: one law for every convective star; no rotation spread (stars of
+// one temperature and age give the same XUV); no flares in the XUV beyond the
+// time-averaged law.
+
+/** The saturated share of a star's light emitted as XUV (Wright et al. 2011). */
+export const XUV_SATURATED_SHARE = pow(10, -3.13);
+/** How fast activity decays after saturation: (t / t_sat)^(−1.23) (Ribas et al. 2005). */
+export const ACTIVITY_DECAY_EXPONENT = 1.23;
+// Saturation time against main-sequence temperature, K → Gyr (decision 36)
+const SATURATION = { gK: 5200, gGyr: 0.1, earlyMK: 3900, earlyMGyr: 0.8, lateMK: 2700, lateMGyr: 8 };
+// The convective-envelope law fades out across this range, K (decision 37)
+const ENVELOPE_FADE_K = { from: 6500, to: 7500 };
+// The Sun's measured XUV today (L☉), and the age at which it is measured (Gyr)
+const SOLAR_XUV_TODAY = 3.4e-6;
+const SOLAR_AGE_GYR = 4.6;
+/** The XUV band's long-wavelength edge, nm. */
+const XUV_MAX_NM = 100;
+/** Second radiation constant hc/k, nm·K. */
+export const PLANCK_C2_NM_K = 1.4388e7;
+
+/** How long a star's activity stays saturated, Gyr, from its main-sequence temperature. */
+export function saturationTimeGyr(temperatureK: number): number {
+  const { gK, gGyr, earlyMK, earlyMGyr, lateMK, lateMGyr } = SATURATION;
+  if (temperatureK >= gK) return gGyr;
+  if (temperatureK >= earlyMK) return earlyMGyr + (gGyr - earlyMGyr) * (temperatureK - earlyMK) / (gK - earlyMK);
+  if (temperatureK > lateMK) return lateMGyr + (earlyMGyr - lateMGyr) * (temperatureK - lateMK) / (earlyMK - lateMK);
+  return lateMGyr;
+}
+
+/** Magnetic activity, 0–1: saturated until t_sat, then falling as a power law. Flares and XUV read it. */
+export function activityAt(saturationGyr: number, tGyr: number): number {
+  return tGyr <= saturationGyr ? 1 : pow(tGyr / saturationGyr, -ACTIVITY_DECAY_EXPONENT);
+}
+
+/** How much of the convective-envelope law a star of this temperature follows, 0–1. */
+function envelopeShare(temperatureK: number): number {
+  return Math.min(1, Math.max(0, (ENVELOPE_FADE_K.to - temperatureK) / (ENVELOPE_FADE_K.to - ENVELOPE_FADE_K.from)));
+}
+
+/**
+ * A blackbody's share of its output below 100 nm: ∫ from x₀ to ∞ of x³/(eˣ − 1),
+ * over π⁴/15, with x₀ = hc/λkT, summed as Σ e^(−kx₀)(x₀³/k + 3x₀²/k² + 6x₀/k³ + 6/k⁴).
+ */
+export function photosphericXuvShare(temperatureK: number): number {
+  if (temperatureK <= 0) return 0;
+  const x0 = PLANCK_C2_NM_K / (XUV_MAX_NM * temperatureK);
+  let sum = 0;
+  for (let k = 1; k <= 40; k++) {
+    const term = exp(-k * x0) * (x0 * x0 * x0 / k + 3 * x0 * x0 / (k * k) + 6 * x0 / (k * k * k) + 6 / (k * k * k * k));
+    sum += term;
+    if (term < sum * 1e-15) break;
+  }
+  return (sum * 15) / (Math.PI * Math.PI * Math.PI * Math.PI);
+}
+
+// The activity law's scale, so today's Sun gives its measured XUV (decision 37)
+const ACTIVITY_SCALE = (SOLAR_XUV_TODAY - photosphericXuvShare(SOLAR_TEMPERATURE_K))
+  / (XUV_SATURATED_SHARE * activityAt(saturationTimeGyr(SOLAR_TEMPERATURE_K), SOLAR_AGE_GYR));
+
+/** What the XUV of a star depends on besides its luminosity: the two shares, and t_sat. */
+function xuvTerms(star: Star) {
+  // Its main-sequence temperature: temperatureAt gives it for any moment before the main sequence ends
+  const temperatureK = temperatureAt(star, 0);
+  return {
+    saturationGyr: saturationTimeGyr(temperatureK),
+    activeShare: ACTIVITY_SCALE * XUV_SATURATED_SHARE * envelopeShare(temperatureK),
+    photosphereShare: photosphericXuvShare(temperatureK),
+  };
+}
+
+/** The star's XUV luminosity t Gyr after it formed, L☉. */
+export function xuvLuminosityAt(star: Star, tGyr: number): number {
+  const msEnd = mainSequenceEndGyr(star);
+  // Held at its main-sequence-end value once the main sequence is over
+  const t = star.age >= msEnd ? Math.min(tGyr, msEnd) : tGyr;
+  const { saturationGyr, activeShare, photosphereShare } = xuvTerms(star);
+  return mainSequenceTrack(star, t) * (activeShare * activityAt(saturationGyr, t) + photosphereShare);
+}
+
+/**
+ * The star's XUV output between t0 and t1 Gyr after it formed, L☉ · Gyr,
+ * integrated exactly. Divided by a planet's orbit squared (AU²) it is the
+ * planet's XUV fluence in units of 1 L☉ at 1 AU for 1 Gyr.
+ */
+export function xuvFluence(star: Star, t0: number, t1: number): number {
+  if (t1 <= t0) return 0;
+  const msEnd = mainSequenceEndGyr(star);
+  const leftMainSequence = star.age >= msEnd;
+  // After the main sequence the XUV is constant
+  if (leftMainSequence && t0 >= msEnd) return xuvLuminosityAt(star, msEnd) * (t1 - t0);
+  if (leftMainSequence && t1 > msEnd) return xuvFluence(star, t0, msEnd) + xuvLuminosityAt(star, msEnd) * (t1 - msEnd);
+
+  // On the main sequence L_bol(t) = a + b·t exactly (luminosityAt is linear there)
+  const a = mainSequenceTrack(star, 0);
+  const half = msEnd / 2;
+  const b = (mainSequenceTrack(star, half) - a) / half;
+  const { saturationGyr: ts, activeShare, photosphereShare } = xuvTerms(star);
+  // ∫ (a + b·t) dt, and ∫ (a + b·t)·(t / ts)^(−p) dt
+  const linear = (u0: number, u1: number) => a * (u1 - u0) + (b / 2) * (u1 * u1 - u0 * u0);
+  const p = ACTIVITY_DECAY_EXPONENT;
+  const decaying = (u0: number, u1: number) => {
+    const scale = pow(ts, p);
+    const antiderivative = (u: number) => a * pow(u, 1 - p) / (1 - p) + b * pow(u, 2 - p) / (2 - p);
+    return scale * (antiderivative(u1) - antiderivative(u0));
+  };
+  const saturatedEnd = Math.min(t1, Math.max(t0, ts));
+  const activity = linear(t0, saturatedEnd) + (t1 > saturatedEnd ? decaying(saturatedEnd, t1) : 0);
+  return activeShare * activity + photosphereShare * linear(t0, t1);
 }
 
 // ── Temperature → RGB (AF-027) ────────────────────────────────────────────────

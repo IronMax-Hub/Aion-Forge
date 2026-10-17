@@ -330,6 +330,7 @@ Every clause has a source the simulation already holds:
     }
     ```
 - **Verification:** Format tests for the citation and for moon designations.
+- **Built** 17 Oct 2026 (04ad131). `citation(config, designation)` lists each law that differs from the defaults by a short name and its exact value, in a fixed order, so the citation alone rebuilds the universe: `AF-U-0001-86A0 · v10 · gravity 0.4, entropy 0.2 · 1300 c` (owner's choice over a preset name or a bare flag). `moonName` numbers moons from i outward.
 
 #### EN2 Entry writers
 `presentation` · **M**
@@ -352,6 +353,7 @@ Every clause has a source the simulation already holds:
   - **The galaxy's entry:** type, number of stars, age of the oldest, worlds where life began and the first of them, minds, civilizations and how many endure, and the steepest gate of its Great Filter (after GF1).
   - **Style.** Numbers to three significant figures, durations in Gyr or Myr by `formatGyr`, units always, and no adjective that is not a measure: "remarkable" appears only with its reason.
 - **Verification:** For every planet in samples of three seeds: no "undefined" or "NaN" in any text; every sentence has at least one source; chronicle dates fall between formation and today and are sorted; the mass-extinction count equals the biosphere's own. Snapshot tests for five reference entries: an Earth-like world, an ocean world with complex life, a frozen living world, a world of ruins, and a gas giant. The same entry generated twice is identical.
+- **Built** 17 Oct 2026 (cf197fc). Writers take the planet's kept world (physics, geography, history) when the app has it; the temperature range, oldest living lineage, pigment and a species' habitat come from there and are left out without it. `rareReasonOf` in `planet.ts` is the one rule behind `isRare`, as a function rather than a stored field. The timeline's wording is exported from `history.ts` and used by both. The galaxy's steepest gate was added once GF1 existed. Not yet: [Fe/H] (MZ2), companions (BS1).
 
 #### EN3 Encyclopedia panel
 `presentation` · **M**
@@ -361,6 +363,7 @@ Every clause has a source the simulation already holds:
 - **Deliverables:** `ui/EncyclopediaPanel.tsx`; an **Entry** tab in `StarPanel`, in `PlanetPanel` (beside Overview and Spectrum), in `BiospherePanel` and in `CivilizationPanel`; a **Galaxy entry** item in the sidebar.
 - **Implementation:** A catalogue-page layout in the existing inspector vocabulary. Links lead within the open system, to its star and to the galaxy; navigation across the galaxy belongs to the atlas (GA4). The panel keeps its own back stack. Keyboard and ARIA follow the existing inspectors.
 - **Verification:** Screenshots in both themes; keyboard navigation; every link lands on its subject.
+- **Built** 17 Oct 2026 (39f57b3). `EntryView` (with its own back stack) in the Entry tab of all four inspectors, and `EncyclopediaPanel` over the stage for the galaxy. Systems an entry names are made once per universe, with their worlds. Links, tabs and buttons are native buttons, so the keyboard reaches them. The app has a single (dark) theme, so there was one theme to check.
 
 #### EN4 Copy and cite
 `presentation` · **S**
@@ -369,6 +372,7 @@ Every clause has a source the simulation already holds:
 - **Depends on:** EN3.
 - **Deliverables:** **Copy entry** (Markdown with the citation); **Save** to a discovery collection through the existing API, with the existing categories.
 - **Verification:** The copied text matches the rendered entry.
+- **Built** 17 Oct 2026 (323f04f). A test renders every entry of 40 stars and checks each piece of shown text is in the copied Markdown. Where the clipboard API is refused, a selected text area copies instead. Save maps stars, worlds and civilizations to Favorite Stars, Remarkable Worlds and Extraordinary Civilizations; the galaxy has no collection.
 
 ### Step 2 — The Great Filter
 
@@ -401,6 +405,7 @@ The Great Filter (Hanson 1998) asks which step on the way from dead matter to a 
 
   The universe's filter is the gate with the lowest pass share among gates that at least 10 worlds reach, so that tiny numbers cannot name it.
 - **Verification:** Counts never rise down the funnel; they equal direct counts for three seeds; for seed 100000 they reproduce the table in [Starting point](#the-great-filter-as-the-universe-stands).
+- **Built** 17 Oct 2026 (df76262). Seed 100000 reproduces the table exactly; the filter is the oxygen gate (20%).
 
 #### GF2 Where worlds stop
 `presentation` · **M**
@@ -413,6 +418,7 @@ The Great Filter (Hanson 1998) asks which step on the way from dead matter to a 
   - **Waiting.** For the gates with dates (starlight, oxygen, multicellular, mind): the distribution of waits among the worlds that passed (Gyr since the gate before), and the share of stopped worlds that have had less time than the median wait. For example (illustrative figure): "38% of the worlds stopped here have waited less than the 0.8 Gyr that half of the passing worlds needed." This separates *not yet* from *perhaps never*.
   - **Fire.** The counts of each failing condition (no land, thin air, little oxygen), as measured in [Starting point](#the-great-filter-as-the-universe-stands).
 - **Verification:** Shares lie in 0–1; stopped plus passed equals arrived; waits are never negative.
+- **Built** 17 Oct 2026 (bd93df7). A host star's class is read from its temperature, with a white dwarf as its own class. A world that passed two dated gates in one step, or out of order, waited 0. Seed 100000: the median wait from life to starlight is 1.6 Gyr; of the 49 minds without fire, 27 have no exposed land, 24 too little oxygen, 10 too thin an air.
 
 #### GF3 Great Filter panel
 `presentation` · **M**
@@ -422,6 +428,7 @@ The Great Filter (Hanson 1998) asks which step on the way from dead matter to a 
 - **Deliverables:** `ui/GreatFilterPanel.tsx`, opened from the sidebar.
 - **Implementation:** A vertical funnel of bars on a logarithmic scale, with counts and pass shares beside them and the filter gate marked. Clicking a gate opens GF2's breakdown and a list of the worlds stopped there (designation, star, and the measure that matters most for that gate). Each world opens its system and its entry. Both themes; keyboard operation.
 - **Verification:** Screenshots; the values match GF1.
+- **Built** 17 Oct 2026 (356373d). A stopped world opens its system, selects it and shows its entry. Up to 40 stopped worlds are listed per gate.
 
 #### GF4 The filter in the laboratory
 `presentation` · **S**
@@ -431,6 +438,7 @@ The Great Filter (Hanson 1998) asks which step on the way from dead matter to a 
 - **Deliverables:** `buildSnapshot` carries the funnel. The comparison panel shows both funnels side by side and names the gates whose pass share moved most, for example (illustrative figures) "Intelligence 0.3: the mind gate passes 6% of multicellular worlds instead of 32%."
 - **Implementation:** Funnels are not stored in the database (decision 4). A saved experiment's summary text names the gates that moved.
 - **Verification:** A comparison of a universe with itself shows no movement.
+- **Built** 17 Oct 2026 (0dc317a). The comparison names at most two gates, each moved by at least one point. Seed 100000 against Fragile Life: "Life began" 88% → 17%, "A mind" 32% → 0%.
 
 #### GF5 Many seeds
 `presentation` · `stretch` · **M**
@@ -439,6 +447,7 @@ The Great Filter (Hanson 1998) asks which step on the way from dead matter to a 
 - **Depends on:** GF3.
 - **Deliverables:** Run the funnel for 5–50 seeds under the current parameters in the worker pool, and show each gate's median and range. It costs one survey per seed (16 s each on the measuring machine), with progress and a cancel button.
 - **Verification:** One seed reproduces GF1; the medians do not depend on the order in which seeds finish.
+- **Built** 17 Oct 2026 (478e0aa). Seeds run consecutively from the one on screen. Cancel stops before the next seed; the one already surveying finishes in the background and is cached. About 40 s per seed on this machine with the app open.
 
 #### GF6 Funnel columns in the stats harness
 `infrastructure` · **S**

@@ -1989,3 +1989,125 @@
     --sp-8:      36px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Encyclopedia (Galaxy Through Time EN3): an entry as a catalogue page
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.encyclopedia-panel {
+  position: absolute;
+  top: var(--sp-8);
+  left: var(--sp-8);
+  width: var(--panel-xl);
+  max-height: calc(100% - var(--sp-8) * 2);
+  background: var(--col-surface);
+  border: 1px solid var(--col-border-2);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-panel);
+  animation: overlay-in var(--dur-fast) var(--ease-out);
+}
+
+.encyclopedia-body {
+  overflow-y: auto;
+  padding: var(--sp-5) var(--sp-6) var(--sp-6);
+  scrollbar-width: thin;
+  scrollbar-color: var(--col-border-2) transparent;
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+.entry-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.entry-back { align-self: flex-start; margin-bottom: var(--sp-3); }
+
+.entry-title {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--col-text-1);
+}
+
+.entry-designation {
+  font-family: var(--font-mono);
+  font-size: var(--fs-base);
+  color: var(--col-text-2);
+}
+
+.entry-citation {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--col-text-4);
+  user-select: all;
+}
+
+.entry-actions { display: flex; gap: var(--sp-3); margin-top: var(--sp-3); }
+
+.entry-lede {
+  margin: 0;
+  font-size: var(--fs-base);
+  line-height: 1.65;
+  color: var(--col-text-2);
+}
+
+.entry-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--col-accent-dim);
+  text-underline-offset: 3px;
+}
+
+.entry-link:hover,
+.entry-link:focus-visible { color: var(--col-accent-hover); }
+
+.entry-fact { display: contents; }
+.entry-facts dd { margin: 0; white-space: normal; }
+.entry-facts { margin: 0; }
+
+.entry-chronicle,
+.entry-list,
+.entry-see-also {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--col-text-2);
+  line-height: 1.5;
+}
+
+.entry-chronicle li {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: var(--sp-4);
+}
+
+.entry-when {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--col-text-4);
+  text-align: right;
+}
+
+.entry-see-also { flex-direction: row; flex-wrap: wrap; gap: var(--sp-3) var(--sp-5); }
+.entry-limits { color: var(--col-text-4); font-style: italic; }
+.entry-empty { color: var(--col-text-4); font-size: var(--fs-sm); }
+.entry h4.section-title { margin: 0; }

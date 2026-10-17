@@ -1,13 +1,22 @@
+import { useState } from "react";
+import type { ReactNode } from "react";
 import type { Civilization, Species } from "../simulation/civilization";
 import { TECH_STAGE_LABEL, MILESTONE_LABEL, describeCivilization } from "../simulation/civilization";
 import { formatSig, formatGyr, formatIndex } from "./format";
+import { InspectorTabs } from "./InspectorTabs";
 
 interface Props {
   civilization: Civilization;
   species: Species;
   onBack: () => void;
   onClose: () => void;
+  /** The civilization's encyclopedia entry (EN3), shown in the Entry tab. */
+  entryView: ReactNode;
 }
+
+type Tab = "overview" | "entry";
+const TABS: { id: Tab; label: string }[] = [{ id: "overview", label: "Overview" }, { id: "entry", label: "Entry" }];
+
 
 const STAGE_COLOR: Record<string, string> = {
   primitive:    "rgba(160, 140, 110, 0.85)",
@@ -46,7 +55,8 @@ function TraitRow({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function CivilizationPanel({ civilization: civ, species, onBack, onClose }: Props) {
+export function CivilizationPanel({ civilization: civ, species, onBack, onClose, entryView }: Props) {
+  const [tab, setTab] = useState<Tab>("overview");
   const stageColor = STAGE_COLOR[civ.techStage];
   const narrative  = describeCivilization(civ, species);
 
@@ -65,7 +75,10 @@ export function CivilizationPanel({ civilization: civ, species, onBack, onClose 
         </div>
       </div>
 
-      <div className="inspector-body">
+      <InspectorTabs id="civilization" label="Civilization views" tabs={TABS} tab={tab} onTab={setTab} />
+      {tab === "entry" ? (
+        <div className="inspector-body" role="tabpanel" id="civilization-tab-panel" aria-labelledby="civilization-tab-entry">{entryView}</div>
+      ) : <div className="inspector-body" role="tabpanel" id="civilization-tab-panel" aria-labelledby="civilization-tab-overview">
         <p className="narrative">{narrative}</p>
 
         <div className="data-grid">
@@ -116,7 +129,7 @@ export function CivilizationPanel({ civilization: civ, species, onBack, onClose 
             ))}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

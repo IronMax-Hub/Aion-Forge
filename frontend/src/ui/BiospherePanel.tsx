@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import type { Biosphere } from "../simulation/biosphere";
 import { STAGE_LABEL, STAGE_COLOR } from "../simulation/biosphere";
 import type { ExtinctionEvent, LifeStage } from "../simulation/biosphere";
@@ -18,6 +19,8 @@ interface Props {
   onBack: () => void;
   onClose: () => void;
   onScanCivilization: () => void;
+  /** The biosphere's encyclopedia entry (EN3), shown in the Entry tab. */
+  entryView: ReactNode;
 }
 
 /** Stages life passes through once it has emerged, in order. */
@@ -73,14 +76,14 @@ function CivilizationButton({ hasMind, onScanCivilization }: { hasMind: boolean;
   );
 }
 
-type Tab = "overview" | "life";
-const TAB_LABEL: Record<Tab, string> = { overview: "Overview", life: "Life" };
+type Tab = "overview" | "life" | "entry";
+const TAB_LABEL: Record<Tab, string> = { overview: "Overview", life: "Life", entry: "Entry" };
 
-/** Overview and Life (the field guide) tabs; shown only when there are specimens to show. */
-function Tabs({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+/** Overview, Life (the field guide, only when there are specimens to show) and Entry tabs. */
+function Tabs({ tab, onTab, hasLife }: { tab: Tab; onTab: (t: Tab) => void; hasLife: boolean }) {
   return (
     <div className="inspector-tabs" role="tablist" aria-label="Biosphere views">
-      {(Object.keys(TAB_LABEL) as Tab[]).map((t) => (
+      {(Object.keys(TAB_LABEL) as Tab[]).filter((t) => t !== "life" || hasLife).map((t) => (
         <button
           key={t}
           role="tab"
@@ -98,13 +101,15 @@ function Tabs({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
 }
 
 export function BiospherePanel({
-  biosphere, hasMind, specimens, selectedLineageId, onSelectLineage, onOpenTree, onBack, onClose, onScanCivilization,
+  biosphere, hasMind, specimens, selectedLineageId, onSelectLineage, onOpenTree, onBack, onClose, onScanCivilization, entryView,
 }: Props) {
   const stageColor = STAGE_COLOR[biosphere.stage];
   const [tab, setTab] = useState<Tab>("overview");
   const showLife = tab === "life" && specimens !== null;
-  const tabs = specimens !== null && <Tabs tab={tab} onTab={setTab} />;
-  const lifeBody = showLife && (
+  const tabs = <Tabs tab={tab} onTab={setTab} hasLife={specimens !== null} />;
+  const lifeBody = tab === "entry" ? (
+    <div className="inspector-body" role="tabpanel" id="biosphere-tab-panel" aria-labelledby="biosphere-tab-entry">{entryView}</div>
+  ) : showLife && (
     <div className="inspector-body" role="tabpanel" id="biosphere-tab-panel" aria-labelledby="biosphere-tab-life">
       <div className="inspector-actions">
         <button className="btn" onClick={onOpenTree} style={{ flex: 1 }}>Tree of life</button>

@@ -1,7 +1,10 @@
+import { useState } from "react";
+import type { ReactNode } from "react";
 import type { Star } from "../simulation/star";
 import { temperatureToColor } from "../simulation/star";
 import type { DiscoveryItem } from "../simulation/persistence";
 import { formatSig, formatInt, formatGyr, formatLightYears, spectralType, starName, STELLAR_CLASS_NAME, LIGHT_YEARS_PER_UNIT } from "./format";
+import { InspectorTabs } from "./InspectorTabs";
 
 interface Props {
   star: Star;
@@ -11,14 +14,21 @@ interface Props {
   onSaveDiscovery?: (item: DiscoveryItem) => void;
   bookmarked: boolean;
   onToggleBookmark: () => void;
+  /** The star's encyclopedia entry (EN3), shown in the Entry tab. */
+  entryView: ReactNode;
 }
+
+type Tab = "overview" | "entry";
+const TABS: { id: Tab; label: string }[] = [{ id: "overview", label: "Overview" }, { id: "entry", label: "Entry" }];
+
 
 const CAN_HAVE_PLANETS: Record<string, boolean> = {
   protostar: true, "main-sequence": true, "red-giant": true,
   "white-dwarf": true, "neutron-star": false, "black-hole": false,
 };
 
-export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscovery, bookmarked, onToggleBookmark }: Props) {
+export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscovery, bookmarked, onToggleBookmark, entryView }: Props) {
+  const [tab, setTab] = useState<Tab>("overview");
 
   const [r, g, b] = temperatureToColor(star.temperature);
   const starColor  = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
@@ -44,7 +54,10 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
         </div>
       </div>
 
-      <div className="inspector-body">
+      <InspectorTabs id="star" label="Star views" tabs={TABS} tab={tab} onTab={setTab} />
+      {tab === "entry" ? (
+        <div className="inspector-body" role="tabpanel" id="star-tab-panel" aria-labelledby="star-tab-entry">{entryView}</div>
+      ) : <div className="inspector-body" role="tabpanel" id="star-tab-panel" aria-labelledby="star-tab-overview">
         <div className="inspector-section">
           <div className="section-title">Physical properties</div>
           <div className="data-grid">
@@ -117,7 +130,7 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
             </button>
           )}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

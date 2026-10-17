@@ -4,7 +4,7 @@ import { AudioControls } from "./ui/AudioControls";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
 import type { PlanetSight, ViewScale } from "./rendering/UniverseRenderer";
 import { generateGalaxy, buildGalaxyConfig, GALAXY_PARTICLE_COUNT } from "./simulation/galaxy";
-import type { GalaxyType, GalaxyParticles } from "./simulation/galaxy";
+import type { GalaxyConfig, GalaxyType, GalaxyParticles } from "./simulation/galaxy";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "./simulation/star";
 import type { Star, StellarPopulation } from "./simulation/star";
 import { generatePlanetsFor, solidWorldOf, effectiveOrbitAU, GIANT_PLANET_MASS } from "./simulation/planet";
@@ -37,6 +37,11 @@ import { layoutTree } from "./ui/treeOfLife";
 import { TreeOfLifePanel } from "./ui/TreeOfLifePanel";
 import { bodyPlans } from "./rendering/life/morphology";
 import { ScaleBar } from "./ui/ScaleBar";
+import { EncyclopediaPanel, EntryView } from "./ui/EncyclopediaPanel";
+import { subjectKey } from "./ui/encyclopedia/subjects";
+import { biosphereEntry, civilizationEntry, galaxyEntry, planetEntry, starEntry } from "./ui/encyclopedia/entries";
+import type { Entry, SubjectRef } from "./ui/encyclopedia/entry";
+import type { UniverseIndex } from "./simulation/universeIndex";
 import { starName, planetName, planetLifeLabel, lifeMarkerLabel, PLANET_TYPE_LABEL } from "./ui/format";
 import { makeUniverseId, generateUniverseSummary, importUniverseFromFile } from "./simulation/persistence";
 import type { UniverseMeta, DiscoveryItem } from "./simulation/persistence";
@@ -82,6 +87,13 @@ export default function App() {
   // would reach it stale), and state for what renders from it (the planet panel)
   const systemSightsRef = useRef<Map<string, PlanetSight>>(new Map());
   const [systemSights, setSystemSights] = useState<Map<string, PlanetSight>>(new Map());
+  const galaxyConfigRef = useRef<GalaxyConfig | null>(null);
+  // Systems made for the encyclopedia or opened on screen, with their solid worlds, by star id (EN3)
+  const systemRecordsRef = useRef<Map<number, { planets: Planet[]; worlds: Map<number, SolidWorld> }>>(new Map());
+  // Every world's facts, from the life survey (EN0); null until it finishes
+  const [surveyIndex, setSurveyIndex] = useState<UniverseIndex | null>(null);
+  // The entry floating over the stage (EN3): the galaxy's, or a world's opened from another panel
+  const [encyclopediaSubject, setEncyclopediaSubject] = useState<SubjectRef | null>(null);
 
   const [seed, setSeed]             = useState<number>(() => randomSeed());
   const [inputSeed, setInputSeed]   = useState<string>("");
@@ -150,6 +162,9 @@ export default function App() {
     setOrbiting(false);
     cachedSnapshotRef.current = null;
     setSurveyError(null);
+    setSurveyIndex(null);
+    setEncyclopediaSubject(null);
+    systemRecordsRef.current = new Map();
     rendererRef.current?.exitSystemView();
 
     requestAnimationFrame(() => {
@@ -158,6 +173,7 @@ export default function App() {
       const population = generateStarsFor(galaxyCfg, UNIVERSE_AGE_GYR, config);
       galaxyRef.current     = particles;
       populationRef.current = population;
+      galaxyConfigRef.current = galaxyCfg;
       setGalaxyType(galaxyCfg.type);
       setStarCount(population.stars.length);
       setCurrentSeed(s);
@@ -177,6 +193,7 @@ export default function App() {
         onProgress: setSurveyProgress,
         onResult: (survey) => {
           setSurveyProgress(null);
+          setSurveyIndex(survey.index);
           cachedSnapshotRef.current = buildSnapshot(s, config, population.stars.length, survey);
           rendererRef.current?.setLifeMarkers(survey.systems.map(life => ({ starId: life.starId, label: lifeMarkerLabel(life) })));
         },
@@ -207,6 +224,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (encyclopediaSubject) { setEncyclopediaSubject(null); return; }
       if (showGallery)      { setShowGallery(false);      return; }
       if (showConfigPanel)  { setShowConfigPanel(false);  return; }
       if (showHistoryPanel) { setShowHistoryPanel(false); return; }
@@ -217,7 +235,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, orbiting, view, selectedPlanet]);
+  }, [encyclopediaSubject, showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, orbiting, view, selectedPlanet]);
 
   const handleRandomize = () => {
     const s = randomSeed();
@@ -476,6 +494,7 @@ export default function App() {
       biospheres.set(planet.id, bio);
     }
     systemBiosphereRef.current = biospheres;
+    systemRecordsRef.current.set(selectedStar.id, { planets: system.planets, worlds });
     const civilizations = new Map(system.planets.map((planet) =>
       [planet.id, generateCivilization(biospheres.get(planet.id)!, planet, currentSeed)]));
     const sights = new Map(system.planets.map((planet) => [planet.key, planetSightOf(
@@ -613,6 +632,46 @@ export default function App() {
   }, [selectedPlanet, selectedStar, currentSeed]);
 
   const handleApproach = () => { if (selectedPlanet) approachPlanet(selectedPlanet); };
+
+  // ── Encyclopedia (EN3) ──────────────────────────────────────────────────────
+
+  /** A star's planets and solid worlds: the open system's, or made once and kept for the session's universe. */
+  const systemRecordOf = useCallback((star: Star) => {
+    const kept = systemRecordsRef.current.get(star.id);
+    if (kept) return kept;
+    const worlds = new Map<number, SolidWorld>();
+    const { planets } = generatePlanetsFor(star, currentSeed, universeConfig, (planet, host, seed, cfg) => {
+      const world = solidWorldOf(planet, host, seed, cfg);
+      worlds.set(planet.id, world);
+      return world;
+    });
+    const record = { planets, worlds };
+    systemRecordsRef.current.set(star.id, record);
+    return record;
+  }, [currentSeed, universeConfig]);
+
+  /** The encyclopedia entry for a subject of the universe on screen. */
+  const entryFor = useCallback((ref: SubjectRef): Entry | null => {
+    const population = populationRef.current;
+    const galaxy = galaxyConfigRef.current;
+    if (!population || !galaxy) return null;
+    const ctx = { config: { ...universeConfig, seed: currentSeed }, stars: population.stars, index: surveyIndex };
+    if (ref.kind === "galaxy") return galaxyEntry(galaxy, ctx);
+    const star = population.stars[ref.starId];
+    if (!star) return null;
+    const record = systemRecordOf(star);
+    if (ref.kind === "star") return starEntry(star, record.planets, ctx);
+    const planet = record.planets.find((p) => p.id === ref.planetIndex);
+    if (!planet) return null;
+    const world = record.worlds.get(planet.id) ?? null;
+    if (ref.kind === "planet") return planetEntry(planet, star, world, ctx);
+    if (ref.kind === "biosphere") return biosphereEntry(planet, star, world, ctx);
+    return civilizationEntry(planet, star, world, ctx);
+  }, [currentSeed, universeConfig, surveyIndex, systemRecordOf]);
+
+  const entryViewOf = (subject: SubjectRef) => (
+    <EntryView key={`${currentSeed}-${subjectKey(subject)}`} subject={subject} entryFor={entryFor} />
+  );
 
   const handleExitSystem = () => {
     setView("galaxy");
@@ -865,6 +924,20 @@ export default function App() {
           </label>
         </section>
 
+        <section className="console-section">
+          <h2 className="console-section-label">Encyclopedia</h2>
+          <div className="controls">
+            <button
+              className="btn"
+              onClick={() => { initAudio(); setEncyclopediaSubject((open) => (open?.kind === "galaxy" ? null : { kind: "galaxy" })); }}
+              aria-pressed={encyclopediaSubject?.kind === "galaxy"}
+              disabled={!universeId}
+            >
+              Galaxy entry
+            </button>
+          </div>
+        </section>
+
         {universeTimeline && (
           <section className="console-section">
             <h2 className="console-section-label">History</h2>
@@ -930,6 +1003,14 @@ export default function App() {
           />
         )}
 
+        {encyclopediaSubject && (
+          <EncyclopediaPanel
+            subject={encyclopediaSubject}
+            entryFor={entryFor}
+            onClose={() => setEncyclopediaSubject(null)}
+          />
+        )}
+
         {showTimeline && universeTimeline && (
           <TimelinePanel
             timeline={universeTimeline}
@@ -951,6 +1032,7 @@ export default function App() {
             onSaveDiscovery={handleSaveDiscovery}
             bookmarked={isSelectedStarBookmarked}
             onToggleBookmark={handleToggleBookmark}
+            entryView={entryViewOf({ kind: "star", starId: selectedStar.id })}
           />
         ) : view === "system" && selectedPlanet && selectedStar && !selectedBiosphere ? (
           <PlanetPanel
@@ -968,6 +1050,7 @@ export default function App() {
             onApproach={handleApproach}
             onLeaveOrbit={leaveOrbit}
             onScanBiosphere={handleScanBiosphere}
+            entryView={entryViewOf({ kind: "planet", starId: selectedStar.id, planetIndex: selectedPlanet.id })}
           />
         ) : view === "biosphere" && selectedBiosphere ? (
           <BiospherePanel
@@ -981,6 +1064,7 @@ export default function App() {
             onBack={handleBackToPlanet}
             onClose={handleExitSystem}
             onScanCivilization={handleScanCivilization}
+            entryView={selectedPlanet && entryViewOf({ kind: "biosphere", starId: selectedPlanet.hostStarId, planetIndex: selectedPlanet.id })}
           />
         ) : view === "civilization" && selectedCivilization && selectedSpecies ? (
           <CivilizationPanel
@@ -988,6 +1072,7 @@ export default function App() {
             species={selectedSpecies}
             onBack={handleBackToBiosphere}
             onClose={handleExitSystem}
+            entryView={selectedPlanet && entryViewOf({ kind: "civilization", starId: selectedPlanet.hostStarId, planetIndex: selectedPlanet.id })}
           />
         ) : view === "system" && currentSystem && selectedStar ? (
           <SystemPanel

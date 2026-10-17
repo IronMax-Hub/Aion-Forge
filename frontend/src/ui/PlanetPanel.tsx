@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import type { Planet, SolidWorld } from "../simulation/planet";
 import type { Star } from "../simulation/star";
 import type { Civilization } from "../simulation/civilization";
@@ -31,6 +32,8 @@ interface Props {
   onApproach: () => void;
   onLeaveOrbit: () => void;
   onScanBiosphere: () => void;
+  /** The planet's encyclopedia entry (EN3), shown in the Entry tab. */
+  entryView: ReactNode;
 }
 
 const ATMO_LABEL: Record<string, string> = {
@@ -44,8 +47,8 @@ function habLabel(score: number) {
   return "Negligible";
 }
 
-type Tab = "overview" | "spectrum";
-const TAB_LABEL: Record<Tab, string> = { overview: "Overview", spectrum: "Spectrum" };
+type Tab = "overview" | "spectrum" | "entry";
+const TAB_LABEL: Record<Tab, string> = { overview: "Overview", spectrum: "Spectrum", entry: "Entry" };
 
 const CAN_HAVE_LIFE: Record<string, boolean> = {
   rocky: true, ocean: true, ice: true, desert: true,
@@ -54,7 +57,7 @@ const CAN_HAVE_LIFE: Record<string, boolean> = {
 
 export function PlanetPanel({
   planet, star, galaxySeed, civilization, discoveries, onSaveDiscovery,
-  world, physics, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere,
+  world, physics, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere, entryView,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [r, g, b] = PLANET_COLORS[planet.type];
@@ -94,7 +97,7 @@ export function PlanetPanel({
       </div>
 
       <div className="inspector-body" role="tabpanel" id="planet-tab-panel" aria-labelledby={`planet-tab-${tab}`}>
-        {tab === "spectrum" ? (
+        {tab === "entry" ? entryView : tab === "spectrum" ? (
           <SpectrumPanel
             key={planet.key}
             planet={planet}

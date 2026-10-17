@@ -18,6 +18,8 @@ import type { ReactNode } from "react";
 import type { Entry, Sentence, SubjectRef } from "./encyclopedia/entry";
 import { formatGyr } from "./format";
 import { subjectKey, subjectLabel } from "./encyclopedia/subjects";
+import { entryDiscovery, entryMarkdown } from "./encyclopedia/export";
+import type { DiscoveryItem } from "../simulation/persistence";
 
 interface EntryViewProps {
   /** The entry first shown. Give the view a new `key` to start again from another subject. */
@@ -132,6 +134,64 @@ export function EntryView({ subject, entryFor, actions }: EntryViewProps) {
         </section>
       )}
     </article>
+  );
+}
+
+/** Copies text through a hidden, selected text area; whether the browser reported success. */
+function copyBySelection(text: string): boolean {
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  document.body.appendChild(area);
+  area.select();
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    area.remove();
+  }
+}
+
+interface EntryActionsProps {
+  entry: Entry;
+  universeSeed: number;
+  /** Discoveries already saved, so a saved entry shows as saved. */
+  discoveries: readonly DiscoveryItem[];
+  onSaveDiscovery?: (item: DiscoveryItem) => void;
+}
+
+/** Copy entry (Markdown with its citation) and Save (to a discovery collection), EN4. */
+export function EntryActions({ entry, universeSeed, discoveries, onSaveDiscovery }: EntryActionsProps) {
+  const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
+  const item = entryDiscovery(entry, universeSeed, 0);
+  const saved = item !== null && discoveries.some((d) => d.id === item.id);
+  const copy = () => {
+    const text = entryMarkdown(entry);
+    const done = (ok: boolean) => setCopied(ok ? "copied" : "failed");
+    // The clipboard API can be refused (embedded views, some WebViews): fall back to a selected text area
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => done(true), () => done(copyBySelection(text)));
+    else done(copyBySelection(text));
+  };
+  return (
+    <>
+      <button type="button" className="tl-filter-btn" onClick={copy} title="Copy the entry as Markdown, with its citation">
+        {copied === "copied" ? "Copied" : copied === "failed" ? "Copy failed" : "Copy entry"}
+      </button>
+      {item && onSaveDiscovery && (
+        <button
+          type="button"
+          className="tl-filter-btn"
+          disabled={saved}
+          onClick={() => onSaveDiscovery({ ...item, savedAt: Date.now() })}
+          title="Save to your discoveries"
+        >
+          {saved ? "Saved" : "Save"}
+        </button>
+      )}
+    </>
   );
 }
 

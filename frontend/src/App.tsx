@@ -37,7 +37,7 @@ import { layoutTree } from "./ui/treeOfLife";
 import { TreeOfLifePanel } from "./ui/TreeOfLifePanel";
 import { bodyPlans } from "./rendering/life/morphology";
 import { ScaleBar } from "./ui/ScaleBar";
-import { EncyclopediaPanel, EntryView } from "./ui/EncyclopediaPanel";
+import { EncyclopediaPanel, EntryActions, EntryView } from "./ui/EncyclopediaPanel";
 import { subjectKey } from "./ui/encyclopedia/subjects";
 import { biosphereEntry, civilizationEntry, galaxyEntry, planetEntry, starEntry } from "./ui/encyclopedia/entries";
 import type { Entry, SubjectRef } from "./ui/encyclopedia/entry";
@@ -669,8 +669,11 @@ export default function App() {
     return civilizationEntry(planet, star, world, ctx);
   }, [currentSeed, universeConfig, surveyIndex, systemRecordOf]);
 
+  const entryActions = (entry: Entry) => (
+    <EntryActions entry={entry} universeSeed={currentSeed} discoveries={discoveries} onSaveDiscovery={handleSaveDiscovery} />
+  );
   const entryViewOf = (subject: SubjectRef) => (
-    <EntryView key={`${currentSeed}-${subjectKey(subject)}`} subject={subject} entryFor={entryFor} />
+    <EntryView key={`${currentSeed}-${subjectKey(subject)}`} subject={subject} entryFor={entryFor} actions={entryActions} />
   );
 
   const handleExitSystem = () => {
@@ -1007,6 +1010,7 @@ export default function App() {
           <EncyclopediaPanel
             subject={encyclopediaSubject}
             entryFor={entryFor}
+            actions={entryActions}
             onClose={() => setEncyclopediaSubject(null)}
           />
         )}

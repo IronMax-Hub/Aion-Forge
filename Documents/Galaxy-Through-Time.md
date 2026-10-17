@@ -456,6 +456,7 @@ The Great Filter (Hanson 1998) asks which step on the way from dead matter to a 
 - **Depends on:** GF1.
 - **Deliverables:** `stats/universe.ts` records each gate's count, and every stats entry in `Documents/stats.md` gains the funnel per universe.
 - **Verification:** Two runs give identical counts.
+- **Built** 17 Oct 2026 (98df679; stats entry at 67d0e26). Each entry now has a Great Filter table. Two full runs gave identical counts in every column but the timings; rules v10 counts are unchanged from the previous entry.
 
 ---
 

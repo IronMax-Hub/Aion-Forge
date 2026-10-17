@@ -6,6 +6,9 @@ import type { PlanetType } from "../simulation/planet";
 import type { Biosphere, LifeStage } from "../simulation/biosphere";
 import { TECH_STAGE_LABEL } from "../simulation/civilization";
 import type { SystemLife } from "../simulation/lifeSurvey";
+import { DEFAULT_CONFIG, type UniverseConfig } from "../simulation/config";
+import { makeUniverseId } from "../simulation/persistence";
+import { SIMULATION_RULES_VERSION } from "../simulation/version";
 
 const SUPERSCRIPT: Record<string, string> = {
   "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴",
@@ -146,6 +149,54 @@ export function starName(starId: number): string {
 export function planetName(starId: number, orbitalIndex: number): string {
   const letter = orbitalIndex < 25 ? String.fromCharCode(98 + orbitalIndex) : `#${orbitalIndex + 1}`;
   return `${starId.toString().padStart(4, "0")} ${letter}`;
+}
+
+const ROMAN_NUMERALS: [number, string][] = [
+  [1000, "m"], [900, "cm"], [500, "d"], [400, "cd"], [100, "c"], [90, "xc"],
+  [50, "l"], [40, "xl"], [10, "x"], [9, "ix"], [5, "v"], [4, "iv"], [1, "i"],
+];
+
+/** A positive whole number as a lower-case Roman numeral, e.g. 4 → "iv". */
+function lowerRoman(n: number): string {
+  let rest = n;
+  let out = "";
+  for (const [value, numeral] of ROMAN_NUMERALS) {
+    while (rest >= value) {
+      out += numeral;
+      rest -= value;
+    }
+  }
+  return out;
+}
+
+/** Exomoon-style designation: the planet plus a Roman numeral from i outward, e.g. "0006 b-ii". */
+export function moonName(starId: number, orbitalIndex: number, moonIndex: number): string {
+  return `${planetName(starId, orbitalIndex)}-${lowerRoman(moonIndex + 1)}`;
+}
+
+/** Short names for the laws of physics, in the citation's order. */
+const LAW_SHORT_NAME: Record<keyof typeof DEFAULT_CONFIG, string> = {
+  gravityStrength:          "gravity",
+  expansionRate:            "expansion",
+  stellarIgnitionThreshold: "ignition",
+  entropyRate:              "entropy",
+  emergenceSensitivity:     "emergence",
+  intelligenceModifier:     "intelligence",
+};
+
+/**
+ * A designation as cited outside the app: universe, rules version, any laws that
+ * differ from the defaults (exact values, so the citation can rebuild the universe),
+ * then the designation, e.g. "AF-U-0001-86A0 · v10 · gravity 0.4 · 1300 c".
+ */
+export function citation(config: UniverseConfig, designation: string): string {
+  const laws = (Object.keys(LAW_SHORT_NAME) as (keyof typeof DEFAULT_CONFIG)[])
+    .filter((law) => config[law] !== DEFAULT_CONFIG[law])
+    .map((law) => `${LAW_SHORT_NAME[law]} ${String(config[law])}`);
+  const parts = [makeUniverseId(config.seed), `v${SIMULATION_RULES_VERSION}`];
+  if (laws.length > 0) parts.push(laws.join(", "));
+  parts.push(designation);
+  return parts.join(" · ");
 }
 
 export const PLANET_TYPE_LABEL: Record<PlanetType, string> = {

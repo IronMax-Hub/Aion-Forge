@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   spectralType, planetName, starName, formatSig, formatGyr, formatInt, niceScaleLength, formatLightYears,
   formatGravity, formatPressure, formatRotation, formatTilt, formatPercent, wholePercents, formatSurfaceShares, formatTemperatureRange,
-  planetLifeLabel,
+  planetLifeLabel, moonName, citation,
 } from "../ui/format";
+import { makeConfig } from "../simulation/config";
+import { SIMULATION_RULES_VERSION } from "../simulation/version";
 import type { Biosphere } from "../simulation/biosphere";
 
 describe("spectralType", () => {
@@ -36,6 +38,38 @@ describe("designations", () => {
   it("letters planets from b outward", () => {
     expect(planetName(6, 0)).toBe("0006 b");
     expect(planetName(6, 7)).toBe("0006 i");
+  });
+
+  it("numbers moons in lower-case Roman numerals after a hyphen", () => {
+    expect(moonName(1300, 1, 0)).toBe("1300 c-i");
+    expect(moonName(1300, 1, 1)).toBe("1300 c-ii");
+    expect(moonName(1300, 1, 3)).toBe("1300 c-iv");
+    expect(moonName(1300, 1, 8)).toBe("1300 c-ix");
+    expect(moonName(1300, 1, 13)).toBe("1300 c-xiv");
+    expect(moonName(1300, 1, 48)).toBe("1300 c-xlix");
+  });
+});
+
+describe("citation", () => {
+  const v = `v${SIMULATION_RULES_VERSION}`;
+
+  it("names the universe and the rules version under default laws", () => {
+    expect(citation(makeConfig(100000), "1300 c")).toBe(`AF-U-0001-86A0 · ${v} · 1300 c`);
+  });
+
+  it("lists every changed law with its exact value, in a fixed order", () => {
+    const config = makeConfig(100000, { entropyRate: 0.2, gravityStrength: 0.4, emergenceSensitivity: 0.01 });
+    expect(citation(config, "Star 1300")).toBe(`AF-U-0001-86A0 · ${v} · gravity 0.4, entropy 0.2, emergence 0.01 · Star 1300`);
+  });
+
+  it("lists all six laws by their short names", () => {
+    const config = makeConfig(1, {
+      gravityStrength: 0.5, expansionRate: 0.6, stellarIgnitionThreshold: 1.2,
+      entropyRate: 1.4, emergenceSensitivity: 1.5, intelligenceModifier: 0.3,
+    });
+    expect(citation(config, "1300 c-ii")).toBe(
+      `AF-U-0000-0001 · ${v} · gravity 0.5, expansion 0.6, ignition 1.2, entropy 1.4, emergence 1.5, intelligence 0.3 · 1300 c-ii`,
+    );
   });
 });
 

@@ -43,6 +43,7 @@ import { FROZEN_ICE_SHARE, OCEANS_LOST_WATER } from "../../simulation/worldHisto
 import { LINEAGE_CAP, livingLineages } from "../../simulation/evolution/engine";
 import type { Lineage } from "../../simulation/evolution/engine";
 import { CIVILIZATION_STAGE_CODES, LIFE_STAGE_CODES } from "../../simulation/universeIndex";
+import { funnelOf } from "../../simulation/greatFilter";
 import type { UniverseIndex } from "../../simulation/universeIndex";
 import {
   citation, formatGravity, formatGyr, formatInt, formatLightYears, formatPercent, formatPressure, formatRotation, formatSig,
@@ -729,6 +730,14 @@ export function galaxyEntry(galaxy: GalaxyConfig, ctx: EntryContext): Entry {
     if (minds.length > 0) {
       lede.push(sentence(`Minds arose on ${formatInt(minds.length)} worlds; ${formatInt(civs.length)} built civilizations, and ${formatInt(enduring.length)} endure.`,
         ["index.mindGyr", "index.civilizationStage"]));
+    }
+    // The steepest gate of its Great Filter (GF1)
+    const funnel = funnelOf(index);
+    const filter = funnel.steps.find((step) => step.gate.id === funnel.filter);
+    if (filter) {
+      lede.push(sentence(`The steepest gate of its Great Filter is “${filter.gate.label}”: ${formatPercent(filter.share)} of the ${formatInt(filter.arrived)} worlds that reached it passed.`,
+        ["index", "greatFilter.funnelOf"]));
+      facts.push({ label: "Great Filter", value: `${filter.gate.label} (${formatPercent(filter.share)})` });
     }
   }
 

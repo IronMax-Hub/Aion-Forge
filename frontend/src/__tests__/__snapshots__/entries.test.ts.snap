@@ -1941,6 +1941,10 @@ exports[`reference entries > the galaxy 1`] = `
       "label": "Civilizations",
       "value": "16 (9 endure)",
     },
+    {
+      "label": "Great Filter",
+      "value": "Life's oxygen filled the air (21%)",
+    },
   ],
   "lede": [
     {
@@ -1985,6 +1989,13 @@ exports[`reference entries > the galaxy 1`] = `
         "index.civilizationStage",
       ],
       "text": "Minds arose on 16 worlds; 16 built civilizations, and 9 endure.",
+    },
+    {
+      "sources": [
+        "index",
+        "greatFilter.funnelOf",
+      ],
+      "text": "The steepest gate of its Great Filter is “Life's oxygen filled the air”: 21% of the 261 worlds that reached it passed.",
     },
   ],
   "limits": [

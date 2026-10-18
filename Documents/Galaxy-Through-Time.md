@@ -798,6 +798,15 @@ Giant planets build satellite systems in the disks around them, and those moons 
   - Water: under the planets' rule (`waterDepthKm` = W · 33.75 km · g with W at most 1, and W reduced in proportion below 0.1 M⊕) a Ganymede-mass moon at the median water draw holds under 1 km of water and a Europa-mass one about 0.2 km, where the real moons hold on the order of 100 km. With heat from inside alone (q ≈ 0.014 W/m² for a Ganymede-mass body at 4.6 Gyr) its shell would be about 40 km, so a moon keeps liquid only with tidal heat approaching 1 W/m². Without a water rule of their own, moons will almost never have hidden oceans (decision 35).
   - Counts: civilizations on moons are included in `civilizationCount`. Living moons get their own count (`lifeBearingMoons`), shown beside planets and not added to the stored `lifeBearingPlanets` (decision 13).
 - **Verification:** An icy Ganymede-mass moon of a Jupiter-mass planet at 5 AU keeps liquid under its ice only with enough heat; moons' histories are deterministic; survey time is measured (MO7).
+- **Built** 19 Oct 2026, rules v14 (step 5's bump). Decisions 11, 12, 13 and 34 taken as recommended (18 Oct 2026).
+  - A moon of at least 0.018 M⊕ becomes a world, `Moon.world`: a `Planet` with `moonIndex`, which keys its streams through `bodyKey`, and `moonOrbit`, which `derivePhysics` reads. Its day is its orbit around the planet, it has the planet's tilt, its water is the moon rule's, and it is not locked to its star.
+  - `interiorHeatFlow` adds a moon's tidal heat; `interiorActivity` gives τ_eff = min(1, τ + q_tidal / q_full), which the history uses for volcanism and vents. Evolution and civilization streams carry the moon index.
+  - Smaller moons are listed with today's heat, water depth and ice shell at their airless equilibrium temperature (decision 11).
+  - The survey counts living moons as `lifeBearingMoons`, and their civilizations in `civilizationCount` (decision 13).
+  - **IH3 fix.** Below water's triple point, IH3 had counted all water frozen, including water under an ice shell. The shell's own weight keeps that water liquid, as on airless Europa; only exposed water warmer than 271 K has none. This also gives some airless icy planets back their hidden oceans.
+  - Seed 100000: 806 moon worlds. Life began on 309, and 285 live today, all microbial. 317 hold water under their ice. 1,495 smaller moons are listed with an ocean under their shell. 325 moon worlds are above 373 K: inner moons of the heaviest giants, overheated without a tidal ceiling (decisions 29 and 34). No minds on moons yet.
+  - Planets, v13 → v14 (the IH3 fix): life-bearing 1,381 → 1,583, systems with organisms 753 → 795, funnel 6,549 / 3,032 / 2,307 / 426 / 165 / 127 / 28 / 14 / 6 / 3 / 0 / 0. Civilizations are unchanged at 27.
+  - A single-thread survey of seed 100000 takes about 32 s; MO7 measures survey time against v13.
 
 #### MO5 Large moons of rocky planets, and tilts that wander without one
 `simulation` · **M**

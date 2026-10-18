@@ -124,7 +124,7 @@ export const systems: Chapter = {
     {
       id: "moons",
       title: "Moons of giants",
-      statement: "A giant builds a satellite system in the disk around it: two to five moons sharing a fixed share of its mass, spaced outward like Jupiter's, none beyond half the planet's Hill radius. Moons formed beyond the snow line are rich in ice; all are locked to their planet and share its tilt. The planet's tide flexes each moon on its eccentric orbit and heats it: q = (21/2)(k₂/Q) G M_p² R⁵ n e² / a⁶ / 4πR².",
+      statement: "A giant builds a satellite system in the disk around it: two to five moons sharing a fixed share of its mass, spaced outward like Jupiter's, none beyond half the planet's Hill radius. Moons formed beyond the snow line are rich in ice; all are locked to their planet and share its tilt. The planet's tide flexes each moon on its eccentric orbit and heats it: q = (21/2)(k₂/Q) G M_p² R⁵ n e² / a⁶ / 4πR². Moons as heavy as the smallest planet are worlds: the same physics, history, life and civilizations as planets, in their planet's starlight, warmed by tides too (MO4).",
       rule: `system mass = ${exact(SATELLITE_MASS_RATIO)} × M_p, split at sorted uniform draws; first orbit ${FIRST_MOON_ORBIT.planetRadii}–${FIRST_MOON_ORBIT.planetRadii * (1 + FIRST_MOON_ORBIT.spread)} planet radii, each next × ${MOON_SPACING.min}–${MOON_SPACING.min + MOON_SPACING.range}; no moon beyond ${exact(HILL_SHARE)} × Hill radius`,
       constants: [
         { name: "Satellite mass", value: `${exact(SATELLITE_MASS_RATIO)} of the planet`, meaning: "Jupiter's Galilean ratio (decision 30); Canup & Ward's 10⁻⁴ would give half as much" },
@@ -135,10 +135,10 @@ export const systems: Chapter = {
       ],
       why: "Regular moons form in a giant's own disk, as the Galilean moons did; one share of mass and one spacing rule give systems like Jupiter's, and super-Jupiters moons heavier than Mars.",
       source: "Canup & Ward 2006; the Galilean moons",
-      limits: ["No captured moons, resonances or migration: the eccentricity is drawn, so the tidal heat is in effect a heat draw scaled by the formula, and constant over a moon's life.", "No ceiling where a moon would melt (decision 29).", "Moons do not yet have their own histories (MO4)."],
+      limits: ["No captured moons, resonances or migration: the eccentricity is drawn, so the tidal heat is in effect a heat draw scaled by the formula, and constant over a moon's life.", "No ceiling where a moon would melt (decision 29): the inner moons of the heaviest giants are overheated.", "Moons lighter than 0.018 M⊕ have no history (decision 11): their heat, water and ice shell are listed at their airless equilibrium temperature.", "Eclipses by the planet and the planet's own glow are not modelled."],
       laws: [{ law: "gravityStrength", how: "Through the giant's effective orbit, which sets its Hill radius" }],
       code: "simulation/moons.ts · moonsOf (MO2); simulation/interiorHeat.ts · tidalHeatFlow (MO3)",
-      noEffect: "Moons are made with each giant but are not yet in the survey's index (MO4 gives them histories).",
+      noEffect: "Moon worlds run histories, and their life and civilizations are counted in the survey, but they are not yet in its index (MO7).",
     },
     {
       id: "formation-air",

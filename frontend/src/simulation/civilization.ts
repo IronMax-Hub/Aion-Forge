@@ -255,7 +255,7 @@ export function generateCivilization(
   // Intelligence parameter set the threshold the mind had to reach there
   const mind = planet.life?.phylogeny.mind ?? null;
   if (!mind) return { species: null, civilization: null };
-  const rng = createRNG(mixSeed(galaxySeed, ...bodyKey({ hostStarId: bio.hostStarId, id: bio.planetId }), SALT.CIV));
+  const rng = createRNG(mixSeed(galaxySeed, ...bodyKey({ hostStarId: bio.hostStarId, id: bio.planetId, moonIndex: planet.moonIndex }), SALT.CIV));
   const species = generateSpecies(mind, planet, rng);
 
   // Its age is the time since the mind appeared. If its species (the mind's

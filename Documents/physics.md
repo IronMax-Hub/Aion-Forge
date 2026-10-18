@@ -242,3 +242,25 @@ Systems with organisms stay inside the ±25% target, so nothing is tuned.
 - **Decision 9 (the greenhouse scales with energy).** As expected, far fewer warm worlds lie far from their stars. Open water today nearly halved.
 - **Decision 10 (ice shells).** About 310 worlds per universe lose their life when their oceans freeze solid, and about 1,600–1,750 worlds are frozen solid today. Of the life that remains, nearly three-quarters lives under ice.
 - **Step 5a against the start of this plan (v10).** Systems with organisms fell from 987 / 968 / 1,006 to 753 / 761 / 736 (−24%, −21%, −27%) over steps 3 to 5a together; each step stayed inside ±25% of the one before.
+
+---
+
+## Step 5: moons (MO1–MO4, rules v14)
+
+| Constant | Value | Why |
+|---|---|---|
+| `SATELLITE_MASS_RATIO` | 2 × 10⁻⁴ | Jupiter's Galilean ratio (decision 30, the owner's choice over Canup & Ward's 10⁻⁴) |
+| `MOON_COUNT`, `FIRST_MOON_ORBIT`, `MOON_SPACING` | 2–5 moons; 5–7.5 planet radii, then × 1.6–2.0 | The Galilean system's spacing |
+| `HILL_SHARE` | 0.5 | No moon beyond half the planet's Hill radius |
+| `MOON_WATER` | 10–50% of the mass, W = 340 × share | Ice-rich moons beyond the snow line (decision 35) |
+| `MOON_ECCENTRICITY` | 0.001–0.01, log-uniform | A stand-in for the resonances that keep the Galilean moons' orbits eccentric |
+| `TIDAL_K2_OVER_Q` | 0.015 | Io's, for every moon (decision 34): Io 2.2 W/m², Europa 0.2 W/m² (about four times its likely value) |
+
+Moons of at least 0.018 M⊕ are worlds (decision 11). Their streams are keyed by `bodyKey` (MO1), so no planet's draws move. They are warmed by tides as well as by their interiors.
+
+**Measured, seed 100000.** 1,101 giants hold 3,339 moons, and 806 of them are worlds:
+- Life began on 309 of the moon worlds, and 285 live today, all microbial.
+- 317 hold water under their ice.
+- 325 are above 373 K: tidally overheated inner moons of the heaviest giants. No ceiling is applied (decision 29, counted in MO7).
+
+**Fixed with MO4.** Water under an ice shell stays liquid below water's triple point. IH3 had counted it frozen, which hid airless worlds' oceans. With the fix, life-bearing planets rose from 1,381 to 1,583.

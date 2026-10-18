@@ -32,7 +32,7 @@ exports[`reference entries > a frozen living world 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v13 · 0000 h",
+  "citation": "AF-U-0001-86A0 · v14 · 0000 h",
   "designation": "0000 h",
   "facts": [
     {
@@ -208,7 +208,7 @@ exports[`reference entries > a gas giant and its star 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v13 · 0006 f",
+  "citation": "AF-U-0001-86A0 · v14 · 0006 f",
   "designation": "0006 f",
   "facts": [
     {
@@ -328,7 +328,7 @@ exports[`reference entries > a gas giant and its star 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v13 · Star 0006",
+  "citation": "AF-U-0001-86A0 · v14 · Star 0006",
   "designation": "Star 0006",
   "facts": [
     {
@@ -565,7 +565,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0000-002A · v13 · 0006 c",
+  "citation": "AF-U-0000-002A · v14 · 0006 c",
   "designation": "0006 c",
   "facts": [
     {
@@ -722,6 +722,13 @@ exports[`reference entries > a world of ruins 1`] = `
   "notable": [
     {
       "sources": [
+        "index.lifeBeganGyr",
+        "star.age",
+      ],
+      "text": "Life began here longer ago than 95% of the other worlds where it began.",
+    },
+    {
+      "sources": [
         "index.lifeStage",
       ],
       "text": "One of 11 worlds with complex ecosystems today.",
@@ -809,7 +816,7 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0000-002A · v13 · 0006 c",
+  "citation": "AF-U-0000-002A · v14 · 0006 c",
   "designation": "0006 c",
   "facts": [
     {
@@ -977,7 +984,7 @@ exports[`reference entries > an Earth-like world 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v13 · 0022 c",
+  "citation": "AF-U-0001-86A0 · v14 · 0022 c",
   "designation": "0022 c",
   "facts": [
     {
@@ -1209,7 +1216,7 @@ exports[`reference entries > an ocean world with complex life 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v13 · 0075 c",
+  "citation": "AF-U-0001-86A0 · v14 · 0075 c",
   "designation": "0075 c",
   "facts": [
     {
@@ -1731,7 +1738,7 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v13 · 0075 c",
+  "citation": "AF-U-0001-86A0 · v14 · 0075 c",
   "designation": "0075 c",
   "facts": [
     {
@@ -1824,7 +1831,7 @@ exports[`reference entries > the galaxy 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v13 · Galaxy",
+  "citation": "AF-U-0001-86A0 · v14 · Galaxy",
   "designation": "Galaxy",
   "facts": [
     {
@@ -1845,11 +1852,11 @@ exports[`reference entries > the galaxy 1`] = `
     },
     {
       "label": "Worlds where life began",
-      "value": "310",
+      "value": "340",
     },
     {
       "label": "Worlds with life today",
-      "value": "205",
+      "value": "234",
     },
     {
       "label": "Minds",
@@ -1861,7 +1868,7 @@ exports[`reference entries > the galaxy 1`] = `
     },
     {
       "label": "Great Filter",
-      "value": "Life used starlight (17%)",
+      "value": "Life used starlight (18%)",
     },
   ],
   "lede": [
@@ -1887,7 +1894,7 @@ exports[`reference entries > the galaxy 1`] = `
         "index.lifeBeganGyr",
         "index.lifeStage",
       ],
-      "text": "Life began on 310 of its 1,096 planets and lives on 205 today.",
+      "text": "Life began on 340 of its 1,096 planets and lives on 234 today.",
     },
     {
       "link": {
@@ -1913,7 +1920,7 @@ exports[`reference entries > the galaxy 1`] = `
         "index",
         "greatFilter.funnelOf",
       ],
-      "text": "The steepest gate of its Great Filter is “Life used starlight”: 17% of the 310 worlds that reached it passed.",
+      "text": "The steepest gate of its Great Filter is “Life used starlight”: 18% of the 340 worlds that reached it passed.",
     },
   ],
   "limits": [

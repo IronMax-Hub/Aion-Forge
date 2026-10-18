@@ -56,7 +56,7 @@
 import { cos, exp, log, pow } from "./detmath";
 import type { Geography } from "./geography";
 import { BAND_COUNT, surfaceGrid } from "./geography";
-import { heatFlowAt, iceShellKm } from "./interiorHeat";
+import { heatFlowAt, ICE_SHELL_BASE_K, iceShellKm } from "./interiorHeat";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -436,11 +436,15 @@ export function solvePresentClimate(
     }
   }
 
-  // Liquid under the ice (IH3): frozen cells whose water is deeper than the shell the heat flow allows
+  // Liquid under the ice (IH3): frozen cells whose water is deeper than the shell the heat flow allows.
+  // Below water's triple point the shell's weight still keeps the water under it liquid; a cell too
+  // warm for a shell there has none (fixed in MO4)
   let liquidUnderIceFraction = 0;
-  if (!steam && freezingKAt(inputs.pressureBar) !== Infinity) {
+  if (!steam) {
     const heatFlow = heatFlowAt(inputs.interiorK);
+    const noOpenWater = freezingKAt(inputs.pressureBar) === Infinity;
     for (let i = 0; i < n; i++) {
+      if (noOpenWater && temperatureK[i] >= ICE_SHELL_BASE_K) continue;
       if (iced[i] && ocean[i] && seaLevelKm - geography.elevationKm[i] > iceShellKm(heatFlow, temperatureK[i])) {
         liquidUnderIceFraction += grid.areas[i];
       }

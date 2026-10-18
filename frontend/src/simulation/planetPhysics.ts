@@ -128,17 +128,21 @@ export function derivePhysics(planet: Planet, star: Star, galaxySeed: number, cf
 
   const orbitAU = effectiveOrbitAU(planet.orbitalRadius, config);
   const orbitalPeriodYears = Math.sqrt((orbitAU * orbitAU * orbitAU) / star.mass);
-  const tidallyLocked = orbitAU < tidalLockingDistanceAU(star);
-  const rotationPeriodHours = tidallyLocked
-    ? orbitalPeriodYears * HOURS_PER_YEAR
-    : ROTATION_HOURS.min * pow(ROTATION_HOURS.max / ROTATION_HOURS.min, rotationDraw);
+  // A moon world (MO4) is locked to its planet, not its star: its day is its orbit around the
+  // planet, it shares the planet's tilt, and it has the water its moon rule gave it (MO2)
+  const moon = planet.moonOrbit;
+  const tidallyLocked = !moon && orbitAU < tidalLockingDistanceAU(star);
+  const rotationPeriodHours = moon ? moon.orbitalPeriodHours
+    : tidallyLocked ? orbitalPeriodYears * HOURS_PER_YEAR
+      : ROTATION_HOURS.min * pow(ROTATION_HOURS.max / ROTATION_HOURS.min, rotationDraw);
 
-  const axialTiltDeg = tiltBandDraw < TILT.lowShare
-    ? tiltDraw * TILT.lowMaxDeg
-    : TILT.lowMaxDeg + tiltDraw * (TILT.maxDeg - TILT.lowMaxDeg);
+  const axialTiltDeg = moon ? moon.axialTiltDeg
+    : tiltBandDraw < TILT.lowShare
+      ? tiltDraw * TILT.lowMaxDeg
+      : TILT.lowMaxDeg + tiltDraw * (TILT.maxDeg - TILT.lowMaxDeg);
 
   const snowLineAU = snowLineAUOf(star);
-  const waterInventory = planetWaterInventory(orbitAU, snowLineAU, planet.mass, waterDraw);
+  const waterInventory = moon ? moon.waterInventory : planetWaterInventory(orbitAU, snowLineAU, planet.mass, waterDraw);
 
   return {
     surfaceGravity: planet.mass / (planet.size * planet.size),

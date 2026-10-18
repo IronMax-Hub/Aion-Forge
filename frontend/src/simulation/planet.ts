@@ -10,7 +10,9 @@ import {
 } from "./planetBasics";
 import { derivePhysics, atmosphereClassOf } from "./planetPhysics";
 import { moonsOf } from "./moons";
-import type { Moon } from "./moons";
+import { moonOrbitOf } from "./moons";
+import type { Moon, MoonOrbit } from "./moons";
+import { moonKey } from "./bodyKey";
 import type { PlanetPhysics } from "./planetPhysics";
 import { buildGeography } from "./geography";
 import type { Geography } from "./geography";
@@ -68,6 +70,10 @@ export interface Planet {
   everLiquidWater: boolean;
   /** A giant's regular moons (MO2); none for solid planets yet. */
   moons: Moon[];
+  /** Set for a moon world (MO4): its place among its planet's moons, which keys its streams (bodyKey). */
+  moonIndex?: number;
+  /** Set for a moon world (MO4): its orbit around its planet, which its physics reads. */
+  moonOrbit?: MoonOrbit;
 }
 
 /** A planet's life: its dates, Gyr after its star formed, and what its lineages became (C2.5). */
@@ -367,6 +373,55 @@ export function solidWorldOf(planet: Planet, star: Star, galaxySeed: number, cfg
 
 export { planetKey };
 
+/** A solid world's surface, life and type from its history: the end of its history is its present. */
+function completeSolidWorld(planet: Planet, star: Star, galaxySeed: number, config: UniverseConfig, worldOf: typeof solidWorldOf): void {
+  const { physics, history } = worldOf(planet, star, galaxySeed, config);
+  planet.surface = presentSurface(history.present, physics, history.final);
+  planet.worldEvents = history.events;
+  planet.everLiquidWater = history.everLiquidWater;
+  planet.life = history.life && {
+    startedGyr: history.life.startedGyr, endedGyr: history.life.endedGyr, phylogeny: history.phylogeny!,
+    oxygenGyr: history.lifeOxygenGyr,
+  };
+  planet.temperature = history.present.meanK;
+  planet.atmosphere = atmosphereClassOf(history.final.pressureBar);
+  planet.type = solidType(planet.temperature, planet.surface);
+}
+
+/**
+ * A moon as a world (MO4): the same physics, history, life and civilizations as a planet, at its
+ * planet's distance from the star, keyed by its own streams (its moonIndex), warmed by tides too.
+ */
+function moonWorld(moon: Moon, giant: Planet, star: Star, galaxySeed: number, config: UniverseConfig, worldOf: typeof solidWorldOf): Planet {
+  const world: Planet = {
+    id: giant.id,
+    key: moonKey(giant.hostStarId, giant.id, moon.moonIndex),
+    hostStarId: giant.hostStarId,
+    orbitalRadius: giant.orbitalRadius,
+    orbitalIndex: giant.orbitalIndex,
+    type: "rocky",
+    size: moon.size,
+    mass: moon.mass,
+    temperature: giant.temperature,
+    atmosphere: moon.formationAtmosphere,
+    formationAtmosphere: moon.formationAtmosphere,
+    resourceAbundance: moon.resourceAbundance,
+    habitabilityScore: 0,
+    isRare: false,
+    surface: null,
+    life: null,
+    worldEvents: [],
+    everLiquidWater: false,
+    moons: [],
+    moonIndex: moon.moonIndex,
+    moonOrbit: moonOrbitOf(moon, giant),
+  };
+  completeSolidWorld(world, star, galaxySeed, config, worldOf);
+  world.habitabilityScore = calcHabitability(world.type, world.atmosphere, world.resourceAbundance, world.surface);
+  world.isRare = rareReasonOf(world) !== null;
+  return world;
+}
+
 /**
  * A star's planetary system. `worldOf` builds each solid planet's physics,
  * geography and history; it is solidWorldOf unless a caller (the stats
@@ -443,19 +498,12 @@ export function generatePlanetsFor(
     if (mass > GIANT_PLANET_MASS) {
       planet.type = giantType(equilibriumK);
       planet.moons = moonsOf(planet, star, galaxySeed, config);
+      // Moons of at least the smallest planet's mass are worlds (decision 11)
+      for (const moon of planet.moons) {
+        if (moon.mass >= PLANET_MASS_DRAW.min) moon.world = moonWorld(moon, planet, star, galaxySeed, config, worldOf);
+      }
     } else {
-      // A solid planet's surface is the end of its history
-      const { physics, history } = worldOf(planet, star, galaxySeed, config);
-      planet.surface = presentSurface(history.present, physics, history.final);
-      planet.worldEvents = history.events;
-      planet.everLiquidWater = history.everLiquidWater;
-      planet.life = history.life && {
-        startedGyr: history.life.startedGyr, endedGyr: history.life.endedGyr, phylogeny: history.phylogeny!,
-        oxygenGyr: history.lifeOxygenGyr,
-      };
-      planet.temperature = history.present.meanK;
-      planet.atmosphere = atmosphereClassOf(history.final.pressureBar);
-      planet.type = solidType(planet.temperature, planet.surface);
+      completeSolidWorld(planet, star, galaxySeed, config, worldOf);
     }
     planet.habitabilityScore = calcHabitability(planet.type, planet.atmosphere, resourceAbundance, planet.surface);
 

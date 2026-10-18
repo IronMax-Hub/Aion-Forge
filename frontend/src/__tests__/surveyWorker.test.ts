@@ -110,7 +110,7 @@ describe("survey pool", () => {
   const canned = (r: ChunkRequest): ChunkMessage => ({
     kind: "chunk", generation: r.generation, chunk: r.chunk,
     survey: {
-      totalPlanets: r.to - r.from, lifeBearingPlanets: r.chunk, everLifePlanets: r.chunk, engulfedPlanets: 0, tooSmallPlanets: 0, civilizationCount: r.generation,
+      totalPlanets: r.to - r.from, lifeBearingPlanets: r.chunk, everLifePlanets: r.chunk, engulfedPlanets: 0, tooSmallPlanets: 0, lifeBearingMoons: 0, civilizationCount: r.generation,
       systems: [], index: packIndex([]),
     },
   });
@@ -163,12 +163,12 @@ describe("survey pool", () => {
       ...(Object.fromEntries(INDEX_COLUMNS.map((column) => [column, NaN])) as IndexRow), starId, planetIndex, massEarths: starId + planetIndex / 10,
     });
     expect(mergeSurveys([
-      { totalPlanets: 3, lifeBearingPlanets: 1, everLifePlanets: 2, engulfedPlanets: 0, tooSmallPlanets: 0, civilizationCount: 0, systems: [system(2)],
+      { totalPlanets: 3, lifeBearingPlanets: 1, everLifePlanets: 2, engulfedPlanets: 0, tooSmallPlanets: 0, lifeBearingMoons: 0, civilizationCount: 0, systems: [system(2)],
         index: packIndex([row(2, 0), row(2, 1), row(3, 0)]) },
-      { totalPlanets: 4, lifeBearingPlanets: 2, everLifePlanets: 3, engulfedPlanets: 0, tooSmallPlanets: 0, civilizationCount: 1, systems: [system(51), system(60)],
+      { totalPlanets: 4, lifeBearingPlanets: 2, everLifePlanets: 3, engulfedPlanets: 0, tooSmallPlanets: 0, lifeBearingMoons: 0, civilizationCount: 1, systems: [system(51), system(60)],
         index: packIndex([row(51, 0), row(60, 0), row(60, 2), row(60, 3)]) },
     ])).toEqual({
-      totalPlanets: 7, lifeBearingPlanets: 3, everLifePlanets: 5, engulfedPlanets: 0, tooSmallPlanets: 0, civilizationCount: 1, systems: [system(2), system(51), system(60)],
+      totalPlanets: 7, lifeBearingPlanets: 3, everLifePlanets: 5, engulfedPlanets: 0, tooSmallPlanets: 0, lifeBearingMoons: 0, civilizationCount: 1, systems: [system(2), system(51), system(60)],
       index: packIndex([row(2, 0), row(2, 1), row(3, 0), row(51, 0), row(60, 0), row(60, 2), row(60, 3)]),
     });
   });
@@ -185,7 +185,7 @@ describe("survey pool", () => {
  * seed, so the client's plumbing is tested without running real surveys.
  */
 function cannedSurvey(seed: number): LifeSurvey {
-  return { totalPlanets: seed, lifeBearingPlanets: 1, everLifePlanets: 1, engulfedPlanets: 0, tooSmallPlanets: 0, civilizationCount: 0, systems: [], index: packIndex([]) };
+  return { totalPlanets: seed, lifeBearingPlanets: 1, everLifePlanets: 1, engulfedPlanets: 0, tooSmallPlanets: 0, lifeBearingMoons: 0, civilizationCount: 0, systems: [], index: packIndex([]) };
 }
 
 /** A stand-in worker that holds requests until the test answers them. */

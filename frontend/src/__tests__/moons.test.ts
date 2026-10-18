@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { HILL_SHARE, MOON_COUNT, MOON_ECCENTRICITY, MOON_WATER, moonOrbitLimit, moonsOf, SATELLITE_MASS_RATIO } from "../simulation/moons";
-import { generatePlanetsFor, GIANT_PLANET_MASS } from "../simulation/planet";
+import { generatePlanetsFor, GIANT_PLANET_MASS, solidWorldOf } from "../simulation/planet";
+import { PLANET_MASS_DRAW } from "../simulation/planetBasics";
+import { buildGeography } from "../simulation/geography";
+import { surveyLife } from "../simulation/lifeSurvey";
+import { generateBiosphere } from "../simulation/biosphere";
 import type { Planet } from "../simulation/planet";
 import { derivePhysics } from "../simulation/planetPhysics";
 import { tidalHeatFlow } from "../simulation/interiorHeat";
@@ -28,7 +32,9 @@ const jupiter: Planet = {
 describe("regular moons of giants (MO2)", () => {
   it("give every giant its moons, and solid planets none yet", () => {
     expect(giants.length).toBeGreaterThan(50);
-    for (const { planet } of giants) expect(planet.moons).toEqual(moonsOf(planet, stars.find((s) => s.id === planet.hostStarId)!, seed, config));
+    // A system's moons are moonsOf's, with the worlds of the large ones added (MO4)
+    const withoutWorlds = (moons: Planet["moons"]) => moons.map((m) => ({ ...m, world: null }));
+    for (const { planet } of giants) expect(withoutWorlds(planet.moons)).toEqual(moonsOf(planet, stars.find((s) => s.id === planet.hostStarId)!, seed, config));
     for (const star of stars.slice(0, 50)) {
       for (const p of generatePlanetsFor(star, seed, config).planets) if (p.mass <= GIANT_PLANET_MASS) expect(p.moons).toEqual([]);
     }
@@ -109,5 +115,70 @@ describe("tidal heat (MO3)", () => {
         expect(m.eccentricity).toBeLessThanOrEqual(MOON_ECCENTRICITY.max);
       }
     }
+  });
+});
+
+describe("moons as worlds (MO4)", () => {
+  // An icy Ganymede-mass moon of a Jupiter at 5.2 AU, with 20 km of water
+  const ganymede = (orbitPlanetRadii: number, eccentricity: number): Planet => ({
+    ...jupiter, key: "1-4-m2", type: "rocky", size: 0.41, mass: 0.025, atmosphere: "none", formationAtmosphere: "none",
+    moons: [], moonIndex: 2,
+    moonOrbit: {
+      planetMass: jupiter.mass, planetSize: jupiter.size, orbitPlanetRadii, orbitalPeriodHours: 170, axialTiltDeg: 3,
+      waterInventory: 20 / (33.75 * (0.025 / (0.41 * 0.41))), eccentricity,
+    },
+  });
+
+  it("keeps liquid under its ice only with enough tidal heat", () => {
+    const warm = solidWorldOf(ganymede(10, 0.01), sun, seed, config);
+    const cold = solidWorldOf(ganymede(10, 1e-5), sun, seed, config);
+    expect(warm.history.present.liquidUnderIceFraction).toBeGreaterThan(0);
+    expect(cold.history.present.liquidUnderIceFraction).toBe(0);
+  });
+
+  it("is locked to its planet, shares its tilt and keeps its moon water", () => {
+    const moon = ganymede(10, 0.01);
+    const physics = derivePhysics(moon, sun, seed, config);
+    expect(physics.tidallyLocked).toBe(false);
+    expect(physics.rotationPeriodHours).toBe(170);
+    expect(physics.axialTiltDeg).toBe(3);
+    expect(physics.waterInventory).toBe(moon.moonOrbit!.waterInventory);
+  });
+
+  it("draws from its own streams, not its planet's, the same every time", () => {
+    const moon = ganymede(10, 0.01);
+    expect(solidWorldOf(moon, sun, seed, config).history).toEqual(solidWorldOf(moon, sun, seed, config).history);
+    // The same body keyed as its planet would draw a different surface
+    const asPlanet = { ...moon, moonIndex: undefined };
+    expect(buildGeography(moon, derivePhysics(moon, sun, seed, config), seed).elevationKm)
+      .not.toEqual(buildGeography(asPlanet, derivePhysics(moon, sun, seed, config), seed).elevationKm);
+  });
+
+  it("gives moons of at least the smallest planet's mass a world, and lists the rest with heat, water and shell", () => {
+    let worlds = 0;
+    for (const { planet } of giants) {
+      for (const m of planet.moons) {
+        expect(m.world !== null).toBe(m.mass >= PLANET_MASS_DRAW.min);
+        expect(m.heatFlowWm2).toBeGreaterThan(0);
+        expect(m.shellKm).toBeLessThanOrEqual(m.waterKm);
+        if (m.world) {
+          worlds++;
+          expect(m.world.key).toBe(m.key);
+          expect(m.world.surface).not.toBeNull();
+        }
+      }
+    }
+    expect(worlds).toBeGreaterThan(10);
+  });
+
+  it("counts living moons apart from planets, and their civilizations with the planets' (decision 13)", () => {
+    const survey = surveyLife(stars, seed, config);
+    let living = 0;
+    for (const star of stars) {
+      for (const p of generatePlanetsFor(star, seed, config).planets) {
+        for (const m of p.moons) if (m.world?.life && generateBiosphere(m.world, star).hasLife) living++;
+      }
+    }
+    expect(survey.lifeBearingMoons).toBe(living);
   });
 });

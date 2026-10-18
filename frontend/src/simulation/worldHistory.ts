@@ -10,7 +10,8 @@
 // (the last step is shortened to end exactly there). Each step:
 //   1. Star      L(t) from luminosityAt: brightening on the main sequence,
 //                then today's luminosity once the star has left it (R2).
-//   2. Interior  τ(t) = clamp(√M · e^(−t / 8 Gyr)), and the heat it gives the
+//   2. Interior  τ(t) = clamp(√M · e^(−t / 8 Gyr)), plus a moon's tides (MO4),
+//                and the heat it gives the
 //                surface (interiorHeat.ts, IH1), which the climate adds to
 //                starlight (IH2).
 //   3. Climate   the 18-band energy balance (climate.ts), starting from the
@@ -91,9 +92,8 @@ import { exp } from "./detmath";
 import type { Planet } from "./planet";
 import { effectiveOrbitAU } from "./planetBasics";
 import type { PlanetPhysics } from "./planetPhysics";
-import { tectonicActivity } from "./planetPhysics";
 import { bodyKey } from "./bodyKey";
-import { iceShellKm, interiorHeatFlow, interiorTemperatureK } from "./interiorHeat";
+import { ICE_SHELL_BASE_K, iceShellKm, interiorActivity, interiorHeatFlow, interiorTemperatureK } from "./interiorHeat";
 import type { Star } from "./star";
 import { luminosityAt, mainSequenceEndGyr } from "./star";
 import type { Geography } from "./geography";
@@ -363,7 +363,7 @@ export function runWorldHistory(
   let state: WorldState = {
     tGyr: startGyr,
     luminosity: luminosityAt(star, startGyr),
-    tectonicActivity: tectonicActivity(planet, startGyr),
+    tectonicActivity: interiorActivity(planet, startGyr),
     water: physics.waterInventory,
     co2Bar: INITIAL_CO2_BAR * startRetained,
     co2IceBar: 0,
@@ -424,14 +424,18 @@ export function runWorldHistory(
   /**
    * Each band's liquid share (IH3): open water as it is; under ice, only the water deeper than
    * the shell the interior's heat flow can hold up against the band's surface temperature; none
-   * below water's triple point, or while the oceans are steam.
+   * while the oceans are steam. Below water's triple point no water lies open (decision 27), but
+   * the shell's own weight keeps the water under it liquid, as on airless Europa (fixed in MO4);
+   * a band too warm for a shell there has none.
    */
   const liquidShares = (iced: Uint8Array, bandK: Float64Array, pressureBar: number, heatFlow: number, steam: boolean) => {
     const liquid = new Float64Array(BAND_COUNT);
-    if (steam || freezingKAt(pressureBar) === Infinity) return liquid;
+    if (steam) return liquid;
+    const noOpenWater = freezingKAt(pressureBar) === Infinity;
     geography.bands.forEach((band, k) => {
       if (!iced[k]) { liquid[k] = bandOcean[k]; return; }
       if (band.area === 0 || bandOcean[k] === 0) return;
+      if (noOpenWater && bandK[k] >= ICE_SHELL_BASE_K) return;
       const shellKm = iceShellKm(heatFlow, bandK[k]);
       liquid[k] = Math.min(bandOcean[k], areaBelow(band.hypsometry, seaLevelKm - shellKm) / band.area);
     });
@@ -442,7 +446,7 @@ export function runWorldHistory(
   // Life: the engine's fixed context, made once life can start; the keys of its streams
   let life: EvolutionState | null = null;
   let lifeContext: EnvironmentContext | null = null;
-  const lifeKeys = { galaxySeed, starId: planet.hostStarId, planetIndex: planet.id };
+  const lifeKeys = { galaxySeed, starId: planet.hostStarId, planetIndex: planet.id, moonIndex: planet.moonIndex };
   // The first mind, checked after every step of life (C2.6)
   let mind: Mind | null = null;
   const threshold = mindThreshold(config.intelligenceModifier);
@@ -471,7 +475,7 @@ export function runWorldHistory(
     const keep = state.airRetained > 0 ? retained / state.airRetained : 0;
     backgroundBar = formationBackgroundBar * retained;
     if (formationBackgroundBar > 0 && state.airRetained > 0 && retained === 0) events.push({ kind: "air-lost", tGyr: t });
-    const tau = tectonicActivity(planet, t);
+    const tau = interiorActivity(planet, t);
     const interiorK = interiorTemperatureK(interiorHeatFlow(planet, t));
     if (star.age >= msEnd && t0 < msEnd && t >= msEnd) events.push({ kind: "star-leaves-main-sequence", tGyr: msEnd });
 

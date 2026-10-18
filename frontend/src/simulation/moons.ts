@@ -41,6 +41,9 @@ import type { AtmosphereType, Planet } from "./planet";
 import type { UniverseConfig } from "./config";
 import { atmosphereFromDraw, effectiveOrbitAU, typicalRadiusForMass } from "./planetBasics";
 import { derivePhysics, planetWaterInventory } from "./planetPhysics";
+import { iceShellKm, interiorHeatFlow, tidalHeatFlow } from "./interiorHeat";
+import { ALBEDO, equilibriumTemperatureK } from "./climate";
+import { waterDepthKm } from "./geography";
 
 /** A satellite system's share of its planet's mass (decision 30). */
 export const SATELLITE_MASS_RATIO = 2e-4;
@@ -63,6 +66,17 @@ const EARTH_GM_KM3_S2 = 398600.4;
 const EARTH_RADIUS_KM = 6371;
 const SECONDS_PER_HOUR = 3600;
 
+/** What a moon world's physics reads of its orbit around its planet (MO4). */
+export interface MoonOrbit {
+  planetMass: number;         // Earth masses
+  planetSize: number;         // Earth radii
+  orbitPlanetRadii: number;
+  orbitalPeriodHours: number;
+  axialTiltDeg: number;
+  waterInventory: number;
+  eccentricity: number;
+}
+
 /** A regular moon of a giant. */
 export interface Moon {
   hostStarId: number;
@@ -82,6 +96,14 @@ export interface Moon {
   formationAtmosphere: AtmosphereType;
   /** Its orbit's eccentricity, which sets its tidal heat (MO3). */
   eccentricity: number;
+  resourceAbundance: number;  // 0–1
+  /** Today's heat from inside and from tides, W/m² (MO4). */
+  heatFlowWm2: number;
+  /** Its water's depth and the ice shell over it today, km, at its airless equilibrium temperature (decision 11). */
+  waterKm: number;
+  shellKm: number;
+  /** Its world (physics, history, life) if it is at least the smallest planet's mass (decision 11); null otherwise. */
+  world: Planet | null;
 }
 
 /** Half the planet's Hill radius, in planet radii: no moon forms farther out. */
@@ -90,10 +112,36 @@ export function moonOrbitLimit(giant: Planet, star: Star, config: UniverseConfig
   return (HILL_SHARE * hillAU) / (giant.size * EARTH_RADIUS_AU);
 }
 
-/** A moon's eccentricity, from its own stream (MO3). */
-function eccentricityOf(galaxySeed: number, hostStarId: number, planetIndex: number, moonIndex: number): number {
-  const u = createRNG(mixSeed(galaxySeed, ...bodyKey({ hostStarId, id: planetIndex, moonIndex }), SALT.MOON))();
-  return MOON_ECCENTRICITY.min * pow(MOON_ECCENTRICITY.max / MOON_ECCENTRICITY.min, u);
+/** A moon's own draws, from its own stream: its eccentricity (MO3), then its resources (MO4). */
+function ownDraws(galaxySeed: number, hostStarId: number, planetIndex: number, moonIndex: number) {
+  const rng = createRNG(mixSeed(galaxySeed, ...bodyKey({ hostStarId, id: planetIndex, moonIndex }), SALT.MOON));
+  const eccentricity = MOON_ECCENTRICITY.min * pow(MOON_ECCENTRICITY.max / MOON_ECCENTRICITY.min, rng());
+  return { eccentricity, resourceAbundance: rng() };
+}
+
+/** The orbit a moon world's physics reads (MO4). */
+export function moonOrbitOf(moon: Moon, giant: Planet): MoonOrbit {
+  return {
+    planetMass: giant.mass, planetSize: giant.size, orbitPlanetRadii: moon.orbitPlanetRadii,
+    orbitalPeriodHours: moon.orbitalPeriodHours, axialTiltDeg: moon.axialTiltDeg,
+    waterInventory: moon.waterInventory, eccentricity: moon.eccentricity,
+  };
+}
+
+/**
+ * What a moon is like today without a history (decision 11): its heat from inside and from tides,
+ * its water's depth, and the ice shell that heat holds up at its airless equilibrium temperature.
+ */
+function listedToday(
+  star: Star, orbitAU: number, giant: Planet,
+  moon: { mass: number; size: number; orbitPlanetRadii: number; eccentricity: number; waterInventory: number },
+): { heatFlowWm2: number; waterKm: number; shellKm: number } {
+  const heatFlowWm2 = interiorHeatFlow({ mass: moon.mass }, star.age) + tidalHeatFlow(moon, giant);
+  const gravity = moon.mass / (moon.size * moon.size);
+  const waterKm = waterDepthKm(moon.waterInventory, gravity);
+  const icy = moon.waterInventory > 0;
+  const surfaceK = equilibriumTemperatureK(star.luminosity, orbitAU, icy ? ALBEDO.ice : ALBEDO.land);
+  return { heatFlowWm2, waterKm, shellKm: Math.min(waterKm, iceShellKm(heatFlowWm2, surfaceK)) };
 }
 
 /** The regular moons a giant's disk builds. */
@@ -126,6 +174,8 @@ export function moonsOf(giant: Planet, star: Star, galaxySeed: number, config: U
     const mass = systemMass * (bounds[i + 1] - bounds[i]);
     const orbitKm = orbit * planetRadiusKm;
     const periodSeconds = 2 * Math.PI * Math.sqrt((orbitKm * orbitKm * orbitKm) / (EARTH_GM_KM3_S2 * giant.mass));
+    const own = ownDraws(galaxySeed, giant.hostStarId, giant.id, i);
+    const size = typicalRadiusForMass(mass) * (0.8 + sizeDraw * 0.4);
     const waterInventory = beyondSnowLine
       ? MOON_WATER.unitsPerShare * (MOON_WATER.minShare + (MOON_WATER.maxShare - MOON_WATER.minShare) * waterDraw)
       : planetWaterInventory(orbitAU, physics.snowLineAU, mass, waterDraw);
@@ -135,13 +185,16 @@ export function moonsOf(giant: Planet, star: Star, galaxySeed: number, config: U
       moonIndex: i,
       key: moonKey(giant.hostStarId, giant.id, i),
       mass,
-      size: typicalRadiusForMass(mass) * (0.8 + sizeDraw * 0.4),
+      size,
       orbitPlanetRadii: orbit,
       orbitalPeriodHours: periodSeconds / SECONDS_PER_HOUR,
       axialTiltDeg: physics.axialTiltDeg,
       waterInventory,
       formationAtmosphere: atmosphereFromDraw(airDraw),
-      eccentricity: eccentricityOf(galaxySeed, giant.hostStarId, giant.id, i),
+      eccentricity: own.eccentricity,
+      resourceAbundance: own.resourceAbundance,
+      ...listedToday(star, orbitAU, giant, { mass, size, orbitPlanetRadii: orbit, eccentricity: own.eccentricity, waterInventory }),
+      world: null,
     });
   }
   return moons;

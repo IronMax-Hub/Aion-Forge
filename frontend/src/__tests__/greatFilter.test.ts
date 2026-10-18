@@ -68,7 +68,9 @@ describe("the Great Filter funnel", () => {
     // energy the air holds: worlds warm only from thick air far from their stars freeze (Issue 1)
     // (6,549, 4,032, 3,452, 432, 165, 127, 27, 13, 5, 2, 0, 0), then IH3's ice shells: water under ice
     // stays liquid only below a shell the interior's heat can hold up
-    expect(funnel.steps.map((s) => s.passed)).toEqual([6549, 2683, 2094, 360, 165, 127, 28, 14, 6, 3, 0, 0]);
+    // (6,549, 2,683, 2,094, 360, 165, 127, 28, 14, 6, 3, 0, 0). Rules v14 (MO4): water under an ice shell
+    // stays liquid below water's triple point too, as on airless Europa (IH3 had counted it frozen)
+    expect(funnel.steps.map((s) => s.passed)).toEqual([6549, 3032, 2307, 426, 165, 127, 28, 14, 6, 3, 0, 0]);
     for (let g = 1; g < funnel.steps.length; g++) {
       expect(funnel.steps[g].arrived).toBe(funnel.steps[g - 1].passed);
       expect(funnel.steps[g].passed).toBeLessThanOrEqual(funnel.steps[g].arrived);

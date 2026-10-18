@@ -48,9 +48,28 @@ export const STEFAN_BOLTZMANN = 5.670374419e-8;
 // Earth's tectonic activity today in the model: one Earth mass, 4.6 Gyr after its star formed
 const EARTH_ACTIVITY_TODAY = tectonicActivity({ mass: 1 }, SOLAR_AGE_GYR);
 
-/** The heat flowing out of a world's interior t Gyr after its star formed, W/m². */
-export function interiorHeatFlow(planet: Pick<Planet, "mass">, tGyr: number): number {
-  return (EARTH_HEAT_FLOW_W_M2 * tectonicActivity(planet, tGyr)) / EARTH_ACTIVITY_TODAY;
+/** The heat flowing out of a world's interior t Gyr after its star formed, W/m²; for a moon world, its tides' heat too (MO4). */
+export function interiorHeatFlow(planet: Pick<Planet, "mass"> & Partial<Pick<Planet, "size" | "moonOrbit">>, tGyr: number): number {
+  return (EARTH_HEAT_FLOW_W_M2 * tectonicActivity(planet, tGyr)) / EARTH_ACTIVITY_TODAY + tidalHeatOf(planet);
+}
+
+/** A moon world's tidal heat, W/m²; 0 for a planet. */
+function tidalHeatOf(planet: Partial<Pick<Planet, "size" | "moonOrbit">>): number {
+  const moon = planet.moonOrbit;
+  if (!moon || planet.size === undefined) return 0;
+  return tidalHeatFlow({ size: planet.size, orbitPlanetRadii: moon.orbitPlanetRadii, eccentricity: moon.eccentricity },
+    { mass: moon.planetMass, size: moon.planetSize });
+}
+
+/**
+ * How active a world's interior is, 0–1: its tectonic activity, and for a moon world the share of
+ * full activity its tides add (τ_eff = min(1, (q_int + q_tidal) / q_full), MO3): tidal heat drives
+ * volcanism and vent energy too. A planet's is its tectonic activity exactly.
+ */
+export function interiorActivity(planet: Pick<Planet, "mass"> & Partial<Pick<Planet, "size" | "moonOrbit">>, tGyr: number): number {
+  const tau = tectonicActivity(planet, tGyr);
+  if (!planet.moonOrbit) return tau;
+  return Math.min(1, tau + tidalHeatOf(planet) * EARTH_ACTIVITY_TODAY / EARTH_HEAT_FLOW_W_M2);
 }
 
 /** Tidal dissipation k₂/Q, Io's (Lainey et al. 2009), for every moon (decision 34). */

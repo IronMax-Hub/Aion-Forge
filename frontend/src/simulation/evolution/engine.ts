@@ -215,12 +215,14 @@ export interface EvolutionKeys {
   galaxySeed: number;
   starId: number;
   planetIndex: number;
+  /** A moon world's place among its planet's moons (MO4); absent for a planet. */
+  moonIndex?: number;
 }
 
 // ── Draws ─────────────────────────────────────────────────────────────────────
 
 function streamFor(keys: EvolutionKeys, lineageId: number, step: number, purpose: number): () => number {
-  return createRNG(mixSeed(keys.galaxySeed, ...bodyKey({ hostStarId: keys.starId, id: keys.planetIndex }), SALT.EVOLUTION, lineageId, step, purpose));
+  return createRNG(mixSeed(keys.galaxySeed, ...bodyKey({ hostStarId: keys.starId, id: keys.planetIndex, moonIndex: keys.moonIndex }), SALT.EVOLUTION, lineageId, step, purpose));
 }
 
 /** A standard normal draw (Box–Muller). */

@@ -708,6 +708,17 @@ export default function App() {
     setEncyclopediaSubject({ kind: "planet", starId, planetIndex });
   };
 
+  // What the Physics page reads: one object per universe and survey, so its effects are measured once
+  const physicsContext = useMemo(() => {
+    const population = populationRef.current;
+    const galaxy = galaxyConfigRef.current;
+    if (!population || !galaxy || !showPhysics) return null;
+    return { config: { ...universeConfig, seed: currentSeed }, galaxy, stars: population.stars, index: surveyIndex, engulfedPlanets: surveyEngulfed };
+  }, [universeConfig, currentSeed, surveyIndex, surveyEngulfed, showPhysics]);
+
+  // The page covers the whole view, so the 3D view stops drawing while it is open
+  useEffect(() => { rendererRef.current?.setPaused(showPhysics); }, [showPhysics]);
+
   const entryActions = (entry: Entry) => (
     <EntryActions entry={entry} universeSeed={currentSeed} discoveries={discoveries} onSaveDiscovery={handleSaveDiscovery} />
   );
@@ -1179,17 +1190,8 @@ export default function App() {
         )}
       </aside>
 
-      {showPhysics && populationRef.current && galaxyConfigRef.current && (
-        <PhysicsPage
-          ctx={{
-            config: { ...universeConfig, seed: currentSeed },
-            galaxy: galaxyConfigRef.current,
-            stars: populationRef.current.stars,
-            index: surveyIndex,
-            engulfedPlanets: surveyEngulfed,
-          }}
-          onClose={() => setShowPhysics(false)}
-        />
+      {showPhysics && physicsContext && (
+        <PhysicsPage ctx={physicsContext} onClose={() => setShowPhysics(false)} />
       )}
 
       {/* ── Status bar ── */}

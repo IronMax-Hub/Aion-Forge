@@ -284,6 +284,8 @@ export class UniverseRenderer {
   private camera:   THREE.PerspectiveCamera;
   private controls: OrbitControls;
   private animFrameId = 0;
+  /** Whether the render loop is stopped, while a page covers the view (setPaused). */
+  private paused = false;
 
   private galaxyMesh:      THREE.Points | null = null;
   private starMesh:        THREE.Points | null = null;
@@ -1080,6 +1082,21 @@ export class UniverseRenderer {
   }
 
   // ── Render loop ───────────────────────────────────────────────────────────
+
+  /**
+   * Stops the render loop while something covers the whole view (the Physics page), and starts it
+   * again after: rendering nothing visible would only take time from the page. The scene is kept.
+   */
+  setPaused(paused: boolean) {
+    if (paused === this.paused) return;
+    this.paused = paused;
+    if (paused) {
+      cancelAnimationFrame(this.animFrameId);
+    } else {
+      this.lastFrameMs = performance.now();   // the pause is not time the planets went round
+      this.startLoop();
+    }
+  }
 
   private startLoop() {
     const tick = () => {

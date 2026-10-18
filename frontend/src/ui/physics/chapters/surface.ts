@@ -199,7 +199,7 @@ export const history: Chapter = {
       id: "carbon-cycle",
       title: "The carbon cycle: a thermostat",
       statement: "Volcanoes add CO₂; rain weathering rock removes it, faster when warmer. Each step finds the CO₂ at which the two balance, so a cooling world gains CO₂ and warms again. The sea floor weathers too, more weakly, so a landless world has a weaker thermostat.",
-      rule: `outgassing ${OUTGASSING_BAR_PER_GYR} bar/Gyr × τ × g² (× ${VOLCANIC_PULSE_OUTGASSING} in a pulse); weathering ∝ g × (land × wetness + ${SEAFLOOR_WEATHERING_SHARE} × ocean) × √(CO₂ / CO₂_ref) × e^((T − ${WEATHERING_REFERENCE_K}) / ${WEATHERING_WARMING_SCALE_K})`,
+      rule: `outgassing ${OUTGASSING_BAR_PER_GYR} bar/Gyr × τ × g (× ${VOLCANIC_PULSE_OUTGASSING} in a pulse); weathering ∝ g × (land × wetness + ${SEAFLOOR_WEATHERING_SHARE} × ocean) × √(CO₂ / CO₂_ref) × e^((T − ${WEATHERING_REFERENCE_K}) / ${WEATHERING_WARMING_SCALE_K})`,
       constants: [
         { name: "Seafloor weathering", value: formatPercent(SEAFLOOR_WEATHERING_SHARE), meaning: "Of land's rate per area" },
         { name: "Volcanic pulses", value: `${VOLCANIC_PULSE_PER_GYR} per Gyr × τ`, meaning: "Double the step's outgassing" },

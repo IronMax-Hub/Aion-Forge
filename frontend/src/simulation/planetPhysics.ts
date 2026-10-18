@@ -94,7 +94,7 @@ export function tidalLockingDistanceAU(star: Star): number {
  * How geologically active the planet is t Gyr after its star formed, from 0 to 1.
  * Larger planets hold their heat longer; every planet cools with time.
  */
-export function tectonicActivity(planet: Planet, tGyr: number): number {
+export function tectonicActivity(planet: Pick<Planet, "mass">, tGyr: number): number {
   return Math.min(1, Math.max(0, Math.sqrt(planet.mass) * exp(-tGyr / INTERIOR_COOLING_GYR)));
 }
 

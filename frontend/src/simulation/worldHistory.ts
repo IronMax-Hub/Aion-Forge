@@ -15,7 +15,7 @@
 //                previous step's ice, over oceans refilled from the step's water,
 //                with the CO₂ that closes this step's carbon budget (below).
 //   4. Chemistry
-//      CO₂  outgassing G·τ·g² (doubled in a volcanic pulse) against weathering
+//      CO₂  outgassing G·τ·g (doubled in a volcanic pulse) against weathering
 //           K·g·(openLand·wetness + s·openOcean)·(CO₂/CO₂_ref)^½·e^((T − 288)/13.7).
 //           Solved implicitly, before the climate: weathering runs to balance far
 //           faster than 100 Myr, so each step finds the CO₂ at which the step's
@@ -55,9 +55,10 @@
 // its own first have oxidised the air, against the same sinks.
 //
 // Gravity (owner decisions): water is W · 33.75 km · g deep (geography.ts);
-// outgassed gas becomes pressure ∝ τ·g² (gas per unit planet mass, spread over
-// the area and weighed by g); weathering converts rock area, so its pressure
-// scales with g; photolysis oxygen, like outgassing, scales with g².
+// outgassed gas becomes pressure ∝ τ·g (gas per unit area ∝ τ, like the
+// interior's heat, weighed by g: decision 41, which replaced A2b's τ·g²);
+// weathering converts rock area, so its pressure scales with g; photolysis
+// oxygen scales with g².
 //
 // Two stable climates: each step's solve starts from the previous step's ice,
 // so a planet can freeze over and stay frozen until volcanic CO₂, which frozen
@@ -450,7 +451,7 @@ export function runWorldHistory(
     // 4a. CO₂: the step's budget closes at the CO₂ where CO₂ = CO₂₀ + (outgassing − weathering(CO₂))·Δt.
     // Weathering is judged against the step's starting ice and oceans, which is what the rock sees.
     const wetness = wetnessOf(state.water);
-    const outgassing = OUTGASSING_BAR_PER_GYR * tau * g * g * (volcanicPulse ? VOLCANIC_PULSE_OUTGASSING : 1);
+    const outgassing = OUTGASSING_BAR_PER_GYR * tau * g * (volcanicPulse ? VOLCANIC_PULSE_OUTGASSING : 1);
     // Weathering needs liquid water and rock: bare land as far as it is wet, and the
     // ocean floor at a fraction of land's rate; none under ice or while the oceans are steam
     let openLand = 0;

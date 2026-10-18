@@ -11,6 +11,7 @@ import {
   TIDAL_LOCK_CONSTANT_AU, TILT, WATER_BEYOND_SNOW_LINE, WATER_INSIDE_SNOW_LINE, WATER_RETENTION_MASS,
 } from "../../../simulation/planetPhysics";
 import { EQUILIBRIUM_K_AT_1_AU } from "../../../simulation/climate";
+import { EARTH_HEAT_FLOW_W_M2, interiorHeatFlow, interiorTemperatureK } from "../../../simulation/interiorHeat";
 import { ATMOSPHERE_CODES, INDEX_FLAG, PLANET_TYPE_CODES } from "../../../simulation/universeIndex";
 import type { UniverseIndex } from "../../../simulation/universeIndex";
 import { formatInt, formatPercent, formatSig, PLANET_TYPE_LABEL } from "../../format";
@@ -232,14 +233,23 @@ export const bodies: Chapter = {
     {
       id: "inner-heat",
       title: "Inner heat and volcanism",
-      statement: "A planet's tectonic activity starts with its mass and fades as its interior cools: larger planets stay active longer.",
-      rule: `τ(t) = min(1, √M × e^(−t / ${INTERIOR_COOLING_GYR} Gyr))`,
-      constants: [{ name: "Cooling time", value: exact(INTERIOR_COOLING_GYR, "Gyr"), meaning: "" }],
-      why: "Activity drives outgassing, which feeds the carbon cycle, and builds continental crust.",
-      limits: ["Inner heat does not warm the surface yet (step 5a)."],
+      statement: "A planet's tectonic activity starts with its mass and fades as its interior cools: larger planets stay active longer. The heat flowing out through its surface follows the same activity, scaled to Earth's.",
+      rule: `τ(t) = min(1, √M × e^(−t / ${INTERIOR_COOLING_GYR} Gyr)); heat flow q = ${EARTH_HEAT_FLOW_W_M2} W/m² × τ / τ⊕ (τ⊕ = Earth today); T_int = (q / σ)^¼`,
+      constants: [
+        { name: "Cooling time", value: exact(INTERIOR_COOLING_GYR, "Gyr"), meaning: "" },
+        { name: "Earth's heat flow", value: `${EARTH_HEAT_FLOW_W_M2} W/m²`, meaning: `Its mean today; a surface radiating only that would be ${formatInt(interiorTemperatureK(EARTH_HEAT_FLOW_W_M2))} K` },
+      ],
+      why: "Activity drives outgassing, which feeds the carbon cycle, and builds continental crust. The gas vented per square metre follows the heat, as both come from the interior (decision 41).",
+      limits: ["Inner heat does not warm the surface yet (IH2), and tides add none yet (step 5b)."],
       laws: [],
-      code: "simulation/planetPhysics.ts · tectonicActivity",
-      noEffect: "Activity changes over each history and is not kept in the index; it shows through continents and the carbon cycle.",
+      code: "simulation/planetPhysics.ts · tectonicActivity; simulation/interiorHeat.ts · interiorHeatFlow (IH1)",
+      needsIndex: true,
+      effect: (ctx) => {
+        const ix = ctx.index!;
+        const flows = solidRows(ix).map((i) => interiorHeatFlow({ mass: ix.massEarths[i] }, ctx.stars[ix.starId[i]].age));
+        const m = median(flows);
+        return [said(`Today the median solid planet gives ${formatSig(m, 2)} W/m² from its interior (a surface radiating only that would be ${formatInt(interiorTemperatureK(m))} K), against Earth's ${EARTH_HEAT_FLOW_W_M2}.`, "index.massEarths", "star.age")];
+      },
     },
   ],
   missing: ["No heat from inside in the climate, and no tidal heating (steps 5a and 5)."],

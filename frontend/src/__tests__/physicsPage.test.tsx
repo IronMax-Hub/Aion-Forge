@@ -111,7 +111,7 @@ describe("the catalogue keeps up with the code", () => {
     NO_PARENT: "index code", WORLD_KIND: "index code", ENERGY_SOURCES: "list of genome values", HABITATS: "list of genome values",
     TRAIT_READERS: "documentation table", BAND_AXIS: "drawing axis", CONDITIONS: "Great Filter breakdown, a measure",
     ORGANISM_STAGES: "list", SURVEY_PROGRESS_INTERVAL: "progress reporting", SPECTRUM_WAVELENGTHS_UM: "derived from the bins shown",
-    PLANCK_C2_NM_K: "physical constant", STEPS_PER_GYR: "shown as STEP_GYR", INDUSTRIAL_TECH_LEVEL: "shown through TECH_STAGE_FROM",
+    PLANCK_C2_NM_K: "physical constant", STEFAN_BOLTZMANN: "physical constant", STEPS_PER_GYR: "shown as STEP_GYR", INDUSTRIAL_TECH_LEVEL: "shown through TECH_STAGE_FROM",
   };
 
   it("shows every exported rule constant of the simulation on some card", () => {

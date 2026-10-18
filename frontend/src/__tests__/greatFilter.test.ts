@@ -62,7 +62,9 @@ describe("the Great Filter funnel", () => {
     // (109 planets engulfed by the giants today's white dwarfs once were)
     // (7,051, 4,428, 3,795, 1,326, 234, 179, 53, 25, 16, 10, 2, 2 of 8,428 planets).
     // Rules v12: MZ3's planet masses from the disk's solids (778 bodies too small to be planets)
-    expect(funnel.steps.map((s) => s.passed)).toEqual([6549, 4037, 3441, 1142, 198, 150, 36, 16, 14, 8, 2, 2]);
+    // (6,549, 4,037, 3,441, 1,142, 198, 150, 36, 16, 14, 8, 2, 2).
+    // Rules v13: IH1's outgassing ∝ τ·g instead of τ·g² (decision 41)
+    expect(funnel.steps.map((s) => s.passed)).toEqual([6549, 4040, 3429, 1255, 198, 150, 40, 17, 9, 4, 1, 1]);
     for (let g = 1; g < funnel.steps.length; g++) {
       expect(funnel.steps[g].arrived).toBe(funnel.steps[g - 1].passed);
       expect(funnel.steps[g].passed).toBeLessThanOrEqual(funnel.steps[g].arrived);
@@ -117,7 +119,7 @@ describe("where worlds stop", () => {
   it("counts which of fire's conditions fail where minds have no fire", () => {
     const index = indexOf100000();
     const fire = breakdown(index, seedStars, "fire");
-    expect(fire.stopped).toBe(36 - 16);
+    expect(fire.stopped).toBe(40 - 17);
     // Every stopped world fails at least one condition, and none fails more than the stopped count
     const { noLand, thinAir, lowOxygen } = fire.fire!;
     expect(noLand + thinAir + lowOxygen).toBeGreaterThanOrEqual(fire.stopped);

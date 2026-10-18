@@ -658,6 +658,7 @@ Measured: the 2,031 frozen living worlds have water layers with a median depth o
 
   The existing loop scales outgassing as τ · g² in pressure, that is, gas per unit area ∝ τ · g, while this rule makes heat per unit area ∝ τ. Both measure what comes out of the interior, so a 1.5 g world vents 1.5 times Earth's gas per unit of heat, and a 0.3 g world 0.3 times (decision 41).
 - **Verification:** q never rises with time; Earth today gives 0.087 W/m² and T_int ≈ 35 K.
+- **Built** 18 Oct 2026, rules v13 (step 5a's bump, taken here because decision 41 changes outgassing). `simulation/interiorHeat.ts`: `interiorHeatFlow(planet, t)` and `interiorTemperatureK(q)`; Earth today gives 0.087 W/m² and 35 K, full activity 0.155 W/m². Outgassing in the world history is now ∝ τ · g (was τ · g²); Earth (g = 1) is unchanged. The "Inner heat" Physics card shows the median solid planet's heat flow today. Seed 100000's funnel: 6,549 / 4,040 / 3,429 / 1,255 / 198 / 150 / 40 / 17 / 9 / 4 / 1 / 1 (v12: … 3,441 / 1,142 / 198 / 150 / 36 / 16 / 14 / 8 / 2 / 2); IH4 measures fully.
 
 #### IH2 The energy balance holds interior heat, and the greenhouse multiplies the energy it holds
 `simulation` · **M**

@@ -31,7 +31,7 @@ A world's air is not permanent. A young star's extreme ultraviolet (XUV) heats a
 
 | Constant | Value | Why |
 |---|---|---|
-| `ESCAPE_K` | 10 | It sits between Titan, which needs K above about 3.6, and Mars, which would keep some air above about 11. The Solar System allows only that window, so K is not a tuning knob (decisions 5 and 26). Reference table: Earth keeps 99%, Venus 93%, a Titan-like world 87%; Mars, Mercury, Ganymede-like and Moon-like bodies keep none |
+| `ESCAPE_K` | 10 | It sits between Titan, which needs K above about 3.6, and Mars, which would keep some air above about 11. The Solar System allows only that window, so K is not a tuning knob (decisions 5 and 26, decided 18 Oct 2026 as recommended). Reference table: Earth keeps 99%, Venus 93%, a Titan-like world 87%; Mars, Mercury, Ganymede-like and Moon-like bodies keep none |
 
 **Water.** Water escapes by the same drivers (decision 40), as energy-limited escape that removes an amount rather than a share.
 - Water is lost while the upper air is moist. That begins at a threshold `MOIST_THRESHOLD` that falls with the background gas: 340 K at 1 bar, falling 42.5 K per tenfold drop, to 255 K at 0.01 bar (Wordsworth & Pierrehumbert 2014).
@@ -94,6 +94,5 @@ This is inside the ±25% target, so K is not tuned.
 
 ### Open after AE4
 
-- **Decisions 5, 6 and 26** are built as recommended (K = 10, drift recorded). They await the owner's mark in the plan.
 - **Escape as a share (decision 38)** still strips thick air as completely as thin air. A rule that removes a mass would let thick atmospheres last longer.
 - **XUV from hot white dwarfs** (their photospheres) is not included.

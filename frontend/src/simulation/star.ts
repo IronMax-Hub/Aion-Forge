@@ -1,4 +1,5 @@
-import { createRNG, SALT } from "./rng";
+import { createRNG, gaussian, mixSeed, SALT } from "./rng";
+import { feH, gasMetallicity } from "./metallicity";
 import { pow, log, sin, cos, exp } from "./detmath";
 import type { GalaxyConfig } from "./galaxy";
 import { makeConfig } from "./config";
@@ -24,6 +25,7 @@ export interface Star {
   luminosity: number;  // solar luminosities
   classification: StellarClass;
   isRare: boolean;
+  metallicity: number; // [Fe/H], dex: the gas it formed from (MZ2)
 }
 
 // ── Mass distribution (AF-020) ────────────────────────────────────────────────
@@ -480,6 +482,25 @@ export const RARE_STAR = { massAbove: 40, oldShareAbove: 0.9, oldDwarfMassBelow:
 /** Age of every universe, in billion years; no star is older. */
 export const UNIVERSE_AGE_GYR = 13.7;
 
+// ── Metallicity (MZ2) ─────────────────────────────────────────────────────────
+//
+// A star's [Fe/H] is that of the gas where and when it formed (metallicity.ts),
+// plus a normal scatter from its own stream, so the star stream's draws stay
+// where they were. Observed near the Sun the scatter at fixed age is about
+// 0.2 dex, much of it from stars migrating radially, which is not modelled.
+// Metallicity does not change the star itself (metal-poor stars are slightly
+// hotter and shorter-lived).
+
+/** The standard deviation of a star's [Fe/H] about its gas's, dex. */
+export const METALLICITY_SCATTER_DEX = 0.1;
+
+/** A star's [Fe/H]: the gas at its distance from the centre in the disc plane when it formed, plus its scatter. */
+function starMetallicity(galaxy: GalaxyConfig, id: number, [x, , z]: [number, number, number], bornGyr: number): number {
+  const rFraction = Math.sqrt(x * x + z * z) / galaxy.scale;
+  const scatter = gaussian(createRNG(mixSeed(galaxy.seed, id, SALT.METALLICITY)));
+  return feH(gasMetallicity(galaxy.type, rFraction, bornGyr)) + METALLICITY_SCATTER_DEX * scatter;
+}
+
 export function generateStarsFor(
   galaxy: GalaxyConfig,
   universeAgeBY = UNIVERSE_AGE_GYR,
@@ -511,7 +532,9 @@ export function generateStarsFor(
     else if (galaxy.type === "elliptical") pos = posElliptical(rng, galaxy.scale);
     else pos = posIrregular(rng, galaxy.scale);
 
-    stars.push({ id: i, position: pos, mass, age, lifespan, temperature: temp, luminosity, classification: cls, isRare });
+    const metallicity = starMetallicity(galaxy, i, pos, universeAgeBY - age);
+
+    stars.push({ id: i, position: pos, mass, age, lifespan, temperature: temp, luminosity, classification: cls, isRare, metallicity });
   }
 
   return { stars, galaxySeed: galaxy.seed };

@@ -592,6 +592,7 @@ Every generation of stars returns heavier elements to the gas the next generatio
 - **Deliverables:** `Star.metallicity`, [Fe/H] in dex.
 - **Implementation:** [Fe/H] = log10 Z(R★, t_birth) + a normal scatter of 0.1 dex from a new stream, `mixSeed(galaxySeed, starId, SALT.METALLICITY)`, with t_birth = 13.7 Gyr − age. The star stream (`SALT.STAR`) is untouched, so positions, masses and ages stay bit-identical. The observed scatter at fixed age near the Sun is about 0.2 dex, much of it from stars migrating radially, which is not modelled. Metallicity's effect on the star itself is not modelled: metal-poor stars are slightly hotter and shorter-lived.
 - **Verification:** Stars are unchanged apart from the new field; the scatter's standard deviation over the population is 0.1 dex; determinism.
+- **Built** 18 Oct 2026. `Star.metallicity` ([Fe/H], dex) from `starMetallicity` in `star.ts`, with the scatter from `SALT.METALLICITY` (one stream per star, `mixSeed(galaxySeed, starId, salt)`). The Box–Muller draw moved from `observation.ts` to `rng.ts` as `gaussian`, unchanged. Checked: 6,000 stars over seeds 100000, 42 and 3141592, and 180 planetary systems, are bit-identical apart from the new field. Seed 100000 (spiral): the median star is −0.18; stars older than 10 Gyr −0.80 (327), younger than 2 Gyr −0.04 (916). An elliptical (AF-U-0907-E555): old stars +0.12, young +0.20. The enrichment card shows the stars' medians. No rules change: nothing reads it until MZ3.
 
 #### MZ3 Planets from the disk's solids
 `simulation` · **M**

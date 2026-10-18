@@ -22,7 +22,7 @@ const config = makeConfig(seed);
 
 const sun: Star = {
   id: 1, position: [0, 0, 0], mass: 1, age: 4.6, lifespan: 10, temperature: 5772, luminosity: 1,
-  classification: "main-sequence", isRare: false,
+  classification: "main-sequence", isRare: false, metallicity: 0,
 };
 const earth: Planet = {
   id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky",

@@ -34,8 +34,8 @@
 //   proportion, and its features come out about as strong (signal ∝ R_p·H).
 // - Presentation of simulation data: nothing here changes the universe.
 
-import { createRNG, mixSeed, SALT } from "./rng";
-import { cos, exp, log } from "./detmath";
+import { createRNG, gaussian, mixSeed, SALT } from "./rng";
+import { exp } from "./detmath";
 import type { Planet } from "./planet";
 import type { Star } from "./star";
 import type { Spectrum } from "./spectrum";
@@ -79,12 +79,6 @@ const REFERENCE_PHOTONS = photonsPerBin(1, SUN_TEMPERATURE_K, REFERENCE_WAVELENG
 /** One-sigma noise per bin, ppm, after this many transits of this star. */
 export function noisePerBin(star: Star, transits: number, wavelengthUm: number): number {
   return REFERENCE_NOISE_PPM * Math.sqrt(REFERENCE_PHOTONS / (transits * photonsPerBin(star.luminosity, star.temperature, wavelengthUm)));
-}
-
-/** A standard normal draw (Box–Muller). */
-function gaussian(rng: () => number): number {
-  const u = 1 - rng();   // (0, 1]: never log(0)
-  return Math.sqrt(-2 * log(u)) * cos(2 * Math.PI * rng());
 }
 
 /**

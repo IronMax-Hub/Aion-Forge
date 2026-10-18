@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { ENRICHMENT, feH, gasMetallicity, METALLICITY_FLOOR } from "../simulation/metallicity";
 import type { GalaxyType } from "../simulation/galaxy";
-import { UNIVERSE_AGE_GYR } from "../simulation/star";
+import { generateStarsFor, METALLICITY_SCATTER_DEX, UNIVERSE_AGE_GYR } from "../simulation/star";
+import { buildGalaxyConfig } from "../simulation/galaxy";
+import { makeConfig } from "../simulation/config";
 
 const TYPES: GalaxyType[] = ["spiral", "elliptical", "irregular"];
 // The default galaxy's scale is shown as 50,000 light-years (ui/format.ts): 15.3 kpc
@@ -48,5 +50,39 @@ describe("the galaxy's enrichment (MZ1)", () => {
         }
       }
     }
+  });
+});
+
+describe("each star's metallicity (MZ2)", () => {
+  const universe = (seed: number) => {
+    const config = makeConfig(seed);
+    const galaxy = buildGalaxyConfig(seed, config);
+    return { galaxy, stars: generateStarsFor(galaxy, UNIVERSE_AGE_GYR, config).stars };
+  };
+  const gasOf = (galaxy: ReturnType<typeof buildGalaxyConfig>, star: { position: [number, number, number]; age: number }) => {
+    const [x, , z] = star.position;
+    return feH(gasMetallicity(galaxy.type, Math.sqrt(x * x + z * z) / galaxy.scale, UNIVERSE_AGE_GYR - star.age));
+  };
+
+  it("scatters about the gas it formed from by 0.1 dex", () => {
+    const { galaxy, stars } = universe(100000);
+    const residuals = stars.map((s) => s.metallicity - gasOf(galaxy, s));
+    const mean = residuals.reduce((a, b) => a + b, 0) / residuals.length;
+    const sd = Math.sqrt(residuals.reduce((a, b) => a + (b - mean) ** 2, 0) / residuals.length);
+    expect(Math.abs(mean)).toBeLessThan(0.01);
+    expect(sd).toBeCloseTo(METALLICITY_SCATTER_DEX, 2);
+  });
+
+  it("is the same every time", () => {
+    expect(universe(42).stars.map((s) => s.metallicity)).toEqual(universe(42).stars.map((s) => s.metallicity));
+  });
+
+  it("makes old stars poorer in metals than young ones", () => {
+    const { stars } = universe(100000);
+    const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+    const old = stars.filter((s) => s.age > 10).map((s) => s.metallicity);
+    const young = stars.filter((s) => s.age < 2).map((s) => s.metallicity);
+    expect(old.length).toBeGreaterThan(20);
+    expect(median(old)).toBeLessThan(median(young) - 0.2);
   });
 });

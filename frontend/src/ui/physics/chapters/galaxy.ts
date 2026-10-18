@@ -1,7 +1,7 @@
 // Chapter 2 of the Physics page: the galaxy (PH1).
 
 import { GALAXY_PARTICLE_COUNT, GALAXY_SCALE, GALAXY_TYPE_ROLL } from "../../../simulation/galaxy";
-import { STAR_COUNT, UNIVERSE_AGE_GYR } from "../../../simulation/star";
+import { METALLICITY_SCATTER_DEX, STAR_COUNT, UNIVERSE_AGE_GYR } from "../../../simulation/star";
 import { ENRICHMENT, feH, gasMetallicity, METALLICITY_FLOOR } from "../../../simulation/metallicity";
 import { formatInt, formatLightYears, formatPercent, LIGHT_YEARS_PER_UNIT } from "../../format";
 import type { Chapter, PhysicsContext } from "../catalogue";
@@ -9,6 +9,12 @@ import { exact, median, said } from "../catalogue";
 
 /** [Fe/H] as text, with its sign. */
 const dex = (value: number) => `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}`;
+
+/** The median [Fe/H] of the stars whose age passes `test`, as text. */
+function starsAged(ctx: PhysicsContext, test: (age: number) => boolean): string {
+  const values = ctx.stars.filter((s) => test(s.age)).map((s) => s.metallicity);
+  return values.length === 0 ? "are none" : `have ${dex(median(values))} (${formatInt(values.length)})`;
+}
 
 /** Each star's distance from the galaxy's axis in the disc plane, light-years (as the star panel measures it). */
 function discDistancesLy(ctx: PhysicsContext): number[] {
@@ -47,7 +53,7 @@ export const galaxy: Chapter = {
         { name: "Particles drawn", value: formatInt(GALAXY_PARTICLE_COUNT), meaning: "The glowing cloud: presentation only" },
       ],
       why: "A Milky Way–sized disc gives distances people can picture.",
-      limits: ["Distance from the centre changes nothing about a star yet: the gas's metallicity varies with it (below), but no star reads it until MZ2; there is no galactic habitable zone and no supernova hazard."],
+      limits: ["Distance from the centre changes nothing about a star's light or life yet: it sets the star's metallicity (below), which nothing reads until MZ3; there is no galactic habitable zone and no supernova hazard."],
       laws: [{ law: "expansionRate", how: "Multiplies the radius" }],
       code: "simulation/galaxy.ts · buildGalaxyConfig",
       effect: (ctx) => {
@@ -60,10 +66,11 @@ export const galaxy: Chapter = {
     {
       id: "enrichment",
       title: "The gas grows richer in metals",
-      statement: "Every generation of stars returns heavier elements to the gas the next forms from. The gas approaches the type's yield, fastest near the centre, where stars form fastest.",
-      rule: "Z(R, t) = Z_floor + y · (1 − e^(−t / τ)), τ = τ_core · e^(R / R_τ); [Fe/H] = log10 Z",
+      statement: "Every generation of stars returns heavier elements to the gas the next forms from. The gas approaches the type's yield, fastest near the centre, where stars form fastest. Each star keeps the metallicity of the gas where and when it formed.",
+      rule: "Z(R, t) = Z_floor + y · (1 − e^(−t / τ)), τ = τ_core · e^(R / R_τ); a star's [Fe/H] = log10 Z(R★, its birth) + a normal scatter",
       constants: [
         { name: "Floor", value: `${exact(METALLICITY_FLOOR)} Z☉`, meaning: "The first gas: [Fe/H] = −3, like the oldest halo stars" },
+        { name: "Star scatter", value: `${exact(METALLICITY_SCATTER_DEX)} dex`, meaning: "Standard deviation about the gas, from each star's own stream; about 0.2 is observed, much of it from migration" },
         ...(Object.entries(ENRICHMENT)).map(([type, e]) => ({
           name: type[0].toUpperCase() + type.slice(1),
           value: `y ${exact(e.yieldZ)}, τ_core ${exact(e.coreGyr, "Gyr")}, R_τ ${exact(e.scaleR)}`,
@@ -74,15 +81,18 @@ export const galaxy: Chapter = {
       ],
       why: "The simplest galaxy that turns its gas into stars while fresh gas falls in. Today's spiral gradient comes out near the Milky Way's (about −0.05 dex per kpc).",
       source: "Inside-out disc formation; Magellanic Clouds for irregulars",
-      limits: ["Stars and gas do not migrate between radii.", "Metals are one number: no alpha-element enhancement."],
+      limits: ["Stars and gas do not migrate between radii.", "Metals are one number: no alpha-element enhancement.", "Metallicity does not change the star itself (metal-poor stars are slightly hotter and shorter-lived)."],
       laws: [],
-      code: "simulation/metallicity.ts · gasMetallicity (MZ1; decision 7)",
+      code: "simulation/metallicity.ts · gasMetallicity (MZ1; decision 7); simulation/star.ts · starMetallicity (MZ2)",
       effect: (ctx) => {
         const at = (rLy: number) => dex(feH(gasMetallicity(ctx.galaxy.type, rLy / LIGHT_YEARS_PER_UNIT / ctx.galaxy.scale, UNIVERSE_AGE_GYR)));
         const distances = discDistancesLy(ctx);
         return [said(
           `Today this ${ctx.galaxy.type} galaxy's gas has [Fe/H] ${at(0)} at the centre, ${at(median(distances))} where half its stars lie within, and ${at(Math.max(...distances))} at its farthest star.`,
-          "galaxy.type", "star.position")];
+          "galaxy.type", "star.position"),
+        said(
+          `Its stars' median [Fe/H] is ${dex(median(ctx.stars.map((s) => s.metallicity)))}; stars older than 10 Gyr ${starsAged(ctx, (age) => age > 10)}, stars younger than 2 Gyr ${starsAged(ctx, (age) => age < 2)}.`,
+          "star.metallicity", "star.age")];
       },
     },
     {
@@ -105,6 +115,6 @@ export const galaxy: Chapter = {
   ],
   missing: [
     "The galaxy does not change over time: its shape, and the stars that died before today, are not modelled (Deep Time, step 9).",
-    "No star carries a metallicity yet: every star is made of the same stuff until MZ2.",
+    "Metallicity changes nothing yet: planets are built from it in MZ3.",
   ],
 };

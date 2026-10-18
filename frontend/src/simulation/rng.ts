@@ -1,6 +1,8 @@
 // Seeded randomness. Every random draw in the simulation comes from a stream
 // created here, so a universe seed always reproduces the same universe.
 
+import { cos, log } from "./detmath";
+
 // Mulberry32 — fast, deterministic, seed-driven PRNG
 export function createRNG(seed: number) {
   let s = seed >>> 0;
@@ -65,4 +67,11 @@ export const SALT = {
   SPECTRUM:       0x5BEC7A01,
   VISUAL:         0x71516A1F,
   AIR:            0xA1A5E5C4,   // the atmosphere draw of planets too small to have taken one before AE2 (decision 43)
+  METALLICITY:    0x3E7A1F2C,   // each star's scatter about its gas's metallicity (MZ2)
 } as const;
+
+/** A standard normal draw (Box–Muller), from two draws of `rng`. */
+export function gaussian(rng: () => number): number {
+  const u = 1 - rng();   // (0, 1]: never log(0)
+  return Math.sqrt(-2 * log(u)) * cos(2 * Math.PI * rng());
+}

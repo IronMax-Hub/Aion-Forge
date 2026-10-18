@@ -11,7 +11,7 @@ import { makeConfig } from "../simulation/config";
 function star(overrides: Partial<Star> = {}): Star {
   return {
     id: 1, position: [0, 0, 0], mass: 1, age: 4.6, lifespan: 10, temperature: 5772,
-    luminosity: 1, classification: "main-sequence", isRare: false, ...overrides,
+    luminosity: 1, classification: "main-sequence", isRare: false, metallicity: 0, ...overrides,
   };
 }
 

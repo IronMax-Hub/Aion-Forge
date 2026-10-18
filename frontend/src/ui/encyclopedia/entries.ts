@@ -319,8 +319,11 @@ function planetLede(planet: Planet, star: Star, lives: Lives): Sentence[] {
     if (oceansLost) {
       lede.push(sentence(`Its oceans were lost to space ${ago(star.age - oceansLost.tGyr)}.`, ["planet.worldEvents.oceans-lost"]));
     } else if (surface.iceFraction >= FROZEN_ICE_SHARE && surface.water >= OCEANS_LOST_WATER && !surface.steam) {
-      lede.push(sentence("Frozen over today; liquid water lies under the ice.",
-        ["planet.surface.iceFraction", "planet.surface.water", "planet.surface.steam"]));
+      lede.push(surface.liquidUnderIce > 0
+        ? sentence("Frozen over today; liquid water lies under the ice.",
+          ["planet.surface.iceFraction", "planet.surface.liquidUnderIce"])
+        : sentence("Frozen solid today: its oceans are ice to the sea floor.",
+          ["planet.surface.iceFraction", "planet.surface.liquidUnderIce"]));
     } else if (planet.type === "ocean") {
       lede.push(sentence("Covered by ocean.", ["planet.type"]));
     }

@@ -22,7 +22,7 @@ const sun: Star = {
 };
 const redDwarf: Star = { ...sun, temperature: 3000, luminosity: 0.005 };
 const earthSurface: PlanetSurface = {
-  oceanFraction: 0.7, iceFraction: 0.03, landFraction: 0.27, habitableFraction: 0.8, surfaceGravity: 1, pressureBar: 1, o2Bar: 0.21,
+  oceanFraction: 0.7, iceFraction: 0.03, landFraction: 0.27, habitableFraction: 0.8, liquidUnderIce: 0, surfaceGravity: 1, pressureBar: 1, o2Bar: 0.21,
   backgroundBar: 0.79, co2Bar: 4e-4, ch4Bar: 1.8e-6, ozone: 1, water: 0.5, steam: false,
 };
 const earth: Planet = {

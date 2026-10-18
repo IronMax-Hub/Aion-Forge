@@ -66,7 +66,9 @@ describe("the Great Filter funnel", () => {
     // Rules v13: IH1's outgassing ∝ τ·g instead of τ·g² (decision 41)
     // (6,549, 4,040, 3,429, 1,255, 198, 150, 40, 17, 9, 4, 1, 1), then IH2's greenhouse scaled by the
     // energy the air holds: worlds warm only from thick air far from their stars freeze (Issue 1)
-    expect(funnel.steps.map((s) => s.passed)).toEqual([6549, 4032, 3452, 432, 165, 127, 27, 13, 5, 2, 0, 0]);
+    // (6,549, 4,032, 3,452, 432, 165, 127, 27, 13, 5, 2, 0, 0), then IH3's ice shells: water under ice
+    // stays liquid only below a shell the interior's heat can hold up
+    expect(funnel.steps.map((s) => s.passed)).toEqual([6549, 2683, 2094, 360, 165, 127, 28, 14, 6, 3, 0, 0]);
     for (let g = 1; g < funnel.steps.length; g++) {
       expect(funnel.steps[g].arrived).toBe(funnel.steps[g - 1].passed);
       expect(funnel.steps[g].passed).toBeLessThanOrEqual(funnel.steps[g].arrived);
@@ -122,7 +124,7 @@ describe("where worlds stop", () => {
   it("counts which of fire's conditions fail where minds have no fire", () => {
     const index = indexOf100000();
     const fire = breakdown(index, seedStars, "fire");
-    expect(fire.stopped).toBe(27 - 13);
+    expect(fire.stopped).toBe(28 - 14);
     // Every stopped world fails at least one condition, and none fails more than the stopped count
     const { noLand, thinAir, lowOxygen } = fire.fire!;
     expect(noLand + thinAir + lowOxygen).toBeGreaterThanOrEqual(fire.stopped);

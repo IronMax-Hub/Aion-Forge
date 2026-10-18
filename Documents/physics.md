@@ -209,3 +209,14 @@ Life using starlight fell from 1,255 to 432 worlds, and every later gate fell wi
 ### Surprises
 
 - **The faint young Sun returns.** With the greenhouse scaled by the energy it holds, some young Earths begin frozen. The CO₂ their volcanoes vent under the ice (several bar in 100 Myr) brings a brief hothouse when they thaw. This is the faint young Sun problem, and Earth's own snowball–hothouse episodes, emerging from the rules.
+
+### Ice shells (IH3, `interiorHeat.ts`)
+
+d = (651 W/m / q) · ln(271 K / T_surface). Under a frozen band, water stays liquid only where it is deeper than d.
+
+| Constant | Value | Why |
+|---|---|---|
+| `ICE_CONDUCTIVITY_W_PER_M` | 651 (k = 651 / T W/(m·K)) | Petrenko & Whitworth 1999. Klinger 1980's 567 / T would make every shell 13% thinner |
+| `ICE_SHELL_BASE_K` | 271 K | Seawater's freezing point, the base of the shell |
+
+Earth's heat flow holds 0.9 km of ice over water under a 240 K surface and 7.5 km at 100 K. Europa's model shell is 13 km, within the 10–30 km estimated. On seed 100000, worlds with liquid water at some time fell from 4,032 to 2,683, and worlds where life began from 3,452 to 2,094. Small, cold, old worlds freeze solid as their interiors cool, and their life dies.

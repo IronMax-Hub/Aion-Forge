@@ -10,6 +10,7 @@ import { generateStarsFor, mainSequenceEndGyr, UNIVERSE_AGE_GYR } from "../simul
 import type { Star } from "../simulation/star";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { makeConfig } from "../simulation/config";
+import { EARTH_HEAT_FLOW_W_M2, iceShellKm } from "../simulation/interiorHeat";
 
 const sun: Star = {
   id: 1, position: [0, 0, 0], mass: 1, age: 4.6, lifespan: 10, temperature: 5772, luminosity: 1,
@@ -235,12 +236,12 @@ describe("across a universe", () => {
   });
 
   it("records whether liquid water ever lay on the surface, open or under ice, at a step or today (EN0)", () => {
-    const liquid = (bandOcean: Float64Array) => bandOcean.some((share) => share > 0);
+    const liquid = (bandLiquid: Float64Array) => bandLiquid.some((share) => share > 0);
     let wet = 0;
     for (const { history: h } of worlds) {
-      expect(h.everLiquidWater).toBe(h.snapshots!.some((s) => liquid(s.bandOcean)) || liquid(h.final.bandOcean));
+      expect(h.everLiquidWater).toBe(h.snapshots!.some((s) => liquid(s.bandLiquid)) || liquid(h.final.bandLiquid));
       // Steam is not liquid: no step whose oceans had boiled counts
-      for (const s of h.snapshots!) if (s.steam) expect(liquid(s.bandOcean)).toBe(false);
+      for (const s of h.snapshots!) if (s.steam) expect(liquid(s.bandLiquid)).toBe(false);
       if (h.everLiquidWater) wet++;
     }
     expect(wet).toBeGreaterThan(0);
@@ -252,5 +253,49 @@ describe("across a universe", () => {
     const again = runWorldHistory(p, physics, buildGeography(p, physics, seed), star, seed, config);
     expect(again.events).toEqual(worlds[3].history.events);
     expect(again.present).toEqual(worlds[3].history.present);
+  });
+});
+
+describe("ice shells (IH3)", () => {
+  it("are as thick as the heat from below allows", () => {
+    expect(iceShellKm(EARTH_HEAT_FLOW_W_M2, 240)).toBeCloseTo(0.9, 1);
+    expect(iceShellKm(EARTH_HEAT_FLOW_W_M2, 100)).toBeCloseTo(7.5, 1);
+    expect(iceShellKm(0.05, 100)).toBeCloseTo(13, 0);   // Europa: 10–30 km estimated
+    expect(iceShellKm(EARTH_HEAT_FLOW_W_M2, 271)).toBe(0);
+    expect(iceShellKm(0.2, 150)).toBeLessThan(iceShellKm(0.1, 150));
+    expect(iceShellKm(0.1, 200)).toBeLessThan(iceShellKm(0.1, 150));
+  });
+
+  // A cold Earth-mass world far from the Sun (about 100 K), with deep or shallow water
+  const cold = (waterKm: number) => history({
+    planet: { orbitalRadius: 7 }, physics: { waterInventory: waterKm / 33.75, surfacePressureBar: 0.3 }, lifeless: true,
+  });
+
+  it("keep a dark ocean under a world whose water is deeper than its shell", () => {
+    const h = cold(20);
+    expect(h.final.meanK).toBeLessThan(130);
+    expect(h.final.iceFraction).toBeGreaterThan(0.9);
+    expect(h.final.bandLiquid.some((share) => share > 0)).toBe(true);
+    expect(h.present.liquidUnderIceFraction).toBeGreaterThan(0);
+    expect(h.events.map((e) => e.kind)).not.toContain("frozen-solid");
+  });
+
+  it("freeze a world with shallow water solid to its floor", () => {
+    const h = cold(1);
+    expect(h.final.bandLiquid.every((share) => share === 0)).toBe(true);
+    expect(h.present.liquidUnderIceFraction).toBe(0);
+    expect(h.everLiquidWater).toBe(false);
+  });
+
+  it("record the oceans freezing solid when they do", () => {
+    // A world that cools as its interior does: liquid under its ice early, frozen solid later
+    const h = cold(2);
+    const solid = h.events.filter((e) => e.kind === "frozen-solid");
+    expect(solid).toHaveLength(1);
+    const s = h.snapshots!;
+    const at = s.findIndex((x) => x.tGyr === solid[0].tGyr);
+    expect(s[at].bandLiquid.every((share) => share === 0)).toBe(true);
+    expect(s[at - 1].bandLiquid.some((share) => share > 0)).toBe(true);
+    expect(h.everLiquidWater).toBe(true);
   });
 });

@@ -61,7 +61,7 @@ describe("the origin of life", () => {
       const step = history.snapshots!.find((s) => s.tGyr === history.life!.startedGyr)!;
       expect(step.steam).toBe(false);
       expect(step.water).toBeGreaterThanOrEqual(OCEANS_LOST_WATER);
-      expect(Math.max(...step.bandOcean)).toBeGreaterThan(0);
+      expect(Math.max(...step.bandLiquid)).toBeGreaterThan(0);
     }
   });
 

@@ -81,6 +81,8 @@ export interface PlanetSurface {
   landFraction: number;
   /** Share with liquid-water temperatures: open water, and land by its moisture. */
   habitableFraction: number;
+  /** Share of the area with liquid water under its ice (IH3). */
+  liquidUnderIce: number;
   surfaceGravity: number;   // g
   pressureBar: number;      // total surface pressure today
   o2Bar: number;            // oxygen's share of that pressure, bar (C2.6: fire)
@@ -307,6 +309,7 @@ function presentSurface(present: PresentClimate, physics: PlanetPhysics, final: 
     iceFraction: present.iceFraction,
     landFraction: present.landFraction,
     habitableFraction: present.habitableFraction,
+    liquidUnderIce: present.liquidUnderIceFraction,
     surfaceGravity: physics.surfaceGravity,
     pressureBar: final.pressureBar,
     o2Bar: final.o2Bar,

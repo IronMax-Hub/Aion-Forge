@@ -28,7 +28,7 @@ const sun: Star = {
 };
 function planetWith(pressureBar: number | null): Planet {
   const surface: PlanetSurface | null = pressureBar === null ? null : {
-    oceanFraction: 0.7, iceFraction: 0.1, landFraction: 0.2, habitableFraction: 0.7, surfaceGravity: 1, pressureBar, o2Bar: 0,
+    oceanFraction: 0.7, iceFraction: 0.1, landFraction: 0.2, habitableFraction: 0.7, liquidUnderIce: 0, surfaceGravity: 1, pressureBar, o2Bar: 0,
     backgroundBar: 0.78, co2Bar: 4e-4, ch4Bar: 0, ozone: 1, water: 0.5, steam: false,
   };
   return {

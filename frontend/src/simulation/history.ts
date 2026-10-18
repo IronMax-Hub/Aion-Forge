@@ -317,6 +317,7 @@ export const WORLD_EVENT: Record<WorldEventKind, { summary: string; importance: 
   "oceans-lost":        { summary: "The last of the oceans was lost to space.", importance: "historic" },
   oxidation:            { summary: "Oxygen built up in the air for the first time.", importance: "historic" },
   "air-lost":           { summary: "The last of its air was lost to space.", importance: "historic" },
+  "frozen-solid":       { summary: "Its oceans froze solid to the sea floor.", importance: "historic" },
 };
 
 /** Gyr before present of a moment `tGyr` after the star formed; never quite zero, so it sorts as past. */

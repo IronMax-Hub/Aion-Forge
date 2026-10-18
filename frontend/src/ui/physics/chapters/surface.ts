@@ -20,6 +20,7 @@ import {
   EARTH_OCEANS_LOST_PER_GYR, EARTH_XUV_FLUENCE, ESCAPE_K, MOIST_RAMP_K, MOIST_THRESHOLD, WATER_LOST_PER_DOSE,
 } from "../../../simulation/atmosphericEscape";
 import { WATER_LATENT_OVER_R_BELOW_1_ATM_K, WATER_TRIPLE_POINT } from "../../../simulation/climate";
+import { ICE_CONDUCTIVITY_W_PER_M, ICE_SHELL_BASE_K } from "../../../simulation/interiorHeat";
 import { ATMOSPHERE_CODES, INDEX_FLAG } from "../../../simulation/universeIndex";
 import type { UniverseIndex } from "../../../simulation/universeIndex";
 import { formatInt, formatPercent, formatSig } from "../../format";
@@ -314,12 +315,16 @@ export const history: Chapter = {
     {
       id: "liquid-water",
       title: "Liquid water, ever",
-      statement: "Liquid water, open or under ice, at any step of a world's history or today: the condition for life to begin.",
-      constants: [],
-      why: "The Great Filter's second gate.",
-      limits: [],
+      statement: "Liquid water, open or under ice, at any step of a world's history or today: the condition for life to begin. Under ice, water stays liquid only below a shell thick enough to carry the interior's heat up to the cold surface; shallower water freezes solid to the floor, and life in it dies.",
+      rule: `shell d = (${ICE_CONDUCTIVITY_W_PER_M} W/m / q) × ln(${ICE_SHELL_BASE_K} K / T_surface); liquid under a frozen band = its water deeper than d`,
+      constants: [
+        { name: "Ice conductivity", value: `${ICE_CONDUCTIVITY_W_PER_M} / T W/(m·K)`, meaning: "Petrenko & Whitworth 1999; Klinger 1980's 567 / T would make shells 13% thinner" },
+        { name: "Shell base", value: exact(ICE_SHELL_BASE_K, "K"), meaning: "Seawater's freezing point" },
+      ],
+      why: "The Great Filter's second gate. Earth's heat flow holds 0.9 km of ice over water under a 240 K surface and 7.5 km at 100 K; Europa's model shell is 13 km, within the 10–30 km estimated.",
+      limits: ["Shells conduct heat only; convecting ice, salts and tides (step 5b) are not modelled."],
       laws: [],
-      code: "simulation/worldHistory.ts · everLiquidWater",
+      code: "simulation/interiorHeat.ts · iceShellKm; simulation/worldHistory.ts · everLiquidWater (IH3)",
       needsIndex: true,
       effect: (ctx) => {
         const ix = ctx.index!;

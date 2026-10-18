@@ -56,6 +56,7 @@
 import { cos, exp, log, pow } from "./detmath";
 import type { Geography } from "./geography";
 import { BAND_COUNT, surfaceGrid } from "./geography";
+import { heatFlowAt, iceShellKm } from "./interiorHeat";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -325,6 +326,8 @@ export interface PresentClimate {
   oceanFraction: number;
   iceFraction: number;
   landFraction: number;
+  /** Share of the planet's area with liquid water under its ice: deeper than the shell its heat flow allows (IH3). */
+  liquidUnderIceFraction: number;
   /** Share of the planet with liquid-water temperatures: open water, and land by its moisture. */
   habitableFraction: number;
   /** Locked planets: width of the ring with liquid-water temperatures, degrees; null when rotating. */
@@ -433,6 +436,17 @@ export function solvePresentClimate(
     }
   }
 
+  // Liquid under the ice (IH3): frozen cells whose water is deeper than the shell the heat flow allows
+  let liquidUnderIceFraction = 0;
+  if (!steam && freezingKAt(inputs.pressureBar) !== Infinity) {
+    const heatFlow = heatFlowAt(inputs.interiorK);
+    for (let i = 0; i < n; i++) {
+      if (iced[i] && ocean[i] && seaLevelKm - geography.elevationKm[i] > iceShellKm(heatFlow, temperatureK[i])) {
+        liquidUnderIceFraction += grid.areas[i];
+      }
+    }
+  }
+
   const moisture = moistureOf(openWater, temperatureK);
   const boilingK = boilingPointK(inputs.pressureBar);
   const liquid = (t: number) => !steam && inputs.wetness > 0 && t >= freezingKAt(inputs.pressureBar) && t < boilingK;
@@ -458,6 +472,7 @@ export function solvePresentClimate(
     oceanFraction,
     iceFraction,
     landFraction: Math.max(0, 1 - oceanFraction - iceFraction),
+    liquidUnderIceFraction,
     habitableFraction,
     temperateRingDeg,
     cellTemperatureK: temperatureK,

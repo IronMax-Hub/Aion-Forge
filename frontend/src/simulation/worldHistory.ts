@@ -92,14 +92,14 @@ import type { Planet } from "./planet";
 import { effectiveOrbitAU } from "./planetBasics";
 import type { PlanetPhysics } from "./planetPhysics";
 import { tectonicActivity } from "./planetPhysics";
-import { interiorHeatFlow, interiorTemperatureK } from "./interiorHeat";
+import { iceShellKm, interiorHeatFlow, interiorTemperatureK } from "./interiorHeat";
 import type { Star } from "./star";
 import { luminosityAt, mainSequenceEndGyr } from "./star";
 import type { Geography } from "./geography";
 import { areaBelow, BAND_COUNT, seaLevelFor, waterDepthKm } from "./geography";
 import type { ClimateInputs, PresentClimate } from "./climate";
 import {
-  bandAlbedo, bandGeometry, boilingPointK, co2SaturationBar, CO2_REFERENCE_BAR, equilibriumTemperatureK, greenhouseK,
+  bandAlbedo, bandGeometry, boilingPointK, co2SaturationBar, freezingKAt, CO2_REFERENCE_BAR, equilibriumTemperatureK, greenhouseK,
   solveBands, solvePresentClimate, surfaceMeanK,
 } from "./climate";
 import { airRetained, moistThresholdK, waterLost, xuvDose } from "./atmosphericEscape";
@@ -201,7 +201,8 @@ export type WorldEventKind =
   | "runaway-greenhouse"
   | "oceans-lost"
   | "oxidation"
-  | "air-lost";
+  | "air-lost"
+  | "frozen-solid";
 
 export interface WorldEvent {
   kind: WorldEventKind;
@@ -236,8 +237,10 @@ export interface WorldState {
   openLandFraction: number;
   bandK: Float64Array;
   iced: Uint8Array;
-  /** Each band's share of liquid water (open or under ice), for the next step. */
+  /** Each band's share of water, open or frozen, for the next step. */
   bandOcean: Float64Array;
+  /** Each band's share of liquid water: open, or under an ice shell its heat flow allows (IH3). */
+  bandLiquid: Float64Array;
   /** Life's biomass at the end of the step (engine.ts units): light users, chemical users, all. */
   lightBiomass: number;
   chemicalBiomass: number;
@@ -379,6 +382,7 @@ export function runWorldHistory(
     bandK: new Float64Array(BAND_COUNT),
     iced: new Uint8Array(BAND_COUNT),
     bandOcean: new Float64Array(BAND_COUNT),
+    bandLiquid: new Float64Array(BAND_COUNT),
     lightBiomass: 0,
     chemicalBiomass: 0,
     totalBiomass: 0,
@@ -415,6 +419,24 @@ export function runWorldHistory(
     });
     return seaLevel;
   };
+
+  /**
+   * Each band's liquid share (IH3): open water as it is; under ice, only the water deeper than
+   * the shell the interior's heat flow can hold up against the band's surface temperature; none
+   * below water's triple point, or while the oceans are steam.
+   */
+  const liquidShares = (iced: Uint8Array, bandK: Float64Array, pressureBar: number, heatFlow: number, steam: boolean) => {
+    const liquid = new Float64Array(BAND_COUNT);
+    if (steam || freezingKAt(pressureBar) === Infinity) return liquid;
+    geography.bands.forEach((band, k) => {
+      if (!iced[k]) { liquid[k] = bandOcean[k]; return; }
+      if (band.area === 0 || bandOcean[k] === 0) return;
+      const shellKm = iceShellKm(heatFlow, bandK[k]);
+      liquid[k] = Math.min(bandOcean[k], areaBelow(band.hypsometry, seaLevelKm - shellKm) / band.area);
+    });
+    return liquid;
+  };
+  let frozenSolid = false;
 
   // Life: the engine's fixed context, made once life can start; the keys of its streams
   let life: EvolutionState | null = null;
@@ -552,7 +574,11 @@ export function runWorldHistory(
     const steam = water >= OCEANS_LOST_WATER && climate.meanK >= boilingK;
     if (steam && !state.steam && step > 1) events.push({ kind: "runaway-greenhouse", tGyr: t });
     seaLevelKm = fillOceans(water, steam);
-    everLiquidWater ||= bandOcean.some((share) => share > 0);
+    // What stays liquid of the water the step leaves, under this step's ice (IH3)
+    const bandLiquid = liquidShares(climate.iced, climate.bandK, pressureOf(co2, o2, ch4, water, steam), interiorHeatFlow(planet, t), steam);
+    const hasWater = bandOcean.some((share) => share > 0);
+    const liquid = bandLiquid.some((share) => share > 0);
+    everLiquidWater ||= liquid;
 
     // 5. Climate transitions. The first step sets the starting climate: a world
     // frozen or steaming from its first step records no transition into it.
@@ -565,6 +591,10 @@ export function runWorldHistory(
     moist = nowMoist;
     if (!oceansLost && water < OCEANS_LOST_WATER) { oceansLost = true; events.push({ kind: "oceans-lost", tGyr: t }); }
     if (!oxidised && o2 >= OXIDATION_O2_BAR) { oxidised = true; events.push({ kind: "oxidation", tGyr: t }); }
+    // Oceans frozen to the floor: water, none of it liquid (IH3)
+    const nowSolid = hasWater && !liquid;
+    if (nowSolid && !frozenSolid && !first) events.push({ kind: "frozen-solid", tGyr: t });
+    frozenSolid = nowSolid;
 
     const stepEvents = events.slice(eventsBefore).map((e) => e.kind);
     state = {
@@ -574,7 +604,7 @@ export function runWorldHistory(
       pressureBar: pressureOf(co2, o2, ch4, water, steam),
       meanK: climate.meanK, steam, iceFraction: climate.iceFraction,
       openOceanFraction: climate.openOceanFraction, openLandFraction: climate.openLandFraction,
-      bandK: climate.bandK, iced: climate.iced, bandOcean: Float64Array.from(bandOcean),
+      bandK: climate.bandK, iced: climate.iced, bandOcean: Float64Array.from(bandOcean), bandLiquid,
       lightBiomass: 0, chemicalBiomass: 0, totalBiomass: 0,
     };
     const snapshot: WorldSnapshot = { ...state, dtGyr: dt, impact, volcanicPulse, events: stepEvents };
@@ -582,7 +612,7 @@ export function runWorldHistory(
     // 6. Life: once, a chance of beginning where there is liquid water; then one engine step per step
     if (life === null) {
       let waterArea = 0;
-      if (!steam) for (let k = 0; k < BAND_COUNT; k++) waterArea += geometry.areas[k] * bandOcean[k];
+      if (!steam) for (let k = 0; k < BAND_COUNT; k++) waterArea += geometry.areas[k] * bandLiquid[k];
       const originRate = ORIGIN_PER_GYR_PER_WATER_AREA * waterArea * config.emergenceSensitivity;
       if (waterArea > 0 && happens(galaxySeed, planet, step, PURPOSE.ORIGIN, originRate, dt)) {
         lifeContext = environmentContext(planet, physics, star, config);
@@ -611,11 +641,12 @@ export function runWorldHistory(
     }, state.iced);
     const steam = state.water >= OCEANS_LOST_WATER && climate.meanK >= boilingPointK(state.pressureBar);
     if (steam) seaLevelKm = fillOceans(state.water, true);
-    state = { ...state, bandOcean: Float64Array.from(bandOcean), meanK: climate.meanK, iceFraction: climate.iceFraction,
+    const bandLiquid = liquidShares(climate.iced, climate.bandK, state.pressureBar, interiorHeatFlow(planet, state.tGyr), steam);
+    state = { ...state, bandOcean: Float64Array.from(bandOcean), bandLiquid, meanK: climate.meanK, iceFraction: climate.iceFraction,
       openOceanFraction: climate.openOceanFraction, openLandFraction: climate.openLandFraction,
       bandK: climate.bandK, iced: climate.iced,
       steam, pressureBar: pressureOf(state.co2Bar, state.o2Bar, state.ch4Bar, state.water, steam) };
-    everLiquidWater = state.bandOcean.some((share) => share > 0);
+    everLiquidWater = bandLiquid.some((share) => share > 0);
   }
 
   const present = solvePresentClimate(geography, {

@@ -13,11 +13,20 @@
 // Full activity (τ = 1) gives about 0.155 W/m². Heat per unit area ∝ τ, and so
 // is the gas the interior vents (decision 41).
 //
+// Ice shells (IH3): heat from below keeps water liquid under ice only below a
+// shell thick enough to carry that heat to the cold surface. Ice conducts
+// k = 651 / T W/(m·K) (Petrenko & Whitworth 1999), so a steady shell is
+//   d = (651 W/m / q) · ln(271 K / T_surface)
+// thick: 0.9 km under a 240 K surface with Earth's heat flow, 7.5 km at 100 K;
+// Europa (q ≈ 0.05 W/m², 100 K) gets 13 km, within the 10–30 km estimated.
+//
 // Assumptions and limits: one cooling law for every world, whatever its make-up;
 // no tidal heat yet (MO3 adds it); τ is capped at 1, so the heaviest young
-// worlds give no more than 0.155 W/m². Deterministic: it draws nothing.
+// worlds give no more than 0.155 W/m². Shells conduct only (no convection),
+// with Petrenko & Whitworth's conductivity; Klinger (1980) gives 567 / T, which
+// makes every shell 13% thinner. Deterministic: it draws nothing.
 
-import { pow } from "./detmath";
+import { log, pow } from "./detmath";
 import type { Planet } from "./planet";
 import { tectonicActivity } from "./planetPhysics";
 import { SOLAR_AGE_GYR } from "./star";
@@ -33,6 +42,22 @@ const EARTH_ACTIVITY_TODAY = tectonicActivity({ mass: 1 }, SOLAR_AGE_GYR);
 /** The heat flowing out of a world's interior t Gyr after its star formed, W/m². */
 export function interiorHeatFlow(planet: Pick<Planet, "mass">, tGyr: number): number {
   return (EARTH_HEAT_FLOW_W_M2 * tectonicActivity(planet, tGyr)) / EARTH_ACTIVITY_TODAY;
+}
+
+/** Ice's conductivity is this over its temperature, W/(m·K) (Petrenko & Whitworth 1999). */
+export const ICE_CONDUCTIVITY_W_PER_M = 651;
+/** The base of an ice shell: seawater's freezing point, K. */
+export const ICE_SHELL_BASE_K = 271;
+
+/** The thickness of ice that carries a heat flow from liquid water below to a frozen surface, km; 0 at or above 271 K. */
+export function iceShellKm(heatFlowWm2: number, surfaceK: number): number {
+  if (surfaceK >= ICE_SHELL_BASE_K) return 0;
+  return (ICE_CONDUCTIVITY_W_PER_M / heatFlowWm2) * log(ICE_SHELL_BASE_K / surfaceK) / 1000;
+}
+
+/** The heat flow a surface radiating at this temperature carries, W/m²: σ T⁴. */
+export function heatFlowAt(interiorK: number): number {
+  return STEFAN_BOLTZMANN * interiorK * interiorK * interiorK * interiorK;
 }
 
 /** The temperature a surface radiating only this heat flow would have, K: (q / σ)^(1/4). */

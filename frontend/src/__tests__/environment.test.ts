@@ -133,7 +133,8 @@ describe("habitats", () => {
         area += b.area;
       }
       if (Math.abs(area - 1) > 1e-9) faults.push(`band areas sum to ${area}`);
-      if (water > 0 && Math.abs(land + water - 1) > 1e-9) faults.push(`land and water sum to ${land + water}`);
+      // Water frozen to the floor under a thick shell is neither land nor liquid (IH3)
+      if (land + water > 1 + 1e-9) faults.push(`land and water sum to ${land + water}`);
       checked++;
     }
     expect(checked).toBeGreaterThan(1000);

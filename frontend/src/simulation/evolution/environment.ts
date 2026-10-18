@@ -200,7 +200,8 @@ export function environmentFor(step: WorldSnapshot, context: EnvironmentContext)
   const bands: EnvironmentBand[] = [];
   for (let k = 0; k < BAND_COUNT; k++) {
     const area = geometry.areas[k];
-    const water = step.steam ? 0 : area * step.bandOcean[k];
+    // Liquid water only: open, or under an ice shell thin enough for the heat from below (IH3)
+    const water = step.steam ? 0 : area * step.bandLiquid[k];
     bands.push({
       area,
       light: flux * geometry.insolation[k] * transmission,

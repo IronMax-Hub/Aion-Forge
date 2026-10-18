@@ -46,7 +46,7 @@ import { CIVILIZATION_STAGE_CODES, LIFE_STAGE_CODES } from "../../simulation/uni
 import { funnelOf } from "../../simulation/greatFilter";
 import type { UniverseIndex } from "../../simulation/universeIndex";
 import {
-  citation, formatGravity, formatGyr, formatInt, formatLightYears, formatPercent, formatPressure, formatRotation, formatSig,
+  airPhrase, citation, formatAirChange, formatGravity, formatGyr, formatInt, formatLightYears, formatPercent, formatPressure, formatRotation, formatSig,
   formatSurfaceShares, formatTemperatureRange, formatTilt, formatIndex, LIGHT_YEARS_PER_UNIT, PLANET_TYPE_LABEL, planetName,
   spectralType, starName, STELLAR_CLASS_NAME,
 } from "../format";
@@ -307,6 +307,14 @@ function planetLede(planet: Planet, star: Star, lives: Lives): Sentence[] {
 
   const surface = planet.surface;
   if (surface) {
+    const airChange = formatAirChange(planet.formationAtmosphere, planet.atmosphere);
+    const airLost = planet.worldEvents.find((e) => e.kind === "air-lost");
+    if (airLost) {
+      lede.push(sentence(`It formed with ${airPhrase(planet.formationAtmosphere)}; the last of it was lost to space ${ago(star.age - airLost.tGyr)}.`,
+        ["planet.formationAtmosphere", "planet.worldEvents.air-lost"]));
+    } else if (airChange) {
+      lede.push(sentence(`${airChange.replace(" · ", "; ")}.`, ["planet.formationAtmosphere", "planet.atmosphere"]));
+    }
     const oceansLost = [...planet.worldEvents].reverse().find((e) => e.kind === "oceans-lost");
     if (oceansLost) {
       lede.push(sentence(`Its oceans were lost to space ${ago(star.age - oceansLost.tGyr)}.`, ["planet.worldEvents.oceans-lost"]));

@@ -8,7 +8,7 @@ import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { PLANET_COLORS, GIANT_PLANET_MASS } from "../simulation/planet";
 import {
   formatSig, formatInt, formatIndex, planetName, PLANET_TYPE_LABEL,
-  formatGravity, formatPressure, formatRotation, formatTilt, formatPercent, formatSurfaceShares, formatTemperatureRange,
+  formatGravity, formatGyr, formatAirChange, formatPressure, formatRotation, formatTilt, formatPercent, formatSurfaceShares, formatTemperatureRange,
 } from "./format";
 import { SpectrumPanel } from "./SpectrumPanel";
 
@@ -64,6 +64,8 @@ export function PlanetPanel({
   const isGiant = planet.type === "gas-giant" || planet.mass > GIANT_PLANET_MASS;
   const planetColor = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
   const canScan = CAN_HAVE_LIFE[planet.type];
+  const airChange = formatAirChange(planet.formationAtmosphere, planet.atmosphere);
+  const airLost = planet.worldEvents.find((e) => e.kind === "air-lost");
 
   return (
     <div className="inspector" role="dialog" aria-label={`Planet ${planetName(planet.hostStarId, planet.orbitalIndex)} details`}>
@@ -120,7 +122,11 @@ export function PlanetPanel({
             <span className="data-label">{isGiant ? "Equilibrium temperature" : "Mean surface temperature"}</span>
             <span className="data-value">{formatInt(planet.temperature)} K</span>
             <span className="data-label">Atmosphere</span>
-            <span className="data-value data-text">{ATMO_LABEL[planet.atmosphere]}</span>
+            <span className="data-value data-text">{airChange ?? ATMO_LABEL[planet.atmosphere]}</span>
+            {airLost && (<>
+              <span className="data-label">Air lost to space</span>
+              <span className="data-value">{formatGyr(star.age - airLost.tGyr)} ago</span>
+            </>)}
           </div>
         </div>
 

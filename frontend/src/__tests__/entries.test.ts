@@ -15,6 +15,7 @@ import type { IndexRow, UniverseIndex } from "../simulation/universeIndex";
 import { biosphereEntry, civilizationEntry, galaxyEntry, planetEntry, starEntry } from "../ui/encyclopedia/entries";
 import type { EntryContext } from "../ui/encyclopedia/entries";
 import type { Entry, Sentence } from "../ui/encyclopedia/entry";
+import { airPhrase } from "../ui/format";
 
 // A sample of each universe: the first stars, with every solid world's history kept
 const SAMPLE_STARS = 300;
@@ -119,6 +120,27 @@ describe("encyclopedia entries", () => {
         }
       }
     }
+  });
+
+  it("say when a world's air changed class or was lost to space (AE3)", () => {
+    let lost = 0;
+    let changed = 0;
+    for (const sample of samples) {
+      for (const { star, planets } of sample.systems) {
+        for (const planet of planets) {
+          const lede = planetEntry(planet, star, sample.worlds.get(planet.key) ?? null, sample.ctx).lede.map((s) => s.text).join(" ");
+          if (planet.worldEvents.some((e) => e.kind === "air-lost")) {
+            lost++;
+            expect(lede).toContain(`It formed with ${airPhrase(planet.formationAtmosphere)}; the last of it was lost to space `);
+          } else if (planet.surface && planet.formationAtmosphere !== planet.atmosphere) {
+            changed++;
+            expect(lede).toContain(`Formed with ${airPhrase(planet.formationAtmosphere)}; ${planet.atmosphere} today.`);
+          }
+        }
+      }
+    }
+    expect(lost).toBeGreaterThan(0);
+    expect(changed).toBeGreaterThan(0);
   });
 
   it("write the same entry every time", () => {

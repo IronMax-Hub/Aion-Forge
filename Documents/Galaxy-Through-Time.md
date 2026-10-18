@@ -542,6 +542,7 @@ Measured: by the bolometric form of that index, 2,737 of the 7,134 solid planets
 - **Depends on:** AE2.
 - **Deliverables:** Planet panel: "Formed with thick air · thin today" when the two classes differ (both fields exist), and "Air lost to space 3.2 Gyr ago" for a stripped world. Timeline: "The last of its air was lost to space." (historic). An encyclopedia sentence for both.
 - **Verification:** Format tests; screenshots.
+- **Built** 18 Oct 2026. The planet panel's Atmosphere row reads "Formed with crushing air · none today" when the classes differ, and a stripped world adds "Air lost to space · 1.29 Gyr ago" (seed 100000, 1940 b, which keeps microbial life under its ice). The "none" class is named "a trace of air" (0.006 bar). The entry's lede says "It formed with crushing air; the last of it was lost to space 1.29 Gyr ago." or "Formed with thin air; moderate today." The timeline event came with AE2. The inspector grid now lets a long text value wrap instead of covering its label. No rules change.
 
 #### AE4 Measure and tune
 `simulation` · **S**

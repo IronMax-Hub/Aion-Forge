@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   spectralType, planetName, starName, formatSig, formatGyr, formatInt, niceScaleLength, formatLightYears,
   formatGravity, formatPressure, formatRotation, formatTilt, formatPercent, wholePercents, formatSurfaceShares, formatTemperatureRange,
-  planetLifeLabel, moonName, citation,
+  planetLifeLabel, moonName, citation, formatAirChange, airPhrase,
 } from "../ui/format";
 import { makeConfig } from "../simulation/config";
 import { SIMULATION_RULES_VERSION } from "../simulation/version";
@@ -145,6 +145,14 @@ describe("surface", () => {
       expect(wholePercents(shares).reduce((a, b) => a + b, 0)).toBe(100);
     }
     expect(wholePercents([0, 0, 0])).toEqual([0, 0, 0]);
+  });
+
+  it("says how a planet's class of air changed since it formed (AE3)", () => {
+    expect(formatAirChange("thick", "thin")).toBe("Formed with thick air · thin today");
+    expect(formatAirChange("thin", "none")).toBe("Formed with thin air · none today");
+    expect(formatAirChange("none", "thin")).toBe("Formed with a trace of air · thin today");
+    expect(formatAirChange("moderate", "moderate")).toBeNull();
+    expect(airPhrase("none")).toBe("a trace of air");
   });
 
   it("gives the temperature range in kelvin", () => {

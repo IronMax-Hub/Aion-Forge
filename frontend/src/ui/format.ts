@@ -2,7 +2,7 @@
 // Pure functions; nothing here feeds back into the simulation.
 
 import type { StellarClass } from "../simulation/star";
-import type { PlanetType } from "../simulation/planet";
+import type { AtmosphereType, PlanetType } from "../simulation/planet";
 import type { Biosphere, LifeStage } from "../simulation/biosphere";
 import { TECH_STAGE_LABEL } from "../simulation/civilization";
 import type { SystemLife } from "../simulation/lifeSurvey";
@@ -35,6 +35,17 @@ export function formatInt(n: number): string {
 export function formatGyr(gyr: number): string {
   if (gyr < 0.1) return `${formatSig(gyr * 1000, 3)} Myr`;
   return `${formatSig(gyr, 3)} Gyr`;
+}
+
+/** A class of air as a phrase: "thick air"; the "none" class is a trace (0.006 bar, Mars's). */
+export function airPhrase(atmosphere: AtmosphereType): string {
+  return atmosphere === "none" ? "a trace of air" : `${atmosphere} air`;
+}
+
+/** How a planet's class of air changed since it formed (AE3): "Formed with thick air · thin today"; null if unchanged. */
+export function formatAirChange(formation: AtmosphereType, today: AtmosphereType): string | null {
+  if (formation === today) return null;
+  return `Formed with ${airPhrase(formation)} · ${today} today`;
 }
 
 /** A 0–1 index to two decimals. */

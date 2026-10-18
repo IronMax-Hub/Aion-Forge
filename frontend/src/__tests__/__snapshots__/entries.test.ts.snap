@@ -162,6 +162,13 @@ exports[`reference entries > a frozen living world 1`] = `
     },
     {
       "sources": [
+        "planet.formationAtmosphere",
+        "planet.worldEvents.air-lost",
+      ],
+      "text": "It formed with a trace of air; the last of it was lost to space 2.32 Gyr ago.",
+    },
+    {
+      "sources": [
         "planet.surface.iceFraction",
         "planet.surface.water",
         "planet.surface.steam",
@@ -729,6 +736,13 @@ exports[`reference entries > a world of ruins 1`] = `
         "planet.surface.o2Bar",
       ],
       "text": "Its civilization never had fire: no exposed land.",
+    },
+    {
+      "sources": [
+        "planet.formationAtmosphere",
+        "planet.atmosphere",
+      ],
+      "text": "Formed with thin air; moderate today.",
     },
   ],
   "limits": [

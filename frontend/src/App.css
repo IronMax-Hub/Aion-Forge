@@ -705,7 +705,8 @@
 /* Inspector data grid */
 .data-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  /* Labels keep their longest word; a long text value wraps rather than covering its label */
+  grid-template-columns: minmax(min-content, 1fr) auto;
   column-gap: var(--sp-5);
   row-gap: var(--sp-2);
   align-items: baseline;
@@ -724,7 +725,7 @@
   font-family: var(--font-mono); font-variant-numeric: tabular-nums;
 }
 
-.data-value.data-text { font-family: var(--font-sans); }
+.data-value.data-text { font-family: var(--font-sans); white-space: normal; }
 .data-value.adverse   { color: var(--col-danger); }
 
 /* Inspector section header */

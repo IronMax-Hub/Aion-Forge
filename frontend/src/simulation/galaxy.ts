@@ -168,15 +168,19 @@ export function generateGalaxy(config: GalaxyConfig): GalaxyParticles {
   return result;
 }
 
+/** A seed's galaxy type: one draw, spiral below the first bound, elliptical below the second, irregular above. */
+export const GALAXY_TYPE_ROLL = { spiralBelow: 0.55, ellipticalBelow: 0.85 } as const;
+
 export function pickGalaxyType(rng: RNG): GalaxyType {
   const roll = rng();
-  if (roll < 0.55) return "spiral";
-  if (roll < 0.85) return "elliptical";
+  if (roll < GALAXY_TYPE_ROLL.spiralBelow) return "spiral";
+  if (roll < GALAXY_TYPE_ROLL.ellipticalBelow) return "elliptical";
   return "irregular";
 }
 
 export const GALAXY_PARTICLE_COUNT = 60000;
-const GALAXY_SCALE = 120;
+/** The galaxy's radius in scene units at expansion rate 1 (the display shows it as about 50,000 light-years). */
+export const GALAXY_SCALE = 120;
 
 /** The galaxy a seed and parameters produce: its type from the seed, its size from the expansion rate. */
 export function buildGalaxyConfig(seed: number, universeConfig: UniverseConfig): GalaxyConfig {

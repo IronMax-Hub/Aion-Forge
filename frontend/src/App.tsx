@@ -38,6 +38,7 @@ import { TreeOfLifePanel } from "./ui/TreeOfLifePanel";
 import { bodyPlans } from "./rendering/life/morphology";
 import { ScaleBar } from "./ui/ScaleBar";
 import { GreatFilterPanel } from "./ui/GreatFilterPanel";
+import { PhysicsPage } from "./ui/PhysicsPage";
 import type { GateId } from "./simulation/greatFilter";
 import { EncyclopediaPanel, EntryActions, EntryView } from "./ui/EncyclopediaPanel";
 import { subjectKey } from "./ui/encyclopedia/subjects";
@@ -101,6 +102,9 @@ export default function App() {
   const [filterGate, setFilterGate] = useState<GateId | null>(null);
   // Which of those two floating panels is in front: the one opened or clicked last
   const [frontOverlay, setFrontOverlay] = useState<"encyclopedia" | "filter">("encyclopedia");
+  // The Physics page, over the stage and the dock; and the survey's count of engulfed planets, which it shows
+  const [showPhysics, setShowPhysics] = useState(false);
+  const [surveyEngulfed, setSurveyEngulfed] = useState<number | null>(null);
 
   const [seed, setSeed]             = useState<number>(() => randomSeed());
   const [inputSeed, setInputSeed]   = useState<string>("");
@@ -170,6 +174,7 @@ export default function App() {
     cachedSnapshotRef.current = null;
     setSurveyError(null);
     setSurveyIndex(null);
+    setSurveyEngulfed(null);
     setEncyclopediaSubject(null);
     setFilterGate(null);
     systemRecordsRef.current = new Map();
@@ -202,6 +207,7 @@ export default function App() {
         onResult: (survey) => {
           setSurveyProgress(null);
           setSurveyIndex(survey.index);
+          setSurveyEngulfed(survey.engulfedPlanets);
           cachedSnapshotRef.current = buildSnapshot(s, config, population.stars.length, survey);
           rendererRef.current?.setLifeMarkers(survey.systems.map(life => ({ starId: life.starId, label: lifeMarkerLabel(life) })));
         },
@@ -232,6 +238,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (showPhysics)      { setShowPhysics(false);      return; }
       if (encyclopediaSubject) { setEncyclopediaSubject(null); return; }
       if (showGreatFilter)  { setShowGreatFilter(false);  return; }
       if (showGallery)      { setShowGallery(false);      return; }
@@ -244,7 +251,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [encyclopediaSubject, showGreatFilter, showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, orbiting, view, selectedPlanet]);
+  }, [showPhysics, encyclopediaSubject, showGreatFilter, showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, orbiting, view, selectedPlanet]);
 
   const handleRandomize = () => {
     const s = randomSeed();
@@ -974,6 +981,21 @@ export default function App() {
         </section>
 
         <section className="console-section">
+          <h2 className="console-section-label">Physics</h2>
+          <div className="controls">
+            <button
+              className="btn"
+              onClick={() => { initAudio(); setShowPhysics((v) => !v); }}
+              aria-pressed={showPhysics}
+              disabled={!universeId}
+              title="Every rule this universe runs on, and what it did here"
+            >
+              {showPhysics ? "Close physics" : "Physics rules"}
+            </button>
+          </div>
+        </section>
+
+        <section className="console-section">
           <h2 className="console-section-label">Great Filter</h2>
           <div className="controls">
             <button
@@ -1156,6 +1178,19 @@ export default function App() {
           </div>
         )}
       </aside>
+
+      {showPhysics && populationRef.current && galaxyConfigRef.current && (
+        <PhysicsPage
+          ctx={{
+            config: { ...universeConfig, seed: currentSeed },
+            galaxy: galaxyConfigRef.current,
+            stars: populationRef.current.stars,
+            index: surveyIndex,
+            engulfedPlanets: surveyEngulfed,
+          }}
+          onClose={() => setShowPhysics(false)}
+        />
+      )}
 
       {/* ── Status bar ── */}
       <footer className="statusbar">

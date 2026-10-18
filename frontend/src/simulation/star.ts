@@ -29,18 +29,27 @@ export interface Star {
 // ── Mass distribution (AF-020) ────────────────────────────────────────────────
 // IMF-inspired: heavily weighted toward low-mass stars
 
+/** The mass draw, piecewise linear in the roll r: below each bound, mass = base + (r − from) · slope, M☉. */
+export const MASS_DRAW = [
+  { below: 0.60, from: 0,    base: 0.1, slope: 1.5 },
+  { below: 0.88, from: 0.60, base: 1.0, slope: 14.3 },
+  { below: 0.97, from: 0.88, base: 5.0, slope: 166.7 },
+  { below: 1,    from: 0.97, base: 20,  slope: 2667 },
+] as const;
+
 function generateMass(r: number): number {
-  if (r < 0.60) return 0.1 + r * 1.5;
-  if (r < 0.88) return 1.0 + (r - 0.60) * 14.3;
-  if (r < 0.97) return 5.0 + (r - 0.88) * 166.7;
-  return 20 + (r - 0.97) * 2667;
+  const band = MASS_DRAW.find((b) => r < b.below) ?? MASS_DRAW[MASS_DRAW.length - 1];
+  return band.from === 0 ? band.base + r * band.slope : band.base + (r - band.from) * band.slope;
 }
 
 // ── Lifespan from mass (AF-021) ───────────────────────────────────────────────
 // t ∝ M^-2.5
 
+/** Lifespan = solarGyr / M^massExponent, never below minGyr. */
+export const LIFESPAN = { solarGyr: 10, massExponent: 2.5, minGyr: 0.003 } as const;
+
 function calcLifespan(mass: number): number {
-  return Math.max(0.003, 10 / pow(mass, 2.5));
+  return Math.max(LIFESPAN.minGyr, LIFESPAN.solarGyr / pow(mass, LIFESPAN.massExponent));
 }
 
 // ── Classification (AF-023) ───────────────────────────────────────────────────
@@ -53,8 +62,10 @@ export const REMNANT_FRACTION          = 0.95;   // envelope lost / core collaps
 // Pre-main-sequence contraction: a small share of the lifespan, but capped in
 // absolute time — even the lightest red dwarfs settle onto the main sequence
 // within a few hundred million years.
-const PROTOSTAR_FRACTION = 0.01;
-const PROTOSTAR_MAX_GYR  = 0.5;
+export const PROTOSTAR_FRACTION = 0.01;
+export const PROTOSTAR_MAX_GYR  = 0.5;
+/** Remnants by mass: below 8 M☉ a white dwarf; up to 25 M☉ a neutron star; above, a black hole. */
+export const REMNANT_MASS = { neutronStarFrom: 8, blackHoleAbove: 25 } as const;
 
 /** How long a star spends as a protostar before reaching the main sequence, in Gyr. */
 export function protostarDuration(lifespan: number): number {
@@ -65,13 +76,13 @@ function classify(mass: number, age: number, lifespan: number): StellarClass {
   const maturity = age / lifespan;
   if (age < protostarDuration(lifespan)) return "protostar";
   if (maturity < MAIN_SEQUENCE_END_FRACTION) return "main-sequence";
-  if (mass < 8) return maturity < REMNANT_FRACTION ? "red-giant" : "white-dwarf";
-  return maturity < REMNANT_FRACTION ? "red-giant" : mass > 25 ? "black-hole" : "neutron-star";
+  if (mass < REMNANT_MASS.neutronStarFrom) return maturity < REMNANT_FRACTION ? "red-giant" : "white-dwarf";
+  return maturity < REMNANT_FRACTION ? "red-giant" : mass > REMNANT_MASS.blackHoleAbove ? "black-hole" : "neutron-star";
 }
 
 // ── Temperature (AF-024) ──────────────────────────────────────────────────────
 
-const TEMP_RANGE: Record<StellarClass, [number, number]> = {
+export const TEMP_RANGE: Record<StellarClass, [number, number]> = {
   protostar: [2000, 4000],
   "main-sequence": [2300, 40000], // coolest red dwarfs to hottest O stars
   "red-giant": [3000, 5000],
@@ -80,11 +91,15 @@ const TEMP_RANGE: Record<StellarClass, [number, number]> = {
   "black-hole": [0, 0],
 };
 
-const SOLAR_TEMPERATURE_K = 5772;
+export const SOLAR_TEMPERATURE_K = 5772;
+/** Main-sequence radius ∝ M^0.8 (solar radii). */
+export const MS_RADIUS_EXPONENT = 0.8;
+/** A main-sequence star's temperature is jittered: × (low + draw · span), ±10%. */
+export const TEMPERATURE_JITTER = { low: 0.9, span: 0.2 } as const;
 
 // Main-sequence radius in solar radii (approximate mass–radius relation).
 function mainSequenceRadius(mass: number): number {
-  return pow(mass, 0.8);
+  return pow(mass, MS_RADIUS_EXPONENT);
 }
 
 function calcTemperature(cls: StellarClass, mass: number, jitter: number): number {
@@ -95,23 +110,31 @@ function calcTemperature(cls: StellarClass, mass: number, jitter: number): numbe
     // Uses the same mass–luminosity relation as calcLuminosity, so colour and brightness agree.
     const radius = mainSequenceRadius(mass);
     const t = SOLAR_TEMPERATURE_K * pow(mainSequenceLuminosity(mass) / (radius * radius), 0.25);
-    return Math.min(hi, Math.max(lo, t * (0.9 + jitter * 0.2)));
+    return Math.min(hi, Math.max(lo, t * (TEMPERATURE_JITTER.low + jitter * TEMPERATURE_JITTER.span)));
   }
   return lo + (hi - lo) * jitter;
 }
 
 // ── Luminosity (AF-025) ───────────────────────────────────────────────────────
 
+/** L = M^3.5 on the main sequence (solar units). */
+export const MASS_LUMINOSITY_EXPONENT = 3.5;
+/** A red giant shines this many times its main-sequence luminosity. */
+export const GIANT_LUMINOSITY_FACTOR = 500;
+/** A neutron star's luminosity, L☉; a white dwarf's is base + (T / hottestK) · range. */
+export const NEUTRON_STAR_LUMINOSITY = 0.00001;
+export const WHITE_DWARF_LUMINOSITY = { base: 0.001, hottestK: 80000, range: 0.05 } as const;
+
 /** Mass–luminosity relation for a main-sequence star, in solar luminosities. */
 function mainSequenceLuminosity(mass: number): number {
-  return pow(mass, 3.5);
+  return pow(mass, MASS_LUMINOSITY_EXPONENT);
 }
 
 function calcLuminosity(cls: StellarClass, mass: number, temp: number): number {
   if (cls === "black-hole") return 0;
-  if (cls === "neutron-star") return 0.00001;
-  if (cls === "white-dwarf") return 0.001 + (temp / 80000) * 0.05;
-  if (cls === "red-giant") return mainSequenceLuminosity(mass) * 500;
+  if (cls === "neutron-star") return NEUTRON_STAR_LUMINOSITY;
+  if (cls === "white-dwarf") return WHITE_DWARF_LUMINOSITY.base + (temp / WHITE_DWARF_LUMINOSITY.hottestK) * WHITE_DWARF_LUMINOSITY.range;
+  if (cls === "red-giant") return mainSequenceLuminosity(mass) * GIANT_LUMINOSITY_FACTOR;
   return mainSequenceLuminosity(mass);
 }
 
@@ -143,7 +166,7 @@ export function mainSequenceEndGyr(star: Star): number {
 }
 
 // Sun's radius in AU
-const SOLAR_RADIUS_AU = 0.00465047;
+export const SOLAR_RADIUS_AU = 0.00465047;
 
 /**
  * The star's radius today in AU, from its luminosity and temperature
@@ -233,14 +256,14 @@ export const XUV_SATURATED_SHARE = pow(10, -3.13);
 /** How fast activity decays after saturation: (t / t_sat)^(−1.23) (Ribas et al. 2005). */
 export const ACTIVITY_DECAY_EXPONENT = 1.23;
 // Saturation time against main-sequence temperature, K → Gyr (decision 36)
-const SATURATION = { gK: 5200, gGyr: 0.1, earlyMK: 3900, earlyMGyr: 0.8, lateMK: 2700, lateMGyr: 8 };
+export const SATURATION = { gK: 5200, gGyr: 0.1, earlyMK: 3900, earlyMGyr: 0.8, lateMK: 2700, lateMGyr: 8 };
 // The convective-envelope law fades out across this range, K (decision 37)
-const ENVELOPE_FADE_K = { from: 6500, to: 7500 };
+export const ENVELOPE_FADE_K = { from: 6500, to: 7500 };
 // The Sun's measured XUV today (L☉), and the age at which it is measured (Gyr)
-const SOLAR_XUV_TODAY = 3.4e-6;
-const SOLAR_AGE_GYR = 4.6;
+export const SOLAR_XUV_TODAY = 3.4e-6;
+export const SOLAR_AGE_GYR = 4.6;
 /** The XUV band's long-wavelength edge, nm. */
-const XUV_MAX_NM = 100;
+export const XUV_MAX_NM = 100;
 /** Second radiation constant hc/k, nm·K. */
 export const PLANCK_C2_NM_K = 1.4388e7;
 
@@ -280,7 +303,7 @@ export function photosphericXuvShare(temperatureK: number): number {
 }
 
 // The activity law's scale, so today's Sun gives its measured XUV (decision 37)
-const ACTIVITY_SCALE = (SOLAR_XUV_TODAY - photosphericXuvShare(SOLAR_TEMPERATURE_K))
+export const ACTIVITY_SCALE = (SOLAR_XUV_TODAY - photosphericXuvShare(SOLAR_TEMPERATURE_K))
   / (XUV_SATURATED_SHARE * activityAt(saturationTimeGyr(SOLAR_TEMPERATURE_K), SOLAR_AGE_GYR));
 
 /** What the XUV of a star depends on besides its luminosity: the two shares, and t_sat. */
@@ -411,6 +434,9 @@ export interface StellarPopulation {
 
 export const STAR_COUNT = 2000;
 
+/** A star is rare above 40 M☉, as a neutron star or black hole, or as a dwarf below 0.5 M☉ past 90% of its life. */
+export const RARE_STAR = { massAbove: 40, oldShareAbove: 0.9, oldDwarfMassBelow: 0.5 } as const;
+
 /** Age of every universe, in billion years; no star is older. */
 export const UNIVERSE_AGE_GYR = 13.7;
 
@@ -433,10 +459,10 @@ export function generateStarsFor(
     const age = rng() * Math.min(lifespan, universeAgeBY);
     const cls = classify(mass, age, lifespan);
     const isRare =
-      mass > 40 ||
+      mass > RARE_STAR.massAbove ||
       cls === "neutron-star" ||
       cls === "black-hole" ||
-      (cls === "main-sequence" && age > lifespan * 0.9 && mass < 0.5);
+      (cls === "main-sequence" && age > lifespan * RARE_STAR.oldShareAbove && mass < RARE_STAR.oldDwarfMassBelow);
     const temp = calcTemperature(cls, mass, rng());
     const luminosity = calcLuminosity(cls, mass, temp);
 

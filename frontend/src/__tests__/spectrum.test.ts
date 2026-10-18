@@ -88,7 +88,7 @@ describe("depth", () => {
     expect(s.scaleHeightKm).toBeGreaterThan(8);
     expect(s.scaleHeightKm).toBeLessThan(9);
     for (const d of s.depthPpm) {
-      expect(d).toBeGreaterThanOrEqual(s.baselinePpm);
+      expect(d).toBeGreaterThanOrEqual(s.baselinePpm * (1 - 1e-12));   // (1 − cover)·d + cover·d can round below d
       expect(d).toBeLessThan(s.baselinePpm + 10);
     }
   });
@@ -184,7 +184,7 @@ describe("every planet", () => {
       expect(s.depthPpm.length).toBe(SPECTRUM_BINS);
       for (const d of s.depthPpm) {
         expect(Number.isFinite(d)).toBe(true);
-        expect(d).toBeGreaterThanOrEqual(s.baselinePpm);
+        expect(d).toBeGreaterThanOrEqual(s.baselinePpm * (1 - 1e-12));   // (1 − cover)·d + cover·d can round below d
       }
       expect(transitSpectrum(planet, star, air)).toEqual(s);
     }

@@ -9,12 +9,16 @@ import {
 } from "../../../simulation/climate";
 import {
   CH4_DESTRUCTION_PER_GYR, CRUST_O2_CAPACITY_BAR, CRUST_O2_SINK_BAR_PER_GYR, FORMATION_DELAY_GYR, FROZEN_ICE_SHARE,
-  IMPACT_BACKGROUND_PER_GYR, IMPACT_EARLY_PER_GYR, IMPACT_EARLY_TIMESCALE_GYR, MOIST_GREENHOUSE_K, O2_REFERENCE_BAR,
+  IMPACT_BACKGROUND_PER_GYR, IMPACT_EARLY_PER_GYR, IMPACT_EARLY_TIMESCALE_GYR, O2_REFERENCE_BAR,
   OCEANS_LOST_WATER, OUTGASSING_BAR_PER_GYR, OXIDATION_O2_BAR, PHOTOLYSIS_O2_BAR_PER_WATER, SEAFLOOR_WEATHERING_SHARE,
-  STEP_GYR, VOLCANIC_O2_SINK_BAR_PER_GYR, VOLCANIC_PULSE_OUTGASSING, VOLCANIC_PULSE_PER_GYR, WATER_ESCAPE_PER_K_GYR,
+  STEP_GYR, VOLCANIC_O2_SINK_BAR_PER_GYR, VOLCANIC_PULSE_OUTGASSING, VOLCANIC_PULSE_PER_GYR,
   WEATHERING_REFERENCE_K, WEATHERING_WARMING_SCALE_K,
 } from "../../../simulation/worldHistory";
 import { atmosphereClassOf, EARTH_ESCAPE_VELOCITY_KMS, SURFACE_PRESSURE_BAR } from "../../../simulation/planetPhysics";
+import {
+  EARTH_OCEANS_LOST_PER_GYR, EARTH_XUV_FLUENCE, ESCAPE_K, MOIST_RAMP_K, MOIST_THRESHOLD, WATER_LOST_PER_DOSE,
+} from "../../../simulation/atmosphericEscape";
+import { WATER_LATENT_OVER_R_BELOW_1_ATM_K, WATER_TRIPLE_POINT } from "../../../simulation/climate";
 import { ATMOSPHERE_CODES, INDEX_FLAG } from "../../../simulation/universeIndex";
 import type { UniverseIndex } from "../../../simulation/universeIndex";
 import { formatInt, formatPercent, formatSig } from "../../format";
@@ -150,9 +154,9 @@ export const climate: Chapter = {
     {
       id: "boiling",
       title: "Boiling oceans",
-      statement: "Water boils at a temperature set by the total air pressure. Past it, a world's oceans turn to steam at once, and the steam's own weight and warmth hold the runaway until the water escapes.",
-      rule: `boiling point by Clausius–Clapeyron, capped at water's critical point (${WATER_CRITICAL_K} K)`,
-      constants: [],
+      statement: "Water boils at a temperature set by the total air pressure. Past it, a world's oceans turn to steam at once, and the steam's own weight and warmth hold the runaway until the water escapes. Below water's triple point there is no liquid at all: water is ice, or vapour.",
+      rule: `boiling point by Clausius–Clapeyron (L/R = ${formatInt(WATER_LATENT_OVER_R_BELOW_1_ATM_K)} K below 1 atm, through the triple point), capped at water's critical point (${WATER_CRITICAL_K} K)`,
+      constants: [{ name: "Triple point", value: `${WATER_TRIPLE_POINT.K} K, ${WATER_TRIPLE_POINT.bar} bar`, meaning: "No liquid water at lower pressure (decision 27)" }],
       why: "A runaway greenhouse: Venus's likely fate.",
       limits: ["Under thick air the model keeps oceans on worlds absorbing more than the runaway limit (decision 6)."],
       laws: [],
@@ -216,15 +220,41 @@ export const history: Chapter = {
     {
       id: "water-loss",
       title: "Losing water to space",
-      statement: `Above ${MOIST_GREENHOUSE_K} K water rises into the upper air, is split by starlight and escapes; weak gravity loses it faster. Below a small remainder the oceans are gone for good.`,
-      rule: `W ← W × (1 − ${WATER_ESCAPE_PER_K_GYR} × Δt × (T − ${MOIST_GREENHOUSE_K}) / (v_esc / ${EARTH_ESCAPE_VELOCITY_KMS} km/s))`,
-      constants: [{ name: "Oceans lost below", value: exact(OCEANS_LOST_WATER), meaning: "About 34 m of water at 1 g" }],
-      why: "The moist greenhouse: how Venus probably lost its water.",
-      limits: ["The rate does not read the star's ultraviolet; step 3 makes it energy-limited (decision 40)."],
+      statement: "When a world is warm enough for water vapour to reach its upper air, starlight's ultraviolet splits it and the hydrogen escapes. The amount lost follows the ultraviolet dose and weak gravity, not how much water there is, so a water-rich world keeps its ocean longer. Thin air cold-traps vapour less, so its threshold is lower.",
+      rule: `ΔW = min(W, ${formatSig(WATER_LOST_PER_DOSE)} × ΔX × (R / R⊕) × (${EARTH_ESCAPE_VELOCITY_KMS} km/s / v_esc)⁴ × min(1, (T − T_moist) / ${MOIST_RAMP_K} K)); T_moist = ${MOIST_THRESHOLD.atOneBarK} K at 1 bar, ${MOIST_THRESHOLD.perDecadeK} K lower per tenfold less background air, at least ${MOIST_THRESHOLD.lowestK} K`,
+      constants: [
+        { name: "Oceans lost below", value: exact(OCEANS_LOST_WATER), meaning: "About 34 m of water at 1 g" },
+        { name: "A fully moist Earth loses", value: `${EARTH_OCEANS_LOST_PER_GYR} oceans per Gyr`, meaning: "To today's Sun: the energy limit at heating efficiency 0.15" },
+      ],
+      why: "The moist greenhouse, how Venus probably lost its water. Energy-limited escape removes an amount set by the ultraviolet a world absorbs (decision 40).",
+      source: "Wordsworth & Pierrehumbert 2014 (the threshold); energy-limited escape",
+      limits: ["No diffusion-limited regime under strong XUV; the ramp stands in for it.", "The escaping hydrogen leaves its oxygen behind, which the crust and surface take up (photolysis oxygen is kept)."],
       laws: [],
       code: "simulation/worldHistory.ts",
       needsIndex: true,
       effect: (ctx) => [said(`${formatInt(flagged(ctx.index!, INDEX_FLAG.OCEANS_LOST))} worlds lost their oceans to space.`, "index.flags.OCEANS_LOST")],
+    },
+    {
+      id: "escape",
+      title: "Air lost to space",
+      statement: "A young star's extreme ultraviolet heats a world's upper air; a world whose gravity is weak for the dose it receives loses its air. Worlds well inside the line keep almost all of it; those near it are stripped quickly. Escape takes every gas alike, and once a world is past the line, whatever its volcanoes add is lost too.",
+      rule: `X = ∫ L_XUV / a² dt in Earth doses; X_crit = ${ESCAPE_K} × (v_esc / ${EARTH_ESCAPE_VELOCITY_KMS} km/s)⁴; air kept r = max(0, 1 − (X / X_crit)²)`,
+      constants: [
+        { name: "K", value: exact(ESCAPE_K), meaning: "Placed between Titan and Mars" },
+        { name: "One Earth dose", value: `${formatSig(EARTH_XUV_FLUENCE)} L☉ · Gyr at 1 AU`, meaning: "The model's Sun over 4.6 Gyr (REFERENCE_SUN)" },
+      ],
+      why: "The Solar System's bodies with and without air divide along one line, the cosmic shoreline, drawn as XUV dose against the fourth power of escape velocity. Earth keeps 99% by this rule, Venus 93%; Mars and Mercury keep nothing.",
+      source: "Zahnle & Catling 2017 (the shoreline); the retention curve and K are this model's choices (AE4 measures them)",
+      limits: ["A share of the air, not an amount (decision 38): a dose strips 90 bar as completely as 0.1 bar.", "The laboratory's gravity is not read; escape uses the planet's own escape velocity (decision 45)."],
+      laws: [{ law: "gravityStrength", how: "Closer effective orbits receive a larger dose" }],
+      code: "simulation/atmosphericEscape.ts; simulation/worldHistory.ts",
+      needsIndex: true,
+      effect: (ctx) => {
+        const ix = ctx.index!;
+        const solid = solidRows(ix);
+        const thinner = solid.filter((i) => ATMOSPHERE_CODES.indexOf(atmosphereClassOf(ix.pressureBar[i])) < ix.formationAtmosphere[i]).length;
+        return [said(`${formatInt(flagged(ix, INDEX_FLAG.AIR_LOST))} solid planets lost all their air to space; ${formatInt(thinner)} have a thinner class of air today than they formed with.`, "index.flags.AIR_LOST", "index.pressureBar", "index.formationAtmosphere")];
+      },
     },
     {
       id: "oxygen",
@@ -290,6 +320,6 @@ export const history: Chapter = {
       },
     },
   ],
-  missing: ["Air never escapes to space (step 3).", "No heat from inside in the energy balance (step 5a)."],
+  missing: ["Thick air does not last longer than thin under the same dose (decision 38).", "No heat from inside in the energy balance (step 5a)."],
 };
 

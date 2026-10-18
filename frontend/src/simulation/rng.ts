@@ -64,4 +64,5 @@ export const SALT = {
   EVOLUTION:      0xE70C0DE5,
   SPECTRUM:       0x5BEC7A01,
   VISUAL:         0x71516A1F,
+  AIR:            0xA1A5E5C4,   // the atmosphere draw of planets too small to have taken one before AE2 (decision 43)
 } as const;

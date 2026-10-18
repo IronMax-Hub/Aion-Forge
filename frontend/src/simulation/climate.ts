@@ -27,7 +27,10 @@
 //   cover and repeats until the cover stops changing, so a planet can have two
 //   stable states (open and frozen) for the same star and air.
 // - Water phase. Liquid up to the boiling point set by total pressure
-//   (Clausius–Clapeyron, capped at water's critical point).
+//   (Clausius–Clapeyron, capped at water's critical point). Below 1 atm the
+//   curve passes through water's triple point; below the triple point's
+//   pressure there is no liquid at all: water is ice, or vapour above 273.16 K
+//   (decision 27, with escape, AE2).
 //
 // Assumptions and limits:
 // - One mean temperature per region; no seasons, no day–night cycle on a
@@ -64,10 +67,14 @@ export const VAPOUR_FEEDBACK = 0.5;
 export const CONTRAST_MAX_K = 150;
 export const REDISTRIBUTION_HALF_BAR = 0.5;
 
-// Boiling point: Clausius–Clapeyron for water, L/R ≈ 4,895 K
+// Boiling point: Clausius–Clapeyron for water, L/R ≈ 4,895 K above 1 atm; below it,
+// L/R = 5,209 K, so the curve passes through the triple point (decision 27)
 const BOILING_K_AT_1_ATM = 373.15;
 const ONE_ATM_BAR = 1.01325;
 const WATER_LATENT_OVER_R_K = 4895;
+export const WATER_LATENT_OVER_R_BELOW_1_ATM_K = 5209;
+/** Water's triple point: below this pressure no liquid water can exist. */
+export const WATER_TRIPLE_POINT = { K: 273.16, bar: 0.006117 } as const;
 export const WATER_CRITICAL_K = 647;
 
 const MAX_ICE_ITERATIONS = 30;
@@ -99,8 +106,16 @@ export function contrastK(pressureBar: number): number {
 
 /** Boiling point of water at a total surface pressure, K. */
 export function boilingPointK(pressureBar: number): number {
-  const t = 1 / (1 / BOILING_K_AT_1_ATM - log(pressureBar / ONE_ATM_BAR) / WATER_LATENT_OVER_R_K);
+  // Below the triple point's pressure no liquid exists: water above its temperature is vapour
+  if (pressureBar < WATER_TRIPLE_POINT.bar) return WATER_TRIPLE_POINT.K;
+  const latent = pressureBar < ONE_ATM_BAR ? WATER_LATENT_OVER_R_BELOW_1_ATM_K : WATER_LATENT_OVER_R_K;
+  const t = 1 / (1 / BOILING_K_AT_1_ATM - log(pressureBar / ONE_ATM_BAR) / latent);
   return t > 0 ? Math.min(WATER_CRITICAL_K, t) : WATER_CRITICAL_K;
+}
+
+/** Below this temperature water is ice, K: the freezing point, or, below the triple point's pressure, always (decision 27). */
+export function freezingKAt(pressureBar: number): number {
+  return pressureBar < WATER_TRIPLE_POINT.bar ? Infinity : FREEZING_K;
 }
 
 /** P₂ coefficient of annual-mean insolation for an axial tilt (−0.625 upright, +0.3125 on its side). */
@@ -199,6 +214,7 @@ export function solveBands(
   const bandK = new Float64Array(BAND_COUNT);
   const contrast = contrastK(inputs.pressureBar);
   const warming = greenhouseK(inputs.pressureBar, inputs.co2Bar, inputs.ch4Bar, inputs.wetness);
+  const freezingK = freezingKAt(inputs.pressureBar);
   let albedo = 0;
   let meanK = 0;
   for (let iteration = 0; iteration < MAX_ICE_ITERATIONS; iteration++) {
@@ -207,7 +223,7 @@ export function solveBands(
     let changed = false;
     for (let k = 0; k < BAND_COUNT; k++) {
       bandK[k] = Math.max(MIN_TEMPERATURE_K, meanK + contrast * (geometry.insolation[k] - 1));
-      const frozen = bandK[k] < FREEZING_K ? 1 : 0;
+      const frozen = bandK[k] < freezingK ? 1 : 0;
       if (frozen !== iced[k]) { iced[k] = frozen; changed = true; }
     }
     if (!changed) break;
@@ -319,7 +335,7 @@ export function solvePresentClimate(
     let changed = false;
     for (let i = 0; i < n; i++) {
       temperatureK[i] = Math.max(MIN_TEMPERATURE_K, meanK + contrast * (insolation[i] / insolationMean - 1));
-      const frozen = temperatureK[i] < FREEZING_K ? 1 : 0;
+      const frozen = temperatureK[i] < freezingKAt(inputs.pressureBar) ? 1 : 0;
       if (frozen !== iced[i]) { iced[i] = frozen; changed = true; }
     }
     if (!changed) break;
@@ -351,7 +367,7 @@ export function solvePresentClimate(
 
   const moisture = moistureOf(openWater, temperatureK);
   const boilingK = boilingPointK(inputs.pressureBar);
-  const liquid = (t: number) => !steam && inputs.wetness > 0 && t >= FREEZING_K && t < boilingK;
+  const liquid = (t: number) => !steam && inputs.wetness > 0 && t >= freezingKAt(inputs.pressureBar) && t < boilingK;
   let habitableFraction = 0;
   const liquidAreaByBand = new Float64Array(BAND_COUNT);
   const areaByBand = new Float64Array(BAND_COUNT);

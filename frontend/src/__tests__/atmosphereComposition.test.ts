@@ -47,6 +47,8 @@ describe("every atmosphere", () => {
     for (const { star, planet } of all) {
       const { mixingRatios, pressureBar } = atmosphereComposition(planet, civilizationOf(planet, star));
       const ratios = Object.values(mixingRatios);
+      // A world that escape stripped bare has no air at all (AE2)
+      if (pressureBar === 0) { expect(ratios).toEqual([]); continue; }
       expect(ratios.length).toBeGreaterThan(0);
       for (const x of ratios) expect(x).toBeGreaterThan(0);
       expect(ratios.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);

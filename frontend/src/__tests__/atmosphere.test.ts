@@ -119,7 +119,8 @@ describe("clouds", () => {
     expect(cloudOffsetOf(planet, seed)).toEqual(draws.slice(3, 6));
   });
 
-  const { star, planet } = drawn[0];
+  // A world that still has air to draw (escape strips some, AE2)
+  const { star, planet } = drawn.find(({ planet: p }) => hasVisibleAtmosphere(p))!;
   const world = solidWorldOf(planet, star, seed, config);
   const surface = new GlobeTextureCache().globeFor(planet, world, world.physics, seed);
 

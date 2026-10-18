@@ -79,6 +79,8 @@ export const INDEX_FLAG = {
   OCEANS_LOST: 1 << 8,
   /** Its oceans are boiled into the air today. */
   STEAM_TODAY: 1 << 9,
+  /** Escape took the last of its air (AE2). */
+  AIR_LOST: 1 << 10,
 } as const;
 
 // The biosignature pair, as mixing ratios: O₂ at least 1%, CH₄ at least 1 ppm
@@ -168,6 +170,7 @@ export function indexRowsFor(system: PlanetarySystem, star: Star, galaxySeed: nu
     if (recorded("runaway-greenhouse")) flags |= INDEX_FLAG.RUNAWAY;
     if (recorded("oceans-lost")) flags |= INDEX_FLAG.OCEANS_LOST;
     if (surface?.steam) flags |= INDEX_FLAG.STEAM_TODAY;
+    if (recorded("air-lost")) flags |= INDEX_FLAG.AIR_LOST;
 
     return {
       starId: star.id,

@@ -1,7 +1,7 @@
 // Chapter 3 of the Physics page: stars (PH1).
 
 import {
-  ACTIVITY_DECAY_EXPONENT, ACTIVITY_SCALE, ENVELOPE_FADE_K, SOLAR_AGE_GYR, SOLAR_RADIUS_AU, GIANT_LUMINOSITY_FACTOR, LIFESPAN, luminosityAt, MAIN_SEQUENCE_BRIGHTENING,
+  ACTIVITY_DECAY_EXPONENT, ACTIVITY_SCALE, ENVELOPE_FADE_K, PAST_GIANT_TEMPERATURE_K, SOLAR_AGE_GYR, SOLAR_RADIUS_AU, GIANT_LUMINOSITY_FACTOR, LIFESPAN, luminosityAt, MAIN_SEQUENCE_BRIGHTENING,
   MAIN_SEQUENCE_END_FRACTION, MASS_DRAW, MASS_LUMINOSITY_EXPONENT, MS_RADIUS_EXPONENT, NEUTRON_STAR_LUMINOSITY,
   PROTOSTAR_FRACTION, PROTOSTAR_MAX_GYR, RARE_STAR, REMNANT_FRACTION, REMNANT_MASS, SATURATION, saturationTimeGyr,
   SOLAR_TEMPERATURE_K, SOLAR_XUV_TODAY, stellarRadiusAU, TEMP_RANGE, TEMPERATURE_JITTER, UNIVERSE_AGE_GYR,
@@ -108,7 +108,11 @@ export const stars: Chapter = {
         { name: "Black hole above", value: exact(REMNANT_MASS.blackHoleAbove, "M☉"), meaning: "" },
       ],
       why: "These are the stages and mass limits of stellar evolution, simplified to fixed shares of a star's life.",
-      limits: ["The giant phase is one stage at once 500 times brighter; subgiants, the helium flash and planetary nebulae are not modelled.", "Neutron stars and black holes have no planets."],
+      limits: [
+        "The giant phase is one stage at once 500 times brighter; subgiants, the helium flash and planetary nebulae are not modelled.",
+        `A star that is a remnant today was a giant until it became one; its planets felt that light (decision 44). Its giant temperature is not stored and is taken as ${formatInt(PAST_GIANT_TEMPERATURE_K)} K.`,
+        "Neutron stars and black holes have no planets.",
+      ],
       laws: [],
       code: "simulation/star.ts · classify",
       effect: (ctx) => [said(`${classMix(ctx.stars)}.`, "star.classification")],
@@ -163,7 +167,7 @@ export const stars: Chapter = {
     {
       id: "star-radius",
       title: "Size, and planets swallowed",
-      statement: "A star's radius follows from its light and temperature. A giant swells to an AU or more and swallows the planets inside it.",
+      statement: "A star's radius follows from its light and temperature. A giant swells to an AU or more and swallows the planets inside it; a remnant swallowed those inside the giant it once was.",
       rule: `R = R☉ × √L × (${SOLAR_TEMPERATURE_K} K / T)²; a planet whose orbit lies inside R is removed`,
       constants: [{ name: "The Sun's radius", value: `${SOLAR_RADIUS_AU} AU`, meaning: "R☉" }],
       why: "Stefan–Boltzmann again: a cool, bright giant must be enormous.",

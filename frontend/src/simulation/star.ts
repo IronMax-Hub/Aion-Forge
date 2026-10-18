@@ -145,7 +145,9 @@ function calcLuminosity(cls: StellarClass, mass: number, temp: number): number {
 // moment of its life from here.
 //
 //   main sequence:  L(t) = L_ref · (1 + k·t/t_ms) / (1 + k·t_ref/t_ms),  k = 0.8
-//   afterwards:     today's luminosity (red giant, white dwarf or remnant)
+//   afterwards:     today's luminosity (red giant, white dwarf or remnant); a
+//                   remnant was first a giant until REMNANT_FRACTION of its life
+//                   (decision 44, below)
 //
 // t_ms is when the main sequence ends (MAIN_SEQUENCE_END_FRACTION of the lifespan).
 // A star still on the main sequence is anchored to today (t_ref = age,
@@ -180,8 +182,45 @@ export function stellarRadiusAU(star: Star): number {
 /** The star's luminosity t Gyr after it formed, in solar luminosities. */
 export function luminosityAt(star: Star, tGyr: number): number {
   const msEnd = mainSequenceEndGyr(star);
-  if (star.age >= msEnd && tGyr >= msEnd) return star.luminosity;
+  if (star.age >= msEnd && tGyr >= msEnd) {
+    // A remnant was a giant from the main sequence's end until it became one (decision 44)
+    if (isRemnant(star) && tGyr < remnantFromGyr(star)) return pastGiantLuminosity(star);
+    return star.luminosity;
+  }
   return mainSequenceTrack(star, tGyr);
+}
+
+// ── The past giant phase of today's remnants (Galaxy Through Time AE2, decision 44) ──
+//
+// A star that is a white dwarf, neutron star or black hole today was a giant
+// between the end of its main sequence and REMNANT_FRACTION of its life. Its
+// planets felt that light, and planets inside the giant were engulfed. A past
+// giant's temperature is not stored, so it is taken as the middle of the
+// giant range (owner decision): 4,000 K.
+
+/** A past giant's temperature, K: the middle of the model's giant range. */
+export const PAST_GIANT_TEMPERATURE_K = (TEMP_RANGE["red-giant"][0] + TEMP_RANGE["red-giant"][1]) / 2;
+
+const REMNANTS: readonly StellarClass[] = ["white-dwarf", "neutron-star", "black-hole"];
+
+function isRemnant(star: Star): boolean {
+  return REMNANTS.includes(star.classification);
+}
+
+/** When the star became a remnant, Gyr after it formed. */
+export function remnantFromGyr(star: Star): number {
+  return star.lifespan * REMNANT_FRACTION;
+}
+
+function pastGiantLuminosity(star: Star): number {
+  return mainSequenceLuminosity(star.mass) * GIANT_LUMINOSITY_FACTOR;
+}
+
+/** The radius a remnant reached as a giant, AU (Stefan–Boltzmann at PAST_GIANT_TEMPERATURE_K); 0 for other stars. */
+export function pastGiantRadiusAU(star: Star): number {
+  if (!isRemnant(star)) return 0;
+  const t = SOLAR_TEMPERATURE_K / PAST_GIANT_TEMPERATURE_K;
+  return SOLAR_RADIUS_AU * Math.sqrt(pastGiantLuminosity(star)) * t * t;
 }
 
 /** The main-sequence luminosity track, L☉, linear in time; for a star that has left it, extended to any t. */
@@ -204,6 +243,7 @@ function mainSequenceTrack(star: Star, tGyr: number): number {
  */
 export function temperatureAt(star: Star, tGyr: number): number {
   const msEnd = mainSequenceEndGyr(star);
+  if (star.age >= msEnd && tGyr >= msEnd && isRemnant(star) && tGyr < remnantFromGyr(star)) return PAST_GIANT_TEMPERATURE_K;
   if (star.age < msEnd || tGyr >= msEnd) return star.temperature;
   const [lo, hi] = TEMP_RANGE["main-sequence"];
   const radius = mainSequenceRadius(star.mass);

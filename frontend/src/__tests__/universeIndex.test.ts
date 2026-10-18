@@ -81,6 +81,7 @@ describe("universe index", () => {
         expect(flag(INDEX_FLAG.RUNAWAY)).toBe(recorded("runaway-greenhouse"));
         expect(flag(INDEX_FLAG.OCEANS_LOST)).toBe(recorded("oceans-lost"));
         expect(flag(INDEX_FLAG.STEAM_TODAY)).toBe(planet.surface?.steam ?? false);
+        expect(flag(INDEX_FLAG.AIR_LOST)).toBe(recorded("air-lost"));
 
         expect(index.lifeBeganGyr[i]).toBe(f32(life?.startedGyr));
         expect(index.lifeEndedGyr[i]).toBe(f32(life?.endedGyr));

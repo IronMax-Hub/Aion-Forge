@@ -1,7 +1,7 @@
 // Chapters 4 and 5 of the Physics page: planetary systems, and a planet's body (PH2).
 
 import {
-  ARCHITECTURE_ROLL, ATMOSPHERE_DRAW, ATMOSPHERE_LOSS_TEMP_K, DESERT_MAX_OCEAN, DESERT_MIN_K, DUST_SUBLIMATION_K,
+  ARCHITECTURE_ROLL, ATMOSPHERE_DRAW, DESERT_MAX_OCEAN, OWN_AIR_STREAM_BELOW_MASS, DESERT_MIN_K, DUST_SUBLIMATION_K,
   FIRST_ORBIT_AU, ICE_GIANT_MAX_K, ICE_WORLD_MIN_ICE, LAVA_MIN_K, OCEAN_WORLD_MIN_OCEAN, ORBIT_SPACING, PLANET_COUNT,
 } from "../../../simulation/planet";
 import { GIANT_PLANET_MASS, MASS_RADIUS, PLANET_MASS_DRAW } from "../../../simulation/planetBasics";
@@ -108,11 +108,11 @@ export const systems: Chapter = {
     {
       id: "formation-air",
       title: "The air a planet starts with",
-      statement: "A rocky planet draws one of five atmosphere classes, each with a background pressure. Tiny planets and those hotter than 700 K start with little or none. Its history then changes that air.",
-      rule: `mass < ${ATMOSPHERE_DRAW.airlessBelowMass} M⊕: none; T_eq > ${ATMOSPHERE_LOSS_TEMP_K} K: thin or none; else none / thin / moderate / thick / crushing below draws ${ATMOSPHERE_DRAW.noneBelow} / ${ATMOSPHERE_DRAW.thinBelow} / ${ATMOSPHERE_DRAW.moderateBelow} / ${ATMOSPHERE_DRAW.thickBelow} / 1`,
+      statement: "Every rocky planet draws one of five atmosphere classes from the same distribution, whatever its size or heat; each class has a background pressure. Its history then decides what it keeps: escape strips the weak-gravity and strongly irradiated (Atmospheric escape).",
+      rule: `none / thin / moderate / thick / crushing below draws ${ATMOSPHERE_DRAW.noneBelow} / ${ATMOSPHERE_DRAW.thinBelow} / ${ATMOSPHERE_DRAW.moderateBelow} / ${ATMOSPHERE_DRAW.thickBelow} / 1; planets below ${OWN_AIR_STREAM_BELOW_MASS} M⊕ draw from their own stream`,
       constants: (Object.entries(SURFACE_PRESSURE_BAR) as [string, number][]).map(([cls, bar]) => ({ name: cls, value: exact(bar, "bar"), meaning: "Background pressure of the class" })),
       why: "Planets capture and outgas very different amounts of gas; the classes span airless Mercury to Venus-like crushing air.",
-      limits: ["The heat and mass shortcuts at formation will be retired when escape is modelled in each history (decision 43, AE2)."],
+      limits: ["Before AE2, planets below 0.05 M⊕ formed airless and those above 700 K thin or airless (decision 43 retired both): the small ones now draw from a stream of their own so no other planet's draws move."],
       laws: [],
       code: "simulation/planet.ts · ATMOSPHERE_DRAW, pickAtmosphere; simulation/planetPhysics.ts · SURFACE_PRESSURE_BAR",
       needsIndex: true,

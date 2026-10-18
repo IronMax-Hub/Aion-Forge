@@ -1,7 +1,7 @@
-import { createRNG, SALT } from "./rng";
+import { createRNG, mixSeed, SALT } from "./rng";
 import { pow } from "./detmath";
 import type { Star } from "./star";
-import { luminosityAt, stellarRadiusAU } from "./star";
+import { luminosityAt, pastGiantRadiusAU, stellarRadiusAU } from "./star";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
 import { effectiveOrbitAU, GIANT_PLANET_MASS, planetMassFromDraw, typicalRadiusForMass } from "./planetBasics";
@@ -209,31 +209,34 @@ function equilibriumTemp(stellarLuminosity: number, orbitalAU: number): number {
   return EQUILIBRIUM_K_AT_1_AU * pow(Math.max(0.0001, stellarLuminosity), 0.25) / Math.sqrt(orbitalAU);
 }
 
-// ── Atmosphere (AF-043) ───────────────────────────────────────────────────────
+// ── Atmosphere (AF-043; one draw for every planet since AE2, decision 43) ─────
+//
+// Every solid planet draws its formation class from the same distribution,
+// whatever its mass or heat: escape in its history (atmosphericEscape.ts)
+// alone decides what it keeps. Before AE2, planets below 0.05 M⊕ were
+// airless and planets hotter than 700 K thin or airless, without the draw.
+// The hot ones took one draw from the system's stream, and keep it; the small
+// ones took none, so theirs comes from their own stream (SALT.AIR), and every
+// other draw in the system stays where it was.
 
-// Above this equilibrium temperature, stellar heating strips most of an atmosphere away.
-export const ATMOSPHERE_LOSS_TEMP_K = 700;
+/** The atmosphere draw: none, thin, moderate and thick below these bounds of one draw, else crushing. */
+export const ATMOSPHERE_DRAW = { noneBelow: 0.15, thinBelow: 0.35, moderateBelow: 0.70, thickBelow: 0.90 } as const;
+/** Planets below this mass draw their atmosphere from their own stream (they took no draw before AE2). */
+export const OWN_AIR_STREAM_BELOW_MASS = 0.05;
 
-/**
- * The atmosphere draw: below airlessBelowMass none; above ATMOSPHERE_LOSS_TEMP_K thin or none, even
- * odds; otherwise none, thin, moderate and thick below these bounds of one draw, else crushing.
- */
-export const ATMOSPHERE_DRAW = {
-  airlessBelowMass: 0.05, hotThinBelow: 0.5,
-  noneBelow: 0.15, thinBelow: 0.35, moderateBelow: 0.70, thickBelow: 0.90,
-} as const;
-
-function pickAtmosphere(mass: number, tempK: number, rng: () => number): AtmosphereType {
+function atmosphereFromDraw(r: number): AtmosphereType {
   const d = ATMOSPHERE_DRAW;
-  if (mass > GIANT_PLANET_MASS) return "crushing";
-  if (mass < d.airlessBelowMass) return "none";
-  if (tempK > ATMOSPHERE_LOSS_TEMP_K) return rng() < d.hotThinBelow ? "thin" : "none";
-  const r = rng();
   if (r < d.noneBelow) return "none";
   if (r < d.thinBelow) return "thin";
   if (r < d.moderateBelow) return "moderate";
   if (r < d.thickBelow) return "thick";
   return "crushing";
+}
+
+function pickAtmosphere(mass: number, rng: () => number, ownDraw: () => number): AtmosphereType {
+  if (mass > GIANT_PLANET_MASS) return "crushing";
+  if (mass < OWN_AIR_STREAM_BELOW_MASS) return atmosphereFromDraw(ownDraw());
+  return atmosphereFromDraw(rng());
 }
 
 // ── Habitability (AF-043, rewritten for A3) ───────────────────────────────────
@@ -276,7 +279,7 @@ function presentSurface(present: PresentClimate, physics: PlanetPhysics, final: 
     surfaceGravity: physics.surfaceGravity,
     pressureBar: final.pressureBar,
     o2Bar: final.o2Bar,
-    backgroundBar: physics.surfacePressureBar,
+    backgroundBar: final.backgroundBar,
     co2Bar: final.co2Bar,
     ch4Bar: final.ch4Bar,
     ozone: final.ozone,
@@ -362,13 +365,14 @@ export function generatePlanetsFor(
   const spread = Math.max(1, dustSublimationAU(star) / effectiveOrbitAU(drawn[0], config));
   const orbits = drawn.map((radius) => radius * spread);
   // A star that has since swollen past a planet's orbit has engulfed it
-  const starRadiusAU = stellarRadiusAU(star);
+  // or did, as a giant, before it became a remnant (decision 44)
+  const starRadiusAU = Math.max(stellarRadiusAU(star), pastGiantRadiusAU(star));
 
   const planets: (Planet | null)[] = orbits.map((orbitalRadius, idx) => {
     const mass = planetMassFromDraw(rng());
     // Stellar heating decides what atmosphere a planet can keep
     const equilibriumK = equilibriumTemp(star.luminosity, effectiveOrbitAU(orbitalRadius, config));
-    const atmosphere = pickAtmosphere(mass, equilibriumK, rng);
+    const atmosphere = pickAtmosphere(mass, rng, () => createRNG(mixSeed(galaxySeed, star.id, idx, SALT.AIR))());
     rng(); // the old type roll: still taken so the draws below stay aligned
     // Planets of the same mass differ in make-up, so in size: ±20% around the typical radius
     const size = typicalRadiusForMass(mass) * (0.8 + rng() * 0.4);

@@ -82,17 +82,22 @@ describe("Planetary physics", () => {
     }
   });
 
-  it("forms strongly irradiated rocky planets with at most a thin atmosphere", () => {
+  it("forms every rocky planet's air from one draw, whatever its heat or size: escape decides what it keeps (AE2, decision 43)", () => {
+    const hot = new Set<string>();
+    const tiny = new Set<string>();
     for (const seed of SEEDS) {
       const { stars } = generateStarsFor(makeGalaxyConfig(seed));
       for (const star of stars.slice(0, 300)) {
         for (const p of generatePlanetsFor(star, seed).planets) {
-          if (p.mass > 0.05 && p.mass <= 15 && equilibriumTemp(star.luminosity, p.orbitalRadius) > 700) {
-            expect(["none", "thin"]).toContain(p.formationAtmosphere);
-          }
+          if (p.mass > 15) continue;
+          if (p.mass < 0.05) tiny.add(p.formationAtmosphere);
+          else if (equilibriumTemp(star.luminosity, p.orbitalRadius) > 700) hot.add(p.formationAtmosphere);
         }
       }
     }
+    // Before AE2 these were only ever "none" (tiny) or "none"/"thin" (hot)
+    expect(hot.has("moderate") || hot.has("thick")).toBe(true);
+    expect(tiny.size).toBeGreaterThan(1);
   });
 });
 

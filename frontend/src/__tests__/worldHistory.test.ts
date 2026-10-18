@@ -133,18 +133,18 @@ describe("the carbon thermostat", () => {
 });
 
 describe("water", () => {
-  it("boils the oceans of a hot world as its star brightens, then loses them to space", () => {
+  it("loses a hot world's oceans to its young star's ultraviolet before they can boil (AE2, decision 40)", () => {
     const h = history({ planet: { orbitalRadius: 0.42 } });
-    const runaway = h.events.find((e) => e.kind === "runaway-greenhouse");
     const lost = h.events.find((e) => e.kind === "oceans-lost");
-    expect(runaway).toBeDefined();
-    expect(lost!.tGyr).toBeGreaterThan(runaway!.tGyr);
+    expect(lost!.tGyr).toBeLessThan(1);
+    expect(h.events.some((e) => e.kind === "runaway-greenhouse")).toBe(false);
     expect(h.final.water).toBeLessThan(OCEANS_LOST_WATER);
     expect(h.present.oceanFraction).toBe(0);
   });
 
   it("stops weathering once the oceans are steam, so CO₂ builds up towards a Venus", () => {
-    const h = history({ planet: { orbitalRadius: 0.46 }, lifeless: true });
+    // A giant boils the oceans of a once-temperate world (a closer world loses its water first, AE2)
+    const h = history({ star: { mass: 1, lifespan: 10, age: 9, classification: "red-giant", luminosity: 500 }, lifeless: true });
     const runaway = h.events.find((e) => e.kind === "runaway-greenhouse")!;
     const before = h.snapshots!.find((s) => s.tGyr === runaway.tGyr)!;
     expect(h.final.co2Bar).toBeGreaterThan(before.co2Bar * 1000);

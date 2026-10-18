@@ -23,9 +23,14 @@
 //           rate per area (owner decision; about a quarter of Earth's total), so a
 //           world with no land keeps a weaker thermostat. Frozen, dry or
 //           steam-covered ground does not weather.
-//      Water  above 340 K it reaches the upper air and escapes:
-//           W ← W · (1 − E·Δt·(T − 340) / (v_esc / 11.2)). It never returns.
-//      O₂   photolysis of the escaping water leaves oxygen behind; volcanic
+//      Air  (AE2) the step's XUV dose thins the background gas to its formation
+//           pressure × r(dose), and CO₂, O₂ and CH₄ lose the share it lost
+//           (atmosphericEscape.ts). A world past its shoreline keeps nothing.
+//      Water  while the upper air is moist (above a threshold that falls with
+//           the background gas), an amount escapes, energy-limited by the
+//           step's XUV dose and ∝ R / v_esc⁴ (decision 40). It never returns.
+//      O₂   photolysis of the escaping water leaves oxygen behind (the hydrogen
+//           escapes; the rest of the oxygen is taken up by crust and surface); volcanic
 //           gases (∝ τ) and unoxidised crust (which is used up) remove it.
 //           Ozone = min(1, √(O₂ / 0.21 bar)). CH₄ is destroyed faster in O₂.
 //           Life's O₂ and CH₄ each relax towards production / loss, solved
@@ -58,7 +63,7 @@
 // so a planet can freeze over and stay frozen until volcanic CO₂, which frozen
 // land cannot weather away, warms it enough to thaw. No code names snowballs.
 //
-// Water phase (R3): the moist greenhouse (above 340 K) loses water gradually.
+// Water phase (R3): the moist greenhouse loses water gradually.
 // Past the boiling point set by total pressure the oceans are steam at once
 // (the runaway greenhouse) and the escape continues from the steam. The steam
 // weighs on the surface like the ocean it was (Earth's would be ~270 bar),
@@ -66,8 +71,10 @@
 // until the water escapes or the star dims enough for it to condense again.
 //
 // Assumptions and limits:
-// - The background pressure from the atmosphere class is fixed (R6); CO₂, O₂,
-//   CH₄ and steam add to it. Steam warms only through that pressure.
+// - The background pressure starts at the atmosphere class's and thins only by
+//   escape (R6 as amended by AE2); CO₂, O₂, CH₄ and steam add to it. Steam
+//   warms only through that pressure. Below water's triple point there is no
+//   liquid water (decision 27; climate.ts).
 // - Water in ice, rock and air is not separated from the ocean inventory.
 // - Impacts are recorded but change nothing yet; they are catastrophes for
 //   evolution (C2.3). Volcanic pulses change only this step's outgassing.
@@ -89,6 +96,7 @@ import {
   bandAlbedo, bandGeometry, boilingPointK, CO2_REFERENCE_BAR, equilibriumTemperatureK, greenhouseK,
   solveBands, solvePresentClimate,
 } from "./climate";
+import { airRetained, moistThresholdK, waterLost, xuvDose } from "./atmosphericEscape";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
 import { environmentContext, environmentFor } from "./evolution/environment";
@@ -135,9 +143,6 @@ export const OCEANS_LOST_WATER = 0.001;
 const STEAM_BAR_PER_WATER = 98.1 * 33.75;
 
 // Water loss in a moist greenhouse
-export const MOIST_GREENHOUSE_K = 340;
-export const WATER_ESCAPE_PER_K_GYR = 0.015;
-const EARTH_ESCAPE_VELOCITY_KMS = 11.2;
 
 // Oxygen without life
 export const PHOTOLYSIS_O2_BAR_PER_WATER = 0.5;     // O₂ kept per unit of W lost, at g = 1; the rest escapes or oxidises at once
@@ -189,7 +194,8 @@ export type WorldEventKind =
   | "moist-greenhouse"
   | "runaway-greenhouse"
   | "oceans-lost"
-  | "oxidation";
+  | "oxidation"
+  | "air-lost";
 
 export interface WorldEvent {
   kind: WorldEventKind;
@@ -208,6 +214,12 @@ export interface WorldState {
   ch4Bar: number;
   ozone: number;             // 0–1
   unoxidisedCrust: number;   // 0–1
+  /** The background gas today, bar: its formation pressure × the share escape has left (AE2). */
+  backgroundBar: number;
+  /** XUV dose received since the star formed, in Earth doses (AE2). */
+  xuvDose: number;
+  /** Share of its air the world keeps after that dose, 0–1 (AE2). */
+  airRetained: number;
   pressureBar: number;
   meanK: number;
   steam: boolean;            // oceans boiled into the air
@@ -326,23 +338,30 @@ export function runWorldHistory(
   const config = cfg ?? makeConfig(galaxySeed);
   const orbitAU = effectiveOrbitAU(planet.orbitalRadius, config);
   const g = physics.surfaceGravity;
-  const backgroundBar = physics.surfacePressureBar;
+  // Escape (AE2): the dose before the history begins, and the air it leaves
+  const startGyr = Math.min(star.age, FORMATION_DELAY_GYR);
+  const formationBackgroundBar = physics.surfacePressureBar;
+  const startDose = xuvDose(star, orbitAU, 0, startGyr);
+  const startRetained = airRetained(startDose, physics.escapeVelocityKms);
+  let backgroundBar = formationBackgroundBar * startRetained;
   const geometry = bandGeometry(physics.axialTiltDeg, physics.tidallyLocked);
   const msEnd = mainSequenceEndGyr(star);
-  const escapeFactor = physics.escapeVelocityKms / EARTH_ESCAPE_VELOCITY_KMS;
 
   // Formation: warm, ice-free, with the water it was born with
   let state: WorldState = {
-    tGyr: Math.min(star.age, FORMATION_DELAY_GYR),
-    luminosity: luminosityAt(star, Math.min(star.age, FORMATION_DELAY_GYR)),
-    tectonicActivity: tectonicActivity(planet, Math.min(star.age, FORMATION_DELAY_GYR)),
+    tGyr: startGyr,
+    luminosity: luminosityAt(star, startGyr),
+    tectonicActivity: tectonicActivity(planet, startGyr),
     water: physics.waterInventory,
-    co2Bar: INITIAL_CO2_BAR,
+    co2Bar: INITIAL_CO2_BAR * startRetained,
     o2Bar: 0,
     ch4Bar: 0,
     ozone: 0,
     unoxidisedCrust: 1,
-    pressureBar: backgroundBar + INITIAL_CO2_BAR,
+    backgroundBar,
+    xuvDose: startDose,
+    airRetained: startRetained,
+    pressureBar: backgroundBar + INITIAL_CO2_BAR * startRetained,
     meanK: 0,
     steam: false,
     iceFraction: 0,
@@ -407,9 +426,19 @@ export function runWorldHistory(
     const t = step === stepCount ? star.age : (FORMATION_DELAY_GYR * STEPS_PER_GYR + step) / STEPS_PER_GYR;
     const dt = t - t0;
     const eventsBefore = events.length;
+    // A world stripped before its history began is recorded in its first step, at that step's end
+    // (within the history's resolution), so every event belongs to a step
+    if (step === 1 && formationBackgroundBar > 0 && startRetained === 0) events.push({ kind: "air-lost", tGyr: t });
 
-    // 1–2. Star and interior
+    // 1–2. Star and interior; the step's XUV dose and the air it leaves (AE2)
     const luminosity = luminosityAt(star, t);
+    const stepDose = xuvDose(star, orbitAU, t0, t);
+    const dose = state.xuvDose + stepDose;
+    const retained = airRetained(dose, physics.escapeVelocityKms);
+    // The share the background keeps this step; every gas loses the same share
+    const keep = state.airRetained > 0 ? retained / state.airRetained : 0;
+    backgroundBar = formationBackgroundBar * retained;
+    if (formationBackgroundBar > 0 && state.airRetained > 0 && retained === 0) events.push({ kind: "air-lost", tGyr: t });
     const tau = tectonicActivity(planet, t);
     if (star.age >= msEnd && t0 < msEnd && t >= msEnd) events.push({ kind: "star-leaves-main-sequence", tGyr: msEnd });
 
@@ -451,10 +480,9 @@ export function runWorldHistory(
     // 3. Climate, over oceans filled from this step's starting water
     const climate = solveBands(geometry, bandOcean, inputsAt(co2), state.iced);
 
-    // 4b. Water escapes above the moist-greenhouse limit; its oxygen stays behind
-    const escape = Math.min(1, (WATER_ESCAPE_PER_K_GYR * dt * Math.max(0, climate.meanK - MOIST_GREENHOUSE_K)) / escapeFactor);
-    const waterLost = state.water * escape;
-    const water = state.water - waterLost;
+    // 4b. Water escapes while the upper air is moist, energy-limited by the step's dose; its oxygen stays behind
+    const lostWater = waterLost(state.water, stepDose, planet.size, physics.escapeVelocityKms, climate.meanK, backgroundBar);
+    const water = state.water - lostWater;
 
     // 4c. Oxygen, ozone and methane
     // Life's O₂ from last step's biomass (a one-step lag keeps the order explicit):
@@ -474,19 +502,25 @@ export function runWorldHistory(
       const crustTaken = Math.min(supplied - volcanicTaken, crustDemand);
       return { o2: supplied - volcanicTaken - crustTaken, crust: Math.max(0, crust - crustTaken / CRUST_O2_CAPACITY_BAR) };
     };
-    const { o2, crust: unoxidisedCrust } =
-      afterSinks(breathed(state.o2Bar) + PHOTOLYSIS_O2_BAR_PER_WATER * waterLost * g * g, state.unoxidisedCrust);
+    const { o2: o2Kept, crust: unoxidisedCrust } =
+      afterSinks(breathed(state.o2Bar) + PHOTOLYSIS_O2_BAR_PER_WATER * lostWater * g * g, state.unoxidisedCrust);
     // The same air with life's oxygen alone (EN0): no oxygen from escaping water, and a crust only life has oxidised
     lifeOnly = afterSinks(breathed(lifeOnly.o2), lifeOnly.crust);
+    lifeOnly.o2 *= keep;   // escape takes life's oxygen as it takes the real air's
     if (lifeOxygenGyr === null && lifeOnly.o2 >= OXIDATION_O2_BAR) lifeOxygenGyr = t;
     // dCH₄/dt = production − destruction·CH₄, solved exactly over the step (the
     // destruction is fast, ~0.1 Gyr, so an explicit step would wipe it out each time)
     // Methanogens work anaerobically: only the anaerobic share of a cell's metabolism makes methane
     const anaerobic = 1 - aerobicShare(state.o2Bar, TRAIT_RANGES.log10BodyMassKg.min);
     const ch4Production = CH4_PRODUCTION_BAR_PER_GYR * state.chemicalBiomass * anaerobic * g;
-    const ch4Destruction = CH4_DESTRUCTION_PER_GYR * (1 + o2 / O2_REFERENCE_BAR);
+    const ch4Destruction = CH4_DESTRUCTION_PER_GYR * (1 + o2Kept / O2_REFERENCE_BAR);
     const ch4Balance = ch4Production / ch4Destruction;
-    const ch4 = ch4Balance + (state.ch4Bar - ch4Balance) * exp(-ch4Destruction * dt);
+    const ch4Kept = ch4Balance + (state.ch4Bar - ch4Balance) * exp(-ch4Destruction * dt);
+
+    // 4d. Escape takes the whole air: every gas loses the share the background lost (AE2)
+    co2 *= keep;
+    const o2 = o2Kept * keep;
+    const ch4 = ch4Kept * keep;
 
     // Water phase for the next step (R3): oceans boil above the boiling point
     // under the air alone; steam condenses below it under the air and the steam
@@ -502,7 +536,7 @@ export function runWorldHistory(
     const nowFrozen = climate.iceFraction >= FROZEN_ICE_SHARE;
     if (nowFrozen !== frozen && !first) events.push({ kind: nowFrozen ? "freezes-over" : "thaws", tGyr: t });
     frozen = nowFrozen;
-    const nowMoist = climate.meanK > MOIST_GREENHOUSE_K && water >= OCEANS_LOST_WATER;
+    const nowMoist = climate.meanK > moistThresholdK(backgroundBar) && water >= OCEANS_LOST_WATER;
     if (nowMoist && !moist && !first) events.push({ kind: "moist-greenhouse", tGyr: t });
     moist = nowMoist;
     if (!oceansLost && water < OCEANS_LOST_WATER) { oceansLost = true; events.push({ kind: "oceans-lost", tGyr: t }); }
@@ -512,6 +546,7 @@ export function runWorldHistory(
     state = {
       tGyr: t, luminosity, tectonicActivity: tau, water, co2Bar: co2, o2Bar: o2, ch4Bar: ch4,
       ozone: Math.min(1, Math.sqrt(o2 / O2_REFERENCE_BAR)), unoxidisedCrust,
+      backgroundBar, xuvDose: dose, airRetained: retained,
       pressureBar: pressureOf(co2, o2, ch4, water, steam),
       meanK: climate.meanK, steam, iceFraction: climate.iceFraction,
       openOceanFraction: climate.openOceanFraction, openLandFraction: climate.openLandFraction,

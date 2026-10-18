@@ -45,7 +45,7 @@ export interface PlanetPhysics {
   waterInventory: number;       // 0–1: water delivered at formation
 }
 
-const EARTH_ESCAPE_VELOCITY_KMS = 11.2;
+export const EARTH_ESCAPE_VELOCITY_KMS = 11.2;
 const HOURS_PER_YEAR = 8766;
 
 /** Background gas pressure for each atmosphere class, in bar. */
@@ -69,21 +69,21 @@ export function atmosphereClassOf(pressureBar: number): AtmosphereType {
 }
 
 // a_lock = C · (t★ · M★²)^(1/6): with C = 0.31 AU, the Sun today locks inside ~0.40 AU
-const TIDAL_LOCK_CONSTANT_AU = 0.31;
+export const TIDAL_LOCK_CONSTANT_AU = 0.31;
 
-const ROTATION_HOURS = { min: 8, max: 60 };        // log-uniform when free to spin
-const TILT = { lowShare: 0.8, lowMaxDeg: 35, maxDeg: 90 };
+export const ROTATION_HOURS = { min: 8, max: 60 };        // log-uniform when free to spin
+export const TILT = { lowShare: 0.8, lowMaxDeg: 35, maxDeg: 90 };
 
 // Snow line: water ice condenses beyond ~2.7 AU around a Sun-like young star
-const SNOW_LINE_AU_PER_SQRT_L = 2.7;
+export const SNOW_LINE_AU_PER_SQRT_L = 2.7;
 // Water inventory: median and spread (a factor, log-uniform either side), set at formation
-const WATER_INSIDE_SNOW_LINE = { median: 0.08, spread: 4 };
-const WATER_BEYOND_SNOW_LINE = { median: 0.5, spread: 2 };
+export const WATER_INSIDE_SNOW_LINE = { median: 0.08, spread: 4 };
+export const WATER_BEYOND_SNOW_LINE = { median: 0.5, spread: 2 };
 // Below this mass a planet holds on to less of its water
-const WATER_RETENTION_MASS = 0.1;
+export const WATER_RETENTION_MASS = 0.1;
 
 // Tectonic activity decays as the interior cools, on this timescale
-const INTERIOR_COOLING_GYR = 8;
+export const INTERIOR_COOLING_GYR = 8;
 
 /** Orbits closer than this are tidally locked, in AU. */
 export function tidalLockingDistanceAU(star: Star): number {

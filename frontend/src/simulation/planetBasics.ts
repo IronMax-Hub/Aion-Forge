@@ -17,13 +17,13 @@ export function effectiveOrbitAU(orbitalRadius: number, config: UniverseConfig):
 }
 
 // Planet masses (Earth masses). A draw u in 0–1 maps log-uniformly onto
-// MASS_DRAW.min–MASS_DRAW.knee.mass for u below MASS_DRAW.knee.u, which keeps
+// PLANET_MASS_DRAW.min–PLANET_MASS_DRAW.knee.mass for u below PLANET_MASS_DRAW.knee.u, which keeps
 // every mass the original single log-uniform law gave up to 25 M⊕ (all solid
 // planets and the lighter giants). The top tenth of draws is spread
 // log-uniformly from there up to 13 Jupiter masses, where planets end and brown
 // dwarfs begin (owner decision), so about one planet in twenty is heavier than
 // Saturn.
-const MASS_DRAW = {
+export const PLANET_MASS_DRAW = {
   min: pow(10, -1.75),                          // ≈ 0.018 M⊕
   knee: { u: 0.9, mass: pow(10, 1.4) },         // ≈ 25 M⊕
   max: 4000,                                    // ≈ 13 Jupiter masses
@@ -31,7 +31,7 @@ const MASS_DRAW = {
 
 /** A planet's mass in Earth masses, from a uniform draw in 0–1. */
 export function planetMassFromDraw(u: number): number {
-  const { min, knee, max } = MASS_DRAW;
+  const { min, knee, max } = PLANET_MASS_DRAW;
   if (u < knee.u) return min * pow(knee.mass / min, u / knee.u);
   return knee.mass * pow(max / knee.mass, (u - knee.u) / (1 - knee.u));
 }
@@ -43,7 +43,7 @@ export function planetMassFromDraw(u: number): number {
 // three power laws meet at the breakpoints. The fit includes many hot,
 // inflated exoplanets, so it puts a Saturn-mass planet about a quarter larger
 // than Saturn. Radii in Earth radii.
-const MASS_RADIUS = [
+export const MASS_RADIUS = [
   { upToMass: 2.04, coefficient: 1.008, exponent: 0.279 },    // Terran
   { upToMass: 131.6, coefficient: 0.808, exponent: 0.589 },   // Neptunian
   { upToMass: Infinity, coefficient: 17.74, exponent: -0.044 }, // Jovian

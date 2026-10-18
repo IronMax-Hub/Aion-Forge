@@ -50,25 +50,25 @@ export const FREEZING_K = 263;
 const MIN_TEMPERATURE_K = 30;
 
 // Effective albedos, including clouds, chosen so Earth's mix comes out near 0.3
-const ALBEDO = { ocean: 0.28, land: 0.32, ice: 0.62 };
+export const ALBEDO = { ocean: 0.28, land: 0.32, ice: 0.62 };
 
 // Greenhouse: Earth (1 bar, CO₂ at reference, wet) gets 33 K
-const GREENHOUSE_BASE_K = 16.5;           // dry, per √bar of total pressure
+export const GREENHOUSE_BASE_K = 16.5;           // dry, per √bar of total pressure
 export const CO2_REFERENCE_BAR = 2.8e-4;  // pre-industrial Earth
 const CO2_FLOOR_BAR = 1e-7;               // below this the log term stops falling
-const GREENHOUSE_PER_CO2_DOUBLING_K = 1.5; // dry; 3 K with water vapour
-const GREENHOUSE_PER_SQRT_CH4_K = 150;    // dry; 1,000 ppm of methane gives ~9 K with vapour
-const VAPOUR_FEEDBACK = 0.5;
+export const GREENHOUSE_PER_CO2_DOUBLING_K = 1.5; // dry; 3 K with water vapour
+export const GREENHOUSE_PER_SQRT_CH4_K = 150;    // dry; 1,000 ppm of methane gives ~9 K with vapour
+export const VAPOUR_FEEDBACK = 0.5;
 
 // Heat transport: airless contrast, and the pressure that halves it
-const CONTRAST_MAX_K = 150;
-const REDISTRIBUTION_HALF_BAR = 0.5;
+export const CONTRAST_MAX_K = 150;
+export const REDISTRIBUTION_HALF_BAR = 0.5;
 
 // Boiling point: Clausius–Clapeyron for water, L/R ≈ 4,895 K
 const BOILING_K_AT_1_ATM = 373.15;
 const ONE_ATM_BAR = 1.01325;
 const WATER_LATENT_OVER_R_K = 4895;
-const WATER_CRITICAL_K = 647;
+export const WATER_CRITICAL_K = 647;
 
 const MAX_ICE_ITERATIONS = 30;
 const LN2 = 0.6931471805599453;
@@ -76,8 +76,11 @@ const LN2 = 0.6931471805599453;
 // ── Building blocks ───────────────────────────────────────────────────────────
 
 /** Blackbody temperature of a planet absorbing (1 − albedo) of its star's light, K. */
+/** A zero-albedo blackbody's temperature at 1 AU from 1 L☉, K. */
+export const EQUILIBRIUM_K_AT_1_AU = 278;
+
 export function equilibriumTemperatureK(luminosity: number, orbitAU: number, albedo: number): number {
-  return 278 * pow((Math.max(1e-4, luminosity) * (1 - albedo)) / (orbitAU * orbitAU), 0.25);
+  return EQUILIBRIUM_K_AT_1_AU * pow((Math.max(1e-4, luminosity) * (1 - albedo)) / (orbitAU * orbitAU), 0.25);
 }
 
 /** Warming by the atmosphere, K. `wetness` (0–1) is how much surface water can feed vapour. */

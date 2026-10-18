@@ -12,6 +12,7 @@ import type { Geography } from "./geography";
 import { runWorldHistory } from "./worldHistory";
 import type { WorldEvent, WorldHistory, WorldState } from "./worldHistory";
 import type { PresentClimate } from "./climate";
+import { EQUILIBRIUM_K_AT_1_AU } from "./climate";
 import type { PhylogenySummary } from "./evolution/phylogeny";
 
 export { effectiveOrbitAU, GIANT_PLANET_MASS };
@@ -104,10 +105,21 @@ export interface PlanetarySystem {
 
 type OrbitalArch = "compact" | "distributed" | "resonant" | "chaotic";
 
+/** A system's architecture from one draw: compact, distributed and resonant below these bounds, otherwise chaotic. */
+export const ARCHITECTURE_ROLL = { compactBelow: 0.35, distributedBelow: 0.65, resonantBelow: 0.82 } as const;
+/** The innermost orbit, AU (base + draw · spread), and each next orbit's ratio to the one before, by architecture. */
+export const FIRST_ORBIT_AU = { base: 0.1, spread: 0.3 } as const;
+export const ORBIT_SPACING: Record<OrbitalArch, { base: number; spread: number }> = {
+  compact:     { base: 1.3, spread: 0.3 },
+  distributed: { base: 1.6, spread: 0.8 },
+  resonant:    { base: 1.5, spread: 0.2 },   // ~1.5–1.7× with low scatter
+  chaotic:     { base: 1.1, spread: 2.0 },
+};
+
 function pickArchitecture(r: number): OrbitalArch {
-  if (r < 0.35) return "compact";
-  if (r < 0.65) return "distributed";
-  if (r < 0.82) return "resonant";
+  if (r < ARCHITECTURE_ROLL.compactBelow) return "compact";
+  if (r < ARCHITECTURE_ROLL.distributedBelow) return "distributed";
+  if (r < ARCHITECTURE_ROLL.resonantBelow) return "resonant";
   return "chaotic";
 }
 
@@ -115,48 +127,46 @@ function pickArchitecture(r: number): OrbitalArch {
 // star's light would heat bare dust past DUST_SUBLIMATION_K. At zero albedo that
 // distance is (278 / T_sub)² · √L AU, so a star a hundred times as bright forms
 // its planets ten times as far out, at the same temperatures.
-const DUST_SUBLIMATION_K = 1500;
+export const DUST_SUBLIMATION_K = 1500;
 
 /** The inner edge of a star's planet-forming disk, AU: its dust-sublimation line at formation. */
 export function dustSublimationAU(star: Star): number {
-  const ratio = 278 / DUST_SUBLIMATION_K;
+  const ratio = EQUILIBRIUM_K_AT_1_AU / DUST_SUBLIMATION_K;
   return ratio * ratio * Math.sqrt(luminosityAt(star, 0));
 }
 
 function generateOrbits(arch: OrbitalArch, count: number, rng: () => number): number[] {
   const radii: number[] = [];
-  let inner = 0.1 + rng() * 0.3;
+  let inner = FIRST_ORBIT_AU.base + rng() * FIRST_ORBIT_AU.spread;
+  const { base, spread } = ORBIT_SPACING[arch];
 
   for (let i = 0; i < count; i++) {
     radii.push(inner);
-    switch (arch) {
-      case "compact":
-        inner *= 1.3 + rng() * 0.3;
-        break;
-      case "distributed":
-        inner *= 1.6 + rng() * 0.8;
-        break;
-      case "resonant":
-        // Resonant spacing: ~1.5–2× with low scatter
-        inner *= 1.5 + rng() * 0.2;
-        break;
-      case "chaotic":
-        inner *= 1.1 + rng() * 2.0;
-        break;
-    }
+    inner *= base + rng() * spread;
   }
   return radii;
 }
 
 // ── Planet count (AF-038) ─────────────────────────────────────────────────────
 
+/**
+ * How many planets a star forms: none (barren) below the first roll bound; 1–2 (sparse) below the
+ * second; otherwise its base count plus 0–4, the base falling with star mass.
+ */
+export const PLANET_COUNT = {
+  barrenBelow: 0.1,
+  sparseBelow: 0.25, sparse: { min: 1, range: 2 },
+  base: { belowMass: [1.5, 5], counts: [4, 3, 2] }, extraRange: 5,
+} as const;
+
 function planetCount(starMass: number, rng: () => number): number {
   // More massive stars tend to have fewer planets (hotter, shorter-lived)
-  const base = starMass < 1.5 ? 4 : starMass < 5 ? 3 : 2;
+  const { base: b } = PLANET_COUNT;
+  const base = starMass < b.belowMass[0] ? b.counts[0] : starMass < b.belowMass[1] ? b.counts[1] : b.counts[2];
   const roll = rng();
-  if (roll < 0.1) return 0;                          // barren
-  if (roll < 0.25) return 1 + Math.floor(rng() * 2); // sparse
-  return base + Math.floor(rng() * 5);               // normal–crowded
+  if (roll < PLANET_COUNT.barrenBelow) return 0;                                                      // barren
+  if (roll < PLANET_COUNT.sparseBelow) return PLANET_COUNT.sparse.min + Math.floor(rng() * PLANET_COUNT.sparse.range); // sparse
+  return base + Math.floor(rng() * PLANET_COUNT.extraRange);                                           // normal–crowded
 }
 
 // ── Planet type (Worlds Up Close A3) ──────────────────────────────────────────
@@ -169,14 +179,14 @@ function planetCount(starMass: number, rng: () => number): number {
 // Giants colder than this are ice giants. With this model's equilibrium
 // temperatures the Sun's giants split as they should: Jupiter 122 K and Saturn
 // 90 K are gas giants, Uranus 64 K and Neptune 51 K ice giants.
-const ICE_GIANT_MAX_K = 75;
+export const ICE_GIANT_MAX_K = 75;
 // A solid planet this hot at its surface today is a lava world
-const LAVA_MIN_K = 1000;
+export const LAVA_MIN_K = 1000;
 // Surface shares that name a world: mostly ocean, mostly ice, or a warm world with almost no water
-const OCEAN_WORLD_MIN_OCEAN = 0.9;
-const ICE_WORLD_MIN_ICE = 0.85;
-const DESERT_MAX_OCEAN = 0.03;
-const DESERT_MIN_K = 273;
+export const OCEAN_WORLD_MIN_OCEAN = 0.9;
+export const ICE_WORLD_MIN_ICE = 0.85;
+export const DESERT_MAX_OCEAN = 0.03;
+export const DESERT_MIN_K = 273;
 
 function giantType(temperatureK: number): PlanetType {
   return temperatureK < ICE_GIANT_MAX_K ? "ice-giant" : "gas-giant";
@@ -196,23 +206,33 @@ function solidType(temperatureK: number, surface: PlanetSurface): PlanetType {
 // A solid planet's surface temperature comes from its world history.
 
 function equilibriumTemp(stellarLuminosity: number, orbitalAU: number): number {
-  return 278 * pow(Math.max(0.0001, stellarLuminosity), 0.25) / Math.sqrt(orbitalAU);
+  return EQUILIBRIUM_K_AT_1_AU * pow(Math.max(0.0001, stellarLuminosity), 0.25) / Math.sqrt(orbitalAU);
 }
 
 // ── Atmosphere (AF-043) ───────────────────────────────────────────────────────
 
 // Above this equilibrium temperature, stellar heating strips most of an atmosphere away.
-const ATMOSPHERE_LOSS_TEMP_K = 700;
+export const ATMOSPHERE_LOSS_TEMP_K = 700;
+
+/**
+ * The atmosphere draw: below airlessBelowMass none; above ATMOSPHERE_LOSS_TEMP_K thin or none, even
+ * odds; otherwise none, thin, moderate and thick below these bounds of one draw, else crushing.
+ */
+export const ATMOSPHERE_DRAW = {
+  airlessBelowMass: 0.05, hotThinBelow: 0.5,
+  noneBelow: 0.15, thinBelow: 0.35, moderateBelow: 0.70, thickBelow: 0.90,
+} as const;
 
 function pickAtmosphere(mass: number, tempK: number, rng: () => number): AtmosphereType {
+  const d = ATMOSPHERE_DRAW;
   if (mass > GIANT_PLANET_MASS) return "crushing";
-  if (mass < 0.05) return "none";
-  if (tempK > ATMOSPHERE_LOSS_TEMP_K) return rng() < 0.5 ? "thin" : "none";
+  if (mass < d.airlessBelowMass) return "none";
+  if (tempK > ATMOSPHERE_LOSS_TEMP_K) return rng() < d.hotThinBelow ? "thin" : "none";
   const r = rng();
-  if (r < 0.15) return "none";
-  if (r < 0.35) return "thin";
-  if (r < 0.70) return "moderate";
-  if (r < 0.90) return "thick";
+  if (r < d.noneBelow) return "none";
+  if (r < d.thinBelow) return "thin";
+  if (r < d.moderateBelow) return "moderate";
+  if (r < d.thickBelow) return "thick";
   return "crushing";
 }
 
@@ -225,13 +245,13 @@ function pickAtmosphere(mass: number, tempK: number, rng: () => number): Atmosph
 
 // A planet with this share of liquid-water surface or more gets full credit.
 // Earth's present-day solve gives 0.7–0.9.
-const FULL_HABITABLE_AREA = 0.5;
+export const FULL_HABITABLE_AREA = 0.5;
 // Gravity window: full credit inside, fading to nothing at half the lower edge and twice the upper one
-const GRAVITY_WINDOW = { min: 0.4, max: 2.5 };
-const ATMOSPHERE_FACTOR: Record<AtmosphereType, number> = {
+export const GRAVITY_WINDOW = { min: 0.4, max: 2.5 };
+export const ATMOSPHERE_FACTOR: Record<AtmosphereType, number> = {
   none: 0.05, thin: 0.8, moderate: 1, thick: 0.9, crushing: 0.1,
 };
-const RESOURCE_WEIGHT = 0.1;
+export const RESOURCE_WEIGHT = 0.1;
 
 function gravityFactor(g: number): number {
   if (g < GRAVITY_WINDOW.min) return Math.max(0, (g - GRAVITY_WINDOW.min / 2) / (GRAVITY_WINDOW.min / 2));

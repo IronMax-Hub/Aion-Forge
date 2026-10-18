@@ -103,7 +103,7 @@ import type { PhylogenySummary } from "./evolution/phylogeny";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const STEPS_PER_GYR = 10;
+export const STEPS_PER_GYR = 10;
 export const STEP_GYR = 1 / STEPS_PER_GYR;
 /** The loop starts this long after the star forms; the same delay biosphere.ts uses. */
 export const FORMATION_DELAY_GYR = 0.5;
@@ -111,7 +111,7 @@ export const FORMATION_DELAY_GYR = 0.5;
 // Carbon cycle. Outgassing is Earth-scaled (~30 bar of CO₂ per Gyr at full activity);
 // weathering is calibrated so Earth today (τ ≈ 0.56, ~29% open land and ~66% open
 // ocean, 288 K) balances at CO₂_ref.
-const OUTGASSING_BAR_PER_GYR = 30;
+export const OUTGASSING_BAR_PER_GYR = 30;
 const EARTH_TECTONICS_NOW = 0.5627;           // e^(−4.6 / 8)
 const EARTH_OPEN_LAND = 0.29;
 const EARTH_OPEN_OCEAN = 0.66;
@@ -119,8 +119,8 @@ const EARTH_OPEN_OCEAN = 0.66;
 export const SEAFLOOR_WEATHERING_SHARE = 0.15;
 const WEATHERING_BAR_PER_GYR = (OUTGASSING_BAR_PER_GYR * EARTH_TECTONICS_NOW)
   / (EARTH_OPEN_LAND + SEAFLOOR_WEATHERING_SHARE * EARTH_OPEN_OCEAN);
-const WEATHERING_REFERENCE_K = 288;
-const WEATHERING_WARMING_SCALE_K = 13.7;
+export const WEATHERING_REFERENCE_K = 288;
+export const WEATHERING_WARMING_SCALE_K = 13.7;
 const INITIAL_CO2_BAR = 0.01;
 const CO2_SOLVE_MAX_ITERATIONS = 60;
 const CO2_SOLVE_TOLERANCE = 1e-10;   // relative
@@ -136,28 +136,28 @@ const STEAM_BAR_PER_WATER = 98.1 * 33.75;
 
 // Water loss in a moist greenhouse
 export const MOIST_GREENHOUSE_K = 340;
-const WATER_ESCAPE_PER_K_GYR = 0.015;
+export const WATER_ESCAPE_PER_K_GYR = 0.015;
 const EARTH_ESCAPE_VELOCITY_KMS = 11.2;
 
 // Oxygen without life
-const PHOTOLYSIS_O2_BAR_PER_WATER = 0.5;     // O₂ kept per unit of W lost, at g = 1; the rest escapes or oxidises at once
-const VOLCANIC_O2_SINK_BAR_PER_GYR = 0.02;   // at τ = 1
-const CRUST_O2_SINK_BAR_PER_GYR = 0.05;      // while the crust is fully unoxidised
-const CRUST_O2_CAPACITY_BAR = 2;
+export const PHOTOLYSIS_O2_BAR_PER_WATER = 0.5;     // O₂ kept per unit of W lost, at g = 1; the rest escapes or oxidises at once
+export const VOLCANIC_O2_SINK_BAR_PER_GYR = 0.02;   // at τ = 1
+export const CRUST_O2_SINK_BAR_PER_GYR = 0.05;      // while the crust is fully unoxidised
+export const CRUST_O2_CAPACITY_BAR = 2;
 export const O2_REFERENCE_BAR = 0.21;
 /** O₂ above this counts as an oxidised atmosphere (about 1% of Earth's). */
 export const OXIDATION_O2_BAR = 0.002;
-const CH4_DESTRUCTION_PER_GYR = 10;
+export const CH4_DESTRUCTION_PER_GYR = 10;
 
 // Freezing over: ice on this share of the planet
 export const FROZEN_ICE_SHARE = 0.9;
 
 // Events
-const IMPACT_BACKGROUND_PER_GYR = 2;
-const IMPACT_EARLY_PER_GYR = 40;             // heavy bombardment just after formation
-const IMPACT_EARLY_TIMESCALE_GYR = 0.15;
-const VOLCANIC_PULSE_PER_GYR = 4;            // at τ = 1
-const VOLCANIC_PULSE_OUTGASSING = 2;         // outgassing multiplier during a pulse
+export const IMPACT_BACKGROUND_PER_GYR = 2;
+export const IMPACT_EARLY_PER_GYR = 40;             // heavy bombardment just after formation
+export const IMPACT_EARLY_TIMESCALE_GYR = 0.15;
+export const VOLCANIC_PULSE_PER_GYR = 4;            // at τ = 1
+export const VOLCANIC_PULSE_OUTGASSING = 2;         // outgassing multiplier during a pulse
 
 /** Draw purposes within the WORLD stream: each step's draw for each purpose is its own. */
 const PURPOSE = { IMPACT: 1, VOLCANISM: 2, ORIGIN: 3 } as const;
@@ -166,19 +166,19 @@ const PURPOSE = { IMPACT: 1, VOLCANISM: 2, ORIGIN: 3 } as const;
 // of the planet), × emergenceSensitivity; set so an Earth-like world (70%
 // ocean) gets life within 0.5 Gyr of its oceans forming in 4 cases out of 5
 // (owner decision: anchored on Earth). −ln(0.2) / (0.7 · 0.5 Gyr) ≈ 4.6.
-const ORIGIN_PER_GYR_PER_WATER_AREA = 4.6;
+export const ORIGIN_PER_GYR_PER_WATER_AREA = 4.6;
 // Life's oxygen (owner decision): light users make it, life respires it.
 // Production per unit of light-user biomass (engine.ts units), × g like the
 // other gases; respiration and decay take O₂ × total biomass × RESPIRATION.
 // Their ratio sets the balance: Earth-like biomass (light ≈ 0.5 of 0.55) holds
 // ~0.21 bar. Production is high enough that early anoxic light users (biomass
 // ~0.02) outpace the crust and volcanic sinks, so oxidation can follow.
-const O2_PRODUCTION_BAR_PER_GYR = 4;
-const O2_RESPIRATION_PER_GYR = 17;
+export const O2_PRODUCTION_BAR_PER_GYR = 4;
+export const O2_RESPIRATION_PER_GYR = 17;
 // Methane from chemical-energy life (methanogens), in proportion to the
 // anaerobic share of a cell's metabolism; anoxic vent life (biomass ~1.5e-4)
 // keeps ~1e-3 bar against the existing destruction.
-const CH4_PRODUCTION_BAR_PER_GYR = 70;
+export const CH4_PRODUCTION_BAR_PER_GYR = 70;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

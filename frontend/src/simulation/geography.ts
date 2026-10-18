@@ -53,7 +53,7 @@ import { tectonicActivity } from "./planetPhysics";
 const ICOSPHERE_LEVEL = 3;                 // 642 cells
 export const BAND_COUNT = 18;              // 10° each
 
-const PLATES = { min: 6, extra: 8 };       // 6–14 plates
+export const PLATES = { min: 6, extra: 8 };       // 6–14 plates
 const PLATE_SIZE_RANGE = { min: 0.3, max: 2.5 };   // Earth radii over which the count rises
 const PLATE_JITTER_Z = 1;                  // in units of the Fibonacci spacing
 const PLATE_JITTER_RAD = 0.5;
@@ -61,14 +61,14 @@ const PLATE_SPEED = { min: 0.3, max: 1 };  // relative; only ratios matter
 
 // Share of plates that are continental on a planet with full tectonic activity at formation.
 // Earth: continental crust covers about 40% of the surface; a quarter of it is flooded shelf.
-const CONTINENTAL_SHARE = 0.4;
+export const CONTINENTAL_SHARE = 0.4;
 
 // Earth-like heights for g = 1, in km: mean continent, abyssal ocean floor
-const CONTINENTAL_BASE_KM = 0.8;
-const OCEANIC_BASE_KM = -4.5;
+export const CONTINENTAL_BASE_KM = 0.8;
+export const OCEANIC_BASE_KM = -4.5;
 const PLATE_BASE_JITTER_KM = 0.4;          // ± around the base
-const UPLIFT_KM = 3;                       // at a head-on collision
-const RIFT_KM = 1.5;                       // at a head-on separation
+export const UPLIFT_KM = 3;                       // at a head-on collision
+export const RIFT_KM = 1.5;                       // at a head-on separation
 const BOUNDARY_FALLOFF = [1, 0.5, 0.2];    // by distance from the boundary, in cells
 const ROUGHNESS_KM = 0.25;                 // ± per cell
 

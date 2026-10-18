@@ -16,6 +16,10 @@
 // Since GF6: the Great Filter funnel, the worlds passing each of the twelve
 // gates (simulation/greatFilter.ts), read from the survey's index, so every
 // later physics step records how it moves the filter.
+//
+// Since AE4: what atmospheric escape did, from the index: the share of solid
+// planets stripped of their air, today's mix of air classes, and the worlds
+// living today by their host star's class (greatFilter.ts's star conditions).
 
 import { makeConfig, PRESETS } from "../src/simulation/config";
 import { buildGalaxyConfig } from "../src/simulation/galaxy";
@@ -30,7 +34,9 @@ import { buildGeography } from "../src/simulation/geography";
 import { runWorldHistory, FORMATION_DELAY_GYR } from "../src/simulation/worldHistory";
 import type { UniverseConfig } from "../src/simulation/config";
 import { EARTH_PATH, firstsOrder } from "./earthPath";
-import { funnelOf, GATES } from "../src/simulation/greatFilter";
+import { CONDITIONS, funnelOf, GATES } from "../src/simulation/greatFilter";
+import { ATMOSPHERE_CODES, INDEX_FLAG } from "../src/simulation/universeIndex";
+import { atmosphereClassOf } from "../src/simulation/planetPhysics";
 
 export const SEEDS = [100000, 42, 7777];
 
@@ -67,7 +73,18 @@ export interface Row {
   surveyMs: number;      // the whole pass: survey, geography and histories
   /** Worlds passing each Great Filter gate, in GATES order (GF6). */
   funnel: number[];
+  /** Atmospheric escape (AE4), from the index. */
+  escape: Escape;
 }
+
+export interface Escape {
+  strippedShare: number;    // solid planets that lost all their air to space
+  classMix: number[];       // solid planets by today's air class, ATMOSPHERE_CODES order
+  livingByHost: number[];   // worlds living today by host class, HOST_CLASSES order
+}
+
+/** Host star classes for the living-worlds column: greatFilter.ts's star conditions. */
+const HOST_CLASSES = CONDITIONS.filter((c) => c.id.startsWith("star-"));
 
 const median = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b);
@@ -163,6 +180,20 @@ export function measureUniverse(presetName: string, seed: number): Row {
     },
     surveyMs,
     funnel: funnelOf(survey.index).steps.map((step) => step.passed),
+    escape: escapeOf(survey, stars),
+  };
+}
+
+/** What escape did, read from the survey's index (AE4). */
+function escapeOf(survey: LifeSurvey, stars: Star[]): Escape {
+  const ix = survey.index;
+  const rows = [...Array(ix.count).keys()];
+  const solid = rows.filter((i) => !Number.isNaN(ix.pressureBar[i]));
+  const living = rows.filter((i) => !Number.isNaN(ix.lifeBeganGyr[i]) && Number.isNaN(ix.lifeEndedGyr[i]));
+  return {
+    strippedShare: solid.filter((i) => (ix.flags[i] & INDEX_FLAG.AIR_LOST) !== 0).length / Math.max(1, solid.length),
+    classMix: ATMOSPHERE_CODES.map((cls) => solid.filter((i) => atmosphereClassOf(ix.pressureBar[i]) === cls).length),
+    livingByHost: HOST_CLASSES.map((c) => living.filter((i) => c.holds(ix, i, stars[ix.starId[i]])).length),
   };
 }
 
@@ -204,6 +235,20 @@ export function table(rows: Row[]): string {
   const percent = (share: number) => `${(share * 100).toFixed(1)}%`;
   for (const { preset, seed, survey, lockedShare: locked, geography: g, history: h, surveyMs } of rows) {
     lines.push(`| ${preset} | ${seed} | ${survey.totalPlanets} | ${percent(locked)} | ${g.solidPlanets} | ${percent(g.medianOcean)} | ${percent(g.oceanWorldShare)} | ${percent(g.dryShare)} | ${percent(h.frozeShare)} | ${percent(h.runawayShare)} | ${percent(h.oceansLostShare)} | ${percent(h.oxidisedShare)} | ${percent(h.liquidTodayShare)} | ${percent(h.noLandRunawayShare)} | ${percent(h.everLifeShare)} | ${percent(h.livingShare)} | ${Number.isNaN(h.medianLifeStartGyr) ? "–" : h.medianLifeStartGyr.toFixed(1)} | ${survey.lifeBearingPlanets} | ${survey.systems.length} | ${stageMix(survey)} | ${survey.civilizationCount} | ${earthPathCell(h.mindOrders)} | ${surveyMs.toFixed(1)} | ${g.ms.toFixed(0)} | ${h.ms.toFixed(0)} |`);
+  }
+  return lines.join("\n");
+}
+
+/** What atmospheric escape did in every universe, as a Markdown table (AE4). */
+export function escapeTable(rows: Row[]): string {
+  const lines = [
+    "Atmospheric escape: solid planets stripped of their air, solid planets by today's air class, and worlds living today by host star class.",
+    "",
+    `| Preset | Seed | Solid planets | Stripped | Air today (${ATMOSPHERE_CODES.join(" / ")}) | Runaway greenhouse | Living today (${HOST_CLASSES.map((c) => c.label.replace(/^Host star (class |a )/, "")).join(" / ")}) |`,
+    "|---|---:|---:|---:|---|---:|---|",
+  ];
+  for (const { preset, seed, geography: g, history: h, escape: e } of rows) {
+    lines.push(`| ${preset} | ${seed} | ${g.solidPlanets} | ${(e.strippedShare * 100).toFixed(1)}% | ${e.classMix.join(" / ")} | ${(h.runawayShare * 100).toFixed(1)}% | ${e.livingByHost.join(" / ")} |`);
   }
   return lines.join("\n");
 }

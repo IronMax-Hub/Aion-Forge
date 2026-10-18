@@ -552,6 +552,7 @@ Measured: by the bolometric form of that index, 2,737 of the 7,134 solid planets
 - **Deliverables:** Stats-harness columns: the share of solid planets stripped, today's class mix, the runaway-greenhouse share, and living worlds by host-star class. A new `Documents/physics.md` (on the model of `evolution.md`) records the constants, their reasons and the measurements.
 - **Implementation:** The ±25% target for systems with organisms. If escape lands outside it, K is tuned with a stated reason, or the owner records the drift.
 - **Verification:** The harness run; the Great Filter columns before and after.
+- **Built** 18 Oct 2026. The harness gains an escape table: the share of solid planets stripped, today's class mix, the runaway share, and the worlds living today by host star class (greatFilter.ts's star conditions), all read from the index. `Documents/physics.md` records step 3's constants, reasons and measurements. Systems with organisms under the default parameters: 987 / 968 / 1,006 → 912 / 891 / 933 (−7.3% to −8.0%), inside ±25%, so K stays 10 and nothing is tuned (decisions 5 and 26 as recommended, awaiting the owner's mark). Runaways halved (3.3% → 1.5% on seed 100000) rather than doubled, so decision 6's check is not triggered. Civilizations fell by about a third (89 → 53).
 
 ### Step 4 — Metallicity over cosmic time
 

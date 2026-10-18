@@ -27,7 +27,8 @@
 
 import type { Planet } from "./planet";
 import type { AtmosphereComposition } from "./atmosphereComposition";
-import { GIANT_DEEP_H2O, waterSaturationBar } from "./atmosphereComposition";
+import { GIANT_DEEP_H2O } from "./atmosphereComposition";
+import { waterSaturationBar } from "./climate";
 
 /** Overcast share: none below `from` bar, all of the sky from `full`. */
 export const OVERCAST_BAR = { from: 10, full: 90 };

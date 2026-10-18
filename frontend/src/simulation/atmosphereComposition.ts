@@ -53,6 +53,7 @@
 // - All abundances are approximations, with their sources noted beside them.
 
 import { exp } from "./detmath";
+import { GAS_CONSTANT, saturationBar, waterSaturationBar } from "./climate";
 import type { Planet } from "./planet";
 import type { Civilization, TechStage } from "./civilization";
 import { waterAsVapourBar, wetnessOf, O2_REFERENCE_BAR } from "./worldHistory";
@@ -72,24 +73,11 @@ export interface AtmosphereComposition {
 
 // ── Water vapour (Clausius–Clapeyron) ─────────────────────────────────────────
 
-const GAS_CONSTANT = 8.314;                  // J/(mol·K)
-const WATER_TRIPLE_POINT_K = 273.16;
-const WATER_TRIPLE_POINT_BAR = 0.006117;
-const WATER_VAPORIZATION_J_PER_MOL = 44_000; // over liquid
-const WATER_SUBLIMATION_J_PER_MOL = 51_100;  // over ice
+// The saturation pressures live in climate.ts, so the vapour that warms a world
+// is the vapour its spectrum shows (decision 39)
+
 /** Earth's mean relative humidity near the surface. */
 export const RELATIVE_HUMIDITY = 0.77;
-
-/** Saturation vapour pressure, bar, from one anchor point and a latent heat. */
-function saturationBar(temperatureK: number, anchorK: number, anchorBar: number, latentJPerMol: number): number {
-  return anchorBar * exp((latentJPerMol / GAS_CONSTANT) * (1 / anchorK - 1 / temperatureK));
-}
-
-/** Water's saturation vapour pressure, bar: over liquid above the triple point, over ice below. */
-export function waterSaturationBar(temperatureK: number): number {
-  const latent = temperatureK >= WATER_TRIPLE_POINT_K ? WATER_VAPORIZATION_J_PER_MOL : WATER_SUBLIMATION_J_PER_MOL;
-  return saturationBar(temperatureK, WATER_TRIPLE_POINT_K, WATER_TRIPLE_POINT_BAR, latent);
-}
 
 // ── Ozone ─────────────────────────────────────────────────────────────────────
 

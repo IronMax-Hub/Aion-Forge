@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { atmosphereComposition, waterSaturationBar } from "../simulation/atmosphereComposition";
+import { atmosphereComposition } from "../simulation/atmosphereComposition";
+import { waterSaturationBar } from "../simulation/climate";
 import type { Gas } from "../simulation/atmosphereComposition";
 import { generatePlanetsFor, GIANT_PLANET_MASS, planetKey } from "../simulation/planet";
 import type { Planet, PlanetSurface } from "../simulation/planet";
@@ -75,7 +76,8 @@ describe("solid planets", () => {
       expect((x.CH4 ?? 0) * pressureBar).toBeCloseTo(s.ch4Bar, 9);
       // The total is the surface pressure, with vapour added where the oceans are not boiled
       expect(pressureBar).toBeGreaterThanOrEqual(s.pressureBar * (1 - 1e-12));
-      if (s.steam) expect(pressureBar).toBeCloseTo(s.pressureBar, 6);
+      // A steam world adds no vapour beyond its oceans: only trace ozone and N₂O lie on top
+      if (s.steam) expect(pressureBar - s.pressureBar).toBeLessThan(1e-5);
     }
   });
 

@@ -271,9 +271,13 @@ describe("in a real planet's history", () => {
     const history = runWorldHistory(earth, physics, buildGeography(earth, physics, seed), sun, seed, config, { keepSnapshots: true });
     const context = environmentContext(earth, physics, sun, config);
     const keys = { galaxySeed: seed, starId: 1, planetIndex: 2 };
-    let state = startLife(environmentFor(history.snapshots![0], context))!;
-    history.snapshots!.slice(1).forEach((snapshot, i) => {
-      state = stepEvolution(state, environmentFor(snapshot, context), keys, i + 2);
+    // Life starts in the first temperate step with open water: under the faint young Sun, with the
+    // greenhouse scaled by the energy it holds (IH2), this young Earth begins frozen, and the CO₂ its
+    // volcanoes vent under the ice brings a brief hothouse when it thaws
+    const first = history.snapshots!.findIndex((s) => s.openOceanFraction > 0 && s.meanK < 300);
+    let state = startLife(environmentFor(history.snapshots![first], context))!;
+    history.snapshots!.slice(first + 1).forEach((snapshot, i) => {
+      state = stepEvolution(state, environmentFor(snapshot, context), keys, first + i + 2);
     });
     expect(state.endedGyr).toBeNull();
     expect(state.firsts.map((f) => f.kind)).toContain("light");

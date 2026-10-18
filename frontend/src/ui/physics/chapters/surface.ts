@@ -4,8 +4,9 @@ import {
   BAND_COUNT, CONTINENTAL_BASE_KM, CONTINENTAL_SHARE, OCEANIC_BASE_KM, PLATES, RIFT_KM, UPLIFT_KM, WATER_KM_PER_UNIT,
 } from "../../../simulation/geography";
 import {
-  ALBEDO, CO2_REFERENCE_BAR, CONTRAST_MAX_K, EQUILIBRIUM_K_AT_1_AU, FREEZING_K, GREENHOUSE_BASE_K,
-  GREENHOUSE_PER_CO2_DOUBLING_K, GREENHOUSE_PER_SQRT_CH4_K, REDISTRIBUTION_HALF_BAR, VAPOUR_FEEDBACK, WATER_CRITICAL_K,
+  ALBEDO, CO2_CRITICAL_K, CO2_REFERENCE_BAR, CO2_TRIPLE_POINT, CONTRAST_MAX_K, EQUILIBRIUM_K_AT_1_AU, FREEZING_K,
+  GREENHOUSE_BASE_K, GREENHOUSE_PER_CO2_DOUBLING_K, GREENHOUSE_PER_SQRT_CH4_K, GREENHOUSE_REFERENCE_K, REDISTRIBUTION_HALF_BAR,
+  VAPOUR_FEEDBACK, WATER_CRITICAL_K,
 } from "../../../simulation/climate";
 import {
   CH4_DESTRUCTION_PER_GYR, CRUST_O2_CAPACITY_BAR, CRUST_O2_SINK_BAR_PER_GYR, FORMATION_DELAY_GYR, FROZEN_ICE_SHARE,
@@ -81,8 +82,8 @@ export const climate: Chapter = {
     {
       id: "energy-balance",
       title: "Starlight and albedo",
-      statement: "A planet is as warm as the starlight it absorbs allows; ocean, land and ice reflect different shares. Ice reflects most, so more ice cools a world and makes more ice.",
-      rule: `T_eq = ${EQUILIBRIUM_K_AT_1_AU} K × (L / a²)^¼ × (1 − albedo)^¼`,
+      statement: "A planet is as warm as the starlight it absorbs, plus the heat from its interior, allow; ocean, land and ice reflect different shares. Ice reflects most, so more ice cools a world and makes more ice.",
+      rule: `T_eq = ${EQUILIBRIUM_K_AT_1_AU} K × (L / a²)^¼ × (1 − albedo)^¼; T_eff⁴ = T_eq⁴ + T_int⁴ (the interior's heat, IH1)`,
       constants: [
         { name: "Albedo: ocean", value: exact(ALBEDO.ocean), meaning: "Clouds included" },
         { name: "Albedo: land", value: exact(ALBEDO.land), meaning: "" },
@@ -91,7 +92,7 @@ export const climate: Chapter = {
       why: "The Stefan–Boltzmann balance of absorbed and emitted energy. Earth, at albedo 0.3, gets 255 K before its greenhouse.",
       limits: ["Clouds are folded into the albedos and do not respond to climate."],
       laws: [{ law: "gravityStrength", how: "Closer effective orbits receive more light" }],
-      code: "simulation/climate.ts · equilibriumTemperatureK, bandAlbedo",
+      code: "simulation/climate.ts · equilibriumTemperatureK, effectiveTemperatureK, bandAlbedo",
       needsIndex: true,
       effect: (ctx) => {
         const ix = ctx.index!;
@@ -102,16 +103,17 @@ export const climate: Chapter = {
     {
       id: "greenhouse",
       title: "The greenhouse",
-      statement: "Air warms a planet: more pressure, more CO₂ and methane warm it more, and water vapour multiplies the warming on wet worlds. Earth gets 33 K.",
-      rule: `ΔT = (${GREENHOUSE_BASE_K} K × √P + ${GREENHOUSE_PER_CO2_DOUBLING_K} K × log₂(CO₂ / ${CO2_REFERENCE_BAR}) + ${GREENHOUSE_PER_SQRT_CH4_K} K × √CH₄) / (1 − ${VAPOUR_FEEDBACK} × wetness)`,
+      statement: "Air warms a planet in proportion to the energy it holds: more pressure, more CO₂ and methane warm it more, and water vapour multiplies the warming on wet worlds. Earth gets 33 K; the same air on a world far from its star warms it far less.",
+      rule: `T_mean = T_eff × (1 + G / ${GREENHOUSE_REFERENCE_K} K); G = (${GREENHOUSE_BASE_K} K × √P + ${GREENHOUSE_PER_CO2_DOUBLING_K} K × log₂(CO₂ / ${CO2_REFERENCE_BAR}) + ${GREENHOUSE_PER_SQRT_CH4_K} K × √CH₄) / (1 − ${VAPOUR_FEEDBACK} × wetness)`,
       constants: [
         { name: "Per CO₂ doubling (dry)", value: exact(GREENHOUSE_PER_CO2_DOUBLING_K, "K"), meaning: "3 K with water vapour: Earth's climate sensitivity" },
         { name: "Vapour feedback", value: exact(VAPOUR_FEEDBACK), meaning: "" },
+        { name: "Reference", value: exact(GREENHOUSE_REFERENCE_K, "K"), meaning: "Earth's equilibrium temperature: G is the warming there, scaled with T_eff elsewhere (IH2)" },
       ],
-      why: "Greenhouse gases absorb the heat a surface radiates; warmer air holds more water vapour, itself a greenhouse gas.",
-      limits: ["The warming is added in kelvin however little starlight arrives, so very distant worlds under thick air can stay warm (issue 1, fixed in step 5a)."],
+      why: "Greenhouse gases absorb the heat a surface radiates; a grey atmosphere's surface temperature is proportional to its effective temperature. Warmer air holds more water vapour, itself a greenhouse gas.",
+      limits: ["The vapour reads the water inventory, not the temperature, so a frozen wet world keeps its vapour warming. Reading it from the mean temperature (decision 39) made Earth-like worlds cycle between snowballs and moist greenhouses; deferred."],
       laws: [],
-      code: "simulation/climate.ts · greenhouseK",
+      code: "simulation/climate.ts · greenhouseK, surfaceMeanK",
       needsIndex: true,
       effect: (ctx) => {
         const ix = ctx.index!;
@@ -124,10 +126,10 @@ export const climate: Chapter = {
       id: "heat-transport",
       title: "Heat spreading round the planet",
       statement: "Thin air leaves sharp contrasts between lit and dark regions; thick air evens them out. A locked planet's night side is the extreme case.",
-      rule: `contrast = ${CONTRAST_MAX_K} K × ${REDISTRIBUTION_HALF_BAR} / (P + ${REDISTRIBUTION_HALF_BAR})`,
+      rule: `contrast = ${CONTRAST_MAX_K} K × ${REDISTRIBUTION_HALF_BAR} / (P + ${REDISTRIBUTION_HALF_BAR}) × T_eq⁴ / T_eff⁴; no place colder than the interior's own temperature`,
       constants: [],
       why: "Air and oceans carry heat; the more air, the more they carry.",
-      limits: ["No seasons, day–night cycle on rotating planets, or ocean currents beyond this one rule."],
+      limits: ["No seasons, day–night cycle on rotating planets, or ocean currents beyond this one rule.", "Only starlight is uneven: heat from inside warms every place alike."],
       laws: [],
       code: "simulation/climate.ts · contrastK, relativeInsolation",
       noEffect: "Regional temperatures are kept per planet, not in the index; each planet's panel shows its range.",
@@ -203,9 +205,14 @@ export const history: Chapter = {
       constants: [
         { name: "Seafloor weathering", value: formatPercent(SEAFLOOR_WEATHERING_SHARE), meaning: "Of land's rate per area" },
         { name: "Volcanic pulses", value: `${VOLCANIC_PULSE_PER_GYR} per Gyr × τ`, meaning: "Double the step's outgassing" },
+        { name: "CO₂ triple point", value: `${CO2_TRIPLE_POINT.K} K, ${CO2_TRIPLE_POINT.bar} bar`, meaning: `CO₂ above its saturation pressure freezes out as ice, and sublimes back as the world warms; none condenses above ${CO2_CRITICAL_K} K (decision 28)` },
       ],
       why: "The carbonate–silicate cycle keeps Earth habitable over billions of years as the Sun brightens.",
-      limits: ["Frozen, dry or steam-covered ground does not weather.", "No carbon cap: extreme close-in magma worlds pile up CO₂."],
+      limits: [
+        "Frozen, dry or steam-covered ground does not weather.",
+        "No carbon cap: extreme close-in magma worlds pile up CO₂.",
+        "CO₂ condenses against the mean temperature: colder poles and night sides, which would freeze more out, are not modelled.",
+      ],
       laws: [],
       code: "simulation/worldHistory.ts",
       needsIndex: true,

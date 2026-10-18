@@ -10,7 +10,9 @@
 // (the last step is shortened to end exactly there). Each step:
 //   1. Star      L(t) from luminosityAt: brightening on the main sequence,
 //                then today's luminosity once the star has left it (R2).
-//   2. Interior  τ(t) = clamp(√M · e^(−t / 8 Gyr)).
+//   2. Interior  τ(t) = clamp(√M · e^(−t / 8 Gyr)), and the heat it gives the
+//                surface (interiorHeat.ts, IH1), which the climate adds to
+//                starlight (IH2).
 //   3. Climate   the 18-band energy balance (climate.ts), starting from the
 //                previous step's ice, over oceans refilled from the step's water,
 //                with the CO₂ that closes this step's carbon budget (below).
@@ -22,7 +24,9 @@
 //           budget closes. The ocean floor weathers too, at s = 15% of land's
 //           rate per area (owner decision; about a quarter of Earth's total), so a
 //           world with no land keeps a weaker thermostat. Frozen, dry or
-//           steam-covered ground does not weather.
+//           steam-covered ground does not weather. CO₂ above its saturation
+//           pressure at the step's starting temperature freezes out as CO₂ ice,
+//           which sublimes back as the world warms (decision 28, IH2).
 //      Air  (AE2) the step's XUV dose thins the background gas to its formation
 //           pressure × r(dose), and CO₂, O₂ and CH₄ lose the share it lost
 //           (atmosphericEscape.ts). A world past its shoreline keeps nothing.
@@ -88,14 +92,15 @@ import type { Planet } from "./planet";
 import { effectiveOrbitAU } from "./planetBasics";
 import type { PlanetPhysics } from "./planetPhysics";
 import { tectonicActivity } from "./planetPhysics";
+import { interiorHeatFlow, interiorTemperatureK } from "./interiorHeat";
 import type { Star } from "./star";
 import { luminosityAt, mainSequenceEndGyr } from "./star";
 import type { Geography } from "./geography";
 import { areaBelow, BAND_COUNT, seaLevelFor, waterDepthKm } from "./geography";
 import type { ClimateInputs, PresentClimate } from "./climate";
 import {
-  bandAlbedo, bandGeometry, boilingPointK, CO2_REFERENCE_BAR, equilibriumTemperatureK, greenhouseK,
-  solveBands, solvePresentClimate,
+  bandAlbedo, bandGeometry, boilingPointK, co2SaturationBar, CO2_REFERENCE_BAR, equilibriumTemperatureK, greenhouseK,
+  solveBands, solvePresentClimate, surfaceMeanK,
 } from "./climate";
 import { airRetained, moistThresholdK, waterLost, xuvDose } from "./atmosphericEscape";
 import { makeConfig } from "./config";
@@ -211,6 +216,8 @@ export interface WorldState {
   tectonicActivity: number;
   water: number;             // inventory, A1 scale
   co2Bar: number;
+  /** CO₂ frozen out on the surface, bar of air it would make (decision 28, IH2). */
+  co2IceBar: number;
   o2Bar: number;
   ch4Bar: number;
   ozone: number;             // 0–1
@@ -355,6 +362,7 @@ export function runWorldHistory(
     tectonicActivity: tectonicActivity(planet, startGyr),
     water: physics.waterInventory,
     co2Bar: INITIAL_CO2_BAR * startRetained,
+    co2IceBar: 0,
     o2Bar: 0,
     ch4Bar: 0,
     ozone: 0,
@@ -441,6 +449,7 @@ export function runWorldHistory(
     backgroundBar = formationBackgroundBar * retained;
     if (formationBackgroundBar > 0 && state.airRetained > 0 && retained === 0) events.push({ kind: "air-lost", tGyr: t });
     const tau = tectonicActivity(planet, t);
+    const interiorK = interiorTemperatureK(interiorHeatFlow(planet, t));
     if (star.age >= msEnd && t0 < msEnd && t >= msEnd) events.push({ kind: "star-leaves-main-sequence", tGyr: msEnd });
 
     // 5 (drawn first: the pulse feeds this step's chemistry)
@@ -464,18 +473,32 @@ export function runWorldHistory(
     const weatherableLand = state.steam ? 0 : openLand * wetness + SEAFLOOR_WEATHERING_SHARE * openOcean;
     const pressureAt = (co2: number) => pressureOf(co2, state.o2Bar, state.ch4Bar, state.water, state.steam);
     const inputsAt = (co2: number): ClimateInputs => ({
-      luminosity, orbitAU, co2Bar: co2, ch4Bar: state.ch4Bar, wetness, pressureBar: pressureAt(co2),
+      luminosity, orbitAU, co2Bar: co2, ch4Bar: state.ch4Bar, wetness, pressureBar: pressureAt(co2), interiorK,
     });
     let co2 = state.co2Bar + outgassing * dt;
     if (weatherableLand > 0) {
       const eqK = equilibriumTemperatureK(luminosity, orbitAU, bandAlbedo(geometry, bandOcean, state.iced, wetness));
       const weathering = (c: number) => {
-        const meanK = eqK + greenhouseK(pressureAt(c), c, state.ch4Bar, wetness);
+        const meanK = surfaceMeanK(eqK, interiorK, greenhouseK(pressureAt(c), c, state.ch4Bar, wetness));
         return WEATHERING_BAR_PER_GYR * g * weatherableLand * Math.sqrt(c / CO2_REFERENCE_BAR)
           * exp((meanK - WEATHERING_REFERENCE_K) / WEATHERING_WARMING_SCALE_K);
       };
       const budget = (c: number) => c - state.co2Bar - (outgassing - weathering(c)) * dt;
       co2 = solveIncreasing(budget, 0, co2);
+    }
+    // CO₂ freezes out above its saturation pressure at the step's starting temperature, and
+    // its ice sublimes back below it (decision 28); the first step starts warm, with no ice
+    let co2Ice = state.co2IceBar;
+    if (step > 1) {
+      const capBar = co2SaturationBar(state.meanK);
+      if (co2 > capBar) {
+        co2Ice += co2 - capBar;
+        co2 = capBar;
+      } else if (co2Ice > 0) {
+        const sublimed = Math.min(co2Ice, capBar - co2);
+        co2 += sublimed;
+        co2Ice -= sublimed;
+      }
     }
 
     // 3. Climate, over oceans filled from this step's starting water
@@ -545,7 +568,7 @@ export function runWorldHistory(
 
     const stepEvents = events.slice(eventsBefore).map((e) => e.kind);
     state = {
-      tGyr: t, luminosity, tectonicActivity: tau, water, co2Bar: co2, o2Bar: o2, ch4Bar: ch4,
+      tGyr: t, luminosity, tectonicActivity: tau, water, co2Bar: co2, co2IceBar: co2Ice, o2Bar: o2, ch4Bar: ch4,
       ozone: Math.min(1, Math.sqrt(o2 / O2_REFERENCE_BAR)), unoxidisedCrust,
       backgroundBar, xuvDose: dose, airRetained: retained,
       pressureBar: pressureOf(co2, o2, ch4, water, steam),
@@ -584,7 +607,7 @@ export function runWorldHistory(
   if (stepCount === 0) {
     const climate = solveBands(geometry, bandOcean, {
       luminosity: state.luminosity, orbitAU, pressureBar: state.pressureBar, co2Bar: state.co2Bar,
-      ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water),
+      ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water), interiorK: interiorTemperatureK(interiorHeatFlow(planet, state.tGyr)),
     }, state.iced);
     const steam = state.water >= OCEANS_LOST_WATER && climate.meanK >= boilingPointK(state.pressureBar);
     if (steam) seaLevelKm = fillOceans(state.water, true);
@@ -597,7 +620,7 @@ export function runWorldHistory(
 
   const present = solvePresentClimate(geography, {
     luminosity: state.luminosity, orbitAU, pressureBar: state.pressureBar, co2Bar: state.co2Bar,
-    ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water),
+    ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water), interiorK: interiorTemperatureK(interiorHeatFlow(planet, state.tGyr)),
   }, seaLevelKm, state.steam, physics.axialTiltDeg, physics.tidallyLocked, state.iced);
 
   const phylogeny = life && summarizePhylogeny(life, mind, state.tGyr);

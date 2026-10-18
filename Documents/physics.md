@@ -172,3 +172,40 @@ The median star is not far from solar, so y is not tuned. In the elliptical, nea
 
 - **More life around metal-poor stars.** The poorest stars host the most worlds living today (913, nearly two per star, against one per star above +0.1), on planets of half the mass. Not yet traced: these are also the oldest stars, whose worlds have had longest for life to begin.
 - **Giants by [Fe/H].** The share of planets that are giants rises from 9% to 22% across the table. That is the observed direction, but far shallower than 10^(2[Fe/H]); recorded for the owner (decision 8).
+
+---
+
+## Step 5a: heat from inside (IH1–IH2, rules v13)
+
+### Interior heat (IH1, `interiorHeat.ts`)
+
+q(t) = q⊕ · τ(t) / τ⊕, with τ(t) = √M · e^(−t / 8 Gyr) (capped at 1) and τ⊕ = e^(−4.6 / 8). T_int = (q / σ)^¼.
+
+| Constant | Value | Why |
+|---|---|---|
+| `EARTH_HEAT_FLOW_W_M2` | 0.087 W/m² | Earth's mean surface heat flow; it gives T_int = 35 K. Full activity gives 0.155 W/m² |
+
+Outgassing per unit area follows the same activity, so its pressure scales as τ · g, no longer τ · g² (decision 41). Earth is unchanged.
+
+### The energy balance (IH2, `climate.ts`)
+
+T_eff⁴ = T_eq⁴ + T_int⁴, and T_mean = T_eff · (1 + G / 255 K). Only starlight is uneven: the band contrast is scaled by T_eq⁴ / T_eff⁴. No place is colder than T_int.
+
+| Constant | Value | Why |
+|---|---|---|
+| `GREENHOUSE_REFERENCE_K` | 255 K | Earth's equilibrium temperature. G is the warming there; elsewhere it scales with the energy the air holds, as a grey atmosphere's surface does (T_s ∝ T_eff). This fixes Issue 1: thick air no longer keeps far worlds warm |
+| `CO2_TRIPLE_POINT`, `CO2_CRITICAL_K` | 216.58 K, 5.185 bar; 304.13 K | CO₂ condenses above its saturation pressure (decision 28): 1 atm at 195 K, 1.6 bar at 200 K. The excess is kept as ice and sublimes back as the world warms |
+
+**Deferred: vapour from temperature (decision 39).** Two forms were measured:
+- **As planned** (h = P_sat(T) / P_sat(288 K)): the feedback gained about 2.1 K per K, so the model Earth slid from 287 K to 275 K.
+- **Log form** (h = 1 + ln(P_sat(T) / P_sat(287 K)) / ln 1000): Earth held, but with ice–albedo, Earth-like worlds cycled between snowballs and moist greenhouses.
+
+The owner deferred it. The vapour still reads the water inventory alone.
+
+### Measured (IH2, seed 100000)
+
+Life using starlight fell from 1,255 to 432 worlds, and every later gate fell with it: minds 40 → 27, worlds active today 1 → 0. Worlds that were warm only under thick air far from their stars now freeze. The Great Filter moves from "Life's oxygen filled the air" to "Life used starlight" (13% pass). Life beginning rose slightly (3,429 → 3,452); not traced.
+
+### Surprises
+
+- **The faint young Sun returns.** With the greenhouse scaled by the energy it holds, some young Earths begin frozen. The CO₂ their volcanoes vent under the ice (several bar in 100 Myr) brings a brief hothouse when they thaw. This is the faint young Sun problem, and Earth's own snowball–hothouse episodes, emerging from the rules.

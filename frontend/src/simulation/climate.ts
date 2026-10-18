@@ -14,11 +14,19 @@
 //   which warms it further. Taken as linear in the warming, the vapour term
 //   solves to dry / (1 − γ · wetness). With γ = 0.5 a doubling of CO₂ warms a
 //   wet planet by 3 K, Earth's climate sensitivity. A dry planet gets no vapour.
+//   The vapour reads the water inventory, not the temperature: reading it from
+//   the mean temperature (decision 39) made Earth-like worlds cycle between
+//   snowballs and moist greenhouses, so it is deferred (owner, 18 Oct 2026).
+// - Energy balance (IH2). Starlight and heat from inside together:
+//   T_eff⁴ = T_eq⁴ + T_int⁴, and T_mean = T_eff · (1 + G / 255 K): the
+//   greenhouse multiplies the energy the air holds (a grey atmosphere's surface
+//   is proportional to its effective temperature), anchored on Earth. The same
+//   90 bar keeps a world at 1 AU hot and leaves one at 25 AU frozen.
 // - Albedo. Effective (cloud-including) albedos for open ocean, bare land and
 //   ice, mixed by area. Ice raises the albedo, which cools, which makes more ice.
-// - Heat transport (the original A2 rule). T = T_mean + ΔT · (S / S_mean − 1),
-//   ΔT = ΔT_max · (1 − redistribution(pressure)): thin air keeps sharp
-//   contrasts, thick air evens them out.
+// - Heat transport (the original A2 rule). T = T_mean + ΔT · (S / S_mean − 1)
+//   · T_eq⁴ / T_eff⁴, ΔT = ΔT_max · (1 − redistribution(pressure)): thin air
+//   keeps sharp contrasts, thick air evens them out; only starlight is uneven.
 // - Insolation. Annual mean with axial tilt for a rotating planet, in the
 //   standard two-term form S = 1 + s₂(ε) · P₂(sin latitude); or 4 · cos(angle
 //   from the substellar point) on the day side of a locked planet, 0 at night.
@@ -36,12 +44,16 @@
 // - One mean temperature per region; no seasons, no day–night cycle on a
 //   rotating planet, no ocean currents beyond the redistribution rule.
 // - The linear heat-transport rule can push a dark night side below absolute
-//   zero on an airless world; temperatures are floored at MIN_TEMPERATURE_K.
+//   zero on an airless world; temperatures are floored at the interior's own
+//   temperature, the heat from inside that is left there (IH2).
+// - Saturation pressures (water, CO₂) follow Clausius–Clapeyron from each
+//   gas's triple point with one latent heat per phase; CO₂ above its triple
+//   point reads about 15% below measured values.
 // - Clouds are folded into the effective albedos and do not respond to climate.
 // - The two-term insolation profile is approximate: at zero tilt the poles get
 //   0.375 of the mean, where the exact value is 0.
 
-import { cos, log, pow } from "./detmath";
+import { cos, exp, log, pow } from "./detmath";
 import type { Geography } from "./geography";
 import { BAND_COUNT, surfaceGrid } from "./geography";
 
@@ -49,8 +61,6 @@ import { BAND_COUNT, surfaceGrid } from "./geography";
 
 /** Water freezes below this (K); sea ice and snow form. */
 export const FREEZING_K = 263;
-
-const MIN_TEMPERATURE_K = 30;
 
 // Effective albedos, including clouds, chosen so Earth's mix comes out near 0.3
 export const ALBEDO = { ocean: 0.28, land: 0.32, ice: 0.62 };
@@ -62,6 +72,8 @@ const CO2_FLOOR_BAR = 1e-7;               // below this the log term stops falli
 export const GREENHOUSE_PER_CO2_DOUBLING_K = 1.5; // dry; 3 K with water vapour
 export const GREENHOUSE_PER_SQRT_CH4_K = 150;    // dry; 1,000 ppm of methane gives ~9 K with vapour
 export const VAPOUR_FEEDBACK = 0.5;
+/** Earth's equilibrium temperature: the greenhouse warms by G at this effective temperature and in proportion elsewhere (IH2), K. */
+export const GREENHOUSE_REFERENCE_K = 255;
 
 // Heat transport: airless contrast, and the pressure that halves it
 export const CONTRAST_MAX_K = 150;
@@ -77,6 +89,17 @@ export const WATER_LATENT_OVER_R_BELOW_1_ATM_K = 5209;
 export const WATER_TRIPLE_POINT = { K: 273.16, bar: 0.006117 } as const;
 export const WATER_CRITICAL_K = 647;
 
+// Saturation (Clausius–Clapeyron): the gas constant, and each gas's latent heats
+/** The gas constant, J/(mol·K). */
+export const GAS_CONSTANT = 8.314;
+const WATER_VAPORIZATION_J_PER_MOL = 44_000; // over liquid
+const WATER_SUBLIMATION_J_PER_MOL = 51_100;  // over ice
+/** CO₂'s triple point; above its critical temperature it cannot condense (decision 28). */
+export const CO2_TRIPLE_POINT = { K: 216.58, bar: 5.185 } as const;
+export const CO2_CRITICAL_K = 304.13;
+const CO2_SUBLIMATION_J_PER_MOL = 26_100;   // over ice: 1 atm at 195 K
+const CO2_VAPORIZATION_J_PER_MOL = 15_300;  // over liquid
+
 const MAX_ICE_ITERATIONS = 30;
 const LN2 = 0.6931471805599453;
 
@@ -90,7 +113,7 @@ export function equilibriumTemperatureK(luminosity: number, orbitAU: number, alb
   return EQUILIBRIUM_K_AT_1_AU * pow((Math.max(1e-4, luminosity) * (1 - albedo)) / (orbitAU * orbitAU), 0.25);
 }
 
-/** Warming by the atmosphere, K. `wetness` (0–1) is how much surface water can feed vapour. */
+/** Warming by the atmosphere at Earth's effective temperature, K. `wetness` (0–1) is how much surface water can feed vapour. */
 export function greenhouseK(pressureBar: number, co2Bar: number, ch4Bar: number, wetness: number): number {
   const co2Doublings = log(Math.max(CO2_FLOOR_BAR, co2Bar) / CO2_REFERENCE_BAR) / LN2;
   const dry = GREENHOUSE_BASE_K * Math.sqrt(pressureBar)
@@ -98,6 +121,36 @@ export function greenhouseK(pressureBar: number, co2Bar: number, ch4Bar: number,
     + GREENHOUSE_PER_SQRT_CH4_K * Math.sqrt(ch4Bar);
   return Math.max(0, dry) / (1 - VAPOUR_FEEDBACK * wetness);
 }
+
+/** Saturation vapour pressure, bar, from one anchor point and a latent heat (Clausius–Clapeyron). */
+export function saturationBar(temperatureK: number, anchorK: number, anchorBar: number, latentJPerMol: number): number {
+  return anchorBar * exp((latentJPerMol / GAS_CONSTANT) * (1 / anchorK - 1 / temperatureK));
+}
+
+/** Water's saturation vapour pressure, bar: over liquid above the triple point, over ice below. */
+export function waterSaturationBar(temperatureK: number): number {
+  const latent = temperatureK >= WATER_TRIPLE_POINT.K ? WATER_VAPORIZATION_J_PER_MOL : WATER_SUBLIMATION_J_PER_MOL;
+  return saturationBar(temperatureK, WATER_TRIPLE_POINT.K, WATER_TRIPLE_POINT.bar, latent);
+}
+
+/** CO₂'s saturation pressure, bar: over ice below its triple point, over liquid above; none above its critical point. */
+export function co2SaturationBar(temperatureK: number): number {
+  if (temperatureK >= CO2_CRITICAL_K) return Infinity;
+  const latent = temperatureK >= CO2_TRIPLE_POINT.K ? CO2_VAPORIZATION_J_PER_MOL : CO2_SUBLIMATION_J_PER_MOL;
+  return saturationBar(temperatureK, CO2_TRIPLE_POINT.K, CO2_TRIPLE_POINT.bar, latent);
+}
+
+/** The effective temperature of starlight plus heat from inside, K: (T_eq⁴ + T_int⁴)^¼. */
+export function effectiveTemperatureK(eqK: number, intK: number): number {
+  return pow(eqK * eqK * eqK * eqK + intK * intK * intK * intK, 0.25);
+}
+
+/** Mean surface temperature from starlight, heat from inside and a greenhouse warming, K (IH2). */
+export function surfaceMeanK(eqK: number, intK: number, warmingK: number): number {
+  return effectiveTemperatureK(eqK, intK) * (1 + warmingK / GREENHOUSE_REFERENCE_K);
+}
+
+
 
 /** Temperature difference between the most and least lit regions per unit of insolation, K. */
 export function contrastK(pressureBar: number): number {
@@ -172,6 +225,8 @@ export interface ClimateInputs {
   ch4Bar: number;
   /** 0–1: how much surface water there is to evaporate, freeze and weather rock. */
   wetness: number;
+  /** The temperature the interior's heat alone would give the surface, K (IH1). */
+  interiorK: number;
 }
 
 export interface BandClimate {
@@ -203,6 +258,17 @@ export function bandAlbedo(geometry: BandGeometry, bandOcean: Float64Array, iced
   return albedo;
 }
 
+/** The mean temperature of a climate's inputs over a given equilibrium temperature, K. */
+function meanKOf(eqK: number, inputs: ClimateInputs): number {
+  return surfaceMeanK(eqK, inputs.interiorK, greenhouseK(inputs.pressureBar, inputs.co2Bar, inputs.ch4Bar, inputs.wetness));
+}
+
+/** The share of the energy that is starlight, T_eq⁴ / T_eff⁴: only starlight is uneven. */
+function starlightShare(eqK: number, intK: number): number {
+  const eq4 = eqK * eqK * eqK * eqK;
+  return eq4 / (eq4 + intK * intK * intK * intK);
+}
+
 /**
  * Solves the band temperatures, starting from an ice cover and repeating until
  * it stops changing. `bandOcean` is each band's share of liquid-water surface.
@@ -213,16 +279,17 @@ export function solveBands(
   const iced = Uint8Array.from(icedStart);
   const bandK = new Float64Array(BAND_COUNT);
   const contrast = contrastK(inputs.pressureBar);
-  const warming = greenhouseK(inputs.pressureBar, inputs.co2Bar, inputs.ch4Bar, inputs.wetness);
   const freezingK = freezingKAt(inputs.pressureBar);
   let albedo = 0;
   let meanK = 0;
   for (let iteration = 0; iteration < MAX_ICE_ITERATIONS; iteration++) {
     albedo = bandAlbedo(geometry, bandOcean, iced, inputs.wetness);
-    meanK = equilibriumTemperatureK(inputs.luminosity, inputs.orbitAU, albedo) + warming;
+    const eqK = equilibriumTemperatureK(inputs.luminosity, inputs.orbitAU, albedo);
+    meanK = meanKOf(eqK, inputs);
+    const uneven = contrast * starlightShare(eqK, inputs.interiorK);
     let changed = false;
     for (let k = 0; k < BAND_COUNT; k++) {
-      bandK[k] = Math.max(MIN_TEMPERATURE_K, meanK + contrast * (geometry.insolation[k] - 1));
+      bandK[k] = Math.max(inputs.interiorK, meanK + uneven * (geometry.insolation[k] - 1));
       const frozen = bandK[k] < freezingK ? 1 : 0;
       if (frozen !== iced[k]) { iced[k] = frozen; changed = true; }
     }
@@ -326,15 +393,16 @@ export function solvePresentClimate(
   }
 
   const contrast = contrastK(inputs.pressureBar);
-  const warming = greenhouseK(inputs.pressureBar, inputs.co2Bar, inputs.ch4Bar, inputs.wetness);
   const temperatureK = new Float64Array(n);
   for (let iteration = 0; iteration < MAX_ICE_ITERATIONS; iteration++) {
     let albedo = 0;
     for (let i = 0; i < n; i++) albedo += grid.areas[i] * albedoOf(ocean[i], iced[i] === 1, inputs.wetness);
-    const meanK = equilibriumTemperatureK(inputs.luminosity, inputs.orbitAU, albedo) + warming;
+    const eqK = equilibriumTemperatureK(inputs.luminosity, inputs.orbitAU, albedo);
+    const meanK = meanKOf(eqK, inputs);
+    const uneven = contrast * starlightShare(eqK, inputs.interiorK);
     let changed = false;
     for (let i = 0; i < n; i++) {
-      temperatureK[i] = Math.max(MIN_TEMPERATURE_K, meanK + contrast * (insolation[i] / insolationMean - 1));
+      temperatureK[i] = Math.max(inputs.interiorK, meanK + uneven * (insolation[i] / insolationMean - 1));
       const frozen = temperatureK[i] < freezingKAt(inputs.pressureBar) ? 1 : 0;
       if (frozen !== iced[i]) { iced[i] = frozen; changed = true; }
     }

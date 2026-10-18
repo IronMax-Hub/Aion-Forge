@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   bandGeometry, boilingPointK, contrastK, equilibriumTemperatureK, greenhouseK, relativeInsolation,
-  solveBands, solvePresentClimate, CO2_REFERENCE_BAR, FREEZING_K,
+  solveBands, solvePresentClimate, CO2_REFERENCE_BAR, FREEZING_K, co2SaturationBar, CO2_CRITICAL_K,
+  surfaceMeanK, bandAlbedo,
 } from "../simulation/climate";
 import type { ClimateInputs } from "../simulation/climate";
 import { buildGeography, surfaceGrid, BAND_COUNT } from "../simulation/geography";
@@ -9,7 +10,7 @@ import { planetKey } from "../simulation/planet";
 import type { Planet } from "../simulation/planet";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
 
-const earthAir: ClimateInputs = { luminosity: 1, orbitAU: 1, pressureBar: 1, co2Bar: CO2_REFERENCE_BAR, ch4Bar: 0, wetness: 1 };
+const earthAir: ClimateInputs = { luminosity: 1, orbitAU: 1, pressureBar: 1, co2Bar: CO2_REFERENCE_BAR, ch4Bar: 0, wetness: 1, interiorK: 35 };
 const sum = (values: ArrayLike<number>) => Array.from(values).reduce((a, b) => a + b, 0);
 const weightedMean = (values: ArrayLike<number>, weights: ArrayLike<number>) =>
   Array.from(values).reduce((total, v, i) => total + v * weights[i], 0);
@@ -146,5 +147,44 @@ describe("present-day climate on all cells", () => {
       expect(present.cellMoisture[i]).toBeGreaterThanOrEqual(0);
       expect(present.cellMoisture[i]).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("heat from inside and a greenhouse that scales with energy (IH2)", () => {
+  const geometry = bandGeometry(23.4, false);
+  const ocean = new Float64Array(BAND_COUNT).fill(0.7);
+  const noIce = new Uint8Array(BAND_COUNT);
+
+  it("leaves the Earth reference within 0.1 K of the old additive greenhouse", () => {
+    const climate = solveBands(geometry, ocean, earthAir, noIce);
+    const eqK = equilibriumTemperatureK(1, 1, bandAlbedo(geometry, ocean, climate.iced, 1));
+    expect(Math.abs(climate.meanK - (eqK + greenhouseK(1, CO2_REFERENCE_BAR, 0, 1)))).toBeLessThan(0.1);
+    expect(surfaceMeanK(255, 35, 33)).toBeCloseTo(288.03, 2);
+  });
+
+  it("freezes a wet 90-bar world at 25 AU that the old greenhouse kept warm", () => {
+    const far = { ...earthAir, orbitAU: 25, pressureBar: 90, co2Bar: 1 };
+    expect(solveBands(geometry, ocean, far, noIce).meanK).toBeLessThan(273);
+    // The same air at 1 AU is hot
+    expect(solveBands(geometry, ocean, { ...far, orbitAU: 1 }, noIce).meanK).toBeGreaterThan(400);
+  });
+
+  it("warms a starless world by its interior alone, times the greenhouse", () => {
+    expect(surfaceMeanK(0, 30, 33)).toBeCloseTo(30 * (1 + 33 / 255), 12);
+    expect(surfaceMeanK(100, 0, 0)).toBeCloseTo(100, 12);
+  });
+
+  it("floors the coldest places at the interior's temperature, not a fixed 30 K", () => {
+    const locked = bandGeometry(0, true);
+    const airless = { ...earthAir, orbitAU: 5, pressureBar: 0, co2Bar: 0, wetness: 0, interiorK: 20 };
+    const climate = solveBands(locked, new Float64Array(BAND_COUNT), airless, noIce);
+    expect(Math.min(...climate.bandK)).toBe(20);
+  });
+
+  it("gives CO₂ its measured saturation pressures, and none above its critical point", () => {
+    expect(co2SaturationBar(194.7)).toBeCloseTo(1.013, 1);
+    expect(co2SaturationBar(200)).toBeCloseTo(1.56, 1);
+    expect(co2SaturationBar(216.58)).toBeCloseTo(5.185, 6);
+    expect(co2SaturationBar(CO2_CRITICAL_K)).toBe(Infinity);
   });
 });

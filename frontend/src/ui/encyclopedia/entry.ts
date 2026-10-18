@@ -8,7 +8,7 @@
 export type SubjectRef =
   | { kind: "galaxy" }
   | { kind: "star"; starId: number }
-  | { kind: "planet" | "biosphere" | "civilization"; starId: number; planetIndex: number };
+  | { kind: "planet" | "biosphere" | "civilization"; starId: number; planetIndex: number; moonIndex?: number };
 
 /** One sentence of an entry, with the data it was written from. */
 export interface Sentence {

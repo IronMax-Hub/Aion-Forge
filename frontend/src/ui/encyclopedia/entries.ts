@@ -46,7 +46,7 @@ import { CIVILIZATION_STAGE_CODES, LIFE_STAGE_CODES } from "../../simulation/uni
 import { funnelOf } from "../../simulation/greatFilter";
 import type { UniverseIndex } from "../../simulation/universeIndex";
 import {
-  airPhrase, citation, formatAirChange, formatMetallicity, metalShare, formatGravity, formatGyr, formatInt, formatLightYears, formatPercent, formatPressure, formatRotation, formatSig,
+  airPhrase, bodyName, citation, formatAirChange, formatMetallicity, metalShare, formatGravity, formatGyr, formatInt, formatLightYears, formatPercent, formatPressure, formatRotation, formatSig,
   formatSurfaceShares, formatTemperatureRange, formatTilt, formatIndex, LIGHT_YEARS_PER_UNIT, PLANET_TYPE_LABEL, planetName,
   spectralType, starName, STELLAR_CLASS_NAME,
 } from "../format";
@@ -122,7 +122,9 @@ function sentence(text: string, sources: string[], link?: SubjectRef): Sentence 
 const ago = (gyr: number) => `${formatGyr(gyr)} ago`;
 
 function planetRef(planet: Planet, kind: "planet" | "biosphere" | "civilization" = "planet"): SubjectRef {
-  return { kind, starId: planet.hostStarId, planetIndex: planet.id };
+  return planet.moonIndex === undefined
+    ? { kind, starId: planet.hostStarId, planetIndex: planet.id }
+    : { kind, starId: planet.hostStarId, planetIndex: planet.id, moonIndex: planet.moonIndex };
 }
 
 function starRef(star: Star): SubjectRef {
@@ -282,8 +284,15 @@ function leadingGases(planet: Planet, civ: Civilization | null): string | null {
 
 function planetLede(planet: Planet, star: Star, lives: Lives): Sentence[] {
   const lede: Sentence[] = [];
+  // A moon world (MO6): which planet it circles, and how far out
+  if (planet.moonOrbit) {
+    lede.push(sentence(
+      `${PLANET_TYPE_LABEL[planet.type]}, a moon of ${planetName(planet.hostStarId, planet.orbitalIndex)} at ${formatSig(planet.moonOrbit.orbitPlanetRadii)} of its radii, which orbits ${starKind(star)} at ${formatSig(planet.orbitalRadius)} AU.`,
+      ["planet.type", "moon.orbitPlanetRadii", "star.temperature", "star.classification", "planet.orbitalRadius"],
+      { kind: "planet", starId: planet.hostStarId, planetIndex: planet.id }));
+  }
   const kind = `${PLANET_TYPE_LABEL[planet.type]} orbiting ${starKind(star)} at ${formatSig(planet.orbitalRadius)} AU`;
-  lede.push(planet.surface
+  if (!planet.moonOrbit) lede.push(planet.surface
     ? sentence(`${kind}.`, ["planet.type", "star.temperature", "star.classification", "planet.orbitalRadius"], starRef(star))
     : sentence(`${kind}, with cloud tops at ${formatInt(planet.temperature)} K.`,
       ["planet.type", "star.temperature", "star.classification", "planet.orbitalRadius", "planet.temperature"], starRef(star)));
@@ -335,7 +344,7 @@ function planetFacts(planet: Planet, star: Star, world: SolidWorld | null, ctx: 
   const physics = world?.physics ?? derivePhysics(planet, star, ctx.config.seed, ctx.config);
   const surface = planet.surface;
   const facts: Entry["facts"] = [
-    { label: "Designation", value: planetName(planet.hostStarId, planet.orbitalIndex) },
+    { label: "Designation", value: bodyName(planet) },
     { label: "Type", value: PLANET_TYPE_LABEL[planet.type] },
     { label: "Orbit", value: `${formatSig(planet.orbitalRadius)} AU` },
     { label: "Period", value: physics.orbitalPeriodYears < 1
@@ -377,7 +386,9 @@ function planetFacts(planet: Planet, star: Star, world: SolidWorld | null, ctx: 
 
 function planetChronicle(planet: Planet, star: Star, lives: Lives): Entry["chronicle"] {
   const chronicle = [
-    event(planetFormedAgo(planet, star), `The planet formed at ${formatSig(planet.orbitalRadius)} AU.`, ["star.age", "planet.orbitalIndex"]),
+    event(planetFormedAgo(planet, star), planet.moonOrbit
+      ? `The moon formed around ${planetName(planet.hostStarId, planet.orbitalIndex)}, ${formatSig(planet.orbitalRadius)} AU from its star.`
+      : `The planet formed at ${formatSig(planet.orbitalRadius)} AU.`, ["star.age", "planet.orbitalIndex"]),
     ...planet.worldEvents.map((e) => event(star.age - e.tGyr, WORLD_EVENT[e.kind].summary, [`planet.worldEvents.${e.kind}`])),
     ...lifeChronicle(planet, star),
     ...firstsChronicle(planet, star),
@@ -390,7 +401,8 @@ function planetChronicle(planet: Planet, star: Star, lives: Lives): Entry["chron
 function planetNotable(planet: Planet, ctx: EntryContext, lives: Lives): Sentence[] {
   const notable: Sentence[] = [];
   const index = ctx.index;
-  const self = index ? rowOf(index, planet.hostStarId, planet.id) : -1;
+  // Moon worlds are not in the index yet (MO7): no ranks among the galaxy's planets
+  const self = index && planet.moonIndex === undefined ? rowOf(index, planet.hostStarId, planet.id) : -1;
   if (index && self >= 0) {
     const values = (column: Float32Array | Uint8Array, rows: number[]) => rows.map((i) => column[i]);
     const all = otherRows(index, self, () => true);
@@ -427,7 +439,7 @@ function planetNotable(planet: Planet, ctx: EntryContext, lives: Lives): Sentenc
 /** A planet's entry. `world` is its physics, geography and history when the app has kept them (planet.ts solidWorldOf); null for giants. */
 export function planetEntry(planet: Planet, star: Star, world: SolidWorld | null, ctx: EntryContext): Entry {
   const lives = livesOf(planet, star, ctx);
-  const designation = planetName(planet.hostStarId, planet.orbitalIndex);
+  const designation = bodyName(planet);
   const seeAlso: SubjectRef[] = [starRef(star)];
   if (planet.life) seeAlso.push(planetRef(planet, "biosphere"));
   if (lives.civ) seeAlso.push(planetRef(planet, "civilization"));
@@ -535,7 +547,7 @@ function lineageFacts(planet: Planet, world: SolidWorld | null, star: Star): Ent
   if (!life) return [];
   const living = livingLineages(life);
   const facts: Entry["facts"] = [];
-  const designation = planetName(planet.hostStarId, planet.orbitalIndex);
+  const designation = bodyName(planet);
   const oldest = [...living].sort((a, b) => a.bornGyr - b.bornGyr || a.id - b.id)[0] as Lineage | undefined;
   if (oldest) facts.push({ label: "Oldest living lineage", value: `${designation} · L-${oldest.id}, arose ${ago(star.age - oldest.bornGyr)}` });
   const light = living.filter((l) => l.genome.energySource === "light").sort((a, b) => b.biomass - a.biomass || a.id - b.id)[0];
@@ -546,7 +558,7 @@ function lineageFacts(planet: Planet, world: SolidWorld | null, star: Star): Ent
 /** A planet's biosphere's entry; `world` as for planetEntry. */
 export function biosphereEntry(planet: Planet, star: Star, world: SolidWorld | null, ctx: EntryContext): Entry {
   const { bio, civ } = livesOf(planet, star, ctx);
-  const designation = planetName(planet.hostStarId, planet.orbitalIndex);
+  const designation = bodyName(planet);
   const phylogeny = planet.life?.phylogeny ?? null;
   const lede: Sentence[] = [];
   const facts: Entry["facts"] = [];
@@ -622,7 +634,7 @@ function addedGases(planet: Planet, civ: Civilization): string[] {
 /** A planet's civilization's entry; `world` as for planetEntry (its species' habitat comes from there). */
 export function civilizationEntry(planet: Planet, star: Star, world: SolidWorld | null, ctx: EntryContext): Entry {
   const { civ, species } = livesOf(planet, star, ctx);
-  const designation = planetName(planet.hostStarId, planet.orbitalIndex);
+  const designation = bodyName(planet);
   const mind = planet.life?.phylogeny.mind ?? null;
   const base = {
     subject: planetRef(planet, "civilization"),

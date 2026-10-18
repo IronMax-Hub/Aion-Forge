@@ -27,7 +27,7 @@ describe("orbital motion in the system view", () => {
     parent.add(carrier);
     orbits.add(planet(0), carrier, 2, 2, 1);
     const places: OrbitPlace[] = [];
-    orbits.follow(0, (p) => places.push({ angle: p.angle, centre: p.centre.clone(), toStar: p.toStar.clone() }));
+    orbits.follow(planet(0).key, (p) => places.push({ angle: p.angle, centre: p.centre.clone(), toStar: p.toStar.clone() }));
     orbits.advance(INNER_ORBIT_SECONDS / 4);
 
     expect(places).toHaveLength(2);

@@ -24,8 +24,9 @@ const TECH_STAGE_RANK: readonly TechStage[] = [
 
 export interface SystemLife {
   starId: number;
-  mostAdvancedStage: LifeStage;         // highest organism stage among the system's planets
+  mostAdvancedStage: LifeStage;         // highest organism stage among the system's planets and moons
   lifePlanetCount: number;              // planets with organisms (prebiotic excluded)
+  lifeMoonCount: number;                // moon worlds with organisms (MO6; decision 13 keeps them apart)
   civilizationStage: TechStage | null;  // most notable civilization in the system, if any
 }
 
@@ -97,20 +98,33 @@ export function surveyLife(
     }
 
     // Moon worlds (MO4): their civilizations count with the planets'; their life is counted apart (decision 13)
+    let lifeMoonCount = 0;
     for (const planet of system.planets) {
       for (const moon of planet.moons) {
         if (!moon.world?.life) continue;
         const bio = generateBiosphere(moon.world, star);
-        if (generateCivilization(bio, moon.world, seed).civilization) civilizationCount++;
-        if (bio.hasLife) lifeBearingMoons++;
+        const civ = generateCivilization(bio, moon.world, seed).civilization;
+        if (civ) {
+          civilizationCount++;
+          civRank = Math.max(civRank, TECH_STAGE_RANK.indexOf(civ.techStage));
+        }
+        if (!bio.hasLife) continue;
+        lifeBearingMoons++;
+        const stageRank = ORGANISM_STAGES.indexOf(bio.stage);
+        if (stageRank >= 0) {
+          lifeMoonCount++;
+          mostAdvanced = Math.max(mostAdvanced, stageRank);
+        }
       }
     }
 
-    if (lifePlanetCount > 0) {
+    // A system with organisms on a planet or a moon (MO6): its life marker counts both
+    if (lifePlanetCount > 0 || lifeMoonCount > 0) {
       systems.push({
         starId: star.id,
         mostAdvancedStage: ORGANISM_STAGES[mostAdvanced],
         lifePlanetCount,
+        lifeMoonCount,
         civilizationStage: civRank >= 0 ? TECH_STAGE_RANK[civRank] : null,
       });
     }

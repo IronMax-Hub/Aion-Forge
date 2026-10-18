@@ -6,8 +6,11 @@ import type { Civilization } from "../simulation/civilization";
 import type { DiscoveryItem } from "../simulation/persistence";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { PLANET_COLORS, GIANT_PLANET_MASS } from "../simulation/planet";
+import type { Moon } from "../simulation/moons";
+import { tidalHeatFlow } from "../simulation/interiorHeat";
+import { generateBiosphere } from "../simulation/biosphere";
 import {
-  formatSig, formatInt, formatIndex, planetName, PLANET_TYPE_LABEL,
+  formatSig, formatInt, formatIndex, planetName, PLANET_TYPE_LABEL, bodyName, moonName, planetLifeLabel,
   formatGravity, formatGyr, formatAirChange, formatPressure, formatRotation, formatTilt, formatPercent, formatSurfaceShares, formatTemperatureRange,
 } from "./format";
 import { SpectrumPanel } from "./SpectrumPanel";
@@ -34,11 +37,29 @@ interface Props {
   onScanBiosphere: () => void;
   /** The planet's encyclopedia entry (EN3), shown in the Entry tab. */
   entryView: ReactNode;
+  /** Selects one of its moon worlds (MO6). */
+  onSelectMoon?: (moon: Planet) => void;
 }
 
 const ATMO_LABEL: Record<string, string> = {
   none: "None", thin: "Thin", moderate: "Moderate", thick: "Thick", crushing: "Crushing",
 };
+
+/** A moon world's life today, in words (MO6). */
+function moonLifeOf(world: Planet, star: Star): string {
+  const label = planetLifeLabel(generateBiosphere(world, star));
+  return label === "—" ? "No life" : `${label} life`;
+}
+
+/** A moon's water under ice: its world's share of the surface, or a listed moon's depth below its shell (MO6). */
+function waterUnderIceOf(moon: Moon): string {
+  if (moon.world) {
+    const share = moon.world.surface?.liquidUnderIce ?? 0;
+    return share > 0 ? `Under ${formatPercent(share)} of its surface` : "None";
+  }
+  const depth = moon.waterKm - moon.shellKm;
+  return depth > 0 ? `${formatSig(depth)} km under ${formatSig(moon.shellKm)} km of ice` : "None";
+}
 
 function habLabel(score: number) {
   if (score > 0.7) return "High";
@@ -57,7 +78,7 @@ const CAN_HAVE_LIFE: Record<string, boolean> = {
 
 export function PlanetPanel({
   planet, star, galaxySeed, civilization, discoveries, onSaveDiscovery,
-  world, physics, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere, entryView,
+  world, physics, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere, entryView, onSelectMoon,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [r, g, b] = PLANET_COLORS[planet.type];
@@ -68,12 +89,14 @@ export function PlanetPanel({
   const airLost = planet.worldEvents.find((e) => e.kind === "air-lost");
 
   return (
-    <div className="inspector" role="dialog" aria-label={`Planet ${planetName(planet.hostStarId, planet.orbitalIndex)} details`}>
+    <div className="inspector" role="dialog" aria-label={`${planet.moonOrbit ? "Moon" : "Planet"} ${bodyName(planet)} details`}>
       <div className="inspector-header">
         <div className="inspector-dot" style={{ background: planetColor }} />
         <div className="inspector-title-block">
-          <span className="inspector-id">{planetName(planet.hostStarId, planet.orbitalIndex)}</span>
-          <span className="inspector-subtitle">{PLANET_TYPE_LABEL[planet.type]}</span>
+          <span className="inspector-id">{bodyName(planet)}</span>
+          <span className="inspector-subtitle">
+            {planet.moonOrbit ? `${PLANET_TYPE_LABEL[planet.type]} · moon of ${planetName(planet.hostStarId, planet.orbitalIndex)}` : PLANET_TYPE_LABEL[planet.type]}
+          </span>
         </div>
         {planet.isRare && <span className="inspector-badge">Rare</span>}
         <div className="inspector-controls">
@@ -166,6 +189,32 @@ export function PlanetPanel({
               <span className="data-label">Axial tilt</span>
               <span className="data-value">{formatTilt(physics.axialTiltDeg)}</span>
             </div>
+          </div>
+        )}
+
+        {planet.moons.length > 0 && (
+          <div className="inspector-section">
+            <div className="section-title">Moons</div>
+            {planet.moons.map((moon) => (
+              <div key={moon.key} className="moon-row">
+                <div className="moon-row-head">
+                  {moon.world && onSelectMoon
+                    ? <button className="breadcrumb-link" onClick={() => onSelectMoon(moon.world!)}>{moonName(moon.hostStarId, planet.orbitalIndex, moon.moonIndex)}</button>
+                    : <span>{moonName(moon.hostStarId, planet.orbitalIndex, moon.moonIndex)}</span>}
+                  <span className="moon-row-life">{moon.world ? moonLifeOf(moon.world, star) : "No history (too small)"}</span>
+                </div>
+                <div className="data-grid">
+                  <span className="data-label">Mass · radius</span>
+                  <span className="data-value">{formatSig(moon.mass)} M⊕ · {formatSig(moon.size)} R⊕</span>
+                  <span className="data-label">Orbit · day</span>
+                  <span className="data-value">{formatSig(moon.orbitPlanetRadii)} planet radii · {formatSig(moon.orbitalPeriodHours)} h</span>
+                  <span className="data-label">Tidal heat</span>
+                  <span className="data-value">{formatSig(tidalHeatFlow(moon, planet))} W/m²</span>
+                  <span className="data-label">Water under ice</span>
+                  <span className="data-value data-text">{waterUnderIceOf(moon)}</span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

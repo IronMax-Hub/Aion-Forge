@@ -836,6 +836,14 @@ Giant planets build satellite systems in the disks around them, and those moons 
 - **Depends on:** MO4.
 - **Deliverables:** In the system view, moons orbit their planet at scaled distances with the existing orbit animation, and moons with surfaces get globes from the same baker as planets, within the existing cache of five. The planet panel gains a Moons section: designation, mass, radius, orbit in planet radii, day length, tidal heat (W/m²), water under ice, life. **Approach** works for a moon as for any solid world. Encyclopedia entries for moons. Life markers count moons.
 - **Verification:** Screenshots; no growth in GPU memory across repeated visits.
+- **Built** 19 Oct 2026.
+  - **Renderer keys.** The renderer, `SystemOrbits` and `SystemGlobes` key bodies by their unique key (`planet.key`) instead of their index in the system, so a moon world, which shares its giant's index, is its own marker.
+  - **System view.** Each planet's moons go round it at scaled distances: the innermost 2 marker radii out, plus 1.2 more for each doubling of the real distance. Their real period ratios are kept, with the innermost moon taking 8 s. Moon worlds can be picked, focused, labelled and approached, and get globes from the same baker; smaller moons are drawn in grey only.
+  - **Planet panel.** A Moons section lists each moon's name, mass and radius, orbit in planet radii, day, tidal heat, water under its ice, and life. A moon world's name selects it. A moon world's header reads "… · moon of 1300 c".
+  - **Encyclopedia.** Moon worlds have entries, with subjects that carry the moon index. The lede says which planet the moon circles, and the chronicle says "The moon formed around …". There are no galaxy ranks for moons until they are in the index (MO7). Creature streams carry the moon index.
+  - **Life markers.** The survey's `SystemLife` gains `lifeMoonCount`, and a system is marked when a planet or a moon carries organisms: "Microbial +1 · 1 moon", "Microbial · on a moon". This also counts such systems in `survey.systems`.
+  - Checked in the browser on seed 100000, star 0166: the giant 0166 d's three moons, the living moon world 0166 d-iii (an ocean under its whole surface, in the panel and its entry), and Approach into its planet view.
+  - The system table still lists planets only. Repeated-visit GPU memory was not measured; moon meshes leave with the system group (`disposeSystemGroup`).
 
 #### MO7 Moons in the survey, index and stats
 `infrastructure` · **S**

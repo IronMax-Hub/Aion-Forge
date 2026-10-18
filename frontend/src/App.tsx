@@ -45,7 +45,7 @@ import { subjectKey } from "./ui/encyclopedia/subjects";
 import { biosphereEntry, civilizationEntry, galaxyEntry, planetEntry, starEntry } from "./ui/encyclopedia/entries";
 import type { Entry, SubjectRef } from "./ui/encyclopedia/entry";
 import type { UniverseIndex } from "./simulation/universeIndex";
-import { starName, planetName, planetLifeLabel, lifeMarkerLabel, PLANET_TYPE_LABEL } from "./ui/format";
+import { bodyName, starName, planetLifeLabel, lifeMarkerLabel, PLANET_TYPE_LABEL } from "./ui/format";
 import { makeUniverseId, generateUniverseSummary, importUniverseFromFile } from "./simulation/persistence";
 import type { UniverseMeta, DiscoveryItem } from "./simulation/persistence";
 import { makeJournalEntry } from "./simulation/journal";
@@ -77,6 +77,18 @@ function storageErrorMessage(err: unknown): string {
   return err instanceof api.StorageError ? err.message : "Saving failed";
 }
 
+/** A system's bodies that are worlds: its planets, each followed by its moon worlds (MO6). */
+function bodiesOf(planets: Planet[]): Planet[] {
+  return planets.flatMap((planet) => [planet, ...planet.moons.flatMap((moon) => (moon.world ? [moon.world] : []))]);
+}
+
+/** The encyclopedia subject of a planet or moon world (MO6). */
+function subjectOf(body: Planet, kind: "planet" | "biosphere" | "civilization"): SubjectRef {
+  return body.moonIndex === undefined
+    ? { kind, starId: body.hostStarId, planetIndex: body.id }
+    : { kind, starId: body.hostStarId, planetIndex: body.id, moonIndex: body.moonIndex };
+}
+
 export default function App() {
   const canvasRef          = useRef<HTMLCanvasElement>(null);
   const rendererRef        = useRef<UniverseRenderer | null>(null);
@@ -84,7 +96,7 @@ export default function App() {
   const populationRef      = useRef<StellarPopulation | null>(null);
   const snapshotRef        = useRef<UniverseSnapshot | null>(null);
   const cachedSnapshotRef  = useRef<UniverseSnapshot | null>(null);
-  const systemBiosphereRef = useRef<Map<number, Biosphere>>(new Map());
+  const systemBiosphereRef = useRef<Map<string, Biosphere>>(new Map());   // by body key: planets and moon worlds
   // What the system and planet views draw each planet of the open system from, by planet key
   // (ids repeat between systems). A ref for the approach callback the renderer holds (state
   // would reach it stale), and state for what renders from it (the planet panel)
@@ -92,7 +104,7 @@ export default function App() {
   const [systemSights, setSystemSights] = useState<Map<string, PlanetSight>>(new Map());
   const galaxyConfigRef = useRef<GalaxyConfig | null>(null);
   // Systems made for the encyclopedia or opened on screen, with their solid worlds, by star id (EN3)
-  const systemRecordsRef = useRef<Map<number, { planets: Planet[]; worlds: Map<number, SolidWorld> }>>(new Map());
+  const systemRecordsRef = useRef<Map<number, { planets: Planet[]; worlds: Map<string, SolidWorld> }>>(new Map());
   // Every world's facts, from the life survey (EN0); null until it finishes
   const [surveyIndex, setSurveyIndex] = useState<UniverseIndex | null>(null);
   // The entry floating over the stage (EN3): the galaxy's, or a world's opened from another panel
@@ -490,7 +502,7 @@ export default function App() {
       // What the planet view draws: the planet's own world, kept from opening the system, lit by its star
       const sight = systemSightsRef.current.get(planet.key) ?? (() => {
         const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, star, currentSeed, universeConfig) : null;
-        const biosphere = systemBiosphereRef.current.get(planet.id) ?? generateBiosphere(planet, star);
+        const biosphere = systemBiosphereRef.current.get(planet.key) ?? generateBiosphere(planet, star);
         return planetSightOf(planet, star, world, biosphere, generateCivilization(biosphere, planet, currentSeed).civilization);
       })();
       rendererRef.current?.approachPlanet(planet, sight);
@@ -503,32 +515,30 @@ export default function App() {
     if (!rendererRef.current) return [];
     // Each solid planet's world is kept from making the system (solidWorldOf would build the same again):
     // the system and planet views draw its surface from it
-    const worlds = new Map<number, SolidWorld>();
+    const worlds = new Map<string, SolidWorld>();   // by body key: planets and moon worlds (MO6)
     const system = generatePlanetsFor(star, currentSeed, universeConfig, (planet, star, seed, cfg) => {
       const world = solidWorldOf(planet, star, seed, cfg);
-      worlds.set(planet.id, world);
+      worlds.set(planet.key, world);
       return world;
     });
+    const bodies = bodiesOf(system.planets);
 
-    const biospheres = new Map<number, Biosphere>();
-    for (const planet of system.planets) {
-      const bio = generateBiosphere(planet, star);
-      biospheres.set(planet.id, bio);
-    }
+    const biospheres = new Map<string, Biosphere>();
+    for (const body of bodies) biospheres.set(body.key, generateBiosphere(body, star));
     systemBiosphereRef.current = biospheres;
     systemRecordsRef.current.set(star.id, { planets: system.planets, worlds });
-    const civilizations = new Map(system.planets.map((planet) =>
-      [planet.id, generateCivilization(biospheres.get(planet.id)!, planet, currentSeed)]));
-    const sights = new Map(system.planets.map((planet) => [planet.key, planetSightOf(
-      planet, star, worlds.get(planet.id) ?? null, biospheres.get(planet.id)!, civilizations.get(planet.id)!.civilization,
+    const civilizations = new Map(bodies.map((body) =>
+      [body.key, generateCivilization(biospheres.get(body.key)!, body, currentSeed)]));
+    const sights = new Map(bodies.map((body) => [body.key, planetSightOf(
+      body, star, worlds.get(body.key) ?? null, biospheres.get(body.key)!, civilizations.get(body.key)!.civilization,
     )]));
     systemSightsRef.current = sights;
     setSystemSights(sights);
 
     if (galaxyRef.current && populationRef.current) {
       const systemEntries = system.planets.map((planet) => {
-        const bio = biospheres.get(planet.id)!;
-        const civResult = civilizations.get(planet.id)!;
+        const bio = biospheres.get(planet.key)!;
+        const civResult = civilizations.get(planet.key)!;
         return {
           planet, star: star, bio,
           civ: civResult.civilization ?? undefined,
@@ -553,12 +563,12 @@ export default function App() {
       ui.inspect();
     }, {
       onPlanetApproach: approachPlanet,
-      planetLabels: new Map(system.planets.map((planet) => {
-        const life = planetLifeLabel(biospheres.get(planet.id)!);
-        const name = `${planetName(planet.hostStarId, planet.orbitalIndex)} · ${PLANET_TYPE_LABEL[planet.type]}`;
-        return [planet.id, life === "—" ? name : `${name} · ${life} life`];
+      planetLabels: new Map(bodies.map((body) => {
+        const life = planetLifeLabel(biospheres.get(body.key)!);
+        const name = `${bodyName(body)} · ${body.moonOrbit ? "moon · " : ""}${PLANET_TYPE_LABEL[body.type]}`;
+        return [body.key, life === "—" ? name : `${name} · ${life} life`];
       })),
-      planets: new Map(system.planets.map((planet) => [planet.id, sights.get(planet.key)!])),
+      planets: sights,
     });
     return system.planets;
   }, [currentSeed, universeConfig, approachPlanet, planetSightOf]);
@@ -569,7 +579,7 @@ export default function App() {
 
   const handleScanBiosphere = useCallback(() => {
     if (!selectedPlanet || !selectedStar) return;
-    const bio = systemBiosphereRef.current.get(selectedPlanet.id)
+    const bio = systemBiosphereRef.current.get(selectedPlanet.key)
       ?? generateBiosphere(selectedPlanet, selectedStar);
     setSelectedBiosphere(bio);
     setSelectedCivilization(null);
@@ -625,8 +635,8 @@ export default function App() {
       starFlux: selectedStar.luminosity / (orbitAU * orbitAU),
       starTemperatureK: selectedStar.temperature,
     };
-    const plans = bodyPlans(life.lineages, env, { galaxySeed: currentSeed, starId: selectedStar.id, planetId: selectedPlanet.id });
-    const name = planetName(selectedPlanet.hostStarId, selectedPlanet.orbitalIndex);
+    const plans = bodyPlans(life.lineages, env, { galaxySeed: currentSeed, starId: selectedStar.id, planetId: selectedPlanet.id, moonIndex: selectedPlanet.moonIndex });
+    const name = bodyName(selectedPlanet);
     const mindLineageId = selectedPlanet.life?.phylogeny.mind?.lineageId ?? null;
     return {
       planetName: name,
@@ -654,7 +664,7 @@ export default function App() {
   // The selected planet's civilization, whose gases its air carries (the Spectrum tab, B5)
   const selectedPlanetCivilization = useMemo(() => {
     if (!selectedPlanet || !selectedStar) return null;
-    const biosphere = systemBiosphereRef.current.get(selectedPlanet.id) ?? generateBiosphere(selectedPlanet, selectedStar);
+    const biosphere = systemBiosphereRef.current.get(selectedPlanet.key) ?? generateBiosphere(selectedPlanet, selectedStar);
     return generateCivilization(biosphere, selectedPlanet, currentSeed).civilization;
   }, [selectedPlanet, selectedStar, currentSeed]);
 
@@ -666,10 +676,10 @@ export default function App() {
   const systemRecordOf = useCallback((star: Star) => {
     const kept = systemRecordsRef.current.get(star.id);
     if (kept) return kept;
-    const worlds = new Map<number, SolidWorld>();
+    const worlds = new Map<string, SolidWorld>();
     const { planets } = generatePlanetsFor(star, currentSeed, universeConfig, (planet, host, seed, cfg) => {
       const world = solidWorldOf(planet, host, seed, cfg);
-      worlds.set(planet.id, world);
+      worlds.set(planet.key, world);
       return world;
     });
     const record = { planets, worlds };
@@ -688,9 +698,11 @@ export default function App() {
     if (!star) return null;
     const record = systemRecordOf(star);
     if (ref.kind === "star") return starEntry(star, record.planets, ctx);
-    const planet = record.planets.find((p) => p.id === ref.planetIndex);
+    const host = record.planets.find((p) => p.id === ref.planetIndex);
+    // A moon world's subject names its moon (MO6)
+    const planet = ref.moonIndex === undefined ? host : host?.moons.find((m) => m.moonIndex === ref.moonIndex)?.world;
     if (!planet) return null;
-    const world = record.worlds.get(planet.id) ?? null;
+    const world = record.worlds.get(planet.key) ?? null;
     if (ref.kind === "planet") return planetEntry(planet, star, world, ctx);
     if (ref.kind === "biosphere") return biosphereEntry(planet, star, world, ctx);
     return civilizationEntry(planet, star, world, ctx);
@@ -821,7 +833,7 @@ export default function App() {
   else if (view === "biosphere" && selectedBiosphere?.hasLife)              statusText = "Check whether a civilization has emerged";
 
   const starLabel = selectedStar ? starName(selectedStar.id) : null;
-  const planetLabel = selectedPlanet ? planetName(selectedPlanet.hostStarId, selectedPlanet.orbitalIndex) : null;
+  const planetLabel = selectedPlanet ? bodyName(selectedPlanet) : null;
 
   const handleSelectPlanetFromTable = (planet: Planet) => {
     setSelectedPlanet(planet);
@@ -1155,7 +1167,12 @@ export default function App() {
             onApproach={handleApproach}
             onLeaveOrbit={leaveOrbit}
             onScanBiosphere={handleScanBiosphere}
-            entryView={entryViewOf({ kind: "planet", starId: selectedStar.id, planetIndex: selectedPlanet.id })}
+            entryView={entryViewOf(subjectOf(selectedPlanet, "planet"))}
+            onSelectMoon={(moon) => {
+              setSelectedPlanet(moon);
+              setSelectedBiosphere(null);
+              ui.inspect();
+            }}
           />
         ) : view === "biosphere" && selectedBiosphere ? (
           <BiospherePanel
@@ -1169,7 +1186,7 @@ export default function App() {
             onBack={handleBackToPlanet}
             onClose={handleExitSystem}
             onScanCivilization={handleScanCivilization}
-            entryView={selectedPlanet && entryViewOf({ kind: "biosphere", starId: selectedPlanet.hostStarId, planetIndex: selectedPlanet.id })}
+            entryView={selectedPlanet && entryViewOf(subjectOf(selectedPlanet, "biosphere"))}
           />
         ) : view === "civilization" && selectedCivilization && selectedSpecies ? (
           <CivilizationPanel
@@ -1177,7 +1194,7 @@ export default function App() {
             species={selectedSpecies}
             onBack={handleBackToBiosphere}
             onClose={handleExitSystem}
-            entryView={selectedPlanet && entryViewOf({ kind: "civilization", starId: selectedPlanet.hostStarId, planetIndex: selectedPlanet.id })}
+            entryView={selectedPlanet && entryViewOf(subjectOf(selectedPlanet, "civilization"))}
           />
         ) : view === "system" && currentSystem && selectedStar ? (
           <SystemPanel

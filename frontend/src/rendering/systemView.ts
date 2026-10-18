@@ -31,6 +31,7 @@ import * as THREE from "three";
 import type { Planet } from "../simulation/planet";
 import { createRNG, mixSeed, SALT } from "../simulation/rng";
 import { bodyKey } from "../simulation/bodyKey";
+import type { BodyRef } from "../simulation/bodyKey";
 
 // Limb darkening: brightness at the edge as a share of the centre's (the Sun's is about 0.4 in visible light)
 const LIMB_BRIGHTNESS = 0.45;
@@ -185,12 +186,17 @@ interface Orbit {
   startAngle: number;
   secondsPerOrbit: number;
   followers: OrbitFollower[];
+  /** A moon's planet (MO6): the moon's carrier sits in the planet's, so it goes round both. */
+  parent: Orbit | null;
 }
 
-/** A planet's starting angle round its orbit, radians, from its VISUAL sub-stream. */
-export function orbitStartAngle(planet: Planet, galaxySeed: number): number {
-  return createRNG(mixSeed(galaxySeed, ...bodyKey(planet), SALT.VISUAL, ORBIT_PHASE_STREAM))() * 2 * Math.PI;
+/** A body's starting angle round its orbit, radians, from its VISUAL sub-stream: a planet's round its star, a moon's round its planet. */
+export function orbitStartAngle(body: BodyRef, galaxySeed: number): number {
+  return createRNG(mixSeed(galaxySeed, ...bodyKey(body), SALT.VISUAL, ORBIT_PHASE_STREAM))() * 2 * Math.PI;
 }
+
+/** The innermost moon of a planet goes round once in this many seconds on screen (MO6). */
+export const INNER_MOON_ORBIT_SECONDS = 8;
 
 /** Seconds on screen for one orbit of this radius, when the innermost of radius `innermost` takes INNER_ORBIT_SECONDS. */
 export function secondsPerOrbit(radius: number, innermost: number): number {
@@ -198,34 +204,44 @@ export function secondsPerOrbit(radius: number, innermost: number): number {
 }
 
 /**
- * The planets of one system going round their star. Each planet's meshes sit
- * in a carrier group, moved (never turned) round the orbit; the followers keep
- * the rest in step.
+ * The planets of one system going round their star, and their moons round
+ * them (MO6), by body key. Each body's meshes sit in a carrier group, moved
+ * (never turned) round the orbit; the followers keep the rest in step.
  */
 export class SystemOrbits {
-  private readonly orbits = new Map<number, Orbit>();
+  private readonly orbits = new Map<string, Orbit>();
   private elapsedSeconds = 0;
   private readonly place: OrbitPlace = { angle: 0, centre: new THREE.Vector3(), toStar: new THREE.Vector3() };
 
   /** Adds a planet's carrier, centred on the star (the carrier's parent's origin). */
   add(planet: Planet, carrier: THREE.Group, radius: number, innermost: number, galaxySeed: number): void {
-    this.orbits.set(planet.id, {
+    this.orbits.set(planet.key, {
       carrier, radius, startAngle: orbitStartAngle(planet, galaxySeed),
-      secondsPerOrbit: secondsPerOrbit(radius, innermost), followers: [],
+      secondsPerOrbit: secondsPerOrbit(radius, innermost), followers: [], parent: null,
     });
   }
 
-  /** Calls `follower` whenever the planet moves, and at once. */
-  follow(planetId: number, follower: OrbitFollower): void {
-    const orbit = this.orbits.get(planetId);
+  /** Adds a moon's carrier inside its planet's (added first), going round once in `seconds` on screen. */
+  addMoon(moon: BodyRef & { key: string }, planetKey: string, carrier: THREE.Group, radius: number, seconds: number, galaxySeed: number): void {
+    const parent = this.orbits.get(planetKey);
+    if (!parent) return;
+    parent.carrier.add(carrier);
+    this.orbits.set(moon.key, {
+      carrier, radius, startAngle: orbitStartAngle(moon, galaxySeed), secondsPerOrbit: seconds, followers: [], parent,
+    });
+  }
+
+  /** Calls `follower` whenever the body moves, and at once. */
+  follow(key: string, follower: OrbitFollower): void {
+    const orbit = this.orbits.get(key);
     if (!orbit) return;
     orbit.followers.push(follower);
     this.placeOne(orbit);
   }
 
-  /** The planet's carrier group, whose origin is the planet's centre. */
-  carrierOf(planetId: number): THREE.Group | undefined {
-    return this.orbits.get(planetId)?.carrier;
+  /** The body's carrier group, whose origin is the body's centre. */
+  carrierOf(key: string): THREE.Group | undefined {
+    return this.orbits.get(key)?.carrier;
   }
 
   /** Moves the clock on by `seconds` and every planet with it. */
@@ -241,7 +257,10 @@ export class SystemOrbits {
     const { place } = this;
     place.angle = angle;
     orbit.carrier.getWorldPosition(place.centre);
-    place.toStar.copy(orbit.carrier.position).negate().normalize();
+    // From the body to the star at the system's origin: a moon's place is its planet's plus its own
+    place.toStar.copy(orbit.carrier.position);
+    if (orbit.parent) place.toStar.add(orbit.parent.carrier.position);
+    place.toStar.negate().normalize();
     for (const follower of orbit.followers) follower(place);
   }
 }

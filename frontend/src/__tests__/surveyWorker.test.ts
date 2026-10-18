@@ -158,7 +158,7 @@ describe("survey pool", () => {
   });
 
   it("merges chunks by adding their counts and joining their systems and index rows in star order", () => {
-    const system = (starId: number) => ({ starId, mostAdvancedStage: "microbial" as const, lifePlanetCount: 1, civilizationStage: null });
+    const system = (starId: number) => ({ starId, mostAdvancedStage: "microbial" as const, lifePlanetCount: 1, lifeMoonCount: 0, civilizationStage: null });
     const row = (starId: number, planetIndex: number): IndexRow => ({
       ...(Object.fromEntries(INDEX_COLUMNS.map((column) => [column, NaN])) as IndexRow), starId, planetIndex, massEarths: starId + planetIndex / 10,
     });

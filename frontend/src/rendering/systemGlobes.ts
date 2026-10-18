@@ -76,12 +76,12 @@ export class SystemGlobes {
 
   /**
    * Starts drawing a system's planets as globes: adds their air now, and queues
-   * their globes nearest the camera first. `markers` are the planets' spheres, by
-   * planet id, each at the origin of its carrier in `orbits`; `sights` what each is drawn from.
+   * their globes nearest the camera first. `markers` are the planets' (and moon worlds')
+   * spheres, by body key, each at the origin of its carrier in `orbits`; `sights` what each is drawn from.
    */
   start(
     group: THREE.Group, star: Star, galaxySeed: number, planets: Planet[],
-    markers: Map<number, THREE.Mesh<THREE.SphereGeometry, THREE.Material>>, sights: Map<number, PlanetSight>,
+    markers: Map<string, THREE.Mesh<THREE.SphereGeometry, THREE.Material>>, sights: Map<string, PlanetSight>,
     orbits: SystemOrbits, camera: THREE.Camera, fade: boolean,
   ): void {
     this.stop();
@@ -94,8 +94,8 @@ export class SystemGlobes {
     const starColor = new THREE.Color(sr, sg, sb);
 
     for (const planet of planets) {
-      const marker = markers.get(planet.id);
-      const sight = sights.get(planet.id);
+      const marker = markers.get(planet.key);
+      const sight = sights.get(planet.key);
       if (!marker || !sight?.physics) continue;
       if (hasVisibleAtmosphere(planet)) this.addAir(planet, sight, marker, starColor);
       this.jobs.push({ planet, sight, marker, surface: null, globe: null, fadeStartMs: null });
@@ -151,7 +151,7 @@ export class SystemGlobes {
     marker.parent!.add(globe);
     // Lit from where the star is; a locked planet's substellar point keeps facing it
     const turn = new THREE.Matrix4();
-    this.orbits!.follow(planet.id, ({ toStar }) => {
+    this.orbits!.follow(planet.key, ({ toStar }) => {
       material.uniforms.toStar.value.copy(toStar);
       globe.quaternion.copy(globeOrientation(surface, toStar));
       material.uniforms.localToWorld.value.setFromMatrix4(turn.makeRotationFromQuaternion(globe.quaternion));
@@ -184,7 +184,7 @@ export class SystemGlobes {
     shell.scale.setScalar(radius);
     shell.material.uniforms.planetRadius.value = radius;
     marker.parent!.add(shell);
-    this.orbits!.follow(planet.id, ({ centre, toStar }) => {
+    this.orbits!.follow(planet.key, ({ centre, toStar }) => {
       shell.material.uniforms.toStar.value.copy(toStar);
       shell.material.uniforms.planetCentre.value.copy(centre);
     });

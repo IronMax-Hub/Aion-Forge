@@ -15,7 +15,8 @@ import type { IndexRow, UniverseIndex } from "../simulation/universeIndex";
 import { biosphereEntry, civilizationEntry, galaxyEntry, planetEntry, starEntry } from "../ui/encyclopedia/entries";
 import type { EntryContext } from "../ui/encyclopedia/entries";
 import type { Entry, Sentence } from "../ui/encyclopedia/entry";
-import { airPhrase } from "../ui/format";
+import { airPhrase, bodyName, moonName, planetName } from "../ui/format";
+import { subjectKey, subjectLabel } from "../ui/encyclopedia/subjects";
 
 // A sample of each universe: the first stars, with every solid world's history kept
 const SAMPLE_STARS = 300;
@@ -217,5 +218,32 @@ describe("reference entries", () => {
 
   it("the galaxy", () => {
     expect(galaxyEntry(samples[0].galaxy, samples[0].ctx)).toMatchSnapshot();
+  });
+});
+
+describe("moon worlds' entries (MO6)", () => {
+  const sample = samples[0];
+  const moonWorlds = sample.systems.flatMap(({ star, planets }) =>
+    planets.flatMap((p) => p.moons.flatMap((m) => (m.world ? [{ star, moon: m.world, planet: p }] : []))));
+
+  it("name the moon, say which planet it circles, and rank it against no planet", () => {
+    expect(moonWorlds.length).toBeGreaterThan(0);
+    for (const { star, moon, planet } of moonWorlds) {
+      const entry = planetEntry(moon, star, null, sample.ctx);
+      expect(entry.designation).toBe(moonName(moon.hostStarId, moon.orbitalIndex, moon.moonIndex!));
+      expect(entry.lede[0].text).toContain(`a moon of ${planetName(planet.hostStarId, planet.orbitalIndex)}`);
+      expect(entry.subject).toEqual({ kind: "planet", starId: moon.hostStarId, planetIndex: moon.id, moonIndex: moon.moonIndex });
+      expect(entry.notable.every((s) => s.text.startsWith("Rare:"))).toBe(true);
+      expect(entry.chronicle[0].sentence.text).toContain("The moon formed around");
+    }
+  });
+
+  it("give moon subjects their own labels and keys", () => {
+    const ref = { kind: "planet" as const, starId: 1300, planetIndex: 2, moonIndex: 1 };
+    expect(subjectLabel(ref)).toBe("1300 d-ii");
+    expect(subjectKey(ref)).toBe("planet-1300-2-m1");
+    expect(subjectKey({ ...ref, moonIndex: undefined })).toBe("planet-1300-2");
+    expect(bodyName({ hostStarId: 1300, orbitalIndex: 2, moonIndex: 1 })).toBe("1300 d-ii");
+    expect(bodyName({ hostStarId: 1300, orbitalIndex: 2 })).toBe("1300 d");
   });
 });

@@ -207,6 +207,13 @@ export function moonName(starId: number, orbitalIndex: number, moonIndex: number
   return `${planetName(starId, orbitalIndex)}-${lowerRoman(moonIndex + 1)}`;
 }
 
+/** A planet's or moon world's name (MO6): "1300 c", or "1300 c-ii" for its second moon. */
+export function bodyName(body: { hostStarId: number; orbitalIndex: number; moonIndex?: number }): string {
+  return body.moonIndex === undefined
+    ? planetName(body.hostStarId, body.orbitalIndex)
+    : moonName(body.hostStarId, body.orbitalIndex, body.moonIndex);
+}
+
 /** Short names for the laws of physics, in the citation's order. */
 const LAW_SHORT_NAME: Record<keyof typeof DEFAULT_CONFIG, string> = {
   gravityStrength:          "gravity",
@@ -296,6 +303,11 @@ export function lifeMarkerLabel(life: SystemLife): string {
   const main = life.civilizationStage
     ? `Civilization · ${TECH_STAGE_LABEL[life.civilizationStage]}`
     : LIFE_MARKER_STAGE[life.mostAdvancedStage];
+  // Beyond the most advanced world, the other living planets; living moons apart (MO6)
+  const worlds = life.lifePlanetCount + life.lifeMoonCount;
   const others = life.lifePlanetCount - 1;
-  return others > 0 ? `${main} +${others}` : main;
+  const planets = others > 0 ? `${main} +${others}` : main;
+  if (life.lifeMoonCount === 0) return planets;
+  const moons = `${life.lifeMoonCount} moon${life.lifeMoonCount === 1 ? "" : "s"}`;
+  return life.lifePlanetCount === 0 ? `${main} · ${worlds === 1 ? "on a moon" : `on ${moons}`}` : `${planets} · ${moons}`;
 }

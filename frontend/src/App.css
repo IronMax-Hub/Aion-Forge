@@ -729,6 +729,12 @@
 .data-value.adverse   { color: var(--col-danger); }
 
 /* Inspector section header */
+/* A planet's moons in its panel (MO6) */
+.moon-row { padding: var(--sp-3) 0; border-top: 1px solid var(--col-border-1); }
+.moon-row:first-of-type { border-top: none; }
+.moon-row-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-3); margin-bottom: var(--sp-2); font-size: var(--fs-base); color: var(--col-text-1); }
+.moon-row-life { font-size: var(--fs-sm); color: var(--col-text-3); }
+
 .inspector-section {
   display: flex;
   flex-direction: column;

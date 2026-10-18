@@ -10,7 +10,7 @@ import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
 import type { Civilization } from "../simulation/civilization";
 import { SkyBackground } from "./background";
-import { disposeSystemGroup, hostStarObject, orbitLine, systemLights, SystemOrbits } from "./systemView";
+import { disposeSystemGroup, hostStarObject, INNER_MOON_ORBIT_SECONDS, orbitLine, systemLights, SystemOrbits } from "./systemView";
 import { SystemGlobes } from "./systemGlobes";
 import { PlanetView, ORBIT_DISTANCE, starlightIntensity } from "./planet/PlanetView";
 import { GlobeTextureCache, drawsSurface, giantLookOf } from "./planet/globe";
@@ -158,12 +158,12 @@ export const SYSTEM_UNITS_PER_AU = 2.5;
 
 /** What the system view is given besides the system: callbacks and what it labels and draws each planet with. */
 export interface SystemSight {
-  /** Called when a planet is double-clicked, to approach it. */
+  /** Called when a planet (or moon world) is double-clicked, to approach it. */
   onPlanetApproach?: ((planet: Planet) => void) | null;
-  /** Hover label text per planet id; a planet without one shows no label. */
-  planetLabels?: Map<number, string>;
-  /** What each planet is drawn from, by planet id: its world, physics, starlight and life (its globe, air and rings). */
-  planets?: Map<number, PlanetSight>;
+  /** Hover label text per body key; a body without one shows no label. */
+  planetLabels?: Map<string, string>;
+  /** What each planet and moon world is drawn from, by body key: its world, physics, starlight and life (its globe, air and rings). */
+  planets?: Map<string, PlanetSight>;
 }
 
 /** What the planet view is given about a planet besides the planet itself. */
@@ -214,6 +214,12 @@ const SYSTEM_CAMERA_OFFSET = new THREE.Vector3(0, 2, 5);
 const HOST_STAR_RADIUS = 0.12;
 // Planet spheres stay round up close: 48 segments keep the outline smooth at the closest zoom
 const SYSTEM_PLANET_SEGMENTS = 48;
+// Moons on screen (MO6): the innermost sits this many planet-marker radii out, each doubling of distance adds this many more
+const MOON_DISTANCE = { base: 2, perDoubling: 1.2 };
+// A moon's sphere: its radius in Earth radii times this, kept between these, in scene units
+const MOON_SIZE = { perEarthRadius: 0.035, min: 0.008, max: 0.03 };
+// Moons too small to be worlds are drawn in the grey of ice and rock
+const SMALL_MOON_COLOUR: [number, number, number] = [0.7, 0.72, 0.75];
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -317,9 +323,9 @@ export class UniverseRenderer {
   private onPlanetApproach: ((planet: Planet) => void) | null = null;
 
   // System view: the label shown beside the planet under the pointer (life is named there, never drawn on the planet)
-  private planetLabels = new Map<number, string>();
+  private planetLabels = new Map<string, string>();
   private planetLabel: CSS2DObject | null = null;
-  private hoveredPlanetId: number | null = null;
+  private hoveredPlanetKey: string | null = null;
   private pointer: THREE.Vector2 | null = null;
 
   // A glide moves the orbit target and, when `camera` is set, the camera too; `onDone` runs when it ends
@@ -337,11 +343,11 @@ export class UniverseRenderer {
   private readonly systemGlobes = new SystemGlobes();
   // The system view's planets going round their star, their spheres (for picking), and the last frame's time
   private systemOrbits = new SystemOrbits();
-  private systemMarkers = new Map<number, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
+  private systemMarkers = new Map<string, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
   private orbitsMove = false;
   private lastFrameMs = performance.now();
   // The planet the system view's camera is on, following it round its orbit; null: the star
-  private focusedPlanetId: number | null = null;
+  private focusedPlanetKey: string | null = null;
   private systemScale = 1;
   private pressedAt: { x: number; y: number } | null = null;
   private pendingBake: GlobeBake | null = null;
@@ -532,7 +538,8 @@ export class UniverseRenderer {
     this.hidePlanetLabel();
     this.onPlanetSelected = onPlanetSelected;
     this.onPlanetApproach = onPlanetApproach;
-    this.planetData = system.planets;
+    // Everything that can be picked: the planets and their moon worlds (MO6)
+    this.planetData = system.planets.flatMap((planet) => [planet, ...planet.moons.flatMap((moon) => (moon.world ? [moon.world] : []))]);
     this.systemGalaxySeed = system.galaxySeed;
     this.systemHostStar = hostStar;
     this.mode = "system";
@@ -564,7 +571,7 @@ export class UniverseRenderer {
     // Host star, as light (systemView.ts), and the starlight the planets are lit by
     group.add(hostStarObject(starCol, HOST_STAR_RADIUS * scale), ...systemLights(starCol));
 
-    const markers = new Map<number, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
+    const markers = new Map<string, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
     // Each planet's meshes ride in a carrier that goes round the orbit (systemView.ts)
     this.systemOrbits = new SystemOrbits();
     for (const planet of system.planets) {
@@ -579,12 +586,13 @@ export class UniverseRenderer {
       const pGeo  = new THREE.SphereGeometry(pSize, SYSTEM_PLANET_SEGMENTS, SYSTEM_PLANET_SEGMENTS / 2);
       const pMat  = new THREE.MeshStandardMaterial({ color: new THREE.Color(pr, pg, pb), roughness: 0.9, metalness: 0 });
       const pMesh = new THREE.Mesh(pGeo, pMat);
-      markers.set(planet.id, pMesh);
-      pMesh.userData = { planetId: planet.id };
+      markers.set(planet.key, pMesh);
+      pMesh.userData = { planetKey: planet.key };
       carrier.add(pMesh);
+      this.addMoonMarkers(planet, pSize, scale, markers, system.galaxySeed);
 
       // A giant's rings, as the planet view draws them (its VISUAL stream, globe.ts), in its equatorial plane
-      const planetSight = planets.get(planet.id);
+      const planetSight = planets.get(planet.key);
       const giantPhysics = planet.surface === null ? planetSight?.physics ?? undefined : undefined;
       const rings = giantPhysics ? giantLookOf(planet, system.galaxySeed, giantPhysics.rotationPeriodHours).rings : null;
       if (giantPhysics && rings) {
@@ -595,7 +603,7 @@ export class UniverseRenderer {
         ring.scale.setScalar(pSize);
         ring.material.uniforms.planetRadius.value = pSize;
         carrier.add(ring);
-        this.systemOrbits.follow(planet.id, ({ centre, toStar }) => {
+        this.systemOrbits.follow(planet.key, ({ centre, toStar }) => {
           ring.material.uniforms.planetCentre.value.copy(centre);
           ring.material.uniforms.toStar.value.copy(toStar);
         });
@@ -605,7 +613,7 @@ export class UniverseRenderer {
     this.systemOrbits.advance(0);
     this.systemMarkers = markers;
     this.systemScale = scale;
-    this.focusedPlanetId = null;
+    this.focusedPlanetKey = null;
     this.controls.minDistance = DEFAULT_DISTANCE.min;
     this.orbitsMove = !prefersReducedMotion();
     this.systemGroup = group;
@@ -620,7 +628,39 @@ export class UniverseRenderer {
     this.controls.maxDistance = this.systemMaxDistance;
     this.controls.autoRotate      = true;
     this.controls.autoRotateSpeed = SYSTEM_AUTO_ROTATE_SPEED;
-    this.systemGlobes.start(group, hostStar, system.galaxySeed, system.planets, markers, planets, this.systemOrbits, this.camera, !prefersReducedMotion());
+    this.systemGlobes.start(group, hostStar, system.galaxySeed, this.planetData, markers, planets, this.systemOrbits, this.camera, !prefersReducedMotion());
+  }
+
+  /**
+   * A planet's moons (MO6), going round it at scaled distances: farther moons farther out on a log scale,
+   * clear of the planet's sphere, with their real period ratios. Moon worlds can be picked and approached
+   * as planets can; smaller moons are only drawn.
+   */
+  private addMoonMarkers(
+    planet: Planet, planetSize: number, scale: number,
+    markers: Map<string, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>, galaxySeed: number,
+  ): void {
+    const carrier = this.systemOrbits.carrierOf(planet.key);
+    if (!carrier || planet.moons.length === 0) return;
+    const innermost = planet.moons[0];
+    for (const moon of planet.moons) {
+      const distance = planetSize * (MOON_DISTANCE.base + MOON_DISTANCE.perDoubling * Math.log2(moon.orbitPlanetRadii / innermost.orbitPlanetRadii + 1));
+      carrier.add(orbitLine(distance));
+      const moonCarrier = new THREE.Group();
+      this.systemOrbits.addMoon(moon, planet.key, moonCarrier, distance,
+        INNER_MOON_ORBIT_SECONDS * (moon.orbitalPeriodHours / innermost.orbitalPeriodHours), galaxySeed);
+      const size = Math.max(MOON_SIZE.min, Math.min(MOON_SIZE.max, moon.size * MOON_SIZE.perEarthRadius)) * scale;
+      const [r, g, b] = moon.world ? PLANET_COLORS[moon.world.type] : SMALL_MOON_COLOUR;
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(size, SYSTEM_PLANET_SEGMENTS / 2, SYSTEM_PLANET_SEGMENTS / 4),
+        new THREE.MeshStandardMaterial({ color: new THREE.Color(r, g, b), roughness: 0.9, metalness: 0 }),
+      );
+      moonCarrier.add(mesh);
+      if (moon.world) {
+        mesh.userData = { planetKey: moon.world.key };
+        markers.set(moon.world.key, mesh);
+      }
+    }
   }
 
   exitSystemView() {
@@ -642,7 +682,7 @@ export class UniverseRenderer {
       this.systemGroup = null;
     }
     this.planetData = [];
-    this.focusedPlanetId = null;
+    this.focusedPlanetKey = null;
     this.controls.minDistance = DEFAULT_DISTANCE.min;
     this.systemMarkers = new Map();
     this.systemOrbits = new SystemOrbits();
@@ -664,7 +704,7 @@ export class UniverseRenderer {
    */
   approachPlanet(planet: Planet, sight: PlanetSight = { world: null, physics: null, starFlux: 1 }) {
     if (this.mode !== "system" || !this.systemGroup || !this.systemHostStar) return;
-    const marker = this.systemMarkers.get(planet.id);
+    const marker = this.systemMarkers.get(planet.key);
     if (!marker) return;
 
     const planetWorld = marker.getWorldPosition(new THREE.Vector3());
@@ -716,11 +756,11 @@ export class UniverseRenderer {
    */
   focusPlanet(planet: Planet | null) {
     if (this.mode !== "system" || !this.systemHostStar || this.tween?.onDone) return;
-    const id = planet?.id ?? null;
-    if (id === this.focusedPlanetId) return;
-    const marker = id !== null ? this.systemMarkers.get(id) : undefined;
-    if (id !== null && !marker) return;
-    this.focusedPlanetId = id;
+    const key = planet?.key ?? null;
+    if (key === this.focusedPlanetKey) return;
+    const marker = key !== null ? this.systemMarkers.get(key) : undefined;
+    if (key !== null && !marker) return;
+    this.focusedPlanetKey = key;
 
     // Keep the direction the camera looks from; only the distance and the point it circles change
     const fromTarget = this.camera.position.clone().sub(this.controls.target).normalize();
@@ -740,13 +780,13 @@ export class UniverseRenderer {
 
   /** How close the camera may come: to a focused planet, FOCUS_MIN_RADII of its radii. */
   private focusMinDistance(): number {
-    const marker = this.focusedPlanetId !== null ? this.systemMarkers.get(this.focusedPlanetId) : undefined;
+    const marker = this.focusedPlanetKey !== null ? this.systemMarkers.get(this.focusedPlanetKey) : undefined;
     return marker ? marker.geometry.parameters.radius * FOCUS_MIN_RADII : DEFAULT_DISTANCE.min;
   }
 
   /** Moves the camera with the focused planet, keeping its place relative to it. */
   private followFocusedPlanet() {
-    const marker = this.focusedPlanetId !== null ? this.systemMarkers.get(this.focusedPlanetId) : undefined;
+    const marker = this.focusedPlanetKey !== null ? this.systemMarkers.get(this.focusedPlanetKey) : undefined;
     if (!marker || this.mode !== "system" || this.tween) return;
     const shift = marker.getWorldPosition(new THREE.Vector3()).sub(this.controls.target);
     this.controls.target.add(shift);
@@ -828,8 +868,8 @@ export class UniverseRenderer {
     if (this.mode === "planet") return;
     if (this.mode === "system" && this.systemGroup) {
       const hit = this.planetMeshAt(ndc);
-      const id = hit ? hit.userData.planetId as number : null;
-      this.onPlanetSelected?.(id !== null ? this.planetData.find(p => p.id === id) ?? null : null);
+      const key = hit ? hit.userData.planetKey as string : null;
+      this.onPlanetSelected?.(key !== null ? this.planetData.find(p => p.key === key) ?? null : null);
       return;
     }
 
@@ -854,7 +894,7 @@ export class UniverseRenderer {
 
   private planetAt(e: MouseEvent): Planet | null {
     const hit = this.planetMeshAt(this.pointerNdc(e));
-    return hit ? this.planetData.find(p => p.id === hit.userData.planetId) ?? null : null;
+    return hit ? this.planetData.find(p => p.key === hit.userData.planetKey) ?? null : null;
   }
 
   private pointerNdc(e: MouseEvent): THREE.Vector2 {
@@ -885,13 +925,13 @@ export class UniverseRenderer {
   /** Shows the label of the planet under the pointer, once a frame, so planets moving under a still pointer are found too. */
   private updatePlanetLabel() {
     const mesh = this.mode === "system" && this.pointer ? this.planetMeshAt(this.pointer) : null;
-    const id = mesh ? mesh.userData.planetId as number : null;
-    const text = id !== null ? this.planetLabels.get(id) : undefined;
+    const key = mesh ? mesh.userData.planetKey as string : null;
+    const text = key !== null ? this.planetLabels.get(key) : undefined;
     if (!mesh || text === undefined) {
       this.hidePlanetLabel();
       return;
     }
-    if (id !== this.hoveredPlanetId) {
+    if (key !== this.hoveredPlanetKey) {
       this.hidePlanetLabel();
       const element = document.createElement("div");
       element.className = "planet-label";
@@ -901,7 +941,7 @@ export class UniverseRenderer {
       anchor.append(element);
       this.planetLabel = new CSS2DObject(anchor);
       this.scene.add(this.planetLabel);
-      this.hoveredPlanetId = id;
+      this.hoveredPlanetKey = key;
     }
     const label = this.planetLabel!;
     const radius = ((mesh as THREE.Mesh).geometry as THREE.SphereGeometry).parameters.radius;
@@ -919,7 +959,7 @@ export class UniverseRenderer {
       this.planetLabel.element.remove();
       this.planetLabel = null;
     }
-    this.hoveredPlanetId = null;
+    this.hoveredPlanetKey = null;
   }
 
   private selectStar(star: Star) {

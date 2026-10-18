@@ -1,7 +1,7 @@
 // Chapter 3 of the Physics page: stars (PH1).
 
 import {
-  ACTIVITY_DECAY_EXPONENT, ENVELOPE_FADE_K, GIANT_LUMINOSITY_FACTOR, LIFESPAN, luminosityAt, MAIN_SEQUENCE_BRIGHTENING,
+  ACTIVITY_DECAY_EXPONENT, ACTIVITY_SCALE, ENVELOPE_FADE_K, SOLAR_AGE_GYR, SOLAR_RADIUS_AU, GIANT_LUMINOSITY_FACTOR, LIFESPAN, luminosityAt, MAIN_SEQUENCE_BRIGHTENING,
   MAIN_SEQUENCE_END_FRACTION, MASS_DRAW, MASS_LUMINOSITY_EXPONENT, MS_RADIUS_EXPONENT, NEUTRON_STAR_LUMINOSITY,
   PROTOSTAR_FRACTION, PROTOSTAR_MAX_GYR, RARE_STAR, REMNANT_FRACTION, REMNANT_MASS, SATURATION, saturationTimeGyr,
   SOLAR_TEMPERATURE_K, SOLAR_XUV_TODAY, stellarRadiusAU, TEMP_RANGE, TEMPERATURE_JITTER, UNIVERSE_AGE_GYR,
@@ -165,7 +165,7 @@ export const stars: Chapter = {
       title: "Size, and planets swallowed",
       statement: "A star's radius follows from its light and temperature. A giant swells to an AU or more and swallows the planets inside it.",
       rule: `R = R☉ × √L × (${SOLAR_TEMPERATURE_K} K / T)²; a planet whose orbit lies inside R is removed`,
-      constants: [],
+      constants: [{ name: "The Sun's radius", value: `${SOLAR_RADIUS_AU} AU`, meaning: "R☉" }],
       why: "Stefan–Boltzmann again: a cool, bright giant must be enormous.",
       limits: ["Engulfment is decided by today's radius only: a planet is gone or untouched, never partly evaporated or moved outward by the star's mass loss."],
       laws: [{ law: "gravityStrength", how: "Orbits move in by √gravity, so more planets lie inside a giant" }],
@@ -187,7 +187,7 @@ export const stars: Chapter = {
         { name: "Decay exponent", value: exact(ACTIVITY_DECAY_EXPONENT), meaning: "Ribas et al. 2005" },
         { name: "Saturation time", value: `${SATURATION.gGyr} Gyr from ${formatInt(SATURATION.gK)} K; ${SATURATION.earlyMGyr} Gyr at ${formatInt(SATURATION.earlyMK)} K; ${SATURATION.lateMGyr} Gyr at ${formatInt(SATURATION.lateMK)} K`, meaning: "Linear between (West et al. 2008 for red dwarfs)" },
         { name: "Envelope fade", value: `${formatInt(ENVELOPE_FADE_K.from)}–${formatInt(ENVELOPE_FADE_K.to)} K`, meaning: "Hot stars have no convective envelope" },
-        { name: "The Sun's XUV today", value: `${SOLAR_XUV_TODAY} L☉`, meaning: "The law is scaled to give it" },
+        { name: "The Sun's XUV today", value: `${SOLAR_XUV_TODAY} L☉`, meaning: `At ${SOLAR_AGE_GYR} Gyr; the law is scaled by s = ${formatSig(ACTIVITY_SCALE)} to give it` },
       ],
       why: "Activity comes from a star's convective envelope and spin, which slows with age. Flares harm surface life; XUV strips air from weak-gravity worlds (step 3).",
       source: "Wright et al. 2011; Ribas et al. 2005; West et al. 2008",

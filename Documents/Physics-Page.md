@@ -2,7 +2,7 @@
 
 A page, opened from the left sidebar, that sets out every rule the simulation runs on: what it says, why it is there, what it assumes, which laboratory law reaches it, and what it did to the universe on screen right now.
 
-Status: decisions P1–P5 taken as recommended (18 Oct 2026); building PH0–PH5.
+Status: built 18 Oct 2026 (PH0–PH5): 59 cards in 12 chapters.
 
 ## Contents
 
@@ -97,6 +97,8 @@ One phase-let, one commit, as the other plans.
 | PH3 | Chapters 9–10 (life, minds, civilizations) | No |
 | PH4 | Chapters 11–12 (seeing from afar, measures) and the "does not have yet" lists | No |
 | PH5 | Tests: every shown constant equals the code's; every effect sentence has sources and no NaN for three seeds; the catalogue lists every exported constant; screenshots | No |
+
+**Built** 18 Oct 2026: PH0 a4484e7, PH1 2351209, PH2 01af188, PH3 a833260, PH4 617910a, PH5 (this commit). 59 cards. Constants a card shows are imported, never typed: about 60 simulation constants were exported or named for it (inline draws in `star.ts`, `galaxy.ts`, `planet.ts` and `civilization.ts` became named tables with identical arithmetic and draw order; seed 100000's exact funnel is unchanged). The PH5 scan reads every `export const` in `simulation/` through Vite's glob import and fails if a rule constant appears on no card; labels, colours, codes and aliases are listed as not rules, each with a reason. Effects are tested in four universes and in one with all life cleared, which caught empty-case NaNs in the life cards. Measured on a random seed: the brightest 1% of stars give 99% of the light, and a 99 M☉ red giant has an 893 AU radius (the ×500 giant rule applied to massive stars, a known limit).
 
 ## Ground rules
 

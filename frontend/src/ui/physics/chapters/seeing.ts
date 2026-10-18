@@ -1,9 +1,10 @@
 // Chapters 11 and 12 of the Physics page: seeing from afar, and measures (PH4).
 
 import {
-  CFC11_BAR, CFC12_BAR, EARTH_N2O_BAR, EARTH_POPULATION_BILLIONS, RELATIVE_HUMIDITY,
+  CFC11_BAR, CFC12_BAR, EARTH_N2O_BAR, EARTH_POPULATION_BILLIONS, GIANT_DEEP_H2O, RELATIVE_HUMIDITY,
 } from "../../../simulation/atmosphereComposition";
 import { BANDS, SPECTRUM_BINS, SPECTRUM_MAX_UM, SPECTRUM_MIN_UM } from "../../../simulation/spectrum";
+import { CLOUD_TOP_BAR, OVERCAST_BAR } from "../../../simulation/clouds";
 import { MAX_TRANSITS, MIN_TRANSITS, REFERENCE_NOISE_PPM } from "../../../simulation/observation";
 import { DETECTION_SIGMA } from "../../../simulation/detection";
 import { ATMOSPHERE_FACTOR, FULL_HABITABLE_AREA, GRAVITY_WINDOW, RARE_PLANET, RESOURCE_WEIGHT } from "../../../simulation/planet";
@@ -28,6 +29,7 @@ export const seeing: Chapter = {
         { name: "Relative humidity", value: formatPercent(RELATIVE_HUMIDITY), meaning: "Earth's mean, for water vapour" },
         { name: "Earth's N₂O", value: `${EARTH_N2O_BAR} bar`, meaning: "Scaled by living biomass" },
         { name: "CFC-11 / CFC-12", value: `${CFC11_BAR} / ${CFC12_BAR} bar`, meaning: `Earth today, per ${EARTH_POPULATION_BILLIONS} billion people` },
+        { name: "Giants' deep water", value: `${GIANT_DEEP_H2O}`, meaning: "Mixing ratio below the clouds, Jupiter's; cold-trapped above" },
       ],
       why: "Gases that life or technology keep up are the signs a distant observer can look for. Oxygen alone is not proof: escaping water leaves oxygen behind with no life at all, a deliberate false positive.",
       source: "Earth's measured abundances; Jupiter's and Uranus's for giants",
@@ -45,7 +47,10 @@ export const seeing: Chapter = {
       title: "The transit spectrum",
       statement: "When a planet crosses its star, a thin ring of its air is backlit. Each gas absorbs at its own wavelengths, so the planet looks slightly larger in those colours.",
       rule: `${SPECTRUM_BINS} bins from ${SPECTRUM_MIN_UM} to ${SPECTRUM_MAX_UM} µm; ${BANDS.length} absorption bands; the air's height from its temperature, gravity and molecular mass`,
-      constants: [],
+      constants: [
+        { name: "Cloud tops", value: `${CLOUD_TOP_BAR} bar`, meaning: "Light passes above the deck only" },
+        { name: "Overcast", value: `${OVERCAST_BAR.from}–${OVERCAST_BAR.full} bar`, meaning: "Thick air clouds the whole sky over this range" },
+      ],
       why: "Transmission spectroscopy is how real telescopes read exoplanet atmospheres.",
       limits: ["Bands are simplified shapes, not line lists; clouds hide the air below their deck."],
       laws: [],

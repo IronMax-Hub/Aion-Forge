@@ -5,13 +5,15 @@ import {
   ORIGIN_PER_GYR_PER_WATER_AREA,
 } from "../../../simulation/worldHistory";
 import {
-  FLARE_UV_AT_FULL_ACTIVITY, FLARING_BELOW_K, UV_BAND_NM, VENUS_PRESSURE_BAR, VENUS_SURFACE_TRANSMISSION,
+  FLARE_UV_AT_FULL_ACTIVITY, FLARING_BELOW_K, SEAWATER_FREEZING_K, UV_BAND_NM, VENUS_PRESSURE_BAR, VENUS_SURFACE_TRANSMISSION,
 } from "../../../simulation/evolution/environment";
 import { TRAIT_RANGES } from "../../../simulation/evolution/genome";
 import {
-  AEROBIC_YIELD, COST, DRIFT_TOLERANCE, KILL_CHANCE, LINEAGE_CAP, MAX_LEVEL, MULTICELLULAR_LOG10_KG, MUTATION_SIGMA,
+  AEROBIC_YIELD, CHEMICAL_SUPPLY, COST, DRIFT_TOLERANCE, KILL_CHANCE, LINEAGE_CAP, MAX_LEVEL, MULTICELLULAR_LOG10_KG, MUTATION_SIGMA,
   PREDATION_LOSS, SPECIATION_PER_GYR, TROPHIC_EFFICIENCY,
 } from "../../../simulation/evolution/engine";
+import { MASS_EXTINCTION_SHARE } from "../../../simulation/history";
+import { RECENT_CATASTROPHES } from "../../../simulation/evolution/phylogeny";
 import { COMPLEX_FOOD_CHAIN_LEVELS, COMPLEX_LOG10_KG, DOMINANT_BIOMASS, STAGE_LABEL } from "../../../simulation/biosphere";
 import { MIND_BASE_THRESHOLD, MIND_MIN_LOG10_KG, mindThreshold } from "../../../simulation/evolution/minds";
 import {
@@ -49,6 +51,7 @@ export const life: Chapter = {
         const ix = ctx.index!;
         const wet = rowsWhere(ix, (i) => (ix.flags[i] & INDEX_FLAG.EVER_LIQUID_WATER) !== 0).length;
         const b = began(ix);
+        if (b.length === 0) return [said(`Life began on none of the ${formatInt(wet)} worlds that ever had liquid water.`, "index.lifeBeganGyr", "index.flags.EVER_LIQUID_WATER")];
         const wait = median(b.map((i) => ix.lifeBeganGyr[i] - FORMATION_DELAY_GYR));
         return [said(`Life began on ${formatInt(b.length)} of the ${formatInt(wet)} worlds that ever had liquid water, a median ${formatGyr(Math.max(0, wait))} after their histories began.`, "index.lifeBeganGyr", "index.flags.EVER_LIQUID_WATER")];
       },
@@ -58,7 +61,11 @@ export const life: Chapter = {
       title: "What life meets: light, ultraviolet, flares",
       statement: "Producers live on starlight (sunlit water and land) or chemical energy (deep water, from volcanism). Thick air dims the light; harmful ultraviolet reaches the surface unless air and ozone stop it; red dwarfs add flares.",
       rule: `light × e^(−k·P), k from Venus (${VENUS_PRESSURE_BAR} bar lets ${formatPercent(VENUS_SURFACE_TRANSMISSION)} through); UV = the star's ${UV_BAND_NM.from}–${UV_BAND_NM.to} nm share + flares below ${formatInt(FLARING_BELOW_K)} K × ${FLARE_UV_AT_FULL_ACTIVITY} × activity, × (1 − ozone)`,
-      constants: [{ name: "Flaring stars", value: `< ${formatInt(FLARING_BELOW_K)} K`, meaning: "On the main sequence" }],
+      constants: [
+        { name: "Flaring stars", value: `< ${formatInt(FLARING_BELOW_K)} K`, meaning: "On the main sequence" },
+        { name: "Chemical energy", value: `${CHEMICAL_SUPPLY}`, meaning: "Per unit of deep water at full tectonic activity (Earth's sunlight = 1)" },
+        { name: "Liquid water", value: `≥ ${exact(SEAWATER_FREEZING_K, "K")}`, meaning: "Seawater's freezing point, even under ice" },
+      ],
       why: "Light is life's largest energy source; UV breaks the molecules life is made of, so land life needs air and ozone.",
       limits: ["One transmission for all wavelengths."],
       laws: [],
@@ -67,6 +74,7 @@ export const life: Chapter = {
       effect: (ctx) => {
         const ix = ctx.index!;
         const live = living(ix);
+        if (live.length === 0) return [said("Nothing lives in this universe today.", "index.lifeStage")];
         const aroundDwarfs = live.filter((i) => ctx.stars[ix.starId[i]].temperature < FLARING_BELOW_K).length;
         return [said(`${formatInt(aroundDwarfs)} of ${formatInt(live.length)} living worlds orbit flaring red dwarfs.`, "index.lifeStage", "star.temperature")];
       },
@@ -88,6 +96,7 @@ export const life: Chapter = {
       effect: (ctx) => {
         const ix = ctx.index!;
         const sizes = living(ix).map((i) => ix.largestLog10Kg[i]).filter(has);
+        if (sizes.length === 0) return [said("Nothing lives in this universe today.", "index.largestLog10Kg")];
         return [said(`On living worlds the median largest body is ${formatMass(median(sizes))}; the largest anywhere is ${formatMass(Math.max(...sizes))}.`, "index.largestLog10Kg")];
       },
     },
@@ -111,6 +120,7 @@ export const life: Chapter = {
       effect: (ctx) => {
         const ix = ctx.index!;
         const live = living(ix);
+        if (live.length === 0) return [said("Nothing lives in this universe today.", "index.livingLineages")];
         const full = live.filter((i) => ix.livingLineages[i] >= LINEAGE_CAP).length;
         return [said(`Living worlds hold a median of ${formatInt(median(live.map((i) => ix.livingLineages[i])))} lineages; ${formatInt(full)} are at the cap of ${LINEAGE_CAP}.`, "index.livingLineages")];
       },
@@ -123,6 +133,8 @@ export const life: Chapter = {
         { name: "Impact", value: formatPercent(KILL_CHANCE.impact), meaning: "Chance to kill the smallest producer" },
         { name: "Volcanic pulse", value: formatPercent(KILL_CHANCE.volcanicPulse), meaning: "" },
         { name: "Climate transition", value: formatPercent(KILL_CHANCE.transition), meaning: "" },
+        { name: "Mass extinction", value: `≥ ${formatPercent(MASS_EXTINCTION_SHARE)}`, meaning: "Of living lineages ended at once" },
+        { name: "Stability reads", value: `last ${RECENT_CATASTROPHES}`, meaning: "Catastrophes, for the biosphere's stability index" },
       ],
       why: "Mass extinctions reset Earth's life several times and opened room for new lineages.",
       limits: ["Catastrophes do not change the planet itself (impacts heat nothing)."],
@@ -131,8 +143,10 @@ export const life: Chapter = {
       needsIndex: true,
       effect: (ctx) => {
         const ix = ctx.index!;
+        if (began(ix).length === 0) return [said("Life never began, so nothing has died out.", "index.lifeBeganGyr")];
         const ended = rowsWhere(ix, (i) => has(ix.lifeEndedGyr[i])).length;
-        return [said(`Life died out on ${formatInt(ended)} of ${formatInt(began(ix).length)} worlds where it began.`, "index.lifeEndedGyr", "index.lifeBeganGyr")];
+        const massive = rowsWhere(ix, (i) => ix.massExtinctions[i] > 0).length;
+        return [said(`Life died out on ${formatInt(ended)} of ${formatInt(began(ix).length)} worlds where it began; ${formatInt(massive)} survived at least one mass extinction.`, "index.lifeEndedGyr", "index.lifeBeganGyr", "index.massExtinctions")];
       },
     },
     {
@@ -172,7 +186,7 @@ export const life: Chapter = {
         const parts = LIFE_STAGE_CODES.map((stage, code) => [stage, rowsWhere(ix, (i) => ix.lifeStage[i] === code).length] as const)
           .filter(([stage, n]) => stage !== "none" && n > 0)
           .map(([stage, n]) => `${STAGE_LABEL[stage]}: ${formatInt(n)}`);
-        return [said(`Living worlds by stage: ${parts.join("; ")}.`, "index.lifeStage")];
+        return [said(parts.length === 0 ? "Nothing lives in this universe today." : `Living worlds by stage: ${parts.join("; ")}.`, "index.lifeStage")];
       },
     },
   ],

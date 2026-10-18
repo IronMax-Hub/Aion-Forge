@@ -2,7 +2,8 @@
 
 import {
   ARCHITECTURE_ROLL, ATMOSPHERE_DRAW, DESERT_MAX_OCEAN, OWN_AIR_STREAM_BELOW_MASS, DESERT_MIN_K, DUST_SUBLIMATION_K,
-  FIRST_ORBIT_AU, ICE_GIANT_MAX_K, ICE_WORLD_MIN_ICE, LAVA_MIN_K, OCEAN_WORLD_MIN_OCEAN, ORBIT_SPACING, PLANET_COUNT,
+  FIRST_ORBIT_AU, ICE_GIANT_MAX_K, ICE_WORLD_MIN_ICE, LAVA_MIN_K, METALLICITY_MASS_EXPONENT, OCEAN_WORLD_MIN_OCEAN, ORBIT_SPACING,
+  PLANET_COUNT,
 } from "../../../simulation/planet";
 import { GIANT_PLANET_MASS, MASS_RADIUS, PLANET_MASS_DRAW } from "../../../simulation/planetBasics";
 import {
@@ -33,7 +34,7 @@ export const systems: Chapter = {
       rule: `draw < ${PLANET_COUNT.barrenBelow}: none; < ${PLANET_COUNT.sparseBelow}: ${PLANET_COUNT.sparse.min}–${PLANET_COUNT.sparse.min + PLANET_COUNT.sparse.range - 1}; else base + 0–${PLANET_COUNT.extraRange - 1}, base ${PLANET_COUNT.base.counts.join(" / ")} below ${PLANET_COUNT.base.belowMass.join(" / ")} M☉ / above`,
       constants: [],
       why: "Most Sun-like stars host planets; very massive stars live too briefly and blow their disks away sooner.",
-      limits: ["The count does not depend on the star's metallicity (step 4) or on a companion (step 6)."],
+      limits: ["The count drawn does not depend on the star's metallicity or on a companion (step 6); a metal-poor star loses the bodies too small to be planets (see masses)."],
       laws: [],
       code: "simulation/planet.ts · PLANET_COUNT, planetCount",
       needsIndex: true,
@@ -69,22 +70,35 @@ export const systems: Chapter = {
     {
       id: "planet-mass",
       title: "Planet masses, and giants",
-      statement: "A planet's mass is drawn evenly on a logarithmic scale up to 25 Earth masses; the top tenth of draws spreads from there to 13 Jupiter masses. Above 15 Earth masses a planet is a giant with no solid surface.",
-      rule: `log-uniform ${formatSig(PLANET_MASS_DRAW.min)}–${formatSig(PLANET_MASS_DRAW.knee.mass)} M⊕ for draws below ${PLANET_MASS_DRAW.knee.u}; log-uniform ${formatSig(PLANET_MASS_DRAW.knee.mass)}–${formatInt(PLANET_MASS_DRAW.max)} M⊕ above`,
+      statement: "A planet's mass is drawn evenly on a logarithmic scale up to 25 Earth masses; the top tenth of draws spreads from there to 13 Jupiter masses. The draw is then scaled by the solids in the star's disk, which follow its metallicity: a metal-poor star builds lighter planets, and a body that ends up too small is no planet. Above 15 Earth masses a planet is a giant with no solid surface.",
+      rule: `log-uniform ${formatSig(PLANET_MASS_DRAW.min)}–${formatSig(PLANET_MASS_DRAW.knee.mass)} M⊕ for draws below ${PLANET_MASS_DRAW.knee.u}; log-uniform ${formatSig(PLANET_MASS_DRAW.knee.mass)}–${formatInt(PLANET_MASS_DRAW.max)} M⊕ above; then × 10^(α · [Fe/H]), at most ${formatInt(PLANET_MASS_DRAW.max)} M⊕; below ${formatSig(PLANET_MASS_DRAW.min)} M⊕ no planet`,
       constants: [
+        { name: "α", value: exact(METALLICITY_MASS_EXPONENT), meaning: "Mass ∝ the disk's solids (decision 8)" },
         { name: "Giant above", value: exact(GIANT_PLANET_MASS, "M⊕"), meaning: "No solid surface beyond this" },
         { name: "Heaviest planet", value: exact(PLANET_MASS_DRAW.max, "M⊕"), meaning: "About 13 Jupiter masses, where brown dwarfs begin" },
       ],
       why: "Small planets are common and giants rarer, as exoplanet surveys find; a single cut separates rocky worlds from those that gathered thick gas envelopes.",
-      limits: ["No mass depends on the star or the orbit: a giant can form anywhere (step 4 ties masses to the disk's solids)."],
+      limits: [
+        "Every planet scales alike, though observed small planets barely depend on metallicity (Buchhave et al. 2012; Petigura et al. 2018); only giants do. Kept as the simplest rule (decision 8).",
+        "No mass depends on the orbit: a giant can form anywhere.",
+      ],
       laws: [],
-      code: "simulation/planetBasics.ts · PLANET_MASS_DRAW, GIANT_PLANET_MASS",
+      code: "simulation/planetBasics.ts · PLANET_MASS_DRAW, GIANT_PLANET_MASS; simulation/planet.ts · planetMassFor (MZ3)",
       needsIndex: true,
       effect: (ctx) => {
         const ix = ctx.index!;
         const giants = rowsWhere(ix, (i) => ix.massEarths[i] > GIANT_PLANET_MASS).length;
         const saturns = rowsWhere(ix, (i) => ix.massEarths[i] > SATURN_MASS).length;
-        return [said(`${formatInt(giants)} of ${formatInt(ix.count)} planets are giants (${formatPercent(giants / ix.count)}); ${formatInt(saturns)} are heavier than Saturn.`, "index.massEarths")];
+        const out = [said(`${formatInt(giants)} of ${formatInt(ix.count)} planets are giants (${formatPercent(giants / ix.count)}); ${formatInt(saturns)} are heavier than Saturn.`, "index.massEarths")];
+        // Stars hosting a giant, metal-rich against metal-poor
+        const hosts = new Set(rowsWhere(ix, (i) => ix.massEarths[i] > GIANT_PLANET_MASS).map((i) => ix.starId[i]));
+        const share = (test: (feH: number) => boolean) => {
+          const stars = ctx.stars.filter((s) => test(s.metallicity));
+          return stars.length === 0 ? "none" : formatPercent(stars.filter((s) => hosts.has(s.id)).length / stars.length);
+        };
+        out.push(said(`A giant orbits ${share((z) => z >= 0)} of stars at or above solar metallicity and ${share((z) => z < -0.5)} of stars below −0.5.`, "index.massEarths", "star.metallicity"));
+        if (ctx.tooSmallPlanets !== null) out.push(said(`${formatInt(ctx.tooSmallPlanets)} bodies were too small to be planets.`, "survey.tooSmallPlanets"));
+        return out;
       },
     },
     {

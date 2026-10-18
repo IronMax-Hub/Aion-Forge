@@ -31,6 +31,8 @@ export interface PhysicsContext {
   index: UniverseIndex | null;
   /** Planets engulfed by their stars (from the survey); null until it finishes. */
   engulfedPlanets: number | null;
+  /** Bodies too small to be planets at their star's metallicity (MZ3, from the survey); null until it finishes. */
+  tooSmallPlanets: number | null;
 }
 
 export type LawKey = keyof typeof DEFAULT_CONFIG;

@@ -39,7 +39,7 @@ const earths = Array.from({ length: 40 }, (_, copy) => earth(copy));
 
 const seed = 100000;
 const config = makeConfig(seed);
-const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 60);
+const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 100);
 const worlds = stars.flatMap((star) => generatePlanetsFor(star, seed, config).planets
   .filter((planet) => planet.surface !== null)
   .map((planet) => {

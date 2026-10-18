@@ -53,7 +53,7 @@ export const galaxy: Chapter = {
         { name: "Particles drawn", value: formatInt(GALAXY_PARTICLE_COUNT), meaning: "The glowing cloud: presentation only" },
       ],
       why: "A Milky Way–sized disc gives distances people can picture.",
-      limits: ["Distance from the centre changes nothing about a star's light or life yet: it sets the star's metallicity (below), which nothing reads until MZ3; there is no galactic habitable zone and no supernova hazard."],
+      limits: ["Distance from the centre changes nothing about a star's light or life yet: it sets the star's metallicity (below), and so how heavy its planets are; there is no galactic habitable zone and no supernova hazard."],
       laws: [{ law: "expansionRate", how: "Multiplies the radius" }],
       code: "simulation/galaxy.ts · buildGalaxyConfig",
       effect: (ctx) => {
@@ -115,6 +115,5 @@ export const galaxy: Chapter = {
   ],
   missing: [
     "The galaxy does not change over time: its shape, and the stars that died before today, are not modelled (Deep Time, step 9).",
-    "Metallicity changes nothing yet: planets are built from it in MZ3.",
   ],
 };

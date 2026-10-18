@@ -96,3 +96,51 @@ This is inside the ±25% target, so K is not tuned.
 
 - **Escape as a share (decision 38)** still strips thick air as completely as thin air. A rule that removes a mass would let thick atmospheres last longer.
 - **XUV from hot white dwarfs** (their photospheres) is not included.
+
+---
+
+## Step 4: metallicity (MZ1–MZ3, rules v12)
+
+Every generation of stars returns heavier elements to the gas the next forms from. Planets are built from those elements.
+
+### The galaxy's enrichment (MZ1, `metallicity.ts`)
+
+Z(R, t) = Z_floor + y · (1 − e^(−t / τ(R))), with τ(R) = τ_core · e^(R / R_τ), and [Fe/H] = log10 Z. R is the distance from the centre in the disc plane as a share of the galaxy's scale; t is cosmic time.
+
+| Constant | Value | Why |
+|---|---|---|
+| `METALLICITY_FLOOR` | 10⁻³ Z☉ | The first gas: [Fe/H] = −3, like the oldest halo stars |
+| `ENRICHMENT.spiral` | y 1.6, τ_core 1 Gyr, R_τ 0.233 | The gas where and when the Sun formed (R 0.52, 9.1 Gyr) is solar; the centre levels off near +0.2; today's gradient is −0.049 dex per kpc (observed about −0.06) |
+| `ENRICHMENT.elliptical` | y 1.6, τ_core 0.3 Gyr, R_τ 0.5 | One early, fast burst: a star born at 1 Gyr at R 0.34 is +0.12, and today's gas is +0.20 everywhere |
+| `ENRICHMENT.irregular` | y 0.5, τ_core 3 Gyr, R_τ 0.233 | Slow formation, and outflows that carry metals away: levels off at −0.30, like the Magellanic Clouds |
+
+Constants per galaxy type were the owner's choice (decision 7, 18 Oct 2026) over the plan's one law.
+
+### Each star's metallicity (MZ2, `star.ts`)
+
+A star's [Fe/H] is its gas's where and when it formed, plus a normal scatter of `METALLICITY_SCATTER_DEX` = 0.1 dex from its own stream (`SALT.METALLICITY`). About 0.2 dex is observed near the Sun, much of it from stars migrating radially, which is not modelled. Every other draw is untouched. Seed 100000 (spiral): the median star is −0.18; stars older than 10 Gyr −0.80, younger than 2 Gyr −0.04.
+
+### Planets from the disk's solids (MZ3, `planet.ts`)
+
+mass = min(4,000 M⊕, drawn mass · 10^(α · [Fe/H])), with `METALLICITY_MASS_EXPONENT` α = 1 (decision 8). A body below 0.018 M⊕ is not a planet. This contradicts the observation that small planets' occurrence barely depends on metallicity (Buchhave et al. 2012; Petigura et al. 2018). It is kept as the simplest rule, with a tripwire: the alternative (scaling only the giants' path) is taken if living worlds around stars older than 10 Gyr fall by more than half against v11.
+
+### Measured (MZ3, 18 Oct 2026)
+
+| Seed | Planets | Too small | Living, stars > 10 Gyr | Systems with organisms | Civilizations |
+|---|---|---:|---|---|---|
+| 100000 | 8,428 → 7,650 | 778 | 880 → 713 (−19%) | 912 → 911 | 53 → 36 |
+| 42 | 8,410 → 8,374 | 36 | 736 → 695 (−6%) | 891 → 884 | 52 → 49 |
+| 7777 | 8,519 → 7,743 | 776 | 810 → 701 (−13%) | 933 → 907 | 68 → 40 |
+
+The tripwire is not triggered. Seed 42's galaxy is metal-rich (1,620 of its stars above +0.1), so it barely changed.
+
+**Giants against [Fe/H].** Stars hosting a giant, seed 100000, below −0.5 / −0.5 to −0.2 / −0.2 to +0.1 / above +0.1:
+- v12: 28% / 32% / 43% / 55%.
+- v11: 51% / 47% / 44% / 44%.
+
+The relation now runs the right way but far shallower than the observed 10^(2[Fe/H]) (Fischer & Valenti 2005), and the model's giant share near solar metallicity is several times the observed. This is recorded for the owner; α is not changed.
+
+### Surprises
+
+- **Old stars keep their life.** Before building, the escape rule suggested that old stars' lighter rocky worlds would mostly be stripped. Living worlds around stars older than 10 Gyr fell by only 6–19%.
+- **Minds fall harder than life again.** Systems with organisms barely moved (0 to −3%), while civilizations fell by up to 41%. Not yet traced.

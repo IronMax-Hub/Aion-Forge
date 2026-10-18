@@ -138,7 +138,7 @@ describe("Planet keys", () => {
       const config = makeConfig(seed);
       const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
       const planets = stars.flatMap((star) => generatePlanetsFor(star, seed, config).planets);
-      expect(planets.length).toBeGreaterThan(8000);
+      expect(planets.length).toBeGreaterThan(7000);
       expect(new Set(planets.map((p) => p.key)).size).toBe(planets.length);
       // The index alone repeats from system to system, which is why the key exists
       expect(new Set(planets.map((p) => p.id)).size).toBeLessThan(20);

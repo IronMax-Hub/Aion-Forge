@@ -56,11 +56,13 @@ const indexOf100000 = () => (fullIndex ??= surveyLife(seedStars, SEED, makeConfi
 describe("the Great Filter funnel", () => {
   it("counts seed 100000's funnel, and never rises", () => {
     const funnel = funnelOf(indexOf100000());
-    expect(funnel.worlds).toBe(8428);
+    expect(funnel.worlds).toBe(7650);
     // The plan's table is rules v10 (8,537 planets; 7,134, 4,730, 4,167, 1,706, 334, 271, 86, 37, 22, 13, 3, 3).
     // Rules v11: AE1's activity curve, then AE2's escape, water loss, one atmosphere draw and past giants
     // (109 planets engulfed by the giants today's white dwarfs once were)
-    expect(funnel.steps.map((s) => s.passed)).toEqual([7051, 4428, 3795, 1326, 234, 179, 53, 25, 16, 10, 2, 2]);
+    // (7,051, 4,428, 3,795, 1,326, 234, 179, 53, 25, 16, 10, 2, 2 of 8,428 planets).
+    // Rules v12: MZ3's planet masses from the disk's solids (778 bodies too small to be planets)
+    expect(funnel.steps.map((s) => s.passed)).toEqual([6549, 4037, 3441, 1142, 198, 150, 36, 16, 14, 8, 2, 2]);
     for (let g = 1; g < funnel.steps.length; g++) {
       expect(funnel.steps[g].arrived).toBe(funnel.steps[g - 1].passed);
       expect(funnel.steps[g].passed).toBeLessThanOrEqual(funnel.steps[g].arrived);
@@ -115,7 +117,7 @@ describe("where worlds stop", () => {
   it("counts which of fire's conditions fail where minds have no fire", () => {
     const index = indexOf100000();
     const fire = breakdown(index, seedStars, "fire");
-    expect(fire.stopped).toBe(53 - 25);
+    expect(fire.stopped).toBe(36 - 16);
     // Every stopped world fails at least one condition, and none fails more than the stopped count
     const { noLand, thinAir, lowOxygen } = fire.fire!;
     expect(noLand + thinAir + lowOxygen).toBeGreaterThanOrEqual(fire.stopped);

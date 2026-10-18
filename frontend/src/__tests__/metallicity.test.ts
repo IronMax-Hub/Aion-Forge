@@ -4,6 +4,8 @@ import type { GalaxyType } from "../simulation/galaxy";
 import { generateStarsFor, METALLICITY_SCATTER_DEX, UNIVERSE_AGE_GYR } from "../simulation/star";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { makeConfig } from "../simulation/config";
+import { generatePlanetsFor, planetMassFor } from "../simulation/planet";
+import { PLANET_MASS_DRAW, planetMassFromDraw } from "../simulation/planetBasics";
 
 const TYPES: GalaxyType[] = ["spiral", "elliptical", "irregular"];
 // The default galaxy's scale is shown as 50,000 light-years (ui/format.ts): 15.3 kpc
@@ -84,5 +86,54 @@ describe("each star's metallicity (MZ2)", () => {
     const young = stars.filter((s) => s.age < 2).map((s) => s.metallicity);
     expect(old.length).toBeGreaterThan(20);
     expect(median(old)).toBeLessThan(median(young) - 0.2);
+  });
+});
+
+describe("planets from the disk's solids (MZ3)", () => {
+  const seed = 100000;
+  const config = makeConfig(seed);
+  const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars
+    .filter((s) => s.classification === "main-sequence").slice(0, 120);
+  const at = (star: (typeof stars)[number], metallicity: number) => generatePlanetsFor({ ...star, metallicity }, seed, config);
+
+  it("makes a metal-poor star's planets no heavier than the same draws at solar metallicity", () => {
+    for (const star of stars) {
+      const solar = new Map(at(star, 0).planets.map((p) => [p.orbitalIndex, p]));
+      for (const planet of at(star, -1).planets) {
+        const twin = solar.get(planet.orbitalIndex)!;
+        expect(twin).toBeDefined();
+        expect(planet.mass).toBeCloseTo(twin.mass / 10, 9);
+        // Every draw stays in place whatever the masses: the same orbit and resources
+        expect(planet.orbitalRadius).toBe(twin.orbitalRadius);
+        expect(planet.resourceAbundance).toBe(twin.resourceAbundance);
+      }
+    }
+  });
+
+  it("drops bodies below the smallest planet mass and keeps masses below the heaviest", () => {
+    let dropped = 0;
+    for (const star of stars) {
+      for (const metallicity of [-1.5, 0.5]) {
+        const system = at(star, metallicity);
+        dropped += system.tooSmall;
+        for (const planet of system.planets) {
+          expect(planet.mass).toBeGreaterThanOrEqual(PLANET_MASS_DRAW.min);
+          expect(planet.mass).toBeLessThanOrEqual(PLANET_MASS_DRAW.max);
+        }
+      }
+    }
+    expect(dropped).toBeGreaterThan(0);
+  });
+
+  it("scales by 10^[Fe/H], capped", () => {
+    expect(planetMassFor(0.5, 0)).toBe(planetMassFromDraw(0.5));
+    expect(planetMassFor(0.5, 0.2)).toBeCloseTo(planetMassFromDraw(0.5) * Math.pow(10, 0.2), 9);
+    expect(planetMassFor(0.9999, 1)).toBe(PLANET_MASS_DRAW.max);
+  });
+
+  it("is the same every time", () => {
+    for (const star of stars.slice(0, 20)) {
+      expect(at(star, -0.4).planets.map((p) => p.mass)).toEqual(at(star, -0.4).planets.map((p) => p.mass));
+    }
   });
 });

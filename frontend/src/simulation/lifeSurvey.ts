@@ -34,6 +34,7 @@ export interface LifeSurvey {
   lifeBearingPlanets: number;   // every planet with life today
   everLifePlanets: number;      // every planet where life began, living or not (R8)
   engulfedPlanets: number;      // planets that formed and were engulfed by their swelling star (not in the index)
+  tooSmallPlanets: number;      // bodies too small to be planets at their star's metallicity (MZ3; not in the index)
   civilizationCount: number;
   systems: SystemLife[];        // only systems with organisms, in star order
   index: UniverseIndex;         // every world, in star and planet order (EN0)
@@ -54,6 +55,7 @@ export function surveyLife(
   let lifeBearingPlanets = 0;
   let everLifePlanets = 0;
   let engulfedPlanets = 0;
+  let tooSmallPlanets = 0;
   let civilizationCount = 0;
   const systems: SystemLife[] = [];
   const rows: IndexRow[] = [];
@@ -63,6 +65,7 @@ export function surveyLife(
     const system = planetsOf(star);
     totalPlanets += system.planets.length;
     engulfedPlanets += system.engulfed;
+    tooSmallPlanets += system.tooSmall;
     rows.push(...indexRowsFor(system, star, seed, cfg));
 
     let mostAdvanced = -1;
@@ -100,5 +103,5 @@ export function surveyLife(
     }
   }
 
-  return { totalPlanets, lifeBearingPlanets, everLifePlanets, engulfedPlanets, civilizationCount, systems, index: packIndex(rows) };
+  return { totalPlanets, lifeBearingPlanets, everLifePlanets, engulfedPlanets, tooSmallPlanets, civilizationCount, systems, index: packIndex(rows) };
 }

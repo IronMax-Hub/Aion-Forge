@@ -4,7 +4,7 @@ import type { Star } from "./star";
 import { luminosityAt, pastGiantRadiusAU, stellarRadiusAU } from "./star";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
-import { effectiveOrbitAU, GIANT_PLANET_MASS, planetMassFromDraw, typicalRadiusForMass } from "./planetBasics";
+import { effectiveOrbitAU, GIANT_PLANET_MASS, PLANET_MASS_DRAW, planetMassFromDraw, typicalRadiusForMass } from "./planetBasics";
 import { derivePhysics, atmosphereClassOf } from "./planetPhysics";
 import type { PlanetPhysics } from "./planetPhysics";
 import { buildGeography } from "./geography";
@@ -99,6 +99,8 @@ export interface PlanetarySystem {
   planets: Planet[];
   /** Planets that formed but were engulfed by their star as it swelled (they are not in `planets`). */
   engulfed: number;
+  /** Bodies too small to be planets once scaled by the star's metallicity (MZ3; not in `planets`). */
+  tooSmall: number;
 }
 
 // ── Orbital architecture (AF-038 + AF-039 + AF-040) ──────────────────────────
@@ -218,6 +220,11 @@ function equilibriumTemp(stellarLuminosity: number, orbitalAU: number): number {
 // The hot ones took one draw from the system's stream, and keep it; the small
 // ones took none, so theirs comes from their own stream (SALT.AIR), and every
 // other draw in the system stays where it was.
+//
+// Since MZ3 every planet takes the system's draw, giants and the smallest
+// included, though they do not use it: masses now scale with the star's
+// metallicity, and a planet crossing a mass line must not shift the draws of
+// the planets after it.
 
 /** The atmosphere draw: none, thin, moderate and thick below these bounds of one draw, else crushing. */
 export const ATMOSPHERE_DRAW = { noneBelow: 0.15, thinBelow: 0.35, moderateBelow: 0.70, thickBelow: 0.90 } as const;
@@ -234,9 +241,33 @@ function atmosphereFromDraw(r: number): AtmosphereType {
 }
 
 function pickAtmosphere(mass: number, rng: () => number, ownDraw: () => number): AtmosphereType {
+  const systemDraw = rng();   // taken by every planet (MZ3)
   if (mass > GIANT_PLANET_MASS) return "crushing";
   if (mass < OWN_AIR_STREAM_BELOW_MASS) return atmosphereFromDraw(ownDraw());
-  return atmosphereFromDraw(rng());
+  return atmosphereFromDraw(systemDraw);
+}
+
+// ── Mass from the disk's solids (MZ3, decision 8) ─────────────────────────────
+//
+// A disk's solids scale with its star's metallicity, and so does every planet
+// built from them: mass = min(max, drawn mass · 10^(α · [Fe/H])). At [Fe/H] = −1
+// a draw that would have made a Jupiter makes a Neptune, and an Earth becomes
+// lighter than Mars; at +0.2 everything is 1.6 times heavier, and more cores
+// grow into giants. A planet that falls below the smallest planet mass is not a
+// planet: it is dropped, its draws taken, its index left as a gap. So the
+// oldest stars have fewer planets because they had less to build with.
+//
+// Limits: this contradicts the observation that small planets' occurrence
+// barely depends on metallicity (Buchhave et al. 2012; Petigura et al. 2018);
+// only giants' does (about 10^(2[Fe/H]), Fischer & Valenti 2005). The rule is
+// kept as the simplest; MZ5 measures it (decision 8).
+
+/** How planet mass scales with the star's metallicity: × 10^(α · [Fe/H]). */
+export const METALLICITY_MASS_EXPONENT = 1;
+
+/** A planet's mass from its draw and its star's [Fe/H], M⊕; below the smallest planet mass it is no planet. */
+export function planetMassFor(u: number, metallicity: number): number {
+  return Math.min(PLANET_MASS_DRAW.max, planetMassFromDraw(u) * pow(10, METALLICITY_MASS_EXPONENT * metallicity));
 }
 
 // ── Habitability (AF-043, rewritten for A3) ───────────────────────────────────
@@ -352,11 +383,11 @@ export function generatePlanetsFor(
 
   // Dead stars don't have planets
   if (star.classification === "neutron-star" || star.classification === "black-hole") {
-    return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0 };
+    return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0, tooSmall: 0 };
   }
 
   const count = planetCount(star.mass, rng);
-  if (count === 0) return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0 };
+  if (count === 0) return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0, tooSmall: 0 };
 
   const arch = pickArchitecture(rng());
   // The drawn system, moved out as a whole when the innermost orbit lies inside the
@@ -368,8 +399,10 @@ export function generatePlanetsFor(
   // or did, as a giant, before it became a remnant (decision 44)
   const starRadiusAU = Math.max(stellarRadiusAU(star), pastGiantRadiusAU(star));
 
+  let engulfed = 0;
+  let tooSmall = 0;
   const planets: (Planet | null)[] = orbits.map((orbitalRadius, idx) => {
-    const mass = planetMassFromDraw(rng());
+    const mass = planetMassFor(rng(), star.metallicity);
     // Stellar heating decides what atmosphere a planet can keep
     const equilibriumK = equilibriumTemp(star.luminosity, effectiveOrbitAU(orbitalRadius, config));
     const atmosphere = pickAtmosphere(mass, rng, () => createRNG(mixSeed(galaxySeed, star.id, idx, SALT.AIR))());
@@ -377,8 +410,16 @@ export function generatePlanetsFor(
     // Planets of the same mass differ in make-up, so in size: ±20% around the typical radius
     const size = typicalRadiusForMass(mass) * (0.8 + rng() * 0.4);
     const resourceAbundance = rng();
-    // Engulfed planets are gone; their draws are taken all the same, so later planets keep theirs
-    if (effectiveOrbitAU(orbitalRadius, config) <= starRadiusAU) return null;
+    // Engulfed planets are gone, and so are bodies too small to be planets (MZ3);
+    // their draws are taken all the same, so later planets keep theirs
+    if (effectiveOrbitAU(orbitalRadius, config) <= starRadiusAU) {
+      engulfed++;
+      return null;
+    }
+    if (mass < PLANET_MASS_DRAW.min) {
+      tooSmall++;
+      return null;
+    }
 
     const planet: Planet = {
       id: idx,
@@ -423,9 +464,9 @@ export function generatePlanetsFor(
     return planet;
   });
 
-  // Survivors keep their index, id and key: an engulfed planet leaves a gap, as it would in a catalogue
+  // Survivors keep their index, id and key: a missing planet leaves a gap, as it would in a catalogue
   const survivors = planets.filter((planet): planet is Planet => planet !== null);
-  return { hostStarId: star.id, galaxySeed, planets: survivors, engulfed: planets.length - survivors.length };
+  return { hostStarId: star.id, galaxySeed, planets: survivors, engulfed, tooSmall };
 }
 
 // ── Color palette for rendering (AF-044) ──────────────────────────────────────

@@ -85,6 +85,7 @@ export function mergeSurveys(parts: LifeSurvey[]): LifeSurvey {
     lifeBearingPlanets: parts.reduce((sum, p) => sum + p.lifeBearingPlanets, 0),
     everLifePlanets: parts.reduce((sum, p) => sum + p.everLifePlanets, 0),
     engulfedPlanets: parts.reduce((sum, p) => sum + p.engulfedPlanets, 0),
+    tooSmallPlanets: parts.reduce((sum, p) => sum + p.tooSmallPlanets, 0),
     civilizationCount: parts.reduce((sum, p) => sum + p.civilizationCount, 0),
     systems: parts.flatMap((p) => p.systems),
     index: mergeIndices(parts.map((p) => p.index)),

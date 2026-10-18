@@ -4,13 +4,13 @@ exports[`reference entries > a frozen living world 1`] = `
 {
   "chronicle": [
     {
-      "agoGyr": 2.834313142630413,
+      "agoGyr": 2.824313142630413,
       "sentence": {
         "sources": [
           "star.age",
           "planet.orbitalIndex",
         ],
-        "text": "The planet formed at 1.93 AU.",
+        "text": "The planet formed at 3.02 AU.",
       },
     },
     {
@@ -23,7 +23,7 @@ exports[`reference entries > a frozen living world 1`] = `
       },
     },
     {
-      "agoGyr": 2.224313142630413,
+      "agoGyr": 1.224313142630413,
       "sentence": {
         "sources": [
           "planet.life.startedGyr",
@@ -31,22 +31,13 @@ exports[`reference entries > a frozen living world 1`] = `
         "text": "Life began, as a single kind of cell in the dark water.",
       },
     },
-    {
-      "agoGyr": 1.924313142630413,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Mass extinction: asteroid impact ended 50% of living lineages.",
-      },
-    },
   ],
-  "citation": "AF-U-0001-86A0 · v11 · 0000 f",
-  "designation": "0000 f",
+  "citation": "AF-U-0001-86A0 · v12 · 0000 g",
+  "designation": "0000 g",
   "facts": [
     {
       "label": "Designation",
-      "value": "0000 f",
+      "value": "0000 g",
     },
     {
       "label": "Type",
@@ -54,35 +45,35 @@ exports[`reference entries > a frozen living world 1`] = `
     },
     {
       "label": "Orbit",
-      "value": "1.93 AU",
+      "value": "3.02 AU",
     },
     {
       "label": "Period",
-      "value": "2.71 years",
+      "value": "5.32 years",
     },
     {
       "label": "Mass",
-      "value": "0.0554 M⊕",
+      "value": "0.0323 M⊕",
     },
     {
       "label": "Radius",
-      "value": "0.512 R⊕",
+      "value": "0.431 R⊕",
     },
     {
       "label": "Gravity",
-      "value": "0.212 g",
+      "value": "0.174 g",
     },
     {
       "label": "Escape velocity",
-      "value": "3.69 km/s",
+      "value": "3.07 km/s",
     },
     {
       "label": "Day",
-      "value": "13.6 h",
+      "value": "43.9 h",
     },
     {
       "label": "Tilt",
-      "value": "8.6°",
+      "value": "32.8°",
     },
     {
       "label": "Ocean / land / ice",
@@ -94,11 +85,11 @@ exports[`reference entries > a frozen living world 1`] = `
     },
     {
       "label": "Mean temperature",
-      "value": "154 K",
+      "value": "123 K",
     },
     {
       "label": "Temperature range",
-      "value": "64–199 K",
+      "value": "71–149 K",
     },
     {
       "label": "Main gases",
@@ -118,7 +109,7 @@ exports[`reference entries > a frozen living world 1`] = `
     },
     {
       "label": "Largest organism",
-      "value": "740 pg",
+      "value": "47 pg",
     },
   ],
   "lede": [
@@ -133,39 +124,33 @@ exports[`reference entries > a frozen living world 1`] = `
         "star.classification",
         "planet.orbitalRadius",
       ],
-      "text": "Ice world orbiting an F9 V star at 1.93 AU.",
+      "text": "Ice world orbiting an F9 V star at 3.02 AU.",
     },
     {
       "sources": [
         "star.age",
         "planet.orbitalIndex",
       ],
-      "text": "Formed 2.83 Gyr ago.",
+      "text": "Formed 2.82 Gyr ago.",
     },
     {
       "link": {
         "kind": "biosphere",
-        "planetIndex": 4,
+        "planetIndex": 5,
         "starId": 0,
       },
       "sources": [
         "planet.life.startedGyr",
         "star.age",
       ],
-      "text": "Life emerged 2.22 Gyr ago.",
-    },
-    {
-      "sources": [
-        "biosphere.extinctions",
-      ],
-      "text": "Survived 1 mass extinction.",
+      "text": "Life emerged 1.22 Gyr ago.",
     },
     {
       "sources": [
         "planet.formationAtmosphere",
         "planet.worldEvents.air-lost",
       ],
-      "text": "It formed with a trace of air; the last of it was lost to space 2.32 Gyr ago.",
+      "text": "It formed with moderate air; the last of it was lost to space 2.32 Gyr ago.",
     },
     {
       "sources": [
@@ -198,13 +183,13 @@ exports[`reference entries > a frozen living world 1`] = `
     },
     {
       "kind": "biosphere",
-      "planetIndex": 4,
+      "planetIndex": 5,
       "starId": 0,
     },
   ],
   "subject": {
     "kind": "planet",
-    "planetIndex": 4,
+    "planetIndex": 5,
     "starId": 0,
   },
   "title": "Ice world",
@@ -225,7 +210,7 @@ exports[`reference entries > a gas giant and its star 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v11 · 0006 f",
+  "citation": "AF-U-0001-86A0 · v12 · 0006 f",
   "designation": "0006 f",
   "facts": [
     {
@@ -246,19 +231,19 @@ exports[`reference entries > a gas giant and its star 1`] = `
     },
     {
       "label": "Mass",
-      "value": "1,320 M⊕",
+      "value": "96.5 M⊕",
     },
     {
       "label": "Radius",
-      "value": "14.8 R⊕",
+      "value": "12 R⊕",
     },
     {
       "label": "Gravity",
-      "value": "6.05 g",
+      "value": "0.666 g",
     },
     {
       "label": "Escape velocity",
-      "value": "106 km/s",
+      "value": "31.7 km/s",
     },
     {
       "label": "Day",
@@ -316,14 +301,7 @@ exports[`reference entries > a gas giant and its star 1`] = `
       "text": "A giant's interior and weather are not modelled; only its cloud tops are.",
     },
   ],
-  "notable": [
-    {
-      "sources": [
-        "index.massEarths",
-      ],
-      "text": "More massive than 98% of the galaxy's other planets.",
-    },
-  ],
+  "notable": [],
   "seeAlso": [
     {
       "kind": "star",
@@ -352,7 +330,7 @@ exports[`reference entries > a gas giant and its star 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v11 · Star 0006",
+  "citation": "AF-U-0001-86A0 · v12 · Star 0006",
   "designation": "Star 0006",
   "facts": [
     {
@@ -389,11 +367,11 @@ exports[`reference entries > a gas giant and its star 2`] = `
     },
     {
       "label": "Planets",
-      "value": "8",
+      "value": "5",
     },
     {
       "label": "Planets with life",
-      "value": "0006 e, 0006 g, 0006 h, 0006 i",
+      "value": "0006 e, 0006 h, 0006 i",
     },
   ],
   "lede": [
@@ -418,7 +396,7 @@ exports[`reference entries > a gas giant and its star 2`] = `
         "system.planets",
         "planet.life",
       ],
-      "text": "8 planets orbit it; life began on 4 of them.",
+      "text": "5 planets orbit it; life began on 3 of them.",
     },
   ],
   "limits": [
@@ -447,27 +425,12 @@ exports[`reference entries > a gas giant and its star 2`] = `
     },
     {
       "kind": "planet",
-      "planetIndex": 1,
-      "starId": 6,
-    },
-    {
-      "kind": "planet",
-      "planetIndex": 2,
-      "starId": 6,
-    },
-    {
-      "kind": "planet",
       "planetIndex": 3,
       "starId": 6,
     },
     {
       "kind": "planet",
       "planetIndex": 4,
-      "starId": 6,
-    },
-    {
-      "kind": "planet",
-      "planetIndex": 5,
       "starId": 6,
     },
     {
@@ -493,17 +456,17 @@ exports[`reference entries > a world of ruins 1`] = `
 {
   "chronicle": [
     {
-      "agoGyr": 10.576289647938683,
+      "agoGyr": 13.341894884696229,
       "sentence": {
         "sources": [
           "star.age",
           "planet.orbitalIndex",
         ],
-        "text": "The planet formed at 0.394 AU.",
+        "text": "The planet formed at 0.667 AU.",
       },
     },
     {
-      "agoGyr": 9.956289647938684,
+      "agoGyr": 12.80189488469623,
       "sentence": {
         "sources": [
           "planet.life.startedGyr",
@@ -512,7 +475,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 9.456289647938684,
+      "agoGyr": 12.20189488469623,
       "sentence": {
         "sources": [
           "planet.life.phylogeny.firsts.light",
@@ -521,7 +484,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 9.256289647938683,
+      "agoGyr": 12.00189488469623,
       "sentence": {
         "sources": [
           "planet.worldEvents.oxidation",
@@ -530,7 +493,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 8.056289647938684,
+      "agoGyr": 10.90189488469623,
       "sentence": {
         "sources": [
           "planet.life.phylogeny.firsts.multicellular",
@@ -539,16 +502,16 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 3.0562896479386836,
+      "agoGyr": 6.501894884696229,
       "sentence": {
         "sources": [
           "civilization.ageGyr",
         ],
-        "text": "An intelligent species evolved — curious, cooperative, and aware of their own existence.",
+        "text": "An intelligent species evolved — curious, competitive, and aware of their own existence.",
       },
     },
     {
-      "agoGyr": 3.0562896479386836,
+      "agoGyr": 6.501894884696229,
       "sentence": {
         "sources": [
           "civilization.milestones.first-cities",
@@ -557,7 +520,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 3.047394882045686,
+      "agoGyr": 6.501894884696229,
       "sentence": {
         "sources": [
           "civilization.milestones.agriculture",
@@ -566,7 +529,34 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 2.756289647938683,
+      "agoGyr": 6.446001161416992,
+      "sentence": {
+        "sources": [
+          "civilization.milestones.writing",
+        ],
+        "text": "Knowledge preserved across generations.",
+      },
+    },
+    {
+      "agoGyr": 6.2818948846962295,
+      "sentence": {
+        "sources": [
+          "civilization.milestones.dark-age",
+        ],
+        "text": "Conflict and contraction.",
+      },
+    },
+    {
+      "agoGyr": 6.10189488469623,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Mass extinction: asteroid impact ended 29% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 6.10189488469623,
       "sentence": {
         "sources": [
           "civilization.milestones.collapse",
@@ -575,21 +565,30 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 0.15628964793868327,
+      "agoGyr": 4.30189488469623,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
         ],
-        "text": "Mass extinction: asteroid impact ended 32% of living lineages.",
+        "text": "Mass extinction: asteroid impact ended 31% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 2.5018948846962292,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Mass extinction: asteroid impact ended 25% of living lineages.",
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v11 · 0006 e",
-  "designation": "0006 e",
+  "citation": "AF-U-0000-002A · v12 · 0009 c",
+  "designation": "0009 c",
   "facts": [
     {
       "label": "Designation",
-      "value": "0006 e",
+      "value": "0009 c",
     },
     {
       "label": "Type",
@@ -597,59 +596,59 @@ exports[`reference entries > a world of ruins 1`] = `
     },
     {
       "label": "Orbit",
-      "value": "0.394 AU",
+      "value": "0.667 AU",
     },
     {
       "label": "Period",
-      "value": "126 days",
+      "value": "228 days",
     },
     {
       "label": "Mass",
-      "value": "4.37 M⊕",
+      "value": "4.63 M⊕",
     },
     {
       "label": "Radius",
-      "value": "1.83 R⊕",
+      "value": "1.75 R⊕",
     },
     {
       "label": "Gravity",
-      "value": "1.3 g",
+      "value": "1.52 g",
     },
     {
       "label": "Escape velocity",
-      "value": "17.3 km/s",
+      "value": "18.2 km/s",
     },
     {
       "label": "Day",
-      "value": "11.9 h",
+      "value": "14.3 h",
     },
     {
       "label": "Tilt",
-      "value": "15.5°",
+      "value": "3.9°",
     },
     {
       "label": "Ocean / land / ice",
-      "value": "70% / 0% / 30%",
+      "value": "68% / 0% / 32%",
     },
     {
       "label": "Pressure",
-      "value": "0.66 bar (moderate)",
+      "value": "0.338 bar (thin)",
     },
     {
       "label": "Mean temperature",
-      "value": "271 K",
+      "value": "274 K",
     },
     {
       "label": "Temperature range",
-      "value": "235–289 K",
+      "value": "219–302 K",
     },
     {
       "label": "Main gases",
-      "value": "N₂ 44.3%, O₂ 39.2%, CO₂ 15.9%",
+      "value": "O₂ 91.1%, CO₂ 5.69%, N₂ 1.75%",
     },
     {
       "label": "Habitability",
-      "value": "0.97",
+      "value": "0.74",
     },
     {
       "label": "Life",
@@ -657,15 +656,15 @@ exports[`reference entries > a world of ruins 1`] = `
     },
     {
       "label": "Living lineages",
-      "value": "27",
+      "value": "32",
     },
     {
       "label": "Largest organism",
-      "value": "770 kg",
+      "value": "38 kg",
     },
     {
       "label": "First mind",
-      "value": "3.06 Gyr ago",
+      "value": "6.5 Gyr ago",
     },
     {
       "label": "Civilization",
@@ -676,7 +675,7 @@ exports[`reference entries > a world of ruins 1`] = `
     {
       "link": {
         "kind": "star",
-        "starId": 6,
+        "starId": 9,
       },
       "sources": [
         "planet.type",
@@ -684,50 +683,50 @@ exports[`reference entries > a world of ruins 1`] = `
         "star.classification",
         "planet.orbitalRadius",
       ],
-      "text": "Rocky planet orbiting a K9 V star at 0.394 AU.",
+      "text": "Rocky planet orbiting a K0 V star at 0.667 AU.",
     },
     {
       "sources": [
         "star.age",
         "planet.orbitalIndex",
       ],
-      "text": "Formed 10.6 Gyr ago.",
+      "text": "Formed 13.3 Gyr ago.",
     },
     {
       "link": {
         "kind": "biosphere",
-        "planetIndex": 3,
-        "starId": 6,
+        "planetIndex": 1,
+        "starId": 9,
       },
       "sources": [
         "planet.life.startedGyr",
         "star.age",
       ],
-      "text": "Life emerged 9.96 Gyr ago.",
+      "text": "Life emerged 12.8 Gyr ago.",
     },
     {
       "sources": [
         "biosphere.extinctions",
       ],
-      "text": "Survived 1 mass extinction.",
+      "text": "Survived 3 mass extinctions.",
     },
     {
       "link": {
         "kind": "civilization",
-        "planetIndex": 3,
-        "starId": 6,
+        "planetIndex": 1,
+        "starId": 9,
       },
       "sources": [
         "civilization.techLevel",
         "civilization.ageGyr",
       ],
-      "text": "Developed a primitive civilization 3.06 Gyr ago.",
+      "text": "Developed an agricultural civilization 6.5 Gyr ago.",
     },
     {
       "sources": [
         "civilization.extinctAgoGyr",
       ],
-      "text": "Its species died out 2.76 Gyr ago.",
+      "text": "Its species died out 6.1 Gyr ago.",
     },
     {
       "sources": [
@@ -735,14 +734,14 @@ exports[`reference entries > a world of ruins 1`] = `
         "planet.surface.pressureBar",
         "planet.surface.o2Bar",
       ],
-      "text": "Its civilization never had fire: no exposed land.",
+      "text": "Its civilization never had fire: no exposed land, and air too thin (0.338 bar).",
     },
     {
       "sources": [
         "planet.formationAtmosphere",
         "planet.atmosphere",
       ],
-      "text": "Formed with thin air; moderate today.",
+      "text": "Formed with a trace of air; thin today.",
     },
   ],
   "limits": [
@@ -762,39 +761,44 @@ exports[`reference entries > a world of ruins 1`] = `
   "notable": [
     {
       "sources": [
-        "index.lifeStage",
+        "index.lifeBeganGyr",
+        "star.age",
       ],
-      "text": "One of 12 worlds with complex ecosystems today.",
+      "text": "Life began here longer ago than 99% of the other worlds where it began.",
     },
     {
       "sources": [
-        "planet.isRare",
-        "planet.type",
-        "planet.temperature",
+        "index.massExtinctions",
       ],
-      "text": "Rare: a temperate rocky world, 220–320 K, under moderate air.",
+      "text": "More mass extinctions (3) than 97% of the other worlds where life began.",
+    },
+    {
+      "sources": [
+        "index.lifeStage",
+      ],
+      "text": "One of 15 worlds with complex ecosystems today.",
     },
   ],
   "seeAlso": [
     {
       "kind": "star",
-      "starId": 6,
+      "starId": 9,
     },
     {
       "kind": "biosphere",
-      "planetIndex": 3,
-      "starId": 6,
+      "planetIndex": 1,
+      "starId": 9,
     },
     {
       "kind": "civilization",
-      "planetIndex": 3,
-      "starId": 6,
+      "planetIndex": 1,
+      "starId": 9,
     },
   ],
   "subject": {
     "kind": "planet",
-    "planetIndex": 3,
-    "starId": 6,
+    "planetIndex": 1,
+    "starId": 9,
   },
   "title": "Rocky planet",
 }
@@ -804,16 +808,16 @@ exports[`reference entries > a world of ruins 2`] = `
 {
   "chronicle": [
     {
-      "agoGyr": 3.0562896479386836,
+      "agoGyr": 6.501894884696229,
       "sentence": {
         "sources": [
           "civilization.ageGyr",
         ],
-        "text": "An intelligent species evolved — curious, cooperative, and aware of their own existence.",
+        "text": "An intelligent species evolved — curious, competitive, and aware of their own existence.",
       },
     },
     {
-      "agoGyr": 3.0562896479386836,
+      "agoGyr": 6.501894884696229,
       "sentence": {
         "sources": [
           "civilization.milestones.first-cities",
@@ -822,7 +826,7 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
     {
-      "agoGyr": 3.047394882045686,
+      "agoGyr": 6.501894884696229,
       "sentence": {
         "sources": [
           "civilization.milestones.agriculture",
@@ -831,7 +835,25 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
     {
-      "agoGyr": 2.756289647938683,
+      "agoGyr": 6.446001161416992,
+      "sentence": {
+        "sources": [
+          "civilization.milestones.writing",
+        ],
+        "text": "Knowledge preserved across generations.",
+      },
+    },
+    {
+      "agoGyr": 6.2818948846962295,
+      "sentence": {
+        "sources": [
+          "civilization.milestones.dark-age",
+        ],
+        "text": "Conflict and contraction.",
+      },
+    },
+    {
+      "agoGyr": 6.10189488469623,
       "sentence": {
         "sources": [
           "civilization.milestones.collapse",
@@ -840,20 +862,20 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v11 · 0006 e",
-  "designation": "0006 e",
+  "citation": "AF-U-0000-002A · v12 · 0009 c",
+  "designation": "0009 c",
   "facts": [
     {
       "label": "Species",
-      "value": "0006 e · L-533",
+      "value": "0009 c · L-413",
     },
     {
       "label": "Body mass",
-      "value": "2.2 g",
+      "value": "1 g",
     },
     {
       "label": "Habitat",
-      "value": "Deep water",
+      "value": "Shallow water",
     },
     {
       "label": "Stage",
@@ -861,15 +883,15 @@ exports[`reference entries > a world of ruins 2`] = `
     },
     {
       "label": "Highest stage",
-      "value": "Primitive",
+      "value": "Agricultural",
     },
     {
       "label": "Age",
-      "value": "3.06 Gyr",
+      "value": "6.5 Gyr",
     },
     {
       "label": "Peak population",
-      "value": "74 billion",
+      "value": "44.7 billion",
     },
     {
       "label": "Fire",
@@ -885,25 +907,25 @@ exports[`reference entries > a world of ruins 2`] = `
       "sources": [
         "planet.life.phylogeny.mind",
       ],
-      "text": "A mind arose here 3.06 Gyr ago, in a species of 2.2 g bodies living in deep water.",
+      "text": "A mind arose here 6.5 Gyr ago, in a species of 1 g bodies living in shallow water.",
     },
     {
       "link": {
         "kind": "civilization",
-        "planetIndex": 3,
-        "starId": 6,
+        "planetIndex": 1,
+        "starId": 9,
       },
       "sources": [
         "civilization.techLevel",
         "civilization.ageGyr",
       ],
-      "text": "Developed a primitive civilization 3.06 Gyr ago.",
+      "text": "Developed an agricultural civilization 6.5 Gyr ago.",
     },
     {
       "sources": [
         "civilization.extinctAgoGyr",
       ],
-      "text": "Its species died out 2.76 Gyr ago.",
+      "text": "Its species died out 6.1 Gyr ago.",
     },
     {
       "sources": [
@@ -911,7 +933,7 @@ exports[`reference entries > a world of ruins 2`] = `
         "planet.surface.pressureBar",
         "planet.surface.o2Bar",
       ],
-      "text": "Its civilization never had fire: no exposed land.",
+      "text": "Its civilization never had fire: no exposed land, and air too thin (0.338 bar).",
     },
   ],
   "limits": [
@@ -933,25 +955,25 @@ exports[`reference entries > a world of ruins 2`] = `
       "sources": [
         "index.mindGyr",
       ],
-      "text": "One of 8 worlds where a mind arose.",
+      "text": "One of 12 worlds where a mind arose.",
     },
   ],
   "seeAlso": [
     {
       "kind": "planet",
-      "planetIndex": 3,
-      "starId": 6,
+      "planetIndex": 1,
+      "starId": 9,
     },
     {
       "kind": "biosphere",
-      "planetIndex": 3,
-      "starId": 6,
+      "planetIndex": 1,
+      "starId": 9,
     },
   ],
   "subject": {
     "kind": "civilization",
-    "planetIndex": 3,
-    "starId": 6,
+    "planetIndex": 1,
+    "starId": 9,
   },
   "title": "Ruins of a civilization",
 }
@@ -1007,7 +1029,7 @@ exports[`reference entries > an Earth-like world 1`] = `
       },
     },
     {
-      "agoGyr": 4.176656348118558,
+      "agoGyr": 3.8766563481185585,
       "sentence": {
         "sources": [
           "planet.life.phylogeny.firsts.multicellular",
@@ -1021,11 +1043,20 @@ exports[`reference entries > an Earth-like world 1`] = `
         "sources": [
           "biosphere.extinctions",
         ],
-        "text": "Mass extinction: asteroid impact ended 34% of living lineages.",
+        "text": "Mass extinction: asteroid impact ended 31% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 0,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Mass extinction: asteroid impact ended 26% of living lineages.",
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v11 · 0022 c",
+  "citation": "AF-U-0001-86A0 · v12 · 0022 c",
   "designation": "0022 c",
   "facts": [
     {
@@ -1046,19 +1077,19 @@ exports[`reference entries > an Earth-like world 1`] = `
     },
     {
       "label": "Mass",
-      "value": "0.441 M⊕",
+      "value": "0.328 M⊕",
     },
     {
       "label": "Radius",
-      "value": "0.718 R⊕",
+      "value": "0.661 R⊕",
     },
     {
       "label": "Gravity",
-      "value": "0.856 g",
+      "value": "0.751 g",
     },
     {
       "label": "Escape velocity",
-      "value": "8.78 km/s",
+      "value": "7.89 km/s",
     },
     {
       "label": "Day",
@@ -1070,23 +1101,23 @@ exports[`reference entries > an Earth-like world 1`] = `
     },
     {
       "label": "Ocean / land / ice",
-      "value": "69% / 31% / 0%",
+      "value": "74% / 26% / 0%",
     },
     {
       "label": "Pressure",
-      "value": "1.02 bar (moderate)",
+      "value": "0.773 bar (moderate)",
     },
     {
       "label": "Mean temperature",
-      "value": "296 K",
+      "value": "292 K",
     },
     {
       "label": "Temperature range",
-      "value": "272–308 K",
+      "value": "264–306 K",
     },
     {
       "label": "Main gases",
-      "value": "N₂ 80.2%, O₂ 17.8%, H₂O 1.98%",
+      "value": "N₂ 77.2%, O₂ 20.7%, H₂O 2.11%",
     },
     {
       "label": "Habitability",
@@ -1094,15 +1125,15 @@ exports[`reference entries > an Earth-like world 1`] = `
     },
     {
       "label": "Life",
-      "value": "Dominant Biosphere",
+      "value": "Complex Ecosystems",
     },
     {
       "label": "Living lineages",
-      "value": "24",
+      "value": "26",
     },
     {
       "label": "Largest organism",
-      "value": "2.3 g",
+      "value": "5.6 g",
     },
   ],
   "lede": [
@@ -1142,7 +1173,7 @@ exports[`reference entries > an Earth-like world 1`] = `
       "sources": [
         "biosphere.extinctions",
       ],
-      "text": "Survived 1 mass extinction.",
+      "text": "Survived 2 mass extinctions.",
     },
   ],
   "limits": [
@@ -1164,7 +1195,7 @@ exports[`reference entries > an Earth-like world 1`] = `
       "sources": [
         "index.lifeStage",
       ],
-      "text": "One of 4 worlds with a dominant biosphere today.",
+      "text": "One of 5 worlds with complex ecosystems today.",
     },
     {
       "sources": [
@@ -1199,17 +1230,17 @@ exports[`reference entries > an ocean world with complex life 1`] = `
 {
   "chronicle": [
     {
-      "agoGyr": 10.637925990633665,
+      "agoGyr": 11.320455632400698,
       "sentence": {
         "sources": [
           "star.age",
           "planet.orbitalIndex",
         ],
-        "text": "The planet formed at 0.421 AU.",
+        "text": "The planet formed at 0.65 AU.",
       },
     },
     {
-      "agoGyr": 8.797925990633665,
+      "agoGyr": 10.690455632400699,
       "sentence": {
         "sources": [
           "planet.life.startedGyr",
@@ -1218,7 +1249,16 @@ exports[`reference entries > an ocean world with complex life 1`] = `
       },
     },
     {
-      "agoGyr": 6.797925990633665,
+      "agoGyr": 10.190455632400699,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Mass extinction: asteroid impact ended 25% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 8.790455632400699,
       "sentence": {
         "sources": [
           "planet.life.phylogeny.firsts.light",
@@ -1227,7 +1267,7 @@ exports[`reference entries > an ocean world with complex life 1`] = `
       },
     },
     {
-      "agoGyr": 6.6979259906336654,
+      "agoGyr": 8.690455632400699,
       "sentence": {
         "sources": [
           "planet.worldEvents.oxidation",
@@ -1236,7 +1276,7 @@ exports[`reference entries > an ocean world with complex life 1`] = `
       },
     },
     {
-      "agoGyr": 5.097925990633666,
+      "agoGyr": 7.590455632400698,
       "sentence": {
         "sources": [
           "planet.life.phylogeny.firsts.multicellular",
@@ -1245,30 +1285,93 @@ exports[`reference entries > an ocean world with complex life 1`] = `
       },
     },
     {
-      "agoGyr": 4.897925990633666,
+      "agoGyr": 2.5904556324006975,
       "sentence": {
         "sources": [
-          "planet.life.phylogeny.firsts.land",
+          "civilization.ageGyr",
         ],
-        "text": "Life first moved onto land.",
+        "text": "An intelligent species evolved — curious, competitive, and aware of their own existence.",
       },
     },
     {
-      "agoGyr": 3.1979259906336654,
+      "agoGyr": 2.5904556324006975,
+      "sentence": {
+        "sources": [
+          "civilization.milestones.first-cities",
+        ],
+        "text": "Permanent settlements established.",
+      },
+    },
+    {
+      "agoGyr": 2.5904556324006975,
+      "sentence": {
+        "sources": [
+          "civilization.milestones.agriculture",
+        ],
+        "text": "Systematic food cultivation begins.",
+      },
+    },
+    {
+      "agoGyr": 2.190455632400699,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
         ],
-        "text": "Mass extinction: asteroid impact ended 26% of living lineages.",
+        "text": "Mass extinction: asteroid impact ended 36% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 1.8724403550297,
+      "sentence": {
+        "sources": [
+          "civilization.milestones.writing",
+        ],
+        "text": "Knowledge preserved across generations.",
+      },
+    },
+    {
+      "agoGyr": 1.7904556324006986,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Mass extinction: asteroid impact ended 30% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 1.6008552603932344,
+      "sentence": {
+        "sources": [
+          "civilization.milestones.collapse",
+        ],
+        "text": "Resource depletion triggered societal breakdown.",
+      },
+    },
+    {
+      "agoGyr": 1.165705034580314,
+      "sentence": {
+        "sources": [
+          "civilization.milestones.dark-age",
+        ],
+        "text": "Conflict and contraction.",
+      },
+    },
+    {
+      "agoGyr": 0.8004276301966172,
+      "sentence": {
+        "sources": [
+          "civilization.milestones.recovery",
+        ],
+        "text": "Society rebuilt from remnants.",
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v11 · 0075 c",
-  "designation": "0075 c",
+  "citation": "AF-U-0001-86A0 · v12 · 0250 d",
+  "designation": "0250 d",
   "facts": [
     {
       "label": "Designation",
-      "value": "0075 c",
+      "value": "0250 d",
     },
     {
       "label": "Type",
@@ -1276,43 +1379,43 @@ exports[`reference entries > an ocean world with complex life 1`] = `
     },
     {
       "label": "Orbit",
-      "value": "0.421 AU",
+      "value": "0.65 AU",
     },
     {
       "label": "Period",
-      "value": "131 days",
+      "value": "227 days",
     },
     {
       "label": "Mass",
-      "value": "1.83 M⊕",
+      "value": "2.04 M⊕",
     },
     {
       "label": "Radius",
-      "value": "1.07 R⊕",
+      "value": "1.1 R⊕",
     },
     {
       "label": "Gravity",
-      "value": "1.61 g",
+      "value": "1.68 g",
     },
     {
       "label": "Escape velocity",
-      "value": "14.7 km/s",
+      "value": "15.2 km/s",
     },
     {
       "label": "Day",
-      "value": "49.6 h",
+      "value": "48.1 h",
     },
     {
       "label": "Tilt",
-      "value": "26.4°",
+      "value": "29.4°",
     },
     {
       "label": "Ocean / land / ice",
-      "value": "98% / 2% / 0%",
+      "value": "100% / 0% / 0%",
     },
     {
       "label": "Pressure",
-      "value": "1.3 bar (moderate)",
+      "value": "1.37 bar (moderate)",
     },
     {
       "label": "Mean temperature",
@@ -1320,15 +1423,15 @@ exports[`reference entries > an ocean world with complex life 1`] = `
     },
     {
       "label": "Temperature range",
-      "value": "270–298 K",
+      "value": "273–297 K",
     },
     {
       "label": "Main gases",
-      "value": "N₂ 73.3%, O₂ 25.6%, H₂O 1.01%",
+      "value": "N₂ 72.2%, O₂ 26.3%, H₂O 0.999%",
     },
     {
       "label": "Habitability",
-      "value": "0.96",
+      "value": "0.94",
     },
     {
       "label": "Life",
@@ -1336,18 +1439,26 @@ exports[`reference entries > an ocean world with complex life 1`] = `
     },
     {
       "label": "Living lineages",
-      "value": "24",
+      "value": "32",
     },
     {
       "label": "Largest organism",
-      "value": "180 g",
+      "value": "23 kg",
+    },
+    {
+      "label": "First mind",
+      "value": "2.59 Gyr ago",
+    },
+    {
+      "label": "Civilization",
+      "value": "Agricultural",
     },
   ],
   "lede": [
     {
       "link": {
         "kind": "star",
-        "starId": 75,
+        "starId": 250,
       },
       "sources": [
         "planet.type",
@@ -1355,32 +1466,58 @@ exports[`reference entries > an ocean world with complex life 1`] = `
         "star.classification",
         "planet.orbitalRadius",
       ],
-      "text": "Ocean world orbiting a K7 V star at 0.421 AU.",
+      "text": "Ocean world orbiting a G7 V star at 0.65 AU.",
     },
     {
       "sources": [
         "star.age",
         "planet.orbitalIndex",
       ],
-      "text": "Formed 10.6 Gyr ago.",
+      "text": "Formed 11.3 Gyr ago.",
     },
     {
       "link": {
         "kind": "biosphere",
-        "planetIndex": 1,
-        "starId": 75,
+        "planetIndex": 2,
+        "starId": 250,
       },
       "sources": [
         "planet.life.startedGyr",
         "star.age",
       ],
-      "text": "Life emerged 8.8 Gyr ago.",
+      "text": "Life emerged 10.7 Gyr ago.",
     },
     {
       "sources": [
         "biosphere.extinctions",
       ],
-      "text": "Survived 1 mass extinction.",
+      "text": "Survived 3 mass extinctions.",
+    },
+    {
+      "link": {
+        "kind": "civilization",
+        "planetIndex": 2,
+        "starId": 250,
+      },
+      "sources": [
+        "civilization.techLevel",
+        "civilization.ageGyr",
+      ],
+      "text": "Developed an agricultural civilization 2.59 Gyr ago.",
+    },
+    {
+      "sources": [
+        "civilization.techStage",
+      ],
+      "text": "It is active today.",
+    },
+    {
+      "sources": [
+        "planet.surface.landFraction",
+        "planet.surface.pressureBar",
+        "planet.surface.o2Bar",
+      ],
+      "text": "Its civilization never had fire: no exposed land.",
     },
     {
       "sources": [
@@ -1406,9 +1543,15 @@ exports[`reference entries > an ocean world with complex life 1`] = `
   "notable": [
     {
       "sources": [
+        "index.massExtinctions",
+      ],
+      "text": "More mass extinctions (3) than 96% of the other worlds where life began.",
+    },
+    {
+      "sources": [
         "index.lifeStage",
       ],
-      "text": "One of 12 worlds with complex ecosystems today.",
+      "text": "One of 5 worlds with complex ecosystems today.",
     },
     {
       "sources": [
@@ -1422,18 +1565,23 @@ exports[`reference entries > an ocean world with complex life 1`] = `
   "seeAlso": [
     {
       "kind": "star",
-      "starId": 75,
+      "starId": 250,
     },
     {
       "kind": "biosphere",
-      "planetIndex": 1,
-      "starId": 75,
+      "planetIndex": 2,
+      "starId": 250,
+    },
+    {
+      "kind": "civilization",
+      "planetIndex": 2,
+      "starId": 250,
     },
   ],
   "subject": {
     "kind": "planet",
-    "planetIndex": 1,
-    "starId": 75,
+    "planetIndex": 2,
+    "starId": 250,
   },
   "title": "Ocean world",
 }
@@ -1443,7 +1591,7 @@ exports[`reference entries > an ocean world with complex life 2`] = `
 {
   "chronicle": [
     {
-      "agoGyr": 8.797925990633665,
+      "agoGyr": 10.690455632400699,
       "sentence": {
         "sources": [
           "planet.life.startedGyr",
@@ -1452,142 +1600,16 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
     {
-      "agoGyr": 8.097925990633666,
+      "agoGyr": 10.190455632400699,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
         ],
-        "text": "Asteroid impact ended 4% of living lineages.",
+        "text": "Mass extinction: asteroid impact ended 25% of living lineages.",
       },
     },
     {
-      "agoGyr": 8.097925990633666,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Volcanic pulse ended 4% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 7.797925990633665,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Volcanic pulse ended 8% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 7.6979259906336654,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Volcanic pulse ended 5% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 7.497925990633665,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Asteroid impact ended 5% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 7.097925990633666,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Volcanic pulse ended 2% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 6.997925990633665,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Asteroid impact ended 5% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 6.997925990633665,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Volcanic pulse ended 8% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 6.897925990633666,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Volcanic pulse ended 3% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 6.797925990633665,
-      "sentence": {
-        "sources": [
-          "planet.life.phylogeny.firsts.light",
-        ],
-        "text": "The first organisms that live on starlight appeared.",
-      },
-    },
-    {
-      "agoGyr": 6.6979259906336654,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Climate shift ended 7% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 6.597925990633666,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Asteroid impact ended 5% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 6.397925990633666,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Asteroid impact ended 8% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 6.097925990633666,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Asteroid impact ended 17% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 5.997925990633665,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Asteroid impact ended 11% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 5.897925990633666,
+      "agoGyr": 9.490455632400698,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
@@ -1596,7 +1618,34 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
     {
-      "agoGyr": 5.797925990633665,
+      "agoGyr": 9.290455632400699,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 2% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 9.090455632400698,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Asteroid impact ended 3% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 8.790455632400699,
+      "sentence": {
+        "sources": [
+          "planet.life.phylogeny.firsts.light",
+        ],
+        "text": "The first organisms that live on starlight appeared.",
+      },
+    },
+    {
+      "agoGyr": 8.690455632400699,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
@@ -1605,16 +1654,70 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
     {
-      "agoGyr": 5.497925990633665,
+      "agoGyr": 8.690455632400699,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
         ],
-        "text": "Asteroid impact ended 21% of living lineages.",
+        "text": "Climate shift ended 6% of living lineages.",
       },
     },
     {
-      "agoGyr": 5.097925990633666,
+      "agoGyr": 8.390455632400698,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 10% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 8.290455632400699,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 8% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 8.090455632400698,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Asteroid impact ended 5% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 8.090455632400698,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 6% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 7.990455632400698,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 6% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 7.790455632400699,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 2% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 7.590455632400698,
       "sentence": {
         "sources": [
           "planet.life.phylogeny.firsts.multicellular",
@@ -1623,115 +1726,34 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
     {
-      "agoGyr": 4.897925990633666,
-      "sentence": {
-        "sources": [
-          "planet.life.phylogeny.firsts.land",
-        ],
-        "text": "Life first moved onto land.",
-      },
-    },
-    {
-      "agoGyr": 4.6979259906336654,
+      "agoGyr": 7.390455632400698,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
         ],
-        "text": "Volcanic pulse ended 8% of living lineages.",
+        "text": "Asteroid impact ended 5% of living lineages.",
       },
     },
     {
-      "agoGyr": 4.397925990633666,
+      "agoGyr": 7.190455632400698,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
         ],
-        "text": "Asteroid impact ended 12% of living lineages.",
+        "text": "Asteroid impact ended 13% of living lineages.",
       },
     },
     {
-      "agoGyr": 3.8979259906336656,
+      "agoGyr": 7.090455632400698,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
         ],
-        "text": "Asteroid impact ended 15% of living lineages.",
+        "text": "Asteroid impact ended 8% of living lineages.",
       },
     },
     {
-      "agoGyr": 3.1979259906336654,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Mass extinction: asteroid impact ended 26% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 3.1979259906336654,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Volcanic pulse ended 4% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 3.097925990633666,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Asteroid impact ended 6% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 2.8979259906336656,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Asteroid impact ended 24% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 2.297925990633665,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Volcanic pulse ended 3% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 2.1979259906336654,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Asteroid impact ended 17% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 1.297925990633665,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Asteroid impact ended 18% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 0.9979259906336662,
-      "sentence": {
-        "sources": [
-          "biosphere.extinctions",
-        ],
-        "text": "Volcanic pulse ended 3% of living lineages.",
-      },
-    },
-    {
-      "agoGyr": 0.7979259906336651,
+      "agoGyr": 6.590455632400698,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
@@ -1740,16 +1762,25 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
     {
-      "agoGyr": 0.5979259906336658,
+      "agoGyr": 6.390455632400698,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
         ],
-        "text": "Volcanic pulse ended 8% of living lineages.",
+        "text": "Volcanic pulse ended 5% of living lineages.",
       },
     },
     {
-      "agoGyr": 0.19792599063366545,
+      "agoGyr": 6.190455632400698,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Asteroid impact ended 16% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 6.090455632400698,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
@@ -1758,7 +1789,7 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
     {
-      "agoGyr": 0.0979259906336658,
+      "agoGyr": 5.890455632400698,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
@@ -1767,7 +1798,25 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
     {
-      "agoGyr": 0,
+      "agoGyr": 5.790455632400699,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 9% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 5.390455632400698,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 5% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 5.290455632400699,
       "sentence": {
         "sources": [
           "biosphere.extinctions",
@@ -1775,9 +1824,162 @@ exports[`reference entries > an ocean world with complex life 2`] = `
         "text": "Asteroid impact ended 8% of living lineages.",
       },
     },
+    {
+      "agoGyr": 4.390455632400698,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 2% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 4.090455632400698,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 9% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 3.8904556324006982,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Asteroid impact ended 14% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 3.190455632400699,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 10% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 3.0904556324006975,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 9% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 2.5904556324006975,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Asteroid impact ended 21% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 2.3904556324006982,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Asteroid impact ended 9% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 2.190455632400699,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Mass extinction: asteroid impact ended 36% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 1.7904556324006986,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Mass extinction: asteroid impact ended 30% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 1.5904556324006975,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Asteroid impact ended 24% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 1.3904556324006982,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 6% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 1.2904556324006986,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 6% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 1.0904556324006975,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Asteroid impact ended 11% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 0.8904556324006982,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Asteroid impact ended 16% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 0.5904556324006975,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 10% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 0.2904556324006986,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 6% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 0,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Volcanic pulse ended 11% of living lineages.",
+      },
+    },
   ],
-  "citation": "AF-U-0001-86A0 · v11 · 0075 c",
-  "designation": "0075 c",
+  "citation": "AF-U-0001-86A0 · v12 · 0250 d",
+  "designation": "0250 d",
   "facts": [
     {
       "label": "Stage",
@@ -1785,11 +1987,11 @@ exports[`reference entries > an ocean world with complex life 2`] = `
     },
     {
       "label": "Age",
-      "value": "8.8 Gyr",
+      "value": "10.7 Gyr",
     },
     {
       "label": "Living lineages",
-      "value": "24",
+      "value": "32",
     },
     {
       "label": "Food-chain levels",
@@ -1797,15 +1999,15 @@ exports[`reference entries > an ocean world with complex life 2`] = `
     },
     {
       "label": "Largest body",
-      "value": "180 g",
+      "value": "23 kg",
     },
     {
       "label": "Oldest living lineage",
-      "value": "0075 c · L-475, arose 2.7 Gyr ago",
+      "value": "0250 d · L-558, arose 3.09 Gyr ago",
     },
     {
       "label": "Pigment absorbs at",
-      "value": "681 nm (L-640)",
+      "value": "443 nm (L-775)",
     },
   ],
   "lede": [
@@ -1814,14 +2016,14 @@ exports[`reference entries > an ocean world with complex life 2`] = `
         "biosphere.stage",
         "biosphere.ageGyr",
       ],
-      "text": "Complex ecosystems, 8.8 Gyr old.",
+      "text": "Complex ecosystems, 10.7 Gyr old.",
     },
     {
       "sources": [
         "planet.life.phylogeny.livingLineages",
         "planet.life.phylogeny.foodChainLevels",
       ],
-      "text": "24 lineages live today, in 4 food-chain levels.",
+      "text": "32 lineages live today, in 4 food-chain levels.",
     },
   ],
   "limits": [
@@ -1837,20 +2039,25 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       "sources": [
         "index.largestLog10Kg",
       ],
-      "text": "Its largest body is heavier than 98% of the largest on the other worlds with life today.",
+      "text": "Its largest body is heavier than 99% of the largest on the other worlds with life today.",
     },
   ],
   "seeAlso": [
     {
       "kind": "planet",
-      "planetIndex": 1,
-      "starId": 75,
+      "planetIndex": 2,
+      "starId": 250,
+    },
+    {
+      "kind": "civilization",
+      "planetIndex": 2,
+      "starId": 250,
     },
   ],
   "subject": {
     "kind": "biosphere",
-    "planetIndex": 1,
-    "starId": 75,
+    "planetIndex": 2,
+    "starId": 250,
   },
   "title": "Complex Ecosystems",
 }
@@ -1869,7 +2076,7 @@ exports[`reference entries > the galaxy 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v11 · Galaxy",
+  "citation": "AF-U-0001-86A0 · v12 · Galaxy",
   "designation": "Galaxy",
   "facts": [
     {
@@ -1886,27 +2093,27 @@ exports[`reference entries > the galaxy 1`] = `
     },
     {
       "label": "Planets",
-      "value": "1,216",
+      "value": "1,096",
     },
     {
       "label": "Worlds where life began",
-      "value": "577",
+      "value": "506",
     },
     {
       "label": "Worlds with life today",
-      "value": "429",
+      "value": "387",
     },
     {
       "label": "Minds",
-      "value": "8",
+      "value": "4",
     },
     {
       "label": "Civilizations",
-      "value": "8 (3 endure)",
+      "value": "4 (4 endure)",
     },
     {
       "label": "Great Filter",
-      "value": "Life's oxygen filled the air (19%)",
+      "value": "Life's oxygen filled the air (15%)",
     },
   ],
   "lede": [
@@ -1932,33 +2139,33 @@ exports[`reference entries > the galaxy 1`] = `
         "index.lifeBeganGyr",
         "index.lifeStage",
       ],
-      "text": "Life began on 577 of its 1,216 planets and lives on 429 today.",
+      "text": "Life began on 506 of its 1,096 planets and lives on 387 today.",
     },
     {
       "link": {
         "kind": "planet",
-        "planetIndex": 4,
+        "planetIndex": 0,
         "starId": 152,
       },
       "sources": [
         "index.lifeBeganGyr",
         "star.age",
       ],
-      "text": "The first life began on 0152 f, 13 Gyr ago.",
+      "text": "The first life began on 0152 b, 12.8 Gyr ago.",
     },
     {
       "sources": [
         "index.mindGyr",
         "index.civilizationStage",
       ],
-      "text": "Minds arose on 8 worlds; 8 built civilizations, and 3 endure.",
+      "text": "Minds arose on 4 worlds; 4 built civilizations, and 4 endure.",
     },
     {
       "sources": [
         "index",
         "greatFilter.funnelOf",
       ],
-      "text": "The steepest gate of its Great Filter is “Life's oxygen filled the air”: 19% of the 210 worlds that reached it passed.",
+      "text": "The steepest gate of its Great Filter is “Life's oxygen filled the air”: 15% of the 171 worlds that reached it passed.",
     },
   ],
   "limits": [
@@ -1973,7 +2180,7 @@ exports[`reference entries > the galaxy 1`] = `
   "seeAlso": [
     {
       "kind": "planet",
-      "planetIndex": 4,
+      "planetIndex": 0,
       "starId": 152,
     },
   ],

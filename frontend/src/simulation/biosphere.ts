@@ -72,16 +72,16 @@ export interface Biosphere {
 // ── Stage thresholds (Revision 1, C2.5) ───────────────────────────────────────
 
 /** Above this largest body mass (log10 kg), life can be complex. */
-const COMPLEX_LOG10_KG = -3;
+export const COMPLEX_LOG10_KG = -3;
 /** Food-chain levels complex life needs: producers and two levels of consumers. */
-const COMPLEX_FOOD_CHAIN_LEVELS = 3;
+export const COMPLEX_FOOD_CHAIN_LEVELS = 3;
 /**
  * Living biomass, in the engine's unit (Earth's mean sunlight on the whole
  * planet), at which complex life is dominant. C2.10 (owner decision): the
  * plan's producer cover over 60% of the habitable area made nearly every
  * complex world dominant, since producers live almost everywhere.
  */
-const DOMINANT_BIOMASS = 1;
+export const DOMINANT_BIOMASS = 1;
 
 // Biomass scale, log10 of the engine's unit: vent life to all of Earth's mean sunlight
 const BIOMASS_LOG10 = { floor: -5, full: 0 };

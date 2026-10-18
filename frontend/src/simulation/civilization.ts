@@ -144,15 +144,18 @@ function peakPopulation(species: Species, planet: Planet, techLevel: number): nu
 // ── Tech stage from level (AF-079) ───────────────────────────────────────────
 
 // Tech levels from here up are industrial or beyond
-const INDUSTRIAL_TECH_LEVEL = 0.42;
+export const INDUSTRIAL_TECH_LEVEL = 0.42;
 
 /** The stage a tech level reaches; any level of a civilization that has finally collapsed is "collapsed". */
+/** The tech level at which each stage after the first begins. */
+export const TECH_STAGE_FROM = { agricultural: 0.20, industrial: INDUSTRIAL_TECH_LEVEL, information: 0.64, "space-age": 0.85 } as const;
+
 export function techLevelToStage(level: number, collapsed: boolean): TechStage {
   if (collapsed) return "collapsed";
-  if (level < 0.20) return "primitive";
-  if (level < INDUSTRIAL_TECH_LEVEL) return "agricultural";
-  if (level < 0.64) return "industrial";
-  if (level < 0.85) return "information";
+  if (level < TECH_STAGE_FROM.agricultural) return "primitive";
+  if (level < TECH_STAGE_FROM.industrial) return "agricultural";
+  if (level < TECH_STAGE_FROM.information) return "industrial";
+  if (level < TECH_STAGE_FROM["space-age"]) return "information";
   return "space-age";
 }
 

@@ -6,5 +6,6 @@ import { galaxy } from "./galaxy";
 import { stars } from "./stars";
 import { bodies, systems } from "./systems";
 import { climate, geography, history } from "./surface";
+import { life, minds } from "./life";
 
-export const CHAPTERS: readonly Chapter[] = [foundations, galaxy, stars, systems, bodies, geography, climate, history];
+export const CHAPTERS: readonly Chapter[] = [foundations, galaxy, stars, systems, bodies, geography, climate, history, life, minds];

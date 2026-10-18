@@ -89,14 +89,14 @@ export const MAX_LEVEL = 3;
 export const MULTICELLULAR_LOG10_KG = -9;
 
 // Energy
-const CHEMICAL_SUPPLY = 0.01;          // vent and sediment energy per unit of deep water at full tectonic activity
-const TROPHIC_EFFICIENCY = 0.1;        // share of prey biomass a consumer level can draw on
-const AEROBIC_YIELD = 18;              // aerobic over anaerobic energy per unit of food
+export const CHEMICAL_SUPPLY = 0.01;          // vent and sediment energy per unit of deep water at full tectonic activity
+export const TROPHIC_EFFICIENCY = 0.1;        // share of prey biomass a consumer level can draw on
+export const AEROBIC_YIELD = 18;              // aerobic over anaerobic energy per unit of food
 const O2_HALF_BAR_AT_REFERENCE = 1e-5; // O₂ giving half the aerobic gain to a 10⁻⁹ kg body
 const O2_REFERENCE_LOG10_KG = -9;
 
 // Costs, as fractions of the energy reaching a lineage
-const COST = {
+export const COST = {
   maintenance: 0.01,
   information: 0.3,          // × info²
   thermal: 0.005,            // × (ΔT / THERMAL_SCALE_K)²
@@ -111,10 +111,10 @@ const SUPPORT_EXPONENT = 7 / 12;
 const INFO_SHARE_BONUS = 3;
 const MIN_NICHE_SHARE = 0.005;
 // Share of a prey's production lost for each unit of its eaters' surplus-weighted share
-const PREDATION_LOSS = 0.5;
+export const PREDATION_LOSS = 0.5;
 
 // Mutation: normal step per step of the history, and larger at speciation
-const MUTATION_SIGMA: Record<ContinuousTrait, number> = {
+export const MUTATION_SIGMA: Record<ContinuousTrait, number> = {
   absorptionPeakNm: 10,
   log10BodyMassKg: 0.3,
   thermalOptimumK: 2,
@@ -122,10 +122,10 @@ const MUTATION_SIGMA: Record<ContinuousTrait, number> = {
 };
 const SPECIATION_MUTATION_FACTOR = 3;
 // A drifted genome spreads unless it costs more than this share of the lineage's potential (drift fixes nearly neutral variants)
-const DRIFT_TOLERANCE = 0.01;
+export const DRIFT_TOLERANCE = 0.01;
 
 // Speciation
-const SPECIATION_PER_GYR = 2;
+export const SPECIATION_PER_GYR = 2;
 const EMPTY_NICHE_BONUS = 0.5;   // per empty neighbouring niche
 const ROOM_BONUS = 2;            // at an empty world; falls to 0 as living lineages reach the cap
 const SWITCH_CHANCE = { source: 0.15, habitat: 0.15, level: 0.2 };
@@ -133,7 +133,7 @@ const SWITCH_CHANCE = { source: 0.15, habitat: 0.15, level: 0.2 };
 // Catastrophes: chance each kills a lineage of the smallest size at level 0.
 // C2.10 (owner decision): halved from 0.15 / 0.05 / 0.1, at which half of all
 // civilizations' species died out in catastrophes
-const KILL_CHANCE = { impact: 0.075, volcanicPulse: 0.025, transition: 0.05 };
+export const KILL_CHANCE = { impact: 0.075, volcanicPulse: 0.025, transition: 0.05 };
 const KILL_SIZE_WEIGHT = 1;      // added per 20 orders of magnitude of body mass
 const KILL_LEVEL_WEIGHT = 0.5;   // added per food-chain level
 const KILL_CHANCE_MAX = 0.95;

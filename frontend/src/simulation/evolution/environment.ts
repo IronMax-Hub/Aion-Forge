@@ -63,8 +63,8 @@ import type { WorldEventKind, WorldSnapshot } from "../worldHistory";
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 // Air dimming: Venus's 92 bar lets about 2.5% of sunlight reach the ground
-const VENUS_PRESSURE_BAR = 92;
-const VENUS_SURFACE_TRANSMISSION = 0.025;
+export const VENUS_PRESSURE_BAR = 92;
+export const VENUS_SURFACE_TRANSMISSION = 0.025;
 const AIR_DIMMING_PER_BAR = -log(VENUS_SURFACE_TRANSMISSION) / VENUS_PRESSURE_BAR;
 
 /** Liquid water is never colder than this (seawater's freezing point), K. */
@@ -74,15 +74,15 @@ export const SEAWATER_FREEZING_K = 271;
 const WIEN_NM_K = 2.8978e6;
 
 // UV band that harms life (UV-B and UV-C reaching the ground), nm
-const UV_BAND_NM = { from: 200, to: 315 };
+export const UV_BAND_NM = { from: 200, to: 315 };
 // Second radiation constant hc/k, nm·K
 const SOLAR_TEMPERATURE_K = 5772;
 const UV_INTEGRATION_STEPS = 64;   // Simpson intervals; even
 
 // Red dwarfs flare: below this temperature, on the main sequence (C2.2 owner decision; kept by decision 36)
-const FLARING_BELOW_K = 3900;
+export const FLARING_BELOW_K = 3900;
 /** Time-averaged flare UV per unit of starlight at full activity, relative to the Sun's steady UV per unit of starlight. */
-const FLARE_UV_AT_FULL_ACTIVITY = 1;
+export const FLARE_UV_AT_FULL_ACTIVITY = 1;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

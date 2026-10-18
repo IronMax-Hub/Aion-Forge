@@ -92,6 +92,7 @@ import type { Planet } from "./planet";
 import { effectiveOrbitAU } from "./planetBasics";
 import type { PlanetPhysics } from "./planetPhysics";
 import { tectonicActivity } from "./planetPhysics";
+import { bodyKey } from "./bodyKey";
 import { iceShellKm, interiorHeatFlow, interiorTemperatureK } from "./interiorHeat";
 import type { Star } from "./star";
 import { luminosityAt, mainSequenceEndGyr } from "./star";
@@ -334,7 +335,7 @@ function solveIncreasing(f: (x: number) => number, lo: number, hi: number): numb
 
 /** Whether this step's draw for a purpose happens, at a rate per Gyr. */
 function happens(galaxySeed: number, planet: Planet, step: number, purpose: number, ratePerGyr: number, dtGyr: number): boolean {
-  const draw = createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.WORLD, step, purpose))();
+  const draw = createRNG(mixSeed(galaxySeed, ...bodyKey(planet), SALT.WORLD, step, purpose))();
   return draw < 1 - exp(-ratePerGyr * dtGyr);
 }
 

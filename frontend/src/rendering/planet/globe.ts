@@ -21,6 +21,7 @@ import type * as THREE from "three";
 import type { Planet, SolidWorld } from "../../simulation/planet";
 import type { PlanetPhysics } from "../../simulation/planetPhysics";
 import { createRNG, mixSeed, SALT } from "../../simulation/rng";
+import { bodyKey } from "../../simulation/bodyKey";
 import { boilingPointK } from "../../simulation/climate";
 import { buildSurfaceMap } from "./surfaceMap";
 import { GlobeBake, PLANET_DETAIL } from "./globeBake";
@@ -82,7 +83,7 @@ export function drawsSurface(planet: Planet): boolean {
 }
 
 function visualStream(planet: Planet, galaxySeed: number): () => number {
-  return createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.VISUAL));
+  return createRNG(mixSeed(galaxySeed, ...bodyKey(planet), SALT.VISUAL));
 }
 
 /** The offsets of a planet's detail noise and cloud pattern, the first six VISUAL draws. */

@@ -41,6 +41,7 @@ import type { Planet, SolidWorld } from "../../simulation/planet";
 import { FREEZING_K, SURFACE_KIND } from "../../simulation/climate";
 import { surfaceGrid } from "../../simulation/geography";
 import { createRNG, mixSeed, SALT } from "../../simulation/rng";
+import { bodyKey } from "../../simulation/bodyKey";
 import { axisFrame } from "./surfaceMap";
 import lightsVertex from "./shaders/lights.vert.glsl?raw";
 import cityLightsFragment from "./shaders/cityLights.frag.glsl?raw";
@@ -120,7 +121,7 @@ export function vegetationOf(biosphere: Biosphere | null, starTemperatureK: numb
 }
 
 function lightsStream(planet: Planet, galaxySeed: number, stream: number): () => number {
-  return createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.VISUAL, stream));
+  return createRNG(mixSeed(galaxySeed, ...bodyKey(planet), SALT.VISUAL, stream));
 }
 
 /**

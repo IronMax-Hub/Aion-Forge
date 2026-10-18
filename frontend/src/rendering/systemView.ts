@@ -30,6 +30,7 @@
 import * as THREE from "three";
 import type { Planet } from "../simulation/planet";
 import { createRNG, mixSeed, SALT } from "../simulation/rng";
+import { bodyKey } from "../simulation/bodyKey";
 
 // Limb darkening: brightness at the edge as a share of the centre's (the Sun's is about 0.4 in visible light)
 const LIMB_BRIGHTNESS = 0.45;
@@ -188,7 +189,7 @@ interface Orbit {
 
 /** A planet's starting angle round its orbit, radians, from its VISUAL sub-stream. */
 export function orbitStartAngle(planet: Planet, galaxySeed: number): number {
-  return createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.VISUAL, ORBIT_PHASE_STREAM))() * 2 * Math.PI;
+  return createRNG(mixSeed(galaxySeed, ...bodyKey(planet), SALT.VISUAL, ORBIT_PHASE_STREAM))() * 2 * Math.PI;
 }
 
 /** Seconds on screen for one orbit of this radius, when the innermost of radius `innermost` takes INNER_ORBIT_SECONDS. */

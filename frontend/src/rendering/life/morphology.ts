@@ -41,6 +41,7 @@ import type { Lineage } from "../../simulation/evolution/engine";
 import { MULTICELLULAR_LOG10_KG } from "../../simulation/evolution/engine";
 import type { Habitat } from "../../simulation/evolution/genome";
 import { createRNG, mixSeed, SALT } from "../../simulation/rng";
+import { bodyKey } from "../../simulation/bodyKey";
 
 // ── Inputs ───────────────────────────────────────────────────────────────────
 
@@ -191,7 +192,7 @@ export function heritageOf(
 /** A lineage's details from its parent's (none for the first lineage), and its own eight draws. */
 function heritageFrom(lineage: Lineage, from: Heritage | undefined, keys: MorphologyKeys): Heritage {
   // Always the same eight draws, in this order, whether or not each is used
-  const rng = createRNG(mixSeed(keys.galaxySeed, keys.starId, keys.planetId, SALT.VISUAL, LINEAGE_STREAM, lineage.id));
+  const rng = createRNG(mixSeed(keys.galaxySeed, ...bodyKey({ hostStarId: keys.starId, id: keys.planetId }), SALT.VISUAL, LINEAGE_STREAM, lineage.id));
   const draws = Array.from({ length: 8 }, () => rng());
   if (!from) {
     return {

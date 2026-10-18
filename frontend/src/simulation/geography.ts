@@ -42,6 +42,7 @@
 // Nothing in the simulation reads the geography yet; A2b and A3 will.
 
 import { createRNG, mixSeed, SALT } from "./rng";
+import { bodyKey } from "./bodyKey";
 import { cos, sin } from "./detmath";
 import type { Planet } from "./planet";
 import { GIANT_PLANET_MASS } from "./planetBasics";
@@ -418,7 +419,7 @@ function lowestFirst(elevationKm: Float64Array): Int32Array {
 export function buildGeography(planet: Planet, physics: PlanetPhysics, galaxySeed: number): Geography {
   if (!hasSolidSurface(planet)) throw new RangeError(`Planet ${planet.key} is a giant and has no surface`);
   const grid = surfaceGrid();
-  const rng = createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.SURFACE));
+  const rng = createRNG(mixSeed(galaxySeed, ...bodyKey(planet), SALT.SURFACE));
 
   const plates = drawPlates(planet, rng);
   const cellCount = grid.positions.length;

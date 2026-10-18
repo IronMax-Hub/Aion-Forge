@@ -1,4 +1,5 @@
 import { createRNG, mixSeed, SALT } from "./rng";
+import { bodyKey, planetKey } from "./bodyKey";
 import { pow } from "./detmath";
 import type { Star } from "./star";
 import { luminosityAt, pastGiantRadiusAU, stellarRadiusAU } from "./star";
@@ -368,10 +369,7 @@ export function solidWorldOf(planet: Planet, star: Star, galaxySeed: number, cfg
   return { physics, geography, history: runWorldHistory(planet, physics, geography, star, galaxySeed, config) };
 }
 
-/** A planet's identity in the galaxy, for caches, timeline subjects and discoveries. */
-export function planetKey(starId: number, index: number): string {
-  return `${starId}-${index}`;
-}
+export { planetKey };
 
 /**
  * A star's planetary system. `worldOf` builds each solid planet's physics,
@@ -408,7 +406,7 @@ export function generatePlanetsFor(
     const mass = planetMassFor(rng(), star.metallicity);
     // Stellar heating decides what atmosphere a planet can keep
     const equilibriumK = equilibriumTemp(star.luminosity, effectiveOrbitAU(orbitalRadius, config));
-    const atmosphere = pickAtmosphere(mass, rng, () => createRNG(mixSeed(galaxySeed, star.id, idx, SALT.AIR))());
+    const atmosphere = pickAtmosphere(mass, rng, () => createRNG(mixSeed(galaxySeed, ...bodyKey({ hostStarId: star.id, id: idx }), SALT.AIR))());
     rng(); // the old type roll: still taken so the draws below stay aligned
     // Planets of the same mass differ in make-up, so in size: ±20% around the typical radius
     const size = typicalRadiusForMass(mass) * (0.8 + rng() * 0.4);

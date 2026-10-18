@@ -729,6 +729,7 @@ Giant planets build satellite systems in the disks around them, and those moons 
 - **Depends on:** Nothing.
 - **Deliverables:** `bodyKey(body)`: the stream-key parts for a world. For planets it returns `[starId, planetIndex]`, exactly today's parts; for moons, `[starId, planetIndex, MOON_TAG, moonIndex]`. Every `mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.X, …)` becomes `mixSeed(galaxySeed, ...bodyKey(body), SALT.X, …)`. Moon keys read `"<starId>-<planetIndex>-m<moonIndex>"`.
 - **Verification:** Every planet's streams stay bit-identical (the existing determinism tests pass unchanged); keys are unique across planets and moons.
+- **Built** 18 Oct 2026. `simulation/bodyKey.ts`: `bodyKey`, `MOON_TAG` ("MOON" in ASCII), `planetKey` (moved there, re-exported from `planet.ts`) and `moonKey`. Every planet stream goes through it: surface, physics, world history, the small planets' air, spectra, evolution, civilizations, and the views' orbit phases, globes and creatures. Checked: a full survey of 150 stars in seeds 100000 and 42 (every index column and every system) is byte-identical, and every existing test passes unchanged. No rules change.
 
 #### MO2 Regular moons of giants
 `simulation` · **M**

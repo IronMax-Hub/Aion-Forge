@@ -62,8 +62,8 @@
 //      probability that rises with body mass and food-chain level.
 //   5. Cap. Above LINEAGE_CAP living lineages, the weakest in the most crowded
 //      niche dies out.
-// Every draw comes from its own stream, mixSeed(galaxySeed, starId,
-// planetIndex, EVOLUTION, lineageId, step, purpose), so changing one rule
+// Every draw comes from its own stream, mixSeed(galaxySeed, ...bodyKey(world),
+// EVOLUTION, lineageId, step, purpose), so changing one rule
 // changes only the draws that rule touches.
 //
 // Assumptions and limits:
@@ -75,6 +75,7 @@
 
 import { cos, log, exp, pow } from "../detmath";
 import { createRNG, mixSeed, SALT } from "../rng";
+import { bodyKey } from "../bodyKey";
 import type { Environment, EnvironmentBand } from "./environment";
 import { clampGenome, ENERGY_SOURCES, TRAIT_RANGES } from "./genome";
 import type { ContinuousTrait, EnergySource, Genome, Habitat } from "./genome";
@@ -219,7 +220,7 @@ export interface EvolutionKeys {
 // ── Draws ─────────────────────────────────────────────────────────────────────
 
 function streamFor(keys: EvolutionKeys, lineageId: number, step: number, purpose: number): () => number {
-  return createRNG(mixSeed(keys.galaxySeed, keys.starId, keys.planetIndex, SALT.EVOLUTION, lineageId, step, purpose));
+  return createRNG(mixSeed(keys.galaxySeed, ...bodyKey({ hostStarId: keys.starId, id: keys.planetIndex }), SALT.EVOLUTION, lineageId, step, purpose));
 }
 
 /** A standard normal draw (Box–Muller). */

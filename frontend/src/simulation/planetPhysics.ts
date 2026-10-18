@@ -25,6 +25,7 @@
 // Nothing in the simulation reads these values yet; A2 and A3 will.
 
 import { createRNG, mixSeed, SALT } from "./rng";
+import { bodyKey } from "./bodyKey";
 import { exp, pow } from "./detmath";
 import type { Planet, AtmosphereType } from "./planet";
 import { effectiveOrbitAU } from "./planetBasics";
@@ -106,7 +107,7 @@ function aroundMedian(median: number, spread: number, u: number): number {
 /** The physical properties of a planet around its star. */
 export function derivePhysics(planet: Planet, star: Star, galaxySeed: number, cfg?: UniverseConfig): PlanetPhysics {
   const config = cfg ?? makeConfig(galaxySeed);
-  const rng = createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.PHYSICS));
+  const rng = createRNG(mixSeed(galaxySeed, ...bodyKey(planet), SALT.PHYSICS));
   // Every draw is taken in a fixed order, whatever the planet turns out to be
   const rotationDraw = rng();
   const tiltBandDraw = rng();

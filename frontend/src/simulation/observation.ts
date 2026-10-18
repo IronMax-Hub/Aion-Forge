@@ -35,6 +35,7 @@
 // - Presentation of simulation data: nothing here changes the universe.
 
 import { createRNG, gaussian, mixSeed, SALT } from "./rng";
+import { bodyKey } from "./bodyKey";
 import { exp } from "./detmath";
 import type { Planet } from "./planet";
 import type { Star } from "./star";
@@ -92,7 +93,7 @@ export function observeTransits(spectrum: Spectrum, planet: Planet, star: Star, 
   // Each bin's noise, summed over the transits in units of one transit's noise
   const summed = new Float64Array(spectrum.depthPpm.length);
   for (let transit = 1; transit <= transits; transit++) {
-    const rng = createRNG(mixSeed(galaxySeed, planet.hostStarId, planet.id, SALT.SPECTRUM, transit));
+    const rng = createRNG(mixSeed(galaxySeed, ...bodyKey(planet), SALT.SPECTRUM, transit));
     for (let k = 0; k < summed.length; k++) summed[k] += gaussian(rng);
   }
   const uncertaintyPpm = spectrum.wavelengthUm.map((wavelength) => noisePerBin(star, transits, wavelength));

@@ -25,7 +25,7 @@
 
 import type { Star } from "./star";
 import type { UniverseConfig } from "./config";
-import type { PlanetarySystem, PlanetType } from "./planet";
+import type { AtmosphereType, PlanetarySystem, PlanetType } from "./planet";
 import { effectiveOrbitAU } from "./planetBasics";
 import { derivePhysics } from "./planetPhysics";
 import { generateBiosphere } from "./biosphere";
@@ -54,6 +54,9 @@ export const LIFE_STAGE_CODES: readonly LifeStage[] = [
   "none", "prebiotic", "microbial", "multicellular", "complex", "dominant",
 ];
 
+/** `formationAtmosphere` codes: the class a planet formed with. */
+export const ATMOSPHERE_CODES: readonly AtmosphereType[] = ["none", "thin", "moderate", "thick", "crushing"];
+
 /** `civilizationStage` and `highestStage` codes; 0 is no civilization. */
 export const CIVILIZATION_STAGE_CODES: readonly (TechStage | "none")[] = [
   "none", "primitive", "agricultural", "industrial", "information", "space-age", "collapsed",
@@ -70,6 +73,12 @@ export const INDEX_FLAG = {
   O2_WITH_CH4: 1 << 4,
   /** The air holds CFCs: a technosignature. */
   CFCS: 1 << 5,
+  /** Its history recorded these events at least once (the Physics page reads them). */
+  FROZE_OVER: 1 << 6,
+  RUNAWAY: 1 << 7,
+  OCEANS_LOST: 1 << 8,
+  /** Its oceans are boiled into the air today. */
+  STEAM_TODAY: 1 << 9,
 } as const;
 
 // The biosignature pair, as mixing ratios: O₂ at least 1%, CH₄ at least 1 ppm
@@ -86,6 +95,7 @@ const COLUMNS = {
   parentIndex: Int8Array,           // the planet a moon orbits; NO_PARENT for a planet
   // The body
   type: Uint8Array,                 // PLANET_TYPE_CODES
+  formationAtmosphere: Uint8Array,  // ATMOSPHERE_CODES: the class it formed with
   massEarths: Float32Array,
   radiusEarths: Float32Array,
   orbitAU: Float32Array,            // effective, as the climate reads it
@@ -153,6 +163,11 @@ export function indexRowsFor(system: PlanetarySystem, star: Star, galaxySeed: nu
     if (canSustainFire(planet)) flags |= INDEX_FLAG.FIRE_POSSIBLE;
     if ((air.O2 ?? 0) >= BIOSIGNATURE_O2_SHARE && (air.CH4 ?? 0) >= BIOSIGNATURE_CH4_SHARE) flags |= INDEX_FLAG.O2_WITH_CH4;
     if ((air.CFC11 ?? 0) > 0 || (air.CFC12 ?? 0) > 0) flags |= INDEX_FLAG.CFCS;
+    const recorded = (kind: string) => planet.worldEvents.some((e) => e.kind === kind);
+    if (recorded("freezes-over")) flags |= INDEX_FLAG.FROZE_OVER;
+    if (recorded("runaway-greenhouse")) flags |= INDEX_FLAG.RUNAWAY;
+    if (recorded("oceans-lost")) flags |= INDEX_FLAG.OCEANS_LOST;
+    if (surface?.steam) flags |= INDEX_FLAG.STEAM_TODAY;
 
     return {
       starId: star.id,
@@ -160,6 +175,7 @@ export function indexRowsFor(system: PlanetarySystem, star: Star, galaxySeed: nu
       kind: WORLD_KIND.PLANET,
       parentIndex: NO_PARENT,
       type: PLANET_TYPE_CODES.indexOf(planet.type),
+      formationAtmosphere: ATMOSPHERE_CODES.indexOf(planet.formationAtmosphere),
       massEarths: planet.mass,
       radiusEarths: planet.size,
       orbitAU: effectiveOrbitAU(planet.orbitalRadius, config),

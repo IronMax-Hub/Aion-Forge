@@ -9,7 +9,7 @@ import { canSustainFire, generateCivilization } from "../simulation/civilization
 import { atmosphereComposition } from "../simulation/atmosphereComposition";
 import { surveyLife } from "../simulation/lifeSurvey";
 import {
-  CIVILIZATION_STAGE_CODES, INDEX_COLUMNS, INDEX_FLAG, LIFE_STAGE_CODES, NO_PARENT, PLANET_TYPE_CODES, WORLD_KIND,
+  ATMOSPHERE_CODES, CIVILIZATION_STAGE_CODES, INDEX_COLUMNS, INDEX_FLAG, LIFE_STAGE_CODES, NO_PARENT, PLANET_TYPE_CODES, WORLD_KIND,
   indexRowsFor, mergeIndices, packIndex,
 } from "../simulation/universeIndex";
 import type { IndexRow, UniverseIndex } from "../simulation/universeIndex";
@@ -29,6 +29,11 @@ function rowAt(ix: UniverseIndex, i: number): IndexRow {
 }
 
 describe("universe index", () => {
+  it("counts the planets their stars engulfed, which have no rows", () => {
+    const engulfed = stars.reduce((sum, star) => sum + generatePlanetsFor(star, SEED, config).engulfed, 0);
+    expect(survey.engulfedPlanets).toBe(engulfed);
+  });
+
   it("has one row per planet, in star order and then planet index order", () => {
     const keys = stars.flatMap((star) => generatePlanetsFor(star, SEED, config).planets.map((p) => [star.id, p.id]));
     expect(index.count).toBe(survey.totalPlanets);
@@ -54,6 +59,7 @@ describe("universe index", () => {
         expect(index.kind[i]).toBe(WORLD_KIND.PLANET);
         expect(index.parentIndex[i]).toBe(NO_PARENT);
         expect(PLANET_TYPE_CODES[index.type[i]]).toBe(planet.type);
+        expect(ATMOSPHERE_CODES[index.formationAtmosphere[i]]).toBe(planet.formationAtmosphere);
         expect(index.massEarths[i]).toBe(f32(planet.mass));
         expect(index.radiusEarths[i]).toBe(f32(planet.size));
         expect(index.orbitAU[i]).toBe(f32(effectiveOrbitAU(planet.orbitalRadius, config)));
@@ -70,6 +76,11 @@ describe("universe index", () => {
         expect(flag(INDEX_FLAG.FIRE_POSSIBLE)).toBe(canSustainFire(planet));
         expect(flag(INDEX_FLAG.O2_WITH_CH4)).toBe((air.O2 ?? 0) >= 0.01 && (air.CH4 ?? 0) >= 1e-6);
         expect(flag(INDEX_FLAG.CFCS)).toBe((air.CFC11 ?? 0) + (air.CFC12 ?? 0) > 0);
+        const recorded = (kind: string) => planet.worldEvents.some((e) => e.kind === kind);
+        expect(flag(INDEX_FLAG.FROZE_OVER)).toBe(recorded("freezes-over"));
+        expect(flag(INDEX_FLAG.RUNAWAY)).toBe(recorded("runaway-greenhouse"));
+        expect(flag(INDEX_FLAG.OCEANS_LOST)).toBe(recorded("oceans-lost"));
+        expect(flag(INDEX_FLAG.STEAM_TODAY)).toBe(planet.surface?.steam ?? false);
 
         expect(index.lifeBeganGyr[i]).toBe(f32(life?.startedGyr));
         expect(index.lifeEndedGyr[i]).toBe(f32(life?.endedGyr));

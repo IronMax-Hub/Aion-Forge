@@ -96,6 +96,8 @@ export interface PlanetarySystem {
   hostStarId: number;
   galaxySeed: number;
   planets: Planet[];
+  /** Planets that formed but were engulfed by their star as it swelled (they are not in `planets`). */
+  engulfed: number;
 }
 
 // ── Orbital architecture (AF-038 + AF-039 + AF-040) ──────────────────────────
@@ -319,11 +321,11 @@ export function generatePlanetsFor(
 
   // Dead stars don't have planets
   if (star.classification === "neutron-star" || star.classification === "black-hole") {
-    return { hostStarId: star.id, galaxySeed, planets: [] };
+    return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0 };
   }
 
   const count = planetCount(star.mass, rng);
-  if (count === 0) return { hostStarId: star.id, galaxySeed, planets: [] };
+  if (count === 0) return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0 };
 
   const arch = pickArchitecture(rng());
   // The drawn system, moved out as a whole when the innermost orbit lies inside the
@@ -390,7 +392,8 @@ export function generatePlanetsFor(
   });
 
   // Survivors keep their index, id and key: an engulfed planet leaves a gap, as it would in a catalogue
-  return { hostStarId: star.id, galaxySeed, planets: planets.filter((planet): planet is Planet => planet !== null) };
+  const survivors = planets.filter((planet): planet is Planet => planet !== null);
+  return { hostStarId: star.id, galaxySeed, planets: survivors, engulfed: planets.length - survivors.length };
 }
 
 // ── Color palette for rendering (AF-044) ──────────────────────────────────────

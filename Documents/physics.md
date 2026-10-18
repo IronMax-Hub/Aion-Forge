@@ -144,3 +144,31 @@ The relation now runs the right way but far shallower than the observed 10^(2[Fe
 
 - **Old stars keep their life.** Before building, the escape rule suggested that old stars' lighter rocky worlds would mostly be stripped. Living worlds around stars older than 10 Gyr fell by only 6–19%.
 - **Minds fall harder than life again.** Systems with organisms barely moved (0 to −3%), while civilizations fell by up to 41%. Not yet traced.
+
+### Measured (MZ5, 18 Oct 2026)
+
+From the stats harness, entry "2026-10-18 · rules v12" in `stats.md`.
+
+**Median [Fe/H] by star age**, Familiar Reality (0–2 / 2–6 / 6–10 / above 10 Gyr):
+
+| Seed | Galaxy | Median [Fe/H] |
+|---|---|---|
+| 100000 | spiral | −0.04 / −0.09 / −0.32 / −0.80 |
+| 7777 | spiral | −0.01 / −0.12 / −0.31 / −0.74 |
+| 42 | elliptical | +0.21 / +0.21 / +0.20 / +0.14 |
+
+The median star is not far from solar, so y is not tuned. In the elliptical, nearly every star is metal-rich (1,620 of 2,000 above +0.1).
+
+**By the host star's [Fe/H]**, Familiar Reality, seed 100000:
+
+| [Fe/H] | Stars | Planets per star | Giants | Median solid planet | Living today |
+|---|---:|---:|---:|---:|---:|
+| below −0.5 | 498 | 3.60 | 9% | 0.29 M⊕ | 913 |
+| −0.5 to −0.2 | 455 | 3.69 | 11% | 0.51 M⊕ | 584 |
+| −0.2 to +0.1 | 563 | 4.05 | 15% | 0.56 M⊕ | 703 |
+| +0.1 and above | 472 | 4.03 | 22% | 0.60 M⊕ | 472 |
+
+**Systems with organisms**, default parameters, v11 → v12: 912 → 911, 891 → 884, 933 → 907 (0 to −3%), inside ±25%.
+
+- **More life around metal-poor stars.** The poorest stars host the most worlds living today (913, nearly two per star, against one per star above +0.1), on planets of half the mass. Not yet traced: these are also the oldest stars, whose worlds have had longest for life to begin.
+- **Giants by [Fe/H].** The share of planets that are giants rises from 9% to 22% across the table. That is the observed direction, but far shallower than 10^(2[Fe/H]); recorded for the owner (decision 8).

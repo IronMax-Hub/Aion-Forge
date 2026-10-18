@@ -632,6 +632,7 @@ Every generation of stars returns heavier elements to the gas the next generatio
 - **Depends on:** MZ3.
 - **Deliverables:** Stats columns: the median [Fe/H] by star age; planets per star, the giant share and the solid-planet share by [Fe/H]; systems with organisms. y is tuned, with a stated reason, if the median star moves far from solar.
 - **Verification:** The harness run.
+- **Built** 18 Oct 2026. The harness gains two metallicity tables (median [Fe/H] by star age; by [Fe/H], stars, planets per star, giant and solid shares, the median solid planet's mass and the worlds living today), read from the index and the stars. `physics.md` records the run. The median star is not far from solar (spirals: young stars −0.04 to −0.00, all stars about −0.2; the elliptical seed 42 +0.20), so y is not tuned. Systems with organisms, default parameters: 912 / 891 / 933 at v11 → 911 / 884 / 907 (0 to −3%). Decision 8's tripwire stays untriggered.
 
 ### Step 5a — Heat from inside
 

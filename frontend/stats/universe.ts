@@ -20,6 +20,10 @@
 // Since AE4: what atmospheric escape did, from the index: the share of solid
 // planets stripped of their air, today's mix of air classes, and the worlds
 // living today by their host star's class (greatFilter.ts's star conditions).
+//
+// Since MZ5: metallicity, from the index and the stars: the median [Fe/H] by
+// star age, and by [Fe/H] the planets per star, the giant and solid shares, the
+// median solid planet's mass and the worlds living today.
 
 import { makeConfig, PRESETS } from "../src/simulation/config";
 import { buildGalaxyConfig } from "../src/simulation/galaxy";
@@ -27,7 +31,7 @@ import { generateStarsFor, UNIVERSE_AGE_GYR } from "../src/simulation/star";
 import type { Star } from "../src/simulation/star";
 import { surveyLife, ORGANISM_STAGES } from "../src/simulation/lifeSurvey";
 import type { LifeSurvey } from "../src/simulation/lifeSurvey";
-import { generatePlanetsFor } from "../src/simulation/planet";
+import { generatePlanetsFor, GIANT_PLANET_MASS } from "../src/simulation/planet";
 import type { Planet, SolidWorld } from "../src/simulation/planet";
 import { derivePhysics } from "../src/simulation/planetPhysics";
 import { buildGeography } from "../src/simulation/geography";
@@ -75,6 +79,17 @@ export interface Row {
   funnel: number[];
   /** Atmospheric escape (AE4), from the index. */
   escape: Escape;
+  /** Metallicity (MZ5), from the index and the stars. */
+  metals: Metals;
+}
+
+/** Star ages, Gyr, and [Fe/H] bins, dex, for the metallicity table. */
+const AGE_BINS = [[0, 2], [2, 6], [6, 10], [10, Infinity]] as const;
+const FEH_BINS = [[-Infinity, -0.5], [-0.5, -0.2], [-0.2, 0.1], [0.1, Infinity]] as const;
+
+export interface Metals {
+  medianFeHByAge: number[];      // AGE_BINS order; NaN where a bin is empty
+  byFeH: { stars: number; planetsPerStar: number; giantShare: number; solidShare: number; medianSolidMass: number; living: number }[];
 }
 
 export interface Escape {
@@ -181,6 +196,32 @@ export function measureUniverse(presetName: string, seed: number): Row {
     surveyMs,
     funnel: funnelOf(survey.index).steps.map((step) => step.passed),
     escape: escapeOf(survey, stars),
+    metals: metalsOf(survey, stars),
+  };
+}
+
+/** What metallicity did, read from the survey's index and the stars (MZ5). */
+function metalsOf(survey: LifeSurvey, stars: Star[]): Metals {
+  const ix = survey.index;
+  const rows = [...Array(ix.count).keys()];
+  const within = (value: number, [from, to]: readonly [number, number]) => value >= from && value < to;
+  // Stars that can hold planets: neutron stars and black holes are left out
+  const hosts = stars.filter((s) => s.classification !== "neutron-star" && s.classification !== "black-hole");
+  return {
+    medianFeHByAge: AGE_BINS.map((bin) => median(stars.filter((s) => within(s.age, bin)).map((s) => s.metallicity))),
+    byFeH: FEH_BINS.map((bin) => {
+      const ids = new Set(hosts.filter((s) => within(s.metallicity, bin)).map((s) => s.id));
+      const planets = rows.filter((i) => ids.has(ix.starId[i]));
+      const solid = planets.filter((i) => !Number.isNaN(ix.oceanFraction[i]));
+      return {
+        stars: ids.size,
+        planetsPerStar: planets.length / Math.max(1, ids.size),
+        giantShare: planets.filter((i) => ix.massEarths[i] > GIANT_PLANET_MASS).length / Math.max(1, planets.length),
+        solidShare: solid.length / Math.max(1, planets.length),
+        medianSolidMass: median(solid.map((i) => ix.massEarths[i])),
+        living: planets.filter((i) => !Number.isNaN(ix.lifeBeganGyr[i]) && Number.isNaN(ix.lifeEndedGyr[i])).length,
+      };
+    }),
   };
 }
 
@@ -249,6 +290,32 @@ export function escapeTable(rows: Row[]): string {
   ];
   for (const { preset, seed, geography: g, history: h, escape: e } of rows) {
     lines.push(`| ${preset} | ${seed} | ${g.solidPlanets} | ${(e.strippedShare * 100).toFixed(1)}% | ${e.classMix.join(" / ")} | ${(h.runawayShare * 100).toFixed(1)}% | ${e.livingByHost.join(" / ")} |`);
+  }
+  return lines.join("\n");
+}
+
+/** Metallicity in every universe, as two Markdown tables (MZ5). */
+export function metalsTable(rows: Row[]): string {
+  const bin = ([from, to]: readonly [number, number], unit: string) =>
+    from === -Infinity ? `below ${to}${unit}` : to === Infinity ? `${from}${unit} and above` : `${from} to ${to}${unit}`;
+  const dex = (v: number) => (Number.isNaN(v) ? "–" : `${v < 0 ? "−" : "+"}${Math.abs(v).toFixed(2)}`);
+  const lines = [
+    "Metallicity: the median star's [Fe/H] by star age.",
+    "",
+    `| Preset | Seed | ${AGE_BINS.map((b) => bin(b, " Gyr")).join(" | ")} |`,
+    `|---|---:|${AGE_BINS.map(() => "---:").join("|")}|`,
+  ];
+  for (const { preset, seed, metals } of rows) lines.push(`| ${preset} | ${seed} | ${metals.medianFeHByAge.map(dex).join(" | ")} |`);
+  lines.push(
+    "",
+    "By the host star's [Fe/H] (stars that can hold planets): stars; planets per star; giant share and solid share of their planets; the median solid planet's mass (M⊕); worlds living today.",
+    "",
+    `| Preset | Seed | ${FEH_BINS.map((b) => bin(b, "")).join(" | ")} |`,
+    `|---|---:|${FEH_BINS.map(() => "---").join("|")}|`,
+  );
+  for (const { preset, seed, metals } of rows) {
+    lines.push(`| ${preset} | ${seed} | ${metals.byFeH.map((b) =>
+      `${b.stars} · ${b.planetsPerStar.toFixed(2)} · ${(b.giantShare * 100).toFixed(0)}% / ${(b.solidShare * 100).toFixed(0)}% · ${Number.isNaN(b.medianSolidMass) ? "–" : b.medianSolidMass.toFixed(2)} · ${b.living}`).join(" | ")} |`);
   }
   return lines.join("\n");
 }

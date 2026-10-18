@@ -5,8 +5,12 @@ import type { Star } from "./star";
 import { luminosityAt, pastGiantRadiusAU, stellarRadiusAU } from "./star";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
-import { effectiveOrbitAU, GIANT_PLANET_MASS, PLANET_MASS_DRAW, planetMassFromDraw, typicalRadiusForMass } from "./planetBasics";
+import {
+  ATMOSPHERE_DRAW, atmosphereFromDraw, effectiveOrbitAU, GIANT_PLANET_MASS, PLANET_MASS_DRAW, planetMassFromDraw, typicalRadiusForMass,
+} from "./planetBasics";
 import { derivePhysics, atmosphereClassOf } from "./planetPhysics";
+import { moonsOf } from "./moons";
+import type { Moon } from "./moons";
 import type { PlanetPhysics } from "./planetPhysics";
 import { buildGeography } from "./geography";
 import type { Geography } from "./geography";
@@ -62,6 +66,8 @@ export interface Planet {
   worldEvents: WorldEvent[];
   /** Whether liquid water ever lay on its surface, open or under ice (WorldHistory.everLiquidWater); false for giants. */
   everLiquidWater: boolean;
+  /** A giant's regular moons (MO2); none for solid planets yet. */
+  moons: Moon[];
 }
 
 /** A planet's life: its dates, Gyr after its star formed, and what its lineages became (C2.5). */
@@ -229,19 +235,9 @@ function equilibriumTemp(stellarLuminosity: number, orbitalAU: number): number {
 // metallicity, and a planet crossing a mass line must not shift the draws of
 // the planets after it.
 
-/** The atmosphere draw: none, thin, moderate and thick below these bounds of one draw, else crushing. */
-export const ATMOSPHERE_DRAW = { noneBelow: 0.15, thinBelow: 0.35, moderateBelow: 0.70, thickBelow: 0.90 } as const;
+export { ATMOSPHERE_DRAW };
 /** Planets below this mass draw their atmosphere from their own stream (they took no draw before AE2). */
 export const OWN_AIR_STREAM_BELOW_MASS = 0.05;
-
-function atmosphereFromDraw(r: number): AtmosphereType {
-  const d = ATMOSPHERE_DRAW;
-  if (r < d.noneBelow) return "none";
-  if (r < d.thinBelow) return "thin";
-  if (r < d.moderateBelow) return "moderate";
-  if (r < d.thickBelow) return "thick";
-  return "crushing";
-}
 
 function pickAtmosphere(mass: number, rng: () => number, ownDraw: () => number): AtmosphereType {
   const systemDraw = rng();   // taken by every planet (MZ3)
@@ -441,10 +437,12 @@ export function generatePlanetsFor(
       life: null,
       worldEvents: [],
       everLiquidWater: false,
+      moons: [],
     };
 
     if (mass > GIANT_PLANET_MASS) {
       planet.type = giantType(equilibriumK);
+      planet.moons = moonsOf(planet, star, galaxySeed, config);
     } else {
       // A solid planet's surface is the end of its history
       const { physics, history } = worldOf(planet, star, galaxySeed, config);

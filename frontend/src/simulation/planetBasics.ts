@@ -3,7 +3,21 @@
 // modules importing planet.ts back.
 
 import type { UniverseConfig } from "./config";
+import type { AtmosphereType } from "./planet";
 import { pow } from "./detmath";
+
+/** The atmosphere draw: none, thin, moderate and thick below these bounds of one draw, else crushing (planets and moons). */
+export const ATMOSPHERE_DRAW = { noneBelow: 0.15, thinBelow: 0.35, moderateBelow: 0.70, thickBelow: 0.90 } as const;
+
+/** The atmosphere class a world forms with, from one uniform draw. */
+export function atmosphereFromDraw(r: number): AtmosphereType {
+  const d = ATMOSPHERE_DRAW;
+  if (r < d.noneBelow) return "none";
+  if (r < d.thinBelow) return "thin";
+  if (r < d.moderateBelow) return "moderate";
+  if (r < d.thickBelow) return "thick";
+  return "crushing";
+}
 
 /** Above this mass (Earth masses) a planet is a gas or ice giant with no solid surface. */
 export const GIANT_PLANET_MASS = 15;

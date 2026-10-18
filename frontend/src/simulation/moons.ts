@@ -1,0 +1,131 @@
+// Regular moons of giants (Galaxy Through Time, MO2).
+//
+// Why it exists: giant planets build satellite systems in the disks around
+// them. Those moons can be worlds in their own right: icy, warmed from below
+// and by tides (MO3), some with oceans under their ice.
+//
+// How:
+// - Mass. A satellite system holds 2 × 10⁻⁴ of its planet's mass (Jupiter's
+//   Galilean ratio; decision 30, the owner's choice over Canup & Ward's 10⁻⁴),
+//   split among 2–5 moons at sorted uniform draws, innermost first.
+// - Orbits. The first at 5–7.5 planet radii, each next one 1.6–2.0 times
+//   farther (the Galilean ratios are 1.6–2.1). No moon lies beyond half the
+//   planet's Hill radius, a_p · (M_p / 3 M★)^⅓ / 2: those are not formed.
+// - Radius. typicalRadiusForMass × 0.8–1.2, as for planets.
+// - Water (decision 35). Moons of a giant beyond the star's snow line are ice-
+//   rich: water is 10–50% of their mass (Europa ~8%, Ganymede, Callisto and
+//   Titan ~40–50%), W = 340 × that share in the planets' units (Earth's water,
+//   W 0.08, is 2.3 × 10⁻⁴ of its mass), with no cap. Inside the snow line they
+//   take the planets' rule.
+// - Spin and tilt. Regular moons orbit in their planet's equatorial plane, so
+//   they share its tilt, and are locked: a day is an orbit around the planet.
+// - Air. One draw from the planets' atmosphere classes; escape (AE2) decides
+//   what each keeps once moons have histories (MO4).
+// Draws come from the giant's own moon stream, mixSeed(galaxySeed,
+// ...bodyKey(giant), SALT.MOON), in a fixed order, so no planet's draws move.
+//
+// Assumptions and limits: no irregular (captured) moons; no orbital resonances
+// or migration; a moon's mass does not depend on its distance from the planet.
+
+import { createRNG, mixSeed, SALT } from "./rng";
+import { bodyKey, moonKey } from "./bodyKey";
+import { pow } from "./detmath";
+import type { Star } from "./star";
+import type { AtmosphereType, Planet } from "./planet";
+import type { UniverseConfig } from "./config";
+import { atmosphereFromDraw, effectiveOrbitAU, typicalRadiusForMass } from "./planetBasics";
+import { derivePhysics, planetWaterInventory } from "./planetPhysics";
+
+/** A satellite system's share of its planet's mass (decision 30). */
+export const SATELLITE_MASS_RATIO = 2e-4;
+/** How many moons: min plus 0 to extra − 1. */
+export const MOON_COUNT = { min: 2, extra: 4 } as const;
+/** The first moon's orbit, planet radii: base × (1 + spread × u). */
+export const FIRST_MOON_ORBIT = { planetRadii: 5, spread: 0.5 } as const;
+/** Each next moon lies min + range × u times farther out. */
+export const MOON_SPACING = { min: 1.6, range: 0.4 } as const;
+/** No moon lies beyond this share of the planet's Hill radius. */
+export const HILL_SHARE = 0.5;
+/** Ice-rich moons' water, as a share of their mass, and its conversion to the planets' water units (decision 35). */
+export const MOON_WATER = { minShare: 0.1, maxShare: 0.5, unitsPerShare: 340 } as const;
+
+const EARTH_RADIUS_AU = 6371 / 1.495978707e8;
+const EARTH_MASS_IN_SUNS = 3.003e-6;
+const EARTH_GM_KM3_S2 = 398600.4;
+const EARTH_RADIUS_KM = 6371;
+const SECONDS_PER_HOUR = 3600;
+
+/** A regular moon of a giant. */
+export interface Moon {
+  hostStarId: number;
+  /** Its planet's index in its system. */
+  id: number;
+  /** Its place among its planet's moons, innermost first. */
+  moonIndex: number;
+  /** Unique in the galaxy: "<starId>-<planetIndex>-m<moonIndex>". */
+  key: string;
+  mass: number;               // Earth masses
+  size: number;               // Earth radii
+  orbitPlanetRadii: number;   // distance from its planet, in its planet's radii
+  /** Its orbit around its planet, and its day (it is locked), hours. */
+  orbitalPeriodHours: number;
+  axialTiltDeg: number;
+  waterInventory: number;     // the planets' units
+  formationAtmosphere: AtmosphereType;
+}
+
+/** Half the planet's Hill radius, in planet radii: no moon forms farther out. */
+export function moonOrbitLimit(giant: Planet, star: Star, config: UniverseConfig): number {
+  const hillAU = effectiveOrbitAU(giant.orbitalRadius, config) * pow((giant.mass * EARTH_MASS_IN_SUNS) / (3 * star.mass), 1 / 3);
+  return (HILL_SHARE * hillAU) / (giant.size * EARTH_RADIUS_AU);
+}
+
+/** The regular moons a giant's disk builds. */
+export function moonsOf(giant: Planet, star: Star, galaxySeed: number, config: UniverseConfig): Moon[] {
+  const rng = createRNG(mixSeed(galaxySeed, ...bodyKey(giant), SALT.MOON));
+  const count = MOON_COUNT.min + Math.floor(rng() * MOON_COUNT.extra);
+  const cuts = Array.from({ length: count - 1 }, () => rng()).sort((a, b) => a - b);
+  const bounds = [0, ...cuts, 1];
+  const systemMass = SATELLITE_MASS_RATIO * giant.mass;
+
+  const limit = moonOrbitLimit(giant, star, config);
+  const physics = derivePhysics(giant, star, galaxySeed, config);
+  const orbitAU = effectiveOrbitAU(giant.orbitalRadius, config);
+  const beyondSnowLine = orbitAU >= physics.snowLineAU;
+  const planetRadiusKm = giant.size * EARTH_RADIUS_KM;
+
+  const moons: Moon[] = [];
+  let orbit = 0;
+  for (let i = 0; i < count; i++) {
+    // Four draws per moon, in a fixed order, whatever the moon turns out to be
+    const orbitDraw = rng();
+    const sizeDraw = rng();
+    const waterDraw = rng();
+    const airDraw = rng();
+    orbit = i === 0
+      ? FIRST_MOON_ORBIT.planetRadii * (1 + FIRST_MOON_ORBIT.spread * orbitDraw)
+      : orbit * (MOON_SPACING.min + MOON_SPACING.range * orbitDraw);
+    if (orbit > limit) continue;
+
+    const mass = systemMass * (bounds[i + 1] - bounds[i]);
+    const orbitKm = orbit * planetRadiusKm;
+    const periodSeconds = 2 * Math.PI * Math.sqrt((orbitKm * orbitKm * orbitKm) / (EARTH_GM_KM3_S2 * giant.mass));
+    const waterInventory = beyondSnowLine
+      ? MOON_WATER.unitsPerShare * (MOON_WATER.minShare + (MOON_WATER.maxShare - MOON_WATER.minShare) * waterDraw)
+      : planetWaterInventory(orbitAU, physics.snowLineAU, mass, waterDraw);
+    moons.push({
+      hostStarId: giant.hostStarId,
+      id: giant.id,
+      moonIndex: i,
+      key: moonKey(giant.hostStarId, giant.id, i),
+      mass,
+      size: typicalRadiusForMass(mass) * (0.8 + sizeDraw * 0.4),
+      orbitPlanetRadii: orbit,
+      orbitalPeriodHours: periodSeconds / SECONDS_PER_HOUR,
+      axialTiltDeg: physics.axialTiltDeg,
+      waterInventory,
+      formationAtmosphere: atmosphereFromDraw(airDraw),
+    });
+  }
+  return moons;
+}

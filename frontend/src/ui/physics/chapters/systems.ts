@@ -12,6 +12,7 @@ import {
 } from "../../../simulation/planetPhysics";
 import { EQUILIBRIUM_K_AT_1_AU } from "../../../simulation/climate";
 import { EARTH_HEAT_FLOW_W_M2, interiorHeatFlow, interiorTemperatureK } from "../../../simulation/interiorHeat";
+import { FIRST_MOON_ORBIT, HILL_SHARE, MOON_COUNT, MOON_SPACING, MOON_WATER, SATELLITE_MASS_RATIO } from "../../../simulation/moons";
 import { ATMOSPHERE_CODES, INDEX_FLAG, PLANET_TYPE_CODES } from "../../../simulation/universeIndex";
 import type { UniverseIndex } from "../../../simulation/universeIndex";
 import { formatInt, formatPercent, formatSig, PLANET_TYPE_LABEL } from "../../format";
@@ -121,6 +122,23 @@ export const systems: Chapter = {
       },
     },
     {
+      id: "moons",
+      title: "Moons of giants",
+      statement: "A giant builds a satellite system in the disk around it: two to five moons sharing a fixed share of its mass, spaced outward like Jupiter's, none beyond half the planet's Hill radius. Moons formed beyond the snow line are rich in ice; all are locked to their planet and share its tilt.",
+      rule: `system mass = ${exact(SATELLITE_MASS_RATIO)} × M_p, split at sorted uniform draws; first orbit ${FIRST_MOON_ORBIT.planetRadii}–${FIRST_MOON_ORBIT.planetRadii * (1 + FIRST_MOON_ORBIT.spread)} planet radii, each next × ${MOON_SPACING.min}–${MOON_SPACING.min + MOON_SPACING.range}; no moon beyond ${exact(HILL_SHARE)} × Hill radius`,
+      constants: [
+        { name: "Satellite mass", value: `${exact(SATELLITE_MASS_RATIO)} of the planet`, meaning: "Jupiter's Galilean ratio (decision 30); Canup & Ward's 10⁻⁴ would give half as much" },
+        { name: "Moons", value: `${MOON_COUNT.min}–${MOON_COUNT.min + MOON_COUNT.extra - 1}`, meaning: "Per giant, before the Hill limit" },
+        { name: "Ice-rich water", value: `${formatPercent(MOON_WATER.minShare)}–${formatPercent(MOON_WATER.maxShare)} of the mass`, meaning: `Beyond the snow line, W = ${MOON_WATER.unitsPerShare} × the share (decision 35); inside it, the planets' rule` },
+      ],
+      why: "Regular moons form in a giant's own disk, as the Galilean moons did; one share of mass and one spacing rule give systems like Jupiter's, and super-Jupiters moons heavier than Mars.",
+      source: "Canup & Ward 2006; the Galilean moons",
+      limits: ["No captured moons, resonances or migration.", "Moons do not yet have their own histories (MO4)."],
+      laws: [{ law: "gravityStrength", how: "Through the giant's effective orbit, which sets its Hill radius" }],
+      code: "simulation/moons.ts · moonsOf (MO2)",
+      noEffect: "Moons are made with each giant but are not yet in the survey's index (MO4 gives them histories).",
+    },
+    {
       id: "formation-air",
       title: "The air a planet starts with",
       statement: "Every rocky planet draws one of five atmosphere classes from the same distribution, whatever its size or heat; each class has a background pressure. Its history then decides what it keeps: escape strips the weak-gravity and strongly irradiated (Atmospheric escape).",
@@ -163,7 +181,7 @@ export const systems: Chapter = {
   ],
   missing: [
     "Orbits are circular and fixed: no migration, no scattering, no rogue planets (step 7).",
-    "No moons (step 5).",
+    "No moons of rocky planets yet (MO5).",
   ],
 };
 

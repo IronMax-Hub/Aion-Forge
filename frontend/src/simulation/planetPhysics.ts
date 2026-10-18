@@ -104,6 +104,18 @@ function aroundMedian(median: number, spread: number, u: number): number {
   return median * pow(spread, 2 * u - 1);
 }
 
+/** Where water ice could condense in the star's young disk, AU. */
+export function snowLineAUOf(star: Star): number {
+  return SNOW_LINE_AU_PER_SQRT_L * Math.sqrt(luminosityAt(star, 0));
+}
+
+/** A planet's water inventory from where it formed against the snow line, its mass and one draw. */
+export function planetWaterInventory(orbitAU: number, snowLineAU: number, mass: number, draw: number): number {
+  const water = orbitAU < snowLineAU ? WATER_INSIDE_SNOW_LINE : WATER_BEYOND_SNOW_LINE;
+  const retention = Math.min(1, mass / WATER_RETENTION_MASS);
+  return Math.min(1, aroundMedian(water.median, water.spread, draw)) * retention;
+}
+
 /** The physical properties of a planet around its star. */
 export function derivePhysics(planet: Planet, star: Star, galaxySeed: number, cfg?: UniverseConfig): PlanetPhysics {
   const config = cfg ?? makeConfig(galaxySeed);
@@ -125,10 +137,8 @@ export function derivePhysics(planet: Planet, star: Star, galaxySeed: number, cf
     ? tiltDraw * TILT.lowMaxDeg
     : TILT.lowMaxDeg + tiltDraw * (TILT.maxDeg - TILT.lowMaxDeg);
 
-  const snowLineAU = SNOW_LINE_AU_PER_SQRT_L * Math.sqrt(luminosityAt(star, 0));
-  const water = orbitAU < snowLineAU ? WATER_INSIDE_SNOW_LINE : WATER_BEYOND_SNOW_LINE;
-  const retention = Math.min(1, planet.mass / WATER_RETENTION_MASS);
-  const waterInventory = Math.min(1, aroundMedian(water.median, water.spread, waterDraw)) * retention;
+  const snowLineAU = snowLineAUOf(star);
+  const waterInventory = planetWaterInventory(orbitAU, snowLineAU, planet.mass, waterDraw);
 
   return {
     surfaceGravity: planet.mass / (planet.size * planet.size),

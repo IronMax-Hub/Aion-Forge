@@ -35,7 +35,7 @@ const earthSurface: PlanetSurface = {
 const earth: Planet = {
   id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
   temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8,
-  isRare: false, surface: earthSurface, life: null, worldEvents: [], everLiquidWater: false,
+  isRare: false, surface: earthSurface, life: null, worldEvents: [], everLiquidWater: false, moons: [],
 };
 const civ = (techStage: TechStage, population = 8): Civilization => ({
   id: 0, speciesId: 0, planetId: 2, ageGyr: 0.1, population, techStage, techLevel: 0.5, socialCohesion: 0.5,

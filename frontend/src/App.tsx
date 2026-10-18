@@ -99,6 +99,8 @@ export default function App() {
   // The Great Filter panel (GF3), and the gate whose breakdown it shows
   const [showGreatFilter, setShowGreatFilter] = useState(false);
   const [filterGate, setFilterGate] = useState<GateId | null>(null);
+  // Which of those two floating panels is in front: the one opened or clicked last
+  const [frontOverlay, setFrontOverlay] = useState<"encyclopedia" | "filter">("encyclopedia");
 
   const [seed, setSeed]             = useState<number>(() => randomSeed());
   const [inputSeed, setInputSeed]   = useState<string>("");
@@ -695,6 +697,7 @@ export default function App() {
     const planet = exploreSystem(star).find((p) => p.id === planetIndex) ?? null;
     setSelectedPlanet(planet);
     setShowGreatFilter(false);
+    setFrontOverlay("encyclopedia");
     setEncyclopediaSubject({ kind: "planet", starId, planetIndex });
   };
 
@@ -961,7 +964,7 @@ export default function App() {
           <div className="controls">
             <button
               className="btn"
-              onClick={() => { initAudio(); setEncyclopediaSubject((open) => (open?.kind === "galaxy" ? null : { kind: "galaxy" })); }}
+              onClick={() => { initAudio(); setFrontOverlay("encyclopedia"); setEncyclopediaSubject((open) => (open?.kind === "galaxy" ? null : { kind: "galaxy" })); }}
               aria-pressed={encyclopediaSubject?.kind === "galaxy"}
               disabled={!universeId}
             >
@@ -975,7 +978,7 @@ export default function App() {
           <div className="controls">
             <button
               className="btn"
-              onClick={() => { initAudio(); setShowGreatFilter((v) => !v); }}
+              onClick={() => { initAudio(); setFrontOverlay("filter"); setShowGreatFilter((v) => !v); }}
               aria-pressed={showGreatFilter}
               disabled={!universeId}
               title="Count the worlds that pass each step from a solid surface to a lasting civilization"
@@ -1050,27 +1053,32 @@ export default function App() {
           />
         )}
 
-        {showGreatFilter && (
-          <GreatFilterPanel
-            index={surveyIndex}
-            stars={populationRef.current?.stars ?? []}
-            gate={filterGate}
-            onGate={setFilterGate}
-            onOpenWorld={openWorld}
-            onClose={() => setShowGreatFilter(false)}
-            seed={currentSeed}
-            surveySeed={(s) => surveyClient.survey(s, universeConfig).then((survey) => survey.index)}
-          />
-        )}
-
-        {encyclopediaSubject && (
-          <EncyclopediaPanel
-            subject={encyclopediaSubject}
-            entryFor={entryFor}
-            actions={entryActions}
-            onClose={() => setEncyclopediaSubject(null)}
-          />
-        )}
+        {/* The encyclopedia and the Great Filter can be open together: the one opened or clicked
+            last is drawn last, so it is in front. Keyed, so moving one never remounts it */}
+        {(frontOverlay === "filter" ? ["encyclopedia", "filter"] as const : ["filter", "encyclopedia"] as const).map((overlay) =>
+          overlay === "filter" ? (showGreatFilter && (
+            <div key="filter" className="overlay-slot" onPointerDown={() => setFrontOverlay("filter")}>
+              <GreatFilterPanel
+                index={surveyIndex}
+                stars={populationRef.current?.stars ?? []}
+                gate={filterGate}
+                onGate={setFilterGate}
+                onOpenWorld={openWorld}
+                onClose={() => setShowGreatFilter(false)}
+                seed={currentSeed}
+                surveySeed={(s) => surveyClient.survey(s, universeConfig).then((survey) => survey.index)}
+              />
+            </div>
+          )) : (encyclopediaSubject && (
+            <div key="encyclopedia" className="overlay-slot" onPointerDown={() => setFrontOverlay("encyclopedia")}>
+              <EncyclopediaPanel
+                subject={encyclopediaSubject}
+                entryFor={entryFor}
+                actions={entryActions}
+                onClose={() => setEncyclopediaSubject(null)}
+              />
+            </div>
+          )))}
 
         {showTimeline && universeTimeline && (
           <TimelinePanel

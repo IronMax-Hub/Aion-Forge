@@ -27,6 +27,7 @@ import type { Funnel, GateId } from "../simulation/greatFilter";
 import { TECH_STAGE_LABEL } from "../simulation/civilization";
 import { formatGyr, formatInt, formatPercent, formatPressure, formatSig, planetName, starName } from "./format";
 import { formatMass } from "./specimens";
+import { FloatingPanelHeader } from "./FloatingPanelHeader";
 
 interface Props {
   index: UniverseIndex | null;
@@ -272,13 +273,14 @@ function ManySeeds({ seed, surveySeed }: { seed: number; surveySeed: Props["surv
 export function GreatFilterPanel({ index, stars, gate, onGate, onOpenWorld, onClose, seed, surveySeed }: Props) {
   const funnel = useMemo(() => (index ? funnelOf(index) : null), [index]);
   const filterStep = funnel?.steps.find((s) => s.gate.id === funnel.filter) ?? null;
+  const [collapsed, setCollapsed] = useState(false);
   return (
-    <div className="gf-panel" role="dialog" aria-label="Great Filter">
-      <div className="timeline-header">
-        <div className="tl-panel-label">Great Filter</div>
-        <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
-      </div>
-      <div className="gf-body">
+    <div className={`gf-panel${collapsed ? " collapsed" : ""}`} role="dialog" aria-label="Great Filter">
+      <FloatingPanelHeader
+        title="Great Filter" bodyId="gf-body" collapsed={collapsed}
+        onToggle={() => setCollapsed((c) => !c)} onClose={onClose}
+      />
+      <div className="gf-body" id="gf-body" hidden={collapsed}>
         {!index || !funnel ? (
           <p className="gf-text">Waiting for the life survey: the funnel is counted from every world in the universe.</p>
         ) : (

@@ -17,6 +17,7 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { Entry, Sentence, SubjectRef } from "./encyclopedia/entry";
 import { formatGyr } from "./format";
+import { FloatingPanelHeader } from "./FloatingPanelHeader";
 import { subjectKey, subjectLabel } from "./encyclopedia/subjects";
 import { entryDiscovery, entryMarkdown } from "./encyclopedia/export";
 import type { DiscoveryItem } from "../simulation/persistence";
@@ -201,13 +202,14 @@ interface PanelProps extends EntryViewProps {
 
 /** An entry floating over the stage: the galaxy's, or a world's opened from another panel. */
 export function EncyclopediaPanel({ onClose, ...view }: PanelProps) {
+  const [collapsed, setCollapsed] = useState(false);
   return (
-    <div className="encyclopedia-panel" role="dialog" aria-label="Encyclopedia">
-      <div className="timeline-header">
-        <div className="tl-panel-label">Encyclopedia</div>
-        <button className="inspector-btn" onClick={onClose} aria-label="Close">✕</button>
-      </div>
-      <div className="encyclopedia-body">
+    <div className={`encyclopedia-panel${collapsed ? " collapsed" : ""}`} role="dialog" aria-label="Encyclopedia">
+      <FloatingPanelHeader
+        title="Encyclopedia" bodyId="encyclopedia-body" collapsed={collapsed}
+        onToggle={() => setCollapsed((c) => !c)} onClose={onClose}
+      />
+      <div className="encyclopedia-body" id="encyclopedia-body" hidden={collapsed}>
         <EntryView key={subjectKey(view.subject)} {...view} />
       </div>
     </div>

@@ -2083,8 +2083,10 @@
 .entry-link:focus-visible { color: var(--col-accent-hover); }
 
 .entry-fact { display: contents; }
-.entry-facts dd { margin: 0; white-space: normal; }
-.entry-facts { margin: 0; }
+/* Labels keep one line; a long value (a list of planets) wraps beside its label */
+.entry-facts { margin: 0; grid-template-columns: max-content minmax(0, 1fr); }
+.entry-facts dt { white-space: nowrap; }
+.entry-facts dd { margin: 0; white-space: normal; overflow-wrap: anywhere; }
 
 .entry-chronicle,
 .entry-list,
@@ -2245,3 +2247,23 @@ button.gf-row:focus-visible { outline: 1px solid var(--col-accent); }
 .gf-many-count { display: flex; align-items: center; gap: var(--sp-3); }
 .gf-many-count input { width: 56px; }
 .gf-many-status { color: var(--col-text-4); font-family: var(--font-mono); font-size: var(--fs-xs); }
+
+/* Floating panels fold to their title bar, so the galaxy behind them shows */
+.floating-panel-header { gap: var(--sp-4); }
+.floating-panel-title {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.floating-panel-title:focus-visible { outline: 1px solid var(--col-accent); outline-offset: 2px; }
+.floating-panel-controls { display: flex; gap: var(--sp-2); }
+.encyclopedia-panel.collapsed,
+.gf-panel.collapsed { width: 220px; }
+.encyclopedia-panel.collapsed .floating-panel-header,
+.gf-panel.collapsed .floating-panel-header { border-bottom: none; }
+.gf-body[hidden], .encyclopedia-body[hidden] { display: none; }

@@ -78,7 +78,7 @@ const WATER_TRIPLE_POINT_BAR = 0.006117;
 const WATER_VAPORIZATION_J_PER_MOL = 44_000; // over liquid
 const WATER_SUBLIMATION_J_PER_MOL = 51_100;  // over ice
 /** Earth's mean relative humidity near the surface. */
-const RELATIVE_HUMIDITY = 0.77;
+export const RELATIVE_HUMIDITY = 0.77;
 
 /** Saturation vapour pressure, bar, from one anchor point and a latent heat. */
 function saturationBar(temperatureK: number, anchorK: number, anchorBar: number, latentJPerMol: number): number {
@@ -101,7 +101,7 @@ const EARTH_OZONE_MIXING = 3.75e-7;
 
 // ── Nitrous oxide (life) ──────────────────────────────────────────────────────
 
-const EARTH_N2O_BAR = 2.7e-7;     // ~270 ppb before industry
+export const EARTH_N2O_BAR = 2.7e-7;     // ~270 ppb before industry
 /** Earth's living biomass in the engine's units (worldHistory.ts: ~0.55). */
 const EARTH_BIOMASS = 0.55;
 const MICROBE_LOG10_KG = TRAIT_RANGES.log10BodyMassKg.min;
@@ -114,11 +114,11 @@ function lifeN2OBar(totalBiomass: number, o2Bar: number, g: number): number {
 
 // ── Technology (Earth today, per 8 billion people) ────────────────────────────
 
-const EARTH_POPULATION_BILLIONS = 8;
+export const EARTH_POPULATION_BILLIONS = 8;
 const INDUSTRIAL_CO2_BAR = 1.4e-4;     // 280 → 420 ppm since 1750
 const INDUSTRIAL_NO2_BAR = 5e-11;      // tropospheric column ~1e15 molecules/cm², mostly from combustion
-const CFC11_BAR = 2.2e-10;             // ~220 ppt
-const CFC12_BAR = 4.9e-10;             // ~490 ppt
+export const CFC11_BAR = 2.2e-10;             // ~220 ppt
+export const CFC12_BAR = 4.9e-10;             // ~490 ppt
 const INDUSTRIAL_STAGES: TechStage[] = ["industrial", "information", "space-age"];
 const INFORMATION_STAGES: TechStage[] = ["information", "space-age"];
 

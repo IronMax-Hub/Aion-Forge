@@ -291,12 +291,20 @@ function presentSurface(present: PresentClimate, physics: PlanetPhysics, final: 
  * Why a planet is rare, in words, or null if it is not: the one rule behind
  * `isRare`, kept here so the encyclopedia (EN2) can say why without repeating it.
  */
+/** The rarity rules' bounds: temperate ocean worlds, small lava worlds, temperate rocky worlds under moderate air. */
+export const RARE_PLANET = {
+  oceanK: { above: 240, below: 310 },
+  lavaMassBelow: 0.5,
+  rockyK: { above: 220, below: 320 },
+} as const;
+
 export function rareReasonOf(planet: Planet): string | null {
   const tempK = planet.temperature;
-  if (planet.type === "ocean" && tempK > 240 && tempK < 310) return "a temperate ocean world, 240–310 K";
-  if (planet.type === "lava" && planet.mass < 0.5) return "a lava world under half an Earth mass";
-  if (planet.type === "rocky" && tempK > 220 && tempK < 320 && planet.atmosphere === "moderate") {
-    return "a temperate rocky world, 220–320 K, under moderate air";
+  const { oceanK, lavaMassBelow, rockyK } = RARE_PLANET;
+  if (planet.type === "ocean" && tempK > oceanK.above && tempK < oceanK.below) return `a temperate ocean world, ${oceanK.above}–${oceanK.below} K`;
+  if (planet.type === "lava" && planet.mass < lavaMassBelow) return "a lava world under half an Earth mass";
+  if (planet.type === "rocky" && tempK > rockyK.above && tempK < rockyK.below && planet.atmosphere === "moderate") {
+    return `a temperate rocky world, ${rockyK.above}–${rockyK.below} K, under moderate air`;
   }
   return null;
 }

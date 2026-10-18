@@ -822,6 +822,12 @@ Giant planets build satellite systems in the disks around them, and those moons 
   - Draws: the moon from `SALT.MOON`; the wander from the WORLD stream with a new purpose, `PURPOSE.TILT = 4`.
   - The bounded walk (σ = 5° per step, within ±20°) is a modelling choice. Lissauer et al. (2012) motivate its range, but in nature the wander comes from resonances between the planet's precession and its neighbours' orbits, which are not simulated.
 - **Verification:** A planet with a stabilising moon keeps its tilt exactly; wandering tilts stay within bounds; band insolation follows `relativeInsolation`; determinism.
+- **Built** 19 Oct 2026, rules v14.
+  - `moons.ts`: `largeMoonOf` (`LARGE_MOON`, `TILT_HOLDING_RATIO`), sharing `makeMoon` with the giants' moons. A large moon takes the planets' water rule (impact debris is not ice-rich).
+  - `planet.ts` now draws every planet first, then completes each world, so a planet knows its siblings; the draws are unchanged.
+  - `Planet.tiltFree` = siblings and no holding moon. `worldHistory.ts`: `TILT_WANDER`, `PURPOSE.TILT`, `WorldState.axialTiltDeg`. The bands, the present-day solve and life's environment (`environmentFor`) follow the step's tilt.
+  - Seed 100000: 1,570 of 6,549 rocky planets have a large moon (24%), and 633 of those moons hold their planet's tilt. 5,788 tilts are free to wander. 395 large moons are worlds, and 10 have life today.
+  - Funnel: 6,549 / 3,034 / 2,302 / 425 / 161 / 123 / 29 / 14 / 8 / 7 / 0 / 0.
 
 #### MO6 Moons on screen
 `presentation` · **M**

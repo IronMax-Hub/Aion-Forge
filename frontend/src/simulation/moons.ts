@@ -144,6 +144,34 @@ function listedToday(
   return { heatFlowWm2, waterKm, shellKm: Math.min(waterKm, iceShellKm(heatFlowWm2, surfaceK)) };
 }
 
+/** One moon of a planet, from its mass, orbit and draws: what every moon shares. */
+function makeMoon(
+  planet: Planet, star: Star, galaxySeed: number, orbitAU: number, axialTiltDeg: number,
+  moonIndex: number, mass: number, orbit: number, sizeDraw: number, waterInventory: number, airDraw: number,
+): Moon {
+  const orbitKm = orbit * planet.size * EARTH_RADIUS_KM;
+  const periodSeconds = 2 * Math.PI * Math.sqrt((orbitKm * orbitKm * orbitKm) / (EARTH_GM_KM3_S2 * planet.mass));
+  const own = ownDraws(galaxySeed, planet.hostStarId, planet.id, moonIndex);
+  const size = typicalRadiusForMass(mass) * (0.8 + sizeDraw * 0.4);
+  return {
+    hostStarId: planet.hostStarId,
+    id: planet.id,
+    moonIndex,
+    key: moonKey(planet.hostStarId, planet.id, moonIndex),
+    mass,
+    size,
+    orbitPlanetRadii: orbit,
+    orbitalPeriodHours: periodSeconds / SECONDS_PER_HOUR,
+    axialTiltDeg,
+    waterInventory,
+    formationAtmosphere: atmosphereFromDraw(airDraw),
+    eccentricity: own.eccentricity,
+    resourceAbundance: own.resourceAbundance,
+    ...listedToday(star, orbitAU, planet, { mass, size, orbitPlanetRadii: orbit, eccentricity: own.eccentricity, waterInventory }),
+    world: null,
+  };
+}
+
 /** The regular moons a giant's disk builds. */
 export function moonsOf(giant: Planet, star: Star, galaxySeed: number, config: UniverseConfig): Moon[] {
   const rng = createRNG(mixSeed(galaxySeed, ...bodyKey(giant), SALT.MOON));
@@ -156,7 +184,6 @@ export function moonsOf(giant: Planet, star: Star, galaxySeed: number, config: U
   const physics = derivePhysics(giant, star, galaxySeed, config);
   const orbitAU = effectiveOrbitAU(giant.orbitalRadius, config);
   const beyondSnowLine = orbitAU >= physics.snowLineAU;
-  const planetRadiusKm = giant.size * EARTH_RADIUS_KM;
 
   const moons: Moon[] = [];
   let orbit = 0;
@@ -172,30 +199,50 @@ export function moonsOf(giant: Planet, star: Star, galaxySeed: number, config: U
     if (orbit > limit) continue;
 
     const mass = systemMass * (bounds[i + 1] - bounds[i]);
-    const orbitKm = orbit * planetRadiusKm;
-    const periodSeconds = 2 * Math.PI * Math.sqrt((orbitKm * orbitKm * orbitKm) / (EARTH_GM_KM3_S2 * giant.mass));
-    const own = ownDraws(galaxySeed, giant.hostStarId, giant.id, i);
-    const size = typicalRadiusForMass(mass) * (0.8 + sizeDraw * 0.4);
     const waterInventory = beyondSnowLine
       ? MOON_WATER.unitsPerShare * (MOON_WATER.minShare + (MOON_WATER.maxShare - MOON_WATER.minShare) * waterDraw)
       : planetWaterInventory(orbitAU, physics.snowLineAU, mass, waterDraw);
-    moons.push({
-      hostStarId: giant.hostStarId,
-      id: giant.id,
-      moonIndex: i,
-      key: moonKey(giant.hostStarId, giant.id, i),
-      mass,
-      size,
-      orbitPlanetRadii: orbit,
-      orbitalPeriodHours: periodSeconds / SECONDS_PER_HOUR,
-      axialTiltDeg: physics.axialTiltDeg,
-      waterInventory,
-      formationAtmosphere: atmosphereFromDraw(airDraw),
-      eccentricity: own.eccentricity,
-      resourceAbundance: own.resourceAbundance,
-      ...listedToday(star, orbitAU, giant, { mass, size, orbitPlanetRadii: orbit, eccentricity: own.eccentricity, waterInventory }),
-      world: null,
-    });
+    moons.push(makeMoon(giant, star, galaxySeed, orbitAU, physics.axialTiltDeg, i, mass, orbit, sizeDraw, waterInventory, airDraw));
   }
   return moons;
+}
+
+// ── Large moons of rocky planets (MO5) ────────────────────────────────────────
+//
+// A rocky planet may gain one large moon from a giant impact, which is not
+// simulated, so it is a roll, as the origin of life is: one chance in four
+// (one of the Sun's four rocky planets has one). Its mass is a log-uniform
+// share of the planet's (the Moon: 0.0123), its orbit 30–60 planet radii. It
+// takes the planets' water rule (impact debris is not ice-rich). A moon of 1%
+// of its planet's mass or more holds the planet's tilt steady (decision 12).
+// Draws come from the planet's own moon stream, mixSeed(galaxySeed,
+// ...bodyKey(planet), SALT.MOON).
+
+/** A rocky planet's large moon: its chance, its share of the planet's mass (log-uniform) and its orbit (planet radii). */
+export const LARGE_MOON = {
+  chance: 0.25,
+  massRatio: { min: 0.002, max: 0.03 },
+  orbitPlanetRadii: { min: 30, max: 60 },
+} as const;
+/** A moon of at least this share of its planet's mass holds the planet's tilt steady (decision 12). */
+export const TILT_HOLDING_RATIO = 0.01;
+
+/** A rocky planet's large moon, or null: one roll, then its mass, orbit, size, water and air, in a fixed order. */
+export function largeMoonOf(planet: Planet, star: Star, galaxySeed: number, config: UniverseConfig): Moon | null {
+  const rng = createRNG(mixSeed(galaxySeed, ...bodyKey(planet), SALT.MOON));
+  const roll = rng();
+  const ratioDraw = rng();
+  const orbitDraw = rng();
+  const sizeDraw = rng();
+  const waterDraw = rng();
+  const airDraw = rng();
+  if (roll >= LARGE_MOON.chance) return null;
+
+  const { massRatio, orbitPlanetRadii } = LARGE_MOON;
+  const mass = planet.mass * massRatio.min * pow(massRatio.max / massRatio.min, ratioDraw);
+  const orbit = orbitPlanetRadii.min + (orbitPlanetRadii.max - orbitPlanetRadii.min) * orbitDraw;
+  const physics = derivePhysics(planet, star, galaxySeed, config);
+  const orbitAU = effectiveOrbitAU(planet.orbitalRadius, config);
+  const waterInventory = planetWaterInventory(orbitAU, physics.snowLineAU, mass, waterDraw);
+  return makeMoon(planet, star, galaxySeed, orbitAU, physics.axialTiltDeg, 0, mass, orbit, sizeDraw, waterInventory, airDraw);
 }

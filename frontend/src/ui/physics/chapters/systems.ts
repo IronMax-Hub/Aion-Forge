@@ -12,7 +12,11 @@ import {
 } from "../../../simulation/planetPhysics";
 import { EQUILIBRIUM_K_AT_1_AU } from "../../../simulation/climate";
 import { EARTH_HEAT_FLOW_W_M2, interiorHeatFlow, interiorTemperatureK, TIDAL_K2_OVER_Q } from "../../../simulation/interiorHeat";
-import { FIRST_MOON_ORBIT, HILL_SHARE, MOON_COUNT, MOON_ECCENTRICITY, MOON_SPACING, MOON_WATER, SATELLITE_MASS_RATIO } from "../../../simulation/moons";
+import {
+  FIRST_MOON_ORBIT, HILL_SHARE, LARGE_MOON, MOON_COUNT, MOON_ECCENTRICITY, MOON_SPACING, MOON_WATER, SATELLITE_MASS_RATIO,
+  TILT_HOLDING_RATIO,
+} from "../../../simulation/moons";
+import { TILT_WANDER } from "../../../simulation/worldHistory";
 import { ATMOSPHERE_CODES, INDEX_FLAG, PLANET_TYPE_CODES } from "../../../simulation/universeIndex";
 import type { UniverseIndex } from "../../../simulation/universeIndex";
 import { formatInt, formatPercent, formatSig, PLANET_TYPE_LABEL } from "../../format";
@@ -132,6 +136,7 @@ export const systems: Chapter = {
         { name: "Ice-rich water", value: `${formatPercent(MOON_WATER.minShare)}–${formatPercent(MOON_WATER.maxShare)} of the mass`, meaning: `Beyond the snow line, W = ${MOON_WATER.unitsPerShare} × the share (decision 35); inside it, the planets' rule` },
         { name: "Eccentricity", value: `${MOON_ECCENTRICITY.min}–${MOON_ECCENTRICITY.max}`, meaning: "Log-uniform, a stand-in for the resonances that keep the Galilean moons' orbits eccentric (MO3)" },
         { name: "Tidal k₂/Q", value: exact(TIDAL_K2_OVER_Q), meaning: "Io's, for every moon (decision 34): Io 2.2 W/m², Europa 0.2 W/m²" },
+        { name: "Large moons of rocky planets", value: `${formatPercent(LARGE_MOON.chance)} chance`, meaning: `Mass ${formatPercent(LARGE_MOON.massRatio.min)}–${formatPercent(LARGE_MOON.massRatio.max)} of the planet's, ${LARGE_MOON.orbitPlanetRadii.min}–${LARGE_MOON.orbitPlanetRadii.max} planet radii out: a roll for the giant impacts that are not simulated (MO5)` },
       ],
       why: "Regular moons form in a giant's own disk, as the Galilean moons did; one share of mass and one spacing rule give systems like Jupiter's, and super-Jupiters moons heavier than Mars.",
       source: "Canup & Ward 2006; the Galilean moons",
@@ -229,13 +234,16 @@ export const bodies: Chapter = {
     {
       id: "spin-tilt",
       title: "Day length and tilt",
-      statement: "A free planet's day is drawn between 8 and 60 hours on a logarithmic scale; its tilt is usually under 35°, sometimes up to 90°.",
+      statement: "A free planet's day is drawn between 8 and 60 hours on a logarithmic scale; its tilt is usually under 35°, sometimes up to 90°. Without a large moon to hold it, a tilt wanders through a world's history as the other planets pull on it; a planet alone, or locked to its star, keeps its tilt.",
       rule: `day = ${ROTATION_HOURS.min} × (${ROTATION_HOURS.max} / ${ROTATION_HOURS.min})^draw h; tilt: ${formatPercent(TILT.lowShare)} of planets 0–${TILT.lowMaxDeg}°, the rest ${TILT.lowMaxDeg}–${TILT.maxDeg}°`,
-      constants: [],
-      why: "Day length and tilt shape where sunlight falls: tilt moves heat towards the poles.",
-      limits: ["Tilts never change: without a large moon a real tilt can wander (step 5)."],
+      constants: [
+        { name: "Tilt wander", value: `σ ${TILT_WANDER.stepSigmaDeg}° per step, within ±${TILT_WANDER.rangeDeg}°`, meaning: "A bounded walk motivated by Lissauer et al. 2012 (decision 12); the resonances that drive it are not simulated" },
+        { name: "Holding moon", value: `≥ ${formatPercent(TILT_HOLDING_RATIO)} of the planet's mass`, meaning: "Holds its planet's tilt steady (the Moon: 1.2%)" },
+      ],
+      why: "Day length and tilt shape where sunlight falls: tilt moves heat towards the poles. Earth's Moon keeps its tilt within a few degrees; Mars, with no large moon, has swung far more (Laskar et al. 1993).",
+      limits: ["The walk stands in for resonances between a planet's precession and its siblings' orbits, which are not simulated."],
       laws: [],
-      code: "simulation/planetPhysics.ts · ROTATION_HOURS, TILT",
+      code: "simulation/planetPhysics.ts · ROTATION_HOURS, TILT; simulation/worldHistory.ts · TILT_WANDER (MO5)",
       noEffect: "Day length and tilt are not kept in the universe index; each planet's panel shows its own.",
     },
     {

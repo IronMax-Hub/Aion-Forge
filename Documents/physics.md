@@ -264,3 +264,13 @@ Moons of at least 0.018 M⊕ are worlds (decision 11). Their streams are keyed b
 - 325 are above 373 K: tidally overheated inner moons of the heaviest giants. No ceiling is applied (decision 29, counted in MO7).
 
 **Fixed with MO4.** Water under an ice shell stays liquid below water's triple point. IH3 had counted it frozen, which hid airless worlds' oceans. With the fix, life-bearing planets rose from 1,381 to 1,583.
+
+### Large moons and wandering tilts (MO5)
+
+| Constant | Value | Why |
+|---|---|---|
+| `LARGE_MOON` | 25% chance; 0.2–3% of the planet's mass; 30–60 planet radii | A roll for the giant impacts that are not simulated (one of the Sun's four rocky planets has a large moon; the Moon is 1.23% of Earth) |
+| `TILT_HOLDING_RATIO` | 1% | A moon at least this heavy holds its planet's tilt steady |
+| `TILT_WANDER` | σ 5° per step, within ±20° | A bounded walk, motivated by Lissauer et al. 2012 (decision 12). Only planets with siblings wander, and none locked to its star |
+
+Seed 100000: 24% of rocky planets have a large moon, and 633 hold their planet's tilt. 5,788 tilts wander. 395 large moons are worlds, and 10 carry life today.

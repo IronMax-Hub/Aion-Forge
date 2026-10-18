@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { HILL_SHARE, MOON_COUNT, MOON_ECCENTRICITY, MOON_WATER, moonOrbitLimit, moonsOf, SATELLITE_MASS_RATIO } from "../simulation/moons";
+import { HILL_SHARE, LARGE_MOON, MOON_COUNT, MOON_ECCENTRICITY, MOON_WATER, TILT_HOLDING_RATIO, moonOrbitLimit, moonsOf, SATELLITE_MASS_RATIO } from "../simulation/moons";
 import { generatePlanetsFor, GIANT_PLANET_MASS, solidWorldOf } from "../simulation/planet";
 import { PLANET_MASS_DRAW } from "../simulation/planetBasics";
 import { buildGeography } from "../simulation/geography";
@@ -30,13 +30,13 @@ const jupiter: Planet = {
 };
 
 describe("regular moons of giants (MO2)", () => {
-  it("give every giant its moons, and solid planets none yet", () => {
+  it("give every giant its moons, and solid planets at most one large moon (MO5)", () => {
     expect(giants.length).toBeGreaterThan(50);
     // A system's moons are moonsOf's, with the worlds of the large ones added (MO4)
     const withoutWorlds = (moons: Planet["moons"]) => moons.map((m) => ({ ...m, world: null }));
     for (const { planet } of giants) expect(withoutWorlds(planet.moons)).toEqual(moonsOf(planet, stars.find((s) => s.id === planet.hostStarId)!, seed, config));
     for (const star of stars.slice(0, 50)) {
-      for (const p of generatePlanetsFor(star, seed, config).planets) if (p.mass <= GIANT_PLANET_MASS) expect(p.moons).toEqual([]);
+      for (const p of generatePlanetsFor(star, seed, config).planets) if (p.mass <= GIANT_PLANET_MASS) expect(p.moons.length).toBeLessThanOrEqual(1);
     }
   });
 
@@ -180,5 +180,33 @@ describe("moons as worlds (MO4)", () => {
       }
     }
     expect(survey.lifeBearingMoons).toBe(living);
+  });
+});
+
+describe("large moons of rocky planets (MO5)", () => {
+  const rocky = stars.flatMap((star) => generatePlanetsFor(star, seed, config).planets
+    .filter((p) => p.mass <= GIANT_PLANET_MASS).map((planet) => ({ planet, star })));
+
+  it("come to about one rocky planet in four, within the drawn ranges", () => {
+    const withMoon = rocky.filter(({ planet }) => planet.moons.length > 0);
+    expect(withMoon.length / rocky.length).toBeGreaterThan(0.18);
+    expect(withMoon.length / rocky.length).toBeLessThan(0.32);
+    for (const { planet } of withMoon) {
+      const [moon] = planet.moons;
+      expect(planet.moons).toHaveLength(1);
+      expect(moon.mass / planet.mass).toBeGreaterThanOrEqual(LARGE_MOON.massRatio.min * (1 - 1e-12));
+      expect(moon.mass / planet.mass).toBeLessThanOrEqual(LARGE_MOON.massRatio.max * (1 + 1e-12));
+      expect(moon.orbitPlanetRadii).toBeGreaterThanOrEqual(LARGE_MOON.orbitPlanetRadii.min);
+      expect(moon.orbitPlanetRadii).toBeLessThanOrEqual(LARGE_MOON.orbitPlanetRadii.max);
+      expect(moon.world !== null).toBe(moon.mass >= PLANET_MASS_DRAW.min);
+    }
+  });
+
+  it("free a planet's tilt only without a holding moon, and only among siblings", () => {
+    for (const { planet, star } of rocky) {
+      const siblings = generatePlanetsFor(star, seed, config).planets.length > 1;
+      const holds = planet.moons.some((m) => m.mass / planet.mass >= TILT_HOLDING_RATIO);
+      expect(planet.tiltFree).toBe(siblings && !holds);
+    }
   });
 });

@@ -87,7 +87,7 @@
 // - All constants are starting values, to be tuned in C2.10 with the reasons
 //   recorded in Documents/evolution.md.
 
-import { createRNG, mixSeed, SALT } from "./rng";
+import { createRNG, gaussian, mixSeed, SALT } from "./rng";
 import { exp } from "./detmath";
 import type { Planet } from "./planet";
 import { effectiveOrbitAU } from "./planetBasics";
@@ -172,7 +172,16 @@ export const VOLCANIC_PULSE_PER_GYR = 4;            // at τ = 1
 export const VOLCANIC_PULSE_OUTGASSING = 2;         // outgassing multiplier during a pulse
 
 /** Draw purposes within the WORLD stream: each step's draw for each purpose is its own. */
-const PURPOSE = { IMPACT: 1, VOLCANISM: 2, ORIGIN: 3 } as const;
+const PURPOSE = { IMPACT: 1, VOLCANISM: 2, ORIGIN: 3, TILT: 4 } as const;
+
+// Tilt wander (MO5, decision 12). Without a large moon to hold it, a planet's
+// tilt wanders as its precession resonates with its siblings' orbits (Laskar et
+// al. 1993). Each step adds a normal step with σ = 5°, reflected to stay within
+// ±20° of the formation tilt and within 0–90° (Lissauer, Barnes & Chambers 2012
+// motivate the range). The bounded walk is a modelling choice: the resonances
+// themselves are not simulated. A planet alone in its system, or locked to its
+// star (its bands face the star), keeps its tilt.
+export const TILT_WANDER = { stepSigmaDeg: 5, rangeDeg: 20 } as const;
 
 // Life (C2.3b). Origin: a chance per Gyr per unit of liquid-water area (a share
 // of the planet), × emergenceSensitivity; set so an Earth-like world (70%
@@ -232,6 +241,8 @@ export interface WorldState {
   airRetained: number;
   pressureBar: number;
   meanK: number;
+  /** The tilt this step, degrees: the formation tilt, or where it has wandered (MO5). */
+  axialTiltDeg: number;
   steam: boolean;            // oceans boiled into the air
   iceFraction: number;
   openOceanFraction: number;
@@ -333,6 +344,13 @@ function solveIncreasing(f: (x: number) => number, lo: number, hi: number): numb
   return (lo * fHi - hi * fLo) / (fHi - fLo);
 }
 
+/** A value folded back into [lo, hi] at its ends, as a walk reflects off walls. */
+function reflectInto(x: number, lo: number, hi: number): number {
+  let y = x;
+  while (y < lo || y > hi) y = y < lo ? 2 * lo - y : 2 * hi - y;
+  return y;
+}
+
 /** Whether this step's draw for a purpose happens, at a rate per Gyr. */
 function happens(galaxySeed: number, planet: Planet, step: number, purpose: number, ratePerGyr: number, dtGyr: number): boolean {
   const draw = createRNG(mixSeed(galaxySeed, ...bodyKey(planet), SALT.WORLD, step, purpose))();
@@ -356,7 +374,13 @@ export function runWorldHistory(
   const startDose = xuvDose(star, orbitAU, 0, startGyr);
   const startRetained = airRetained(startDose, physics.escapeVelocityKms);
   let backgroundBar = formationBackgroundBar * startRetained;
-  const geometry = bandGeometry(physics.axialTiltDeg, physics.tidallyLocked);
+  let geometry = bandGeometry(physics.axialTiltDeg, physics.tidallyLocked);
+  const tiltWanders = planet.tiltFree === true && !physics.tidallyLocked;
+  const tiltRange = {
+    lo: Math.max(0, physics.axialTiltDeg - TILT_WANDER.rangeDeg),
+    hi: Math.min(90, physics.axialTiltDeg + TILT_WANDER.rangeDeg),
+  };
+  let axialTiltDeg = physics.axialTiltDeg;
   const msEnd = mainSequenceEndGyr(star);
 
   // Formation: warm, ice-free, with the water it was born with
@@ -376,6 +400,7 @@ export function runWorldHistory(
     airRetained: startRetained,
     pressureBar: backgroundBar + INITIAL_CO2_BAR * startRetained,
     meanK: 0,
+    axialTiltDeg: physics.axialTiltDeg,
     steam: false,
     iceFraction: 0,
     openOceanFraction: 0,
@@ -476,6 +501,12 @@ export function runWorldHistory(
     backgroundBar = formationBackgroundBar * retained;
     if (formationBackgroundBar > 0 && state.airRetained > 0 && retained === 0) events.push({ kind: "air-lost", tGyr: t });
     const tau = interiorActivity(planet, t);
+    // The tilt wanders without a large moon to hold it (MO5); the bands' sunlight follows it
+    if (tiltWanders) {
+      const tiltStep = TILT_WANDER.stepSigmaDeg * gaussian(createRNG(mixSeed(galaxySeed, ...bodyKey(planet), SALT.WORLD, step, PURPOSE.TILT)));
+      axialTiltDeg = reflectInto(axialTiltDeg + tiltStep, tiltRange.lo, tiltRange.hi);
+      geometry = bandGeometry(axialTiltDeg, physics.tidallyLocked);
+    }
     const interiorK = interiorTemperatureK(interiorHeatFlow(planet, t));
     if (star.age >= msEnd && t0 < msEnd && t >= msEnd) events.push({ kind: "star-leaves-main-sequence", tGyr: msEnd });
 
@@ -607,7 +638,7 @@ export function runWorldHistory(
       ozone: Math.min(1, Math.sqrt(o2 / O2_REFERENCE_BAR)), unoxidisedCrust,
       backgroundBar, xuvDose: dose, airRetained: retained,
       pressureBar: pressureOf(co2, o2, ch4, water, steam),
-      meanK: climate.meanK, steam, iceFraction: climate.iceFraction,
+      meanK: climate.meanK, axialTiltDeg, steam, iceFraction: climate.iceFraction,
       openOceanFraction: climate.openOceanFraction, openLandFraction: climate.openLandFraction,
       bandK: climate.bandK, iced: climate.iced, bandOcean: Float64Array.from(bandOcean), bandLiquid,
       lightBiomass: 0, chemicalBiomass: 0, totalBiomass: 0,
@@ -657,7 +688,7 @@ export function runWorldHistory(
   const present = solvePresentClimate(geography, {
     luminosity: state.luminosity, orbitAU, pressureBar: state.pressureBar, co2Bar: state.co2Bar,
     ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water), interiorK: interiorTemperatureK(interiorHeatFlow(planet, state.tGyr)),
-  }, seaLevelKm, state.steam, physics.axialTiltDeg, physics.tidallyLocked, state.iced);
+  }, seaLevelKm, state.steam, state.axialTiltDeg, physics.tidallyLocked, state.iced);
 
   const phylogeny = life && summarizePhylogeny(life, mind, state.tGyr);
   return { final: state, present, events, steps: stepCount, snapshots, life, phylogeny, everLiquidWater, lifeOxygenGyr };

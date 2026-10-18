@@ -10,7 +10,7 @@ import {
 } from "./planetBasics";
 import { derivePhysics, atmosphereClassOf } from "./planetPhysics";
 import { moonsOf } from "./moons";
-import { moonOrbitOf } from "./moons";
+import { largeMoonOf, moonOrbitOf, TILT_HOLDING_RATIO } from "./moons";
 import type { Moon, MoonOrbit } from "./moons";
 import { moonKey } from "./bodyKey";
 import type { PlanetPhysics } from "./planetPhysics";
@@ -74,6 +74,8 @@ export interface Planet {
   moonIndex?: number;
   /** Set for a moon world (MO4): its orbit around its planet, which its physics reads. */
   moonOrbit?: MoonOrbit;
+  /** True when no large moon holds the tilt and other planets' pull makes it wander (MO5, decision 12). */
+  tiltFree?: boolean;
 }
 
 /** A planet's life: its dates, Gyr after its star formed, and what its lineages became (C2.5). */
@@ -495,24 +497,31 @@ export function generatePlanetsFor(
       moons: [],
     };
 
-    if (mass > GIANT_PLANET_MASS) {
-      planet.type = giantType(equilibriumK);
-      planet.moons = moonsOf(planet, star, galaxySeed, config);
-      // Moons of at least the smallest planet's mass are worlds (decision 11)
-      for (const moon of planet.moons) {
-        if (moon.mass >= PLANET_MASS_DRAW.min) moon.world = moonWorld(moon, planet, star, galaxySeed, config, worldOf);
-      }
-    } else {
-      completeSolidWorld(planet, star, galaxySeed, config, worldOf);
-    }
-    planet.habitabilityScore = calcHabitability(planet.type, planet.atmosphere, resourceAbundance, planet.surface);
-
-    planet.isRare = rareReasonOf(planet) !== null;
     return planet;
   });
 
   // Survivors keep their index, id and key: a missing planet leaves a gap, as it would in a catalogue
   const survivors = planets.filter((planet): planet is Planet => planet !== null);
+  // Every draw above is taken; now each world is completed, knowing its siblings (MO5)
+  const hasSiblings = survivors.length > 1;
+  for (const planet of survivors) {
+    if (planet.mass > GIANT_PLANET_MASS) {
+      planet.type = giantType(planet.temperature);
+      planet.moons = moonsOf(planet, star, galaxySeed, config);
+    } else {
+      const large = largeMoonOf(planet, star, galaxySeed, config);
+      if (large) planet.moons = [large];
+      // A large moon holds its planet's tilt steady; without one, the other planets' pull makes it wander (decision 12)
+      planet.tiltFree = hasSiblings && !(large && large.mass / planet.mass >= TILT_HOLDING_RATIO);
+      completeSolidWorld(planet, star, galaxySeed, config, worldOf);
+    }
+    // Moons of at least the smallest planet's mass are worlds (decision 11)
+    for (const moon of planet.moons) {
+      if (moon.mass >= PLANET_MASS_DRAW.min) moon.world = moonWorld(moon, planet, star, galaxySeed, config, worldOf);
+    }
+    planet.habitabilityScore = calcHabitability(planet.type, planet.atmosphere, planet.resourceAbundance, planet.surface);
+    planet.isRare = rareReasonOf(planet) !== null;
+  }
   return { hostStarId: star.id, galaxySeed, planets: survivors, engulfed, tooSmall };
 }
 

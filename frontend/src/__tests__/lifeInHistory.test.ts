@@ -39,7 +39,9 @@ const earths = Array.from({ length: 40 }, (_, copy) => earth(copy));
 
 const seed = 100000;
 const config = makeConfig(seed);
-const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 100);
+const allStars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
+// The first hundred systems, and the first two with a mind (minds are rare from rules v14: stars 288 and 297)
+const stars = [...allStars.slice(0, 100), allStars[288], allStars[297]];
 const worlds = stars.flatMap((star) => generatePlanetsFor(star, seed, config).planets
   .filter((planet) => planet.surface !== null)
   .map((planet) => {

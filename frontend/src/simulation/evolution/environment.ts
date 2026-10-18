@@ -134,7 +134,10 @@ export interface EnvironmentContext {
   star: Star;
   orbitAU: number;
   gravity: number;
+  /** The bands at the formation tilt; a step whose tilt has wandered (MO5) gets its own. */
   geometry: BandGeometry;
+  axialTiltDeg: number;
+  tidallyLocked: boolean;
 }
 
 // ── Star ──────────────────────────────────────────────────────────────────────
@@ -182,12 +185,15 @@ export function environmentContext(planet: Planet, physics: PlanetPhysics, star:
     orbitAU: effectiveOrbitAU(planet.orbitalRadius, config),
     gravity: physics.surfaceGravity,
     geometry: bandGeometry(physics.axialTiltDeg, physics.tidallyLocked),
+    axialTiltDeg: physics.axialTiltDeg,
+    tidallyLocked: physics.tidallyLocked,
   };
 }
 
 /** What life meets during one step: the step's snapshot read as pressures. */
 export function environmentFor(step: WorldSnapshot, context: EnvironmentContext): Environment {
-  const { star, orbitAU, gravity, geometry } = context;
+  const { star, orbitAU, gravity } = context;
+  const geometry = step.axialTiltDeg === context.axialTiltDeg ? context.geometry : bandGeometry(step.axialTiltDeg, context.tidallyLocked);
   const starTemperatureK = temperatureAt(star, step.tGyr);
   const flux = step.luminosity / (orbitAU * orbitAU);
   const transmission = airTransmission(step.pressureBar);

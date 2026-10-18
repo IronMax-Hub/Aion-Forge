@@ -11,6 +11,8 @@ import type { Star } from "../simulation/star";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { makeConfig } from "../simulation/config";
 import { EARTH_HEAT_FLOW_W_M2, iceShellKm } from "../simulation/interiorHeat";
+import { environmentContext, environmentFor } from "../simulation/evolution/environment";
+import { bandGeometry } from "../simulation/climate";
 
 const sun: Star = {
   id: 1, position: [0, 0, 0], mass: 1, age: 4.6, lifespan: 10, temperature: 5772, luminosity: 1,
@@ -297,5 +299,42 @@ describe("ice shells (IH3)", () => {
     expect(s[at].bandLiquid.every((share) => share === 0)).toBe(true);
     expect(s[at - 1].bandLiquid.some((share) => share > 0)).toBe(true);
     expect(h.everLiquidWater).toBe(true);
+  });
+});
+
+describe("tilts that wander (MO5, decision 12)", () => {
+  it("keeps the tilt exactly when a large moon holds it, or the planet is alone", () => {
+    const held = history({ planet: { tiltFree: false }, lifeless: true });
+    for (const s of held.snapshots!) expect(s.axialTiltDeg).toBe(earthPhysics.axialTiltDeg);
+  });
+
+  it("lets a free tilt wander within ±20° of its start and within 0–90°", () => {
+    for (const tilt of [3, 23, 85]) {
+      const h = history({ planet: { tiltFree: true }, physics: { axialTiltDeg: tilt }, lifeless: true });
+      const tilts = h.snapshots!.map((s) => s.axialTiltDeg);
+      expect(new Set(tilts).size).toBeGreaterThan(10);
+      for (const t of tilts) {
+        expect(t).toBeGreaterThanOrEqual(Math.max(0, tilt - 20));
+        expect(t).toBeLessThanOrEqual(Math.min(90, tilt + 20));
+      }
+      expect(history({ planet: { tiltFree: true }, physics: { axialTiltDeg: tilt }, lifeless: true }).snapshots!.map((s) => s.axialTiltDeg)).toEqual(tilts);
+    }
+  });
+
+  it("does not wander on a planet locked to its star", () => {
+    const h = history({ planet: { tiltFree: true }, physics: { tidallyLocked: true }, lifeless: true });
+    for (const s of h.snapshots!) expect(s.axialTiltDeg).toBe(earthPhysics.axialTiltDeg);
+  });
+
+  it("gives life the sunlight of the tilt it has wandered to", () => {
+    const h = history({ planet: { tiltFree: true }, lifeless: true });
+    const physics = { ...earthPhysics };
+    const context = environmentContext(planet({ tiltFree: true }), physics, sun, makeConfig(42));
+    const wandered = h.snapshots!.find((s) => s.axialTiltDeg !== earthPhysics.axialTiltDeg)!;
+    const expected = bandGeometry(wandered.axialTiltDeg, false);
+    const flux = wandered.luminosity;
+    environmentFor(wandered, context).bands.forEach((b, k) => {
+      expect(b.light / (flux * expected.insolation[k])).toBeCloseTo(environmentFor(wandered, context).airTransmission, 12);
+    });
   });
 });

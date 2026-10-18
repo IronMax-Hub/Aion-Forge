@@ -24,6 +24,10 @@
 // Since MZ5: metallicity, from the index and the stars: the median [Fe/H] by
 // star age, and by [Fe/H] the planets per star, the giant and solid shares, the
 // median solid planet's mass and the worlds living today.
+//
+// Since IH4: heat from inside, from each history as it goes by: worlds living
+// today that are frozen over, worlds frozen solid today (water, none of it
+// liquid), and worlds whose life ended when their oceans froze solid.
 
 import { makeConfig, PRESETS } from "../src/simulation/config";
 import { buildGalaxyConfig } from "../src/simulation/galaxy";
@@ -35,7 +39,7 @@ import { generatePlanetsFor, GIANT_PLANET_MASS } from "../src/simulation/planet"
 import type { Planet, SolidWorld } from "../src/simulation/planet";
 import { derivePhysics } from "../src/simulation/planetPhysics";
 import { buildGeography } from "../src/simulation/geography";
-import { runWorldHistory, FORMATION_DELAY_GYR } from "../src/simulation/worldHistory";
+import { runWorldHistory, FORMATION_DELAY_GYR, FROZEN_ICE_SHARE, STEP_GYR } from "../src/simulation/worldHistory";
 import type { UniverseConfig } from "../src/simulation/config";
 import { EARTH_PATH, firstsOrder } from "./earthPath";
 import { CONDITIONS, funnelOf, GATES } from "../src/simulation/greatFilter";
@@ -64,6 +68,9 @@ export interface Histories {
   medianLifeStartGyr: number;  // after the loop's start, over worlds where life began
   /** Worlds with a mind, by the order of their firsts (earthPath.ts, C2.10). */
   mindOrders: Record<string, number>;
+  livingFrozenOver: number;    // living today and frozen over (IH4)
+  frozenSolidToday: number;    // water today, none of it liquid (IH4)
+  lifeEndedFrozenSolid: number; // life ended within a step of its oceans freezing solid (IH4)
   ms: number;                  // summed over every solid planet
 }
 
@@ -117,7 +124,10 @@ export function measureUniverse(presetName: string, seed: number): Row {
   const oceans: number[] = [];
   const lifeStarts: number[] = [];
   const mindOrders: Record<string, number> = {};
-  const counts = { froze: 0, runaway: 0, oceansLost: 0, oxidised: 0, liquidToday: 0, noLand: 0, noLandRunaway: 0, everLife: 0, living: 0 };
+  const counts = {
+    froze: 0, runaway: 0, oceansLost: 0, oxidised: 0, liquidToday: 0, noLand: 0, noLandRunaway: 0, everLife: 0, living: 0,
+    livingFrozenOver: 0, frozenSolidToday: 0, lifeEndedFrozenSolid: 0,
+  };
   let geographyMs = 0;
   let historyMs = 0;
   // The same steps as solidWorldOf, timed, with each history read and let go
@@ -141,10 +151,18 @@ export function measureUniverse(presetName: string, seed: number): Row {
       counts.noLand++;
       if (had("runaway-greenhouse")) counts.noLandRunaway++;
     }
+    const hasWater = history.final.bandOcean.some((share) => share > 0);
+    if (hasWater && !history.final.steam && history.final.bandLiquid.every((share) => share === 0)) counts.frozenSolidToday++;
     if (history.life !== null) {
       counts.everLife++;
       lifeStarts.push(history.life.startedGyr - FORMATION_DELAY_GYR);
-      if (history.life.endedGyr === null) counts.living++;
+      const ended = history.life.endedGyr;
+      if (ended === null) {
+        counts.living++;
+        if (history.present.iceFraction >= FROZEN_ICE_SHARE) counts.livingFrozenOver++;
+      } else if (history.events.some((e) => e.kind === "frozen-solid" && e.tGyr <= ended && ended <= e.tGyr + STEP_GYR + 1e-9)) {
+        counts.lifeEndedFrozenSolid++;
+      }
     }
     const order = firstsOrder(history);
     if (order !== null) mindOrders[order] = (mindOrders[order] ?? 0) + 1;
@@ -191,6 +209,9 @@ export function measureUniverse(presetName: string, seed: number): Row {
       livingShare: share(counts.living),
       medianLifeStartGyr: median(lifeStarts),
       mindOrders,
+      livingFrozenOver: counts.livingFrozenOver,
+      frozenSolidToday: counts.frozenSolidToday,
+      lifeEndedFrozenSolid: counts.lifeEndedFrozenSolid,
       ms: historyMs,
     },
     surveyMs,
@@ -316,6 +337,21 @@ export function metalsTable(rows: Row[]): string {
   for (const { preset, seed, metals } of rows) {
     lines.push(`| ${preset} | ${seed} | ${metals.byFeH.map((b) =>
       `${b.stars} · ${b.planetsPerStar.toFixed(2)} · ${(b.giantShare * 100).toFixed(0)}% / ${(b.solidShare * 100).toFixed(0)}% · ${Number.isNaN(b.medianSolidMass) ? "–" : b.medianSolidMass.toFixed(2)} · ${b.living}`).join(" | ")} |`);
+  }
+  return lines.join("\n");
+}
+
+/** Heat from inside in every universe, as a Markdown table (IH4). */
+export function heatTable(rows: Row[]): string {
+  const lines = [
+    "Heat from inside: solid planets with open water today; worlds living today, and those frozen over; worlds frozen solid today; worlds whose life ended when their oceans froze solid; systems with organisms.",
+    "",
+    "| Preset | Seed | Solid planets | Open water today | Living today | Living, frozen over | Frozen solid today | Life ended frozen solid | Systems with organisms |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+  ];
+  for (const { preset, seed, survey, geography: g, history: h } of rows) {
+    const living = Math.round(h.livingShare * g.solidPlanets);
+    lines.push(`| ${preset} | ${seed} | ${g.solidPlanets} | ${(h.liquidTodayShare * 100).toFixed(1)}% | ${living} | ${h.livingFrozenOver} | ${h.frozenSolidToday} | ${h.lifeEndedFrozenSolid} | ${survey.systems.length} |`);
   }
   return lines.join("\n");
 }

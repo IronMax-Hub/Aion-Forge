@@ -220,3 +220,25 @@ d = (651 W/m / q) · ln(271 K / T_surface). Under a frozen band, water stays liq
 | `ICE_SHELL_BASE_K` | 271 K | Seawater's freezing point, the base of the shell |
 
 Earth's heat flow holds 0.9 km of ice over water under a 240 K surface and 7.5 km at 100 K. Europa's model shell is 13 km, within the 10–30 km estimated. On seed 100000, worlds with liquid water at some time fell from 4,032 to 2,683, and worlds where life began from 3,452 to 2,094. Small, cold, old worlds freeze solid as their interiors cool, and their life dies.
+
+### Measured (IH4, 18 Oct 2026)
+
+From the stats harness, entry "2026-10-18 · rules v13" in `stats.md`. Familiar Reality, seeds 100000 / 42 / 7777, v12 (MZ5) → v13:
+
+| Measure | v12 | v13 |
+|---|---|---|
+| Open water today (share of solid planets) | 14.6% / 15.8% / 14.8% | 8.0% / 9.1% / 7.6% |
+| Ever had life | 52.5% / 52.7% / 52.7% | 32.0% / 35.1% / 31.6% |
+| Living today | 40.8% / 40.1% / 39.9% | 21.1% / 23.4% / 20.3% |
+| Living today and frozen over | — | 1,003 / 1,113 / 981 |
+| Frozen solid today | — | 1,707 / 1,515 / 1,744 |
+| Life ended as its oceans froze solid | — | 305 / 314 / 313 |
+| Systems with organisms | 911 / 884 / 907 | 753 / 761 / 736 (−14% to −19%) |
+| Civilizations | 36 / 49 / 40 | 27 / 43 / 29 |
+| Runaway greenhouse | 1.2% / 1.5% / 1.5% | 1.3% / 1.6% / 1.6% |
+
+Systems with organisms stay inside the ±25% target, so nothing is tuned.
+
+- **Decision 9 (the greenhouse scales with energy).** As expected, far fewer warm worlds lie far from their stars. Open water today nearly halved.
+- **Decision 10 (ice shells).** About 310 worlds per universe lose their life when their oceans freeze solid, and about 1,600–1,750 worlds are frozen solid today. Of the life that remains, nearly three-quarters lives under ice.
+- **Step 5a against the start of this plan (v10).** Systems with organisms fell from 987 / 968 / 1,006 to 753 / 761 / 736 (−24%, −21%, −27%) over steps 3 to 5a together; each step stayed inside ±25% of the one before.

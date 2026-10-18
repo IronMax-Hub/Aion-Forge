@@ -716,6 +716,7 @@ Measured: the 2,031 frozen living worlds have water layers with a median depth o
 - **Depends on:** IH3.
 - **Deliverables:** Stats columns: open water today, living worlds frozen over, worlds frozen solid, life ended by freezing solid, systems with organisms. Expected: far fewer warm worlds far from their stars (the 458 measured above), and many frozen living worlds frozen solid: applying IH1 and IH3 to today's records at each world's mean temperature, 851 of the 2,031 (42%) have a shell thicker than their water (823 with Klinger's conductivity), before IH2 cools anything. Recorded against decisions 9 and 10.
 - **Verification:** The harness run.
+- **Built** 18 Oct 2026. The harness gains a heat-from-inside table (open water today, living today and frozen over, frozen solid today, life ended frozen solid, systems with organisms). `physics.md` records the run against decisions 9 and 10. Familiar Reality, v12 → v13: systems with organisms 911 / 884 / 907 → 753 / 761 / 736 (−14% to −19%), inside ±25%, so nothing is tuned. Open water today fell from about 15% of solid planets to about 8%, and living worlds from about 40% to about 21%. 73% of the living worlds left are frozen over; about 310 per universe had their life ended by oceans freezing solid. Civilizations: 36 / 49 / 40 → 27 / 43 / 29.
 
 ### Step 5 — Moons
 

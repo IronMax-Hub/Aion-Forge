@@ -37,6 +37,28 @@ export function formatGyr(gyr: number): string {
   return `${formatSig(gyr, 3)} Gyr`;
 }
 
+// ── Metallicity (MZ4) ────────────────────────────────────────────────────────
+
+/** Labels for a star's [Fe/H], dex: metal-poor below, metal-rich above, solar between (a reading, not a rule). */
+export const METALLICITY_LABEL_BOUNDS = { poorBelow: -0.3, richAbove: 0.2 } as const;
+const ORDINAL_FRACTION = ["", "", "half", "a third", "a quarter", "a fifth", "a sixth", "a seventh", "an eighth", "a ninth", "a tenth"];
+
+/** A star's [Fe/H] with its label: "−0.42 · metal-poor". */
+export function formatMetallicity(feH: number): string {
+  const { poorBelow, richAbove } = METALLICITY_LABEL_BOUNDS;
+  const label = feH < poorBelow ? "metal-poor" : feH > richAbove ? "metal-rich" : "solar";
+  return `${feH < 0 ? "−" : "+"}${Math.abs(feH).toFixed(2)} · ${label}`;
+}
+
+/** How much metal a star's gas held against the Sun's, 10^[Fe/H] in words: "a sixth of the Sun's metals". */
+export function metalShare(feH: number): string {
+  const ratio = Math.pow(10, feH);
+  if (ratio >= 1.5) return `${formatSig(ratio, 2)} times the Sun's metals`;
+  if (ratio > 0.75) return "about the Sun's metals";
+  const n = Math.round(1 / ratio);
+  return n < ORDINAL_FRACTION.length ? `${ORDINAL_FRACTION[n]} of the Sun's metals` : `1/${formatInt(n)} of the Sun's metals`;
+}
+
 /** A class of air as a phrase: "thick air"; the "none" class is a trace (0.006 bar, Mars's). */
 export function airPhrase(atmosphere: AtmosphereType): string {
   return atmosphere === "none" ? "a trace of air" : `${atmosphere} air`;

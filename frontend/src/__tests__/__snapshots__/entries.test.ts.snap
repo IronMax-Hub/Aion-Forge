@@ -354,6 +354,10 @@ exports[`reference entries > a gas giant and its star 2`] = `
       "value": "20%",
     },
     {
+      "label": "[Fe/H]",
+      "value": "−1.14 · metal-poor",
+    },
+    {
       "label": "Luminosity",
       "value": "0.0963 L☉",
     },
@@ -383,6 +387,13 @@ exports[`reference entries > a gas giant and its star 2`] = `
         "star.age",
       ],
       "text": "A K9 V star of 0.512 M☉, 10.7 Gyr old.",
+    },
+    {
+      "sources": [
+        "star.age",
+        "star.metallicity",
+      ],
+      "text": "Born 10.7 Gyr ago from gas with 1/14 of the Sun's metals.",
     },
     {
       "sources": [

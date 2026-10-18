@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   spectralType, planetName, starName, formatSig, formatGyr, formatInt, niceScaleLength, formatLightYears,
   formatGravity, formatPressure, formatRotation, formatTilt, formatPercent, wholePercents, formatSurfaceShares, formatTemperatureRange,
-  planetLifeLabel, moonName, citation, formatAirChange, airPhrase,
+  planetLifeLabel, moonName, citation, formatAirChange, airPhrase, formatMetallicity, metalShare,
 } from "../ui/format";
 import { makeConfig } from "../simulation/config";
 import { SIMULATION_RULES_VERSION } from "../simulation/version";
@@ -158,6 +158,25 @@ describe("surface", () => {
   it("gives the temperature range in kelvin", () => {
     expect(formatTemperatureRange(184.4, 330.6)).toBe("184–331 K");
     expect(formatTemperatureRange(1500, 2210)).toBe("1,500–2,210 K");
+  });
+});
+
+describe("metallicity (MZ4)", () => {
+  it("gives [Fe/H] with its sign and label", () => {
+    expect(formatMetallicity(-0.42)).toBe("−0.42 · metal-poor");
+    expect(formatMetallicity(-0.3)).toBe("−0.30 · solar");
+    expect(formatMetallicity(0)).toBe("+0.00 · solar");
+    expect(formatMetallicity(0.2)).toBe("+0.20 · solar");
+    expect(formatMetallicity(0.25)).toBe("+0.25 · metal-rich");
+  });
+
+  it("says how much metal the gas held against the Sun's", () => {
+    expect(metalShare(-0.78)).toBe("a sixth of the Sun's metals");
+    expect(metalShare(-0.3)).toBe("half of the Sun's metals");
+    expect(metalShare(-1)).toBe("a tenth of the Sun's metals");
+    expect(metalShare(-3)).toBe("1/1,000 of the Sun's metals");
+    expect(metalShare(0.05)).toBe("about the Sun's metals");
+    expect(metalShare(0.2)).toBe("1.6 times the Sun's metals");
   });
 });
 

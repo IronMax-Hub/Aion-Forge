@@ -623,6 +623,7 @@ Every generation of stars returns heavier elements to the gas the next generatio
 - **Depends on:** MZ2.
 - **Deliverables:** Star panel: "[Fe/H] −0.42 · metal-poor" (metal-poor below −0.3, metal-rich above +0.2, solar between). Encyclopedia: "Born 11.8 Gyr ago from gas with a sixth of the Sun's metals." (10^[Fe/H] as a fraction).
 - **Verification:** Format tests.
+- **Built** 18 Oct 2026. `format.ts`: `formatMetallicity` ("−0.42 · metal-poor") and `metalShare` (half to a tenth in words, then "1/14", or "about the Sun's metals" between 0.75 and 1.5 times, "1.6 times the Sun's metals" above). The star panel has an [Fe/H] row; the star entry adds the "Born … ago from gas with …" sentence and an [Fe/H] fact. No rules change.
 
 #### MZ5 Measure and tune
 `simulation` · **S**

@@ -46,7 +46,7 @@ import { CIVILIZATION_STAGE_CODES, LIFE_STAGE_CODES } from "../../simulation/uni
 import { funnelOf } from "../../simulation/greatFilter";
 import type { UniverseIndex } from "../../simulation/universeIndex";
 import {
-  airPhrase, citation, formatAirChange, formatGravity, formatGyr, formatInt, formatLightYears, formatPercent, formatPressure, formatRotation, formatSig,
+  airPhrase, citation, formatAirChange, formatMetallicity, metalShare, formatGravity, formatGyr, formatInt, formatLightYears, formatPercent, formatPressure, formatRotation, formatSig,
   formatSurfaceShares, formatTemperatureRange, formatTilt, formatIndex, LIGHT_YEARS_PER_UNIT, PLANET_TYPE_LABEL, planetName,
   spectralType, starName, STELLAR_CLASS_NAME,
 } from "../format";
@@ -459,6 +459,7 @@ export function starEntry(star: Star, planets: readonly Planet[], ctx: EntryCont
   const lede: Sentence[] = [
     sentence(`${capitalise(starKind(star))} of ${formatSig(star.mass)} M☉, ${formatGyr(star.age)} old.`,
       ["star.temperature", "star.classification", "star.mass", "star.age"]),
+    sentence(`Born ${ago(star.age)} from gas with ${metalShare(star.metallicity)}.`, ["star.age", "star.metallicity"]),
     sentence(`It has used ${formatPercent(Math.min(1, star.age / star.lifespan))} of its lifespan.`, ["star.age", "star.lifespan"]),
   ];
   if (planets.length > 0) {
@@ -475,6 +476,7 @@ export function starEntry(star: Star, planets: readonly Planet[], ctx: EntryCont
     { label: "Mass", value: `${formatSig(star.mass)} M☉` },
     { label: "Age", value: formatGyr(star.age) },
     { label: "Lifespan used", value: formatPercent(Math.min(1, star.age / star.lifespan)) },
+    { label: "[Fe/H]", value: formatMetallicity(star.metallicity) },
   );
   if (star.luminosity > 0) facts.push({ label: "Luminosity", value: `${formatSig(star.luminosity)} L☉` });
   if (star.temperature > 0) facts.push({ label: "Temperature", value: `${formatInt(star.temperature)} K` });

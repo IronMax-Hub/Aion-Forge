@@ -20,6 +20,15 @@
 // thick: 0.9 km under a 240 K surface with Earth's heat flow, 7.5 km at 100 K;
 // Europa (q ≈ 0.05 W/m², 100 K) gets 13 km, within the 10–30 km estimated.
 //
+// Tidal heat (MO3): a moon on an eccentric orbit is flexed by its planet's tide,
+//   Ė = (21/2) · (k₂/Q) · G · M_p² · R_m⁵ · n · e² / a⁶,  n = √(G M_p / a³)
+// (Peale, Cassen & Reynolds 1979; Segatz et al. 1988), spread over its surface:
+// q_tidal = Ė / 4π R_m². k₂/Q = 0.015, Io's (Lainey et al. 2009), for every moon
+// (decision 34): Io gets 2.2 W/m² (measured about 2.5); Europa 0.2 W/m², four
+// times its likely value, as Io's k₂/Q describes a hot, partly molten body.
+// The heat is constant over a moon's life: orbits do not evolve. No ceiling
+// where a moon would melt (decision 29, counted in MO7).
+//
 // Assumptions and limits: one cooling law for every world, whatever its make-up;
 // no tidal heat yet (MO3 adds it); τ is capped at 1, so the heaviest young
 // worlds give no more than 0.155 W/m². Shells conduct only (no convection),
@@ -42,6 +51,32 @@ const EARTH_ACTIVITY_TODAY = tectonicActivity({ mass: 1 }, SOLAR_AGE_GYR);
 /** The heat flowing out of a world's interior t Gyr after its star formed, W/m². */
 export function interiorHeatFlow(planet: Pick<Planet, "mass">, tGyr: number): number {
   return (EARTH_HEAT_FLOW_W_M2 * tectonicActivity(planet, tGyr)) / EARTH_ACTIVITY_TODAY;
+}
+
+/** Tidal dissipation k₂/Q, Io's (Lainey et al. 2009), for every moon (decision 34). */
+export const TIDAL_K2_OVER_Q = 0.015;
+/** The gravitational constant, m³/(kg·s²). */
+export const GRAVITATIONAL_CONSTANT = 6.674e-11;
+const EARTH_MASS_KG = 5.972e24;
+const EARTH_RADIUS_M = 6.371e6;
+
+/** What a moon's tidal heat reads of the moon: its radius and its orbit. */
+export interface TidalBody {
+  size: number;               // Earth radii
+  orbitPlanetRadii: number;
+  eccentricity: number;
+}
+
+/** The heat a planet's tides raise in a moon, per square metre of its surface, W/m² (MO3). */
+export function tidalHeatFlow(moon: TidalBody, planet: { mass: number; size: number }): number {
+  const planetKg = planet.mass * EARTH_MASS_KG;
+  const moonRadius = moon.size * EARTH_RADIUS_M;
+  const a = moon.orbitPlanetRadii * planet.size * EARTH_RADIUS_M;
+  const n = Math.sqrt((GRAVITATIONAL_CONSTANT * planetKg) / (a * a * a));
+  const a6 = a * a * a * a * a * a;
+  const watts = 10.5 * TIDAL_K2_OVER_Q * GRAVITATIONAL_CONSTANT * planetKg * planetKg * pow(moonRadius, 5)
+    * n * moon.eccentricity * moon.eccentricity / a6;
+  return watts / (4 * Math.PI * moonRadius * moonRadius);
 }
 
 /** Ice's conductivity is this over its temperature, W/(m·K) (Petrenko & Whitworth 1999). */

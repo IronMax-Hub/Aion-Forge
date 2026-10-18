@@ -21,6 +21,12 @@
 //   they share its tilt, and are locked: a day is an orbit around the planet.
 // - Air. One draw from the planets' atmosphere classes; escape (AE2) decides
 //   what each keeps once moons have histories (MO4).
+// - Eccentricity (MO3). Log-uniform 0.001–0.01 (the Galilean moons, held in
+//   resonance: 0.001–0.009), from the moon's own stream, mixSeed(galaxySeed,
+//   ...bodyKey(moon), SALT.MOON). In nature resonances with neighbouring moons
+//   keep it up; none are modelled, so it is a drawn stand-in for that forcing,
+//   and the tidal heat it sets (interiorHeat.ts) is in effect a heat draw
+//   scaled by the formula.
 // Draws come from the giant's own moon stream, mixSeed(galaxySeed,
 // ...bodyKey(giant), SALT.MOON), in a fixed order, so no planet's draws move.
 //
@@ -46,6 +52,8 @@ export const FIRST_MOON_ORBIT = { planetRadii: 5, spread: 0.5 } as const;
 export const MOON_SPACING = { min: 1.6, range: 0.4 } as const;
 /** No moon lies beyond this share of the planet's Hill radius. */
 export const HILL_SHARE = 0.5;
+/** A moon's orbital eccentricity, log-uniform between these (MO3). */
+export const MOON_ECCENTRICITY = { min: 0.001, max: 0.01 } as const;
 /** Ice-rich moons' water, as a share of their mass, and its conversion to the planets' water units (decision 35). */
 export const MOON_WATER = { minShare: 0.1, maxShare: 0.5, unitsPerShare: 340 } as const;
 
@@ -72,12 +80,20 @@ export interface Moon {
   axialTiltDeg: number;
   waterInventory: number;     // the planets' units
   formationAtmosphere: AtmosphereType;
+  /** Its orbit's eccentricity, which sets its tidal heat (MO3). */
+  eccentricity: number;
 }
 
 /** Half the planet's Hill radius, in planet radii: no moon forms farther out. */
 export function moonOrbitLimit(giant: Planet, star: Star, config: UniverseConfig): number {
   const hillAU = effectiveOrbitAU(giant.orbitalRadius, config) * pow((giant.mass * EARTH_MASS_IN_SUNS) / (3 * star.mass), 1 / 3);
   return (HILL_SHARE * hillAU) / (giant.size * EARTH_RADIUS_AU);
+}
+
+/** A moon's eccentricity, from its own stream (MO3). */
+function eccentricityOf(galaxySeed: number, hostStarId: number, planetIndex: number, moonIndex: number): number {
+  const u = createRNG(mixSeed(galaxySeed, ...bodyKey({ hostStarId, id: planetIndex, moonIndex }), SALT.MOON))();
+  return MOON_ECCENTRICITY.min * pow(MOON_ECCENTRICITY.max / MOON_ECCENTRICITY.min, u);
 }
 
 /** The regular moons a giant's disk builds. */
@@ -125,6 +141,7 @@ export function moonsOf(giant: Planet, star: Star, galaxySeed: number, config: U
       axialTiltDeg: physics.axialTiltDeg,
       waterInventory,
       formationAtmosphere: atmosphereFromDraw(airDraw),
+      eccentricity: eccentricityOf(galaxySeed, giant.hostStarId, giant.id, i),
     });
   }
   return moons;

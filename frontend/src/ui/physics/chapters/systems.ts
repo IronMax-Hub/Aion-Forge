@@ -11,8 +11,8 @@ import {
   TIDAL_LOCK_CONSTANT_AU, TILT, WATER_BEYOND_SNOW_LINE, WATER_INSIDE_SNOW_LINE, WATER_RETENTION_MASS,
 } from "../../../simulation/planetPhysics";
 import { EQUILIBRIUM_K_AT_1_AU } from "../../../simulation/climate";
-import { EARTH_HEAT_FLOW_W_M2, interiorHeatFlow, interiorTemperatureK } from "../../../simulation/interiorHeat";
-import { FIRST_MOON_ORBIT, HILL_SHARE, MOON_COUNT, MOON_SPACING, MOON_WATER, SATELLITE_MASS_RATIO } from "../../../simulation/moons";
+import { EARTH_HEAT_FLOW_W_M2, interiorHeatFlow, interiorTemperatureK, TIDAL_K2_OVER_Q } from "../../../simulation/interiorHeat";
+import { FIRST_MOON_ORBIT, HILL_SHARE, MOON_COUNT, MOON_ECCENTRICITY, MOON_SPACING, MOON_WATER, SATELLITE_MASS_RATIO } from "../../../simulation/moons";
 import { ATMOSPHERE_CODES, INDEX_FLAG, PLANET_TYPE_CODES } from "../../../simulation/universeIndex";
 import type { UniverseIndex } from "../../../simulation/universeIndex";
 import { formatInt, formatPercent, formatSig, PLANET_TYPE_LABEL } from "../../format";
@@ -124,18 +124,20 @@ export const systems: Chapter = {
     {
       id: "moons",
       title: "Moons of giants",
-      statement: "A giant builds a satellite system in the disk around it: two to five moons sharing a fixed share of its mass, spaced outward like Jupiter's, none beyond half the planet's Hill radius. Moons formed beyond the snow line are rich in ice; all are locked to their planet and share its tilt.",
+      statement: "A giant builds a satellite system in the disk around it: two to five moons sharing a fixed share of its mass, spaced outward like Jupiter's, none beyond half the planet's Hill radius. Moons formed beyond the snow line are rich in ice; all are locked to their planet and share its tilt. The planet's tide flexes each moon on its eccentric orbit and heats it: q = (21/2)(k₂/Q) G M_p² R⁵ n e² / a⁶ / 4πR².",
       rule: `system mass = ${exact(SATELLITE_MASS_RATIO)} × M_p, split at sorted uniform draws; first orbit ${FIRST_MOON_ORBIT.planetRadii}–${FIRST_MOON_ORBIT.planetRadii * (1 + FIRST_MOON_ORBIT.spread)} planet radii, each next × ${MOON_SPACING.min}–${MOON_SPACING.min + MOON_SPACING.range}; no moon beyond ${exact(HILL_SHARE)} × Hill radius`,
       constants: [
         { name: "Satellite mass", value: `${exact(SATELLITE_MASS_RATIO)} of the planet`, meaning: "Jupiter's Galilean ratio (decision 30); Canup & Ward's 10⁻⁴ would give half as much" },
         { name: "Moons", value: `${MOON_COUNT.min}–${MOON_COUNT.min + MOON_COUNT.extra - 1}`, meaning: "Per giant, before the Hill limit" },
         { name: "Ice-rich water", value: `${formatPercent(MOON_WATER.minShare)}–${formatPercent(MOON_WATER.maxShare)} of the mass`, meaning: `Beyond the snow line, W = ${MOON_WATER.unitsPerShare} × the share (decision 35); inside it, the planets' rule` },
+        { name: "Eccentricity", value: `${MOON_ECCENTRICITY.min}–${MOON_ECCENTRICITY.max}`, meaning: "Log-uniform, a stand-in for the resonances that keep the Galilean moons' orbits eccentric (MO3)" },
+        { name: "Tidal k₂/Q", value: exact(TIDAL_K2_OVER_Q), meaning: "Io's, for every moon (decision 34): Io 2.2 W/m², Europa 0.2 W/m²" },
       ],
       why: "Regular moons form in a giant's own disk, as the Galilean moons did; one share of mass and one spacing rule give systems like Jupiter's, and super-Jupiters moons heavier than Mars.",
       source: "Canup & Ward 2006; the Galilean moons",
-      limits: ["No captured moons, resonances or migration.", "Moons do not yet have their own histories (MO4)."],
+      limits: ["No captured moons, resonances or migration: the eccentricity is drawn, so the tidal heat is in effect a heat draw scaled by the formula, and constant over a moon's life.", "No ceiling where a moon would melt (decision 29).", "Moons do not yet have their own histories (MO4)."],
       laws: [{ law: "gravityStrength", how: "Through the giant's effective orbit, which sets its Hill radius" }],
-      code: "simulation/moons.ts · moonsOf (MO2)",
+      code: "simulation/moons.ts · moonsOf (MO2); simulation/interiorHeat.ts · tidalHeatFlow (MO3)",
       noEffect: "Moons are made with each giant but are not yet in the survey's index (MO4 gives them histories).",
     },
     {

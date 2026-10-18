@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { HILL_SHARE, MOON_COUNT, MOON_WATER, moonOrbitLimit, moonsOf, SATELLITE_MASS_RATIO } from "../simulation/moons";
+import { HILL_SHARE, MOON_COUNT, MOON_ECCENTRICITY, MOON_WATER, moonOrbitLimit, moonsOf, SATELLITE_MASS_RATIO } from "../simulation/moons";
 import { generatePlanetsFor, GIANT_PLANET_MASS } from "../simulation/planet";
 import type { Planet } from "../simulation/planet";
 import { derivePhysics } from "../simulation/planetPhysics";
+import { tidalHeatFlow } from "../simulation/interiorHeat";
 import { makeConfig } from "../simulation/config";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
@@ -79,5 +80,34 @@ describe("regular moons of giants (MO2)", () => {
     const keys = giants.flatMap(({ planet }) => planet.moons.map((m) => m.key));
     expect(new Set(keys).size).toBe(keys.length);
     expect(moonsOf(jupiter, sun, seed, config)).toEqual(moonsOf(jupiter, sun, seed, config));
+  });
+});
+
+describe("tidal heat (MO3)", () => {
+  const JUPITER = { mass: 317.8, size: 11.21 };
+  // Io and Europa, in Earth units: radius 0.2859 and 0.2450 R⊕, at 5.90 and 9.39 Jupiter radii
+  const io = { size: 0.2859, orbitPlanetRadii: 5.90, eccentricity: 0.0041 };
+  const europa = { size: 0.2450, orbitPlanetRadii: 9.39, eccentricity: 0.009 };
+
+  it("gives Io and Europa the plan's references", () => {
+    expect(tidalHeatFlow(io, JUPITER)).toBeCloseTo(2.2, 1);     // measured about 2.5
+    expect(tidalHeatFlow(europa, JUPITER)).toBeCloseTo(0.2, 1); // four times its likely 0.05 (decision 34)
+  });
+
+  it("rises with planet mass (as M^2.5), moon radius and eccentricity, and falls with distance (as a^-7.5)", () => {
+    const q = tidalHeatFlow(io, JUPITER);
+    expect(tidalHeatFlow(io, { ...JUPITER, mass: JUPITER.mass * 2 }) / q).toBeCloseTo(2 ** 2.5, 9);
+    expect(tidalHeatFlow({ ...io, eccentricity: io.eccentricity * 2 }, JUPITER) / q).toBeCloseTo(4, 9);
+    expect(tidalHeatFlow({ ...io, size: io.size * 2 }, JUPITER) / q).toBeCloseTo(8, 9);
+    expect(tidalHeatFlow({ ...io, orbitPlanetRadii: io.orbitPlanetRadii * 2 }, JUPITER) / q).toBeCloseTo(2 ** -7.5, 9);
+  });
+
+  it("draws each moon's eccentricity from its own stream, within the Galilean range", () => {
+    for (const { planet } of giants) {
+      for (const m of planet.moons) {
+        expect(m.eccentricity).toBeGreaterThanOrEqual(MOON_ECCENTRICITY.min);
+        expect(m.eccentricity).toBeLessThanOrEqual(MOON_ECCENTRICITY.max);
+      }
+    }
   });
 });

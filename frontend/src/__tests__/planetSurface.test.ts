@@ -14,7 +14,8 @@ import { derivePhysics, atmosphereClassOf } from "../simulation/planetPhysics";
 
 const seed = 100000;
 const config = makeConfig(seed);
-const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 400);
+// 410 stars: from rules v16 (minds must be consumers) the first civilization on a world without fire is star 403's
+const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 410);
 const all: { star: Star; planet: Planet }[] = stars.flatMap((star) =>
   generatePlanetsFor(star, seed, config).planets.map((planet) => ({ star, planet })));
 const solid = all.filter(({ planet }) => planet.mass <= GIANT_PLANET_MASS);

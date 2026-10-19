@@ -41,16 +41,24 @@ describe("the mind threshold (owner decision: the Intelligence setting shrinks t
 
 describe("finding a mind", () => {
   it("needs a body heavier than 1 g (owner decision): a thinking microbe is not a mind", () => {
-    const microbe = lineage(0, null, { informationProcessing: 0.9, log10BodyMassKg: -12 });
-    const gram = lineage(1, 0, { informationProcessing: 0.9, log10BodyMassKg: MIND_MIN_LOG10_KG });
+    const microbe = lineage(0, null, { energySource: "consumer", informationProcessing: 0.9, log10BodyMassKg: -12 });
+    const gram = lineage(1, 0, { energySource: "consumer", informationProcessing: 0.9, log10BodyMassKg: MIND_MIN_LOG10_KG });
     expect(findMind(state([microbe, gram]), 0.5, 3)).toBeNull();
   });
 
+  it("must eat other life (owner decision, rules v16): a thinking plant is not a mind", () => {
+    const plant = lineage(0, null, { energySource: "light", informationProcessing: 0.9, log10BodyMassKg: 1 });
+    const ventDweller = lineage(1, 0, { energySource: "chemical", informationProcessing: 0.9, log10BodyMassKg: 1 });
+    expect(findMind(state([plant, ventDweller]), 0.5, 3)).toBeNull();
+    const grazer = lineage(2, 0, { energySource: "consumer", informationProcessing: 0.6, log10BodyMassKg: 0 });
+    expect(findMind(state([plant, ventDweller, grazer]), 0.5, 3)!.lineageId).toBe(2);
+  });
+
   it("is the first living lineage, by id, that reaches the threshold", () => {
-    const dead = lineage(0, null, { informationProcessing: 0.9, log10BodyMassKg: 1 }, { diedGyr: 2 });
-    const dim = lineage(1, 0, { informationProcessing: 0.4, log10BodyMassKg: 1 });
-    const first = lineage(2, 1, { informationProcessing: 0.6, log10BodyMassKg: 0 });
-    const second = lineage(3, 1, { informationProcessing: 0.9, log10BodyMassKg: 2 });
+    const dead = lineage(0, null, { energySource: "consumer", informationProcessing: 0.9, log10BodyMassKg: 1 }, { diedGyr: 2 });
+    const dim = lineage(1, 0, { energySource: "consumer", informationProcessing: 0.4, log10BodyMassKg: 1 });
+    const first = lineage(2, 1, { energySource: "consumer", informationProcessing: 0.6, log10BodyMassKg: 0 });
+    const second = lineage(3, 1, { energySource: "consumer", informationProcessing: 0.9, log10BodyMassKg: 2 });
     const mind = findMind(state([dead, dim, first, second]), 0.5, 3.2)!;
     expect(mind.lineageId).toBe(2);
     expect(mind.tGyr).toBe(3.2);

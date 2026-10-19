@@ -259,7 +259,7 @@ export function generateCivilization(
   const species = generateSpecies(mind, planet, rng);
 
   // Its age is the time since the mind appeared. If its species (the mind's
-  // lineage and every lineage descended from it) has since died out, with the
+  // lineage and its consumer descendants, minds.ts) has since died out, with the
   // rest of life or alone, it developed only until then and remains as a
   // collapsed civilization (R8; owner decisions for a species that dies alone).
   const civAgeGyr = mind.ageGyr;

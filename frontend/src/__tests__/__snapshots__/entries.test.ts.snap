@@ -32,7 +32,7 @@ exports[`reference entries > a frozen living world 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v15 · 0000 h",
+  "citation": "AF-U-0001-86A0 · v16 · 0000 h",
   "designation": "0000 h",
   "facts": [
     {
@@ -208,7 +208,7 @@ exports[`reference entries > a gas giant and its star 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v15 · 0009 c",
+  "citation": "AF-U-0001-86A0 · v16 · 0009 c",
   "designation": "0009 c",
   "facts": [
     {
@@ -328,7 +328,7 @@ exports[`reference entries > a gas giant and its star 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v15 · Star 0009",
+  "citation": "AF-U-0001-86A0 · v16 · Star 0009",
   "designation": "Star 0009",
   "facts": [
     {
@@ -590,7 +590,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0000-002A · v15 · 0009 c",
+  "citation": "AF-U-0000-002A · v16 · 0009 c",
   "designation": "0009 c",
   "facts": [
     {
@@ -854,7 +854,7 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0000-002A · v15 · 0009 c",
+  "citation": "AF-U-0000-002A · v16 · 0009 c",
   "designation": "0009 c",
   "facts": [
     {
@@ -947,7 +947,7 @@ exports[`reference entries > a world of ruins 2`] = `
       "sources": [
         "index.mindGyr",
       ],
-      "text": "One of 13 worlds where a mind arose.",
+      "text": "One of 12 worlds where a mind arose.",
     },
   ],
   "seeAlso": [
@@ -1030,7 +1030,7 @@ exports[`reference entries > an Earth-like world 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v15 · 0022 c",
+  "citation": "AF-U-0001-86A0 · v16 · 0022 c",
   "designation": "0022 c",
   "facts": [
     {
@@ -1253,7 +1253,7 @@ exports[`reference entries > an ocean world with complex life 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v15 · 0075 c",
+  "citation": "AF-U-0001-86A0 · v16 · 0075 c",
   "designation": "0075 c",
   "facts": [
     {
@@ -1778,7 +1778,7 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v15 · 0075 c",
+  "citation": "AF-U-0001-86A0 · v16 · 0075 c",
   "designation": "0075 c",
   "facts": [
     {
@@ -1871,7 +1871,7 @@ exports[`reference entries > the galaxy 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v15 · Galaxy",
+  "citation": "AF-U-0001-86A0 · v16 · Galaxy",
   "designation": "Galaxy",
   "facts": [
     {
@@ -1904,7 +1904,7 @@ exports[`reference entries > the galaxy 1`] = `
     },
     {
       "label": "Civilizations",
-      "value": "2 (2 endure)",
+      "value": "1 (1 endure)",
     },
     {
       "label": "Great Filter",
@@ -1953,7 +1953,7 @@ exports[`reference entries > the galaxy 1`] = `
         "index.mindGyr",
         "index.civilizationStage",
       ],
-      "text": "Minds arose on 2 worlds; 2 built civilizations, and 2 endure.",
+      "text": "Minds arose on 2 worlds; 1 built civilizations, and 1 endure.",
     },
     {
       "sources": [

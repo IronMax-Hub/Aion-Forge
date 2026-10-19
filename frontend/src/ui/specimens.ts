@@ -7,7 +7,7 @@
 //
 // How:
 // - Up to MAX_SPECIMENS living lineages: the mind's species first (the lineage
-//   a mind arose in and all its descendants, C2.6), its most abundant living
+//   a mind arose in and its consumer descendants, minds.ts), its most abundant living
 //   member, if any lives; then the largest body; then the most abundant of each kind present
 //   (animals, producers, microbes), so no kind is left out; then the rest by
 //   biomass. Where life has died out, the last lineages to die instead (owner
@@ -25,6 +25,9 @@ import type { Habitat } from "../simulation/evolution/genome";
 import type { BodyPlan } from "../rendering/life/morphology";
 import { formatGyr, formatSig } from "./format";
 import { STEP_GYR } from "../simulation/worldHistory";
+import { mindSpecies } from "../simulation/evolution/minds";
+
+export { mindSpecies };
 
 /** The most plates a planet's field guide shows (the plan's number). */
 export const MAX_SPECIMENS = 12;
@@ -36,7 +39,7 @@ export interface Specimen {
   designation: string;
   description: string;
   facts: { label: string; value: string }[];
-  /** Whether it belongs to the mind's species: the lineage a mind arose in, or a descendant. */
+  /** Whether it belongs to the mind's species: the lineage a mind arose in, or a consumer descendant. */
   mind: boolean;
   extinct: boolean;
 }
@@ -55,17 +58,6 @@ export interface FieldGuideSource {
 
 // The order kinds are made sure of
 const KIND_ORDER: BodyPlan["kind"][] = ["animal", "producer", "microbe"];
-
-/** The lineage a mind arose in and every lineage descended from it (C2.6: its species), by id. */
-export function mindSpecies(lineages: readonly Lineage[], mindLineageId: number | null): Set<number> {
-  const species = new Set<number>();
-  if (mindLineageId === null) return species;
-  // Lineages are in birth order, so a parent is always met before its children
-  for (const l of lineages) {
-    if (l.id === mindLineageId || (l.parentId !== null && species.has(l.parentId))) species.add(l.id);
-  }
-  return species;
-}
 
 /** The lineages that get plates, in the order they are shown. */
 export function chooseSpecimens(

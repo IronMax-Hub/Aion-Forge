@@ -163,12 +163,12 @@ describe("the phylogeny summary", () => {
     expect(summarizePhylogeny(state([lineage("land", 0, [0.1, 0])]), null, 4.6).recentSurvival).toBe(1);
   });
 
-  it("keeps a mind's species alive while its lineage or any lineage descended from it lives (owner decision)", () => {
-    const mind = { tGyr: 3, lineageId: 1, informationProcessing: 0.6, log10BodyMassKg: 1, consumerAncestry: 0, temperatureSpanK: 20 };
+  it("keeps a mind's species alive while its lineage or a consumer descended from it lives (owner decisions, rules v16)", () => {
+    const mind = { tGyr: 3, lineageId: 1, informationProcessing: 0.6, log10BodyMassKg: 1, consumerAncestry: 1, temperatureSpanK: 20 };
     const root = lineage("land", 0, [0.1, 0]);
-    const mindLine = lineage("land", 0, [0, 0], {}, 3.5);
-    const daughter = lineage("land", 0, [0.1, 0]);
-    const cousin = lineage("land", 0, [0.1, 0]);
+    const mindLine = lineage("land", 1, [0, 0], {}, 3.5);
+    const daughter = lineage("land", 1, [0.1, 0]);
+    const cousin = lineage("land", 1, [0.1, 0]);
     [root.id, mindLine.id, daughter.id, cousin.id] = [0, 1, 2, 3];
     mindLine.parentId = 0; daughter.parentId = 1; cousin.parentId = 0;
     const living = summarizePhylogeny(state([root, mindLine, daughter, cousin]), mind, 4.6).mind!;
@@ -177,5 +177,8 @@ describe("the phylogeny summary", () => {
     // The daughter dies later than the mind's own lineage: the species ends with the last of them
     const gone = { ...daughter, diedGyr: 4.0 };
     expect(summarizePhylogeny(state([root, mindLine, gone, cousin]), mind, 4.6).mind!.speciesEndedAgoGyr).toBeCloseTo(0.6, 12);
+    // A descendant that turned to light does not carry the species on
+    const plant = { ...daughter, genome: { ...daughter.genome, energySource: "light" as const }, level: 0 };
+    expect(summarizePhylogeny(state([root, mindLine, plant, cousin]), mind, 4.6).mind!.speciesEndedAgoGyr).toBeCloseTo(1.1, 12);
   });
 });

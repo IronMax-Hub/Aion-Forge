@@ -36,9 +36,12 @@ describe("choosing specimens", () => {
     expect(chosen.every((l) => l.diedGyr === null)).toBe(true);
   });
 
-  it("counts a mind's descendants as its species", () => {
+  it("counts a mind's consumer descendants as its species, not a line that turned to light (rules v16)", () => {
     expect(mindSpecies(all, 100)).toEqual(new Set([100, 101]));
     expect(mindSpecies(all, null).size).toBe(0);
+    const frond = lineage(104, { energySource: "light" }, { parentId: 101 });
+    const grazerOfFrond = lineage(105, {}, { parentId: 104 });
+    expect(mindSpecies([...all, frond, grazerOfFrond], 100)).toEqual(new Set([100, 101]));
   });
 
   it("shows the last lineages to die where life has ended", () => {

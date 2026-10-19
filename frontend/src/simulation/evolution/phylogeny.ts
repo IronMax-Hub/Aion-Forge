@@ -19,9 +19,10 @@
 // - The catastrophes that killed at least one lineage (owner decision: every
 //   lethal catastrophe, not only the large ones).
 // - The first mind (minds.ts, C2.6), if one appeared: how long ago, and
-//   whether its species still lives: the mind's lineage or any lineage
-//   descended from it (owner decision: a lineage keeps splitting, and its
-//   daughters carry the species on). If none lives, when the last one died.
+//   whether its species still lives: the mind's lineage or any descendant
+//   that still eats other life (owner decision: a lineage keeps splitting,
+//   and its daughters carry the species on; rules v16: only consumers, see
+//   minds.ts). If none lives, when the last one died.
 //
 // Assumptions and limits:
 // - Body mass stands in for multicellularity (a stated simplification of the
@@ -32,6 +33,7 @@
 import { LINEAGE_CAP, livingLineages } from "./engine";
 import type { CatastropheRecord, EvolutionFirst, EvolutionState } from "./engine";
 import type { Mind } from "./minds";
+import { mindSpecies } from "./minds";
 import { TRAIT_RANGES } from "./genome";
 import type { ContinuousTrait } from "./genome";
 
@@ -70,17 +72,16 @@ export interface PhylogenySummary {
 export interface MindSummary extends Mind {
   /** Gyr since it appeared. */
   ageGyr: number;
-  /** Gyr since its lineage and every lineage descended from it died out; null while any lives. */
+  /** Gyr since its species (minds.ts: its lineage and consumer descendants) died out; null while any lives. */
   speciesEndedAgoGyr: number | null;
 }
 
-/** When a lineage and all its descendants had died out, or null while any lives. Lineages are listed in birth order, parents first. */
+/** When a mind's species (minds.ts) had died out, or null while any of it lives. */
 function speciesEndGyr(state: EvolutionState, lineageId: number): number | null {
-  const species = new Set([lineageId]);
   let endGyr = -Infinity;
-  for (const l of state.lineages.slice(lineageId)) {
-    if (l.id !== lineageId && (l.parentId === null || !species.has(l.parentId))) continue;
-    species.add(l.id);
+  const species = mindSpecies(state.lineages, lineageId);
+  for (const l of state.lineages) {
+    if (!species.has(l.id)) continue;
     if (l.diedGyr === null) return null;
     endGyr = Math.max(endGyr, l.diedGyr);
   }

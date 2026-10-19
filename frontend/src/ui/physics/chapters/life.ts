@@ -201,8 +201,8 @@ export const minds: Chapter = {
     {
       id: "mind",
       title: "When a mind appears",
-      statement: "The first living lineage heavier than a gram whose information processing reaches a threshold becomes a mind. Its species is that lineage and all its descendants.",
-      rule: `info ≥ 1 − ${1 - MIND_BASE_THRESHOLD} × intelligence, body > 10^${MIND_MIN_LOG10_KG} kg`,
+      statement: "The first living lineage that eats other life, is heavier than a gram, and whose information processing reaches a threshold becomes a mind. Its species is that lineage and its descendants that still eat other life.",
+      rule: `consumer, info ≥ 1 − ${1 - MIND_BASE_THRESHOLD} × intelligence, body > 10^${MIND_MIN_LOG10_KG} kg`,
       constants: [
         { name: "Threshold at 1×", value: exact(MIND_BASE_THRESHOLD), meaning: "Information processing, 0–1" },
         { name: "Lightest body", value: formatMass(MIND_MIN_LOG10_KG), meaning: "A mind's body is heavier" },

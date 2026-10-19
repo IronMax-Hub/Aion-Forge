@@ -5,11 +5,20 @@
 // This finds that lineage and moment, and keeps what the civilization's
 // species is read from.
 //
-// The rule: a mind appears in the first living lineage (lowest id) whose
-// information processing reaches a threshold while its body is heavier than
-// 1 g (owner decision, C2.6: the plan's information-only rule, measured, made
-// microbes minds on nine worlds in ten; 1 g is the complex-life size of C2.5).
-// It is checked after every evolution step, and only the first mind counts.
+// The rule: a mind appears in the first living lineage (lowest id) that eats
+// other life and whose information processing reaches a threshold while its
+// body is heavier than 1 g (owner decision, C2.6: the plan's information-only
+// rule, measured, made microbes minds on nine worlds in ten; 1 g is the
+// complex-life size of C2.5). It must be a consumer (owner decision, rules v16):
+// light users earn the information bonus too (engine.ts, competition share),
+// and without this a 2.5 g plant became a mind and its plant descendants built
+// an information age. It is checked after every evolution step, and only the
+// first mind counts.
+//
+// Its species is the mind's lineage and the descendants that still eat other
+// life, through an unbroken line of consumers (owner decision, rules v16; C2.6
+// took every descendant, so a mind's line turned to plants still counted as
+// its living species).
 //
 // The threshold is scaled by the Intelligence parameter by shrinking the
 // headroom above the base (owner decision): 1 − (1 − 0.5) × modifier, so 1.0
@@ -69,7 +78,7 @@ function consumerAncestryOf(lineage: Lineage, lineages: Lineage[]): number {
 
 /** The first living lineage that qualifies as a mind now, or null. */
 export function findMind(state: EvolutionState, threshold: number, tGyr: number): Mind | null {
-  const mind = state.lineages.find((l) => l.diedGyr === null
+  const mind = state.lineages.find((l) => l.diedGyr === null && l.genome.energySource === "consumer"
     && l.genome.log10BodyMassKg > MIND_MIN_LOG10_KG && l.genome.informationProcessing >= threshold);
   if (!mind) return null;
   return {
@@ -80,4 +89,19 @@ export function findMind(state: EvolutionState, threshold: number, tGyr: number)
     consumerAncestry: consumerAncestryOf(mind, state.lineages),
     temperatureSpanK: Math.max(0, mind.warmestK - mind.coldestK),
   };
+}
+
+/**
+ * A mind's species, by id: the lineage it arose in and its descendants that
+ * still eat other life, through an unbroken line of consumers. Lineages are
+ * listed in birth order, so a parent is met before its children.
+ */
+export function mindSpecies(lineages: readonly Lineage[], mindLineageId: number | null): Set<number> {
+  const species = new Set<number>();
+  if (mindLineageId === null) return species;
+  for (const l of lineages) {
+    if (l.id === mindLineageId
+      || (l.parentId !== null && species.has(l.parentId) && l.genome.energySource === "consumer")) species.add(l.id);
+  }
+  return species;
 }

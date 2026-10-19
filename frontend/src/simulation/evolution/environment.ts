@@ -23,7 +23,9 @@
 //   colder than seawater's freezing point (271 K), even under ice.
 // And for the planet:
 // - Star. Its temperature at the step (temperatureAt) and the peak of its
-//   spectrum by Wien's law.
+//   spectrum by Wien's law. In a binary (BS3), the companion's temperature and
+//   its share of the light too; the UV below sums each star's own UV and
+//   flares by its flux.
 // - UV at the surface (owner decision), relative to the Sun's at 1 AU with no
 //   air or ozone: the star's steady UV, its blackbody share at 200–315 nm
 //   relative to the Sun's, times its flux; plus, for red dwarfs (below
@@ -50,7 +52,7 @@
 
 import { exp, log } from "../detmath";
 import type { Star } from "../star";
-import { activityAt, mainSequenceEndGyr, PLANCK_C2_NM_K, saturationTimeGyr, temperatureAt } from "../star";
+import { activityAt, companionAsStar, companionLuminosityAt, mainSequenceEndGyr, PLANCK_C2_NM_K, saturationTimeGyr, temperatureAt } from "../star";
 import type { BandGeometry } from "../climate";
 import { bandGeometry } from "../climate";
 import { BAND_COUNT } from "../geography";
@@ -116,6 +118,8 @@ export interface Environment {
   starTemperatureK: number;
   /** Peak of the star's spectrum (Wien), nm. */
   starPeakNm: number;
+  /** In a binary (BS3): the companion's temperature at the step, and its share of the light at the world. */
+  companion?: { temperatureK: number; lightShare: number };
   /** Share of starlight (and UV) the air lets through. */
   airTransmission: number;
   /** UV at the surface, relative to the Sun's at 1 AU with no air or ozone. */
@@ -133,6 +137,8 @@ export interface Environment {
 export interface EnvironmentContext {
   star: Star;
   orbitAU: number;
+  /** Whether the world orbits both stars of a binary (BS2), which sets how much of the companion's light it gets. */
+  aroundBoth: boolean;
   gravity: number;
   /** The bands at the formation tilt; a step whose tilt has wandered (MO5) gets its own. */
   geometry: BandGeometry;
@@ -183,6 +189,7 @@ export function environmentContext(planet: Planet, physics: PlanetPhysics, star:
   return {
     star,
     orbitAU: effectiveOrbitAU(planet.orbitalRadius, config),
+    aroundBoth: planet.orbitsBothStars === true,
     gravity: physics.surfaceGravity,
     geometry: bandGeometry(physics.axialTiltDeg, physics.tidallyLocked),
     axialTiltDeg: physics.axialTiltDeg,
@@ -192,7 +199,7 @@ export function environmentContext(planet: Planet, physics: PlanetPhysics, star:
 
 /** What life meets during one step: the step's snapshot read as pressures. */
 export function environmentFor(step: WorldSnapshot, context: EnvironmentContext): Environment {
-  const { star, orbitAU, gravity } = context;
+  const { star, orbitAU, aroundBoth, gravity } = context;
   const geometry = step.axialTiltDeg === context.axialTiltDeg ? context.geometry : bandGeometry(step.axialTiltDeg, context.tidallyLocked);
   const starTemperatureK = temperatureAt(star, step.tGyr);
   const flux = step.luminosity / (orbitAU * orbitAU);
@@ -201,7 +208,19 @@ export function environmentFor(step: WorldSnapshot, context: EnvironmentContext)
   const onMainSequence = star.age < mainSequenceEndGyr(star) || step.tGyr < mainSequenceEndGyr(star);
   const steadyUV = uvShare(starTemperatureK) / SOLAR_UV_SHARE;
   const flareUV = FLARE_UV_AT_FULL_ACTIVITY * flareActivity(starTemperatureK, onMainSequence, step.tGyr);
-  const surfaceUV = flux * (steadyUV + flareUV) * transmission * (1 - step.ozone);
+  let surfaceUV = flux * (steadyUV + flareUV) * transmission * (1 - step.ozone);
+  // In a binary each star gives its own UV and flares, by its share of the light (BS3)
+  const companionStar = companionAsStar(star);
+  let companion: Environment["companion"];
+  if (companionStar) {
+    const temperatureK = temperatureAt(companionStar, step.tGyr);
+    const companionFlux = companionLuminosityAt(star, orbitAU, aroundBoth, step.tGyr) / (orbitAU * orbitAU);
+    const ownFlux = flux - companionFlux;
+    const companionOnMainSequence = step.tGyr < mainSequenceEndGyr(companionStar);
+    const companionUV = uvShare(temperatureK) / SOLAR_UV_SHARE + FLARE_UV_AT_FULL_ACTIVITY * flareActivity(temperatureK, companionOnMainSequence, step.tGyr);
+    surfaceUV = (ownFlux * (steadyUV + flareUV) + companionFlux * companionUV) * transmission * (1 - step.ozone);
+    companion = { temperatureK, lightShare: flux > 0 ? companionFlux / flux : 0 };
+  }
 
   const bands: EnvironmentBand[] = [];
   for (let k = 0; k < BAND_COUNT; k++) {
@@ -225,6 +244,7 @@ export function environmentFor(step: WorldSnapshot, context: EnvironmentContext)
     gravity,
     starTemperatureK,
     starPeakNm: peakWavelengthNm(starTemperatureK),
+    ...(companion && { companion }),
     airTransmission: transmission,
     surfaceUV,
     tectonicActivity: step.tectonicActivity,

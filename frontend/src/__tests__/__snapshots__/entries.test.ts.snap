@@ -777,7 +777,7 @@ exports[`reference entries > a world of ruins 1`] = `
       "sources": [
         "index.lifeStage",
       ],
-      "text": "One of 11 worlds with complex ecosystems today.",
+      "text": "One of 12 worlds with complex ecosystems today.",
     },
   ],
   "seeAlso": [
@@ -947,7 +947,7 @@ exports[`reference entries > a world of ruins 2`] = `
       "sources": [
         "index.mindGyr",
       ],
-      "text": "One of 12 worlds where a mind arose.",
+      "text": "One of 13 worlds where a mind arose.",
     },
   ],
   "seeAlso": [
@@ -1896,7 +1896,7 @@ exports[`reference entries > the galaxy 1`] = `
     },
     {
       "label": "Worlds with life today",
-      "value": "218",
+      "value": "217",
     },
     {
       "label": "Minds",
@@ -1934,7 +1934,7 @@ exports[`reference entries > the galaxy 1`] = `
         "index.lifeBeganGyr",
         "index.lifeStage",
       ],
-      "text": "Life began on 313 of its 979 planets and lives on 218 today.",
+      "text": "Life began on 313 of its 979 planets and lives on 217 today.",
     },
     {
       "link": {

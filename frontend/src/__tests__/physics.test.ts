@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createRNG } from "../simulation/rng";
 import { pickGalaxyType, generateGalaxy } from "../simulation/galaxy";
-import { generateStarsFor } from "../simulation/star";
+import { generateStarsFor, receivedLuminosityAt } from "../simulation/star";
 import { generatePlanetsFor } from "../simulation/planet";
 import { generateBiosphere } from "../simulation/biosphere";
 import { generateCivilization } from "../simulation/civilization";
@@ -62,7 +62,9 @@ describe("Planetary physics", () => {
       for (const star of stars.slice(0, 300)) {
         for (const p of generatePlanetsFor(star, seed).planets) {
           if (p.type !== "gas-giant") continue;
-          expect(p.temperature).toBeCloseTo(equilibriumTemp(star.luminosity, p.orbitalRadius), 6);
+          // Both stars' light in a binary (BS3)
+          const light = receivedLuminosityAt(star, p.orbitalRadius, p.orbitsBothStars === true, star.age);
+          expect(p.temperature).toBeCloseTo(equilibriumTemp(light, p.orbitalRadius), 6);
         }
       }
     }

@@ -310,6 +310,7 @@ export const LIFE_ENDED = "The last life on this world died out.";
 /** The world history's events in the timeline (Revision 1, C2.7) and the encyclopedia (EN2). */
 export const WORLD_EVENT: Record<WorldEventKind, { summary: string; importance: Importance }> = {
   "star-leaves-main-sequence": { summary: "Its star left the main sequence, and its light began to change.", importance: "historic" },
+  "companion-leaves-main-sequence": { summary: "Its star's companion left the main sequence, and the light it adds began to change.", importance: "historic" },
   "freezes-over":       { summary: "Ice spread from the poles until the planet froze over.", importance: "major" },
   thaws:                { summary: "The ice retreated and the planet thawed.", importance: "major" },
   "moist-greenhouse":   { summary: "The climate grew hot enough for water to rise into the upper air and escape to space.", importance: "major" },

@@ -249,6 +249,14 @@ export function lightMatch(peakNm: number, starTemperatureK: number): number {
   return planck(peakNm) / planck(spectralPeakNm);
 }
 
+/** The light a pigment catches in an environment: in a binary, each star's match weighted by its share of the light (BS3). */
+function lightMatchIn(peakNm: number, env: Environment): number {
+  const own = lightMatch(peakNm, env.starTemperatureK);
+  if (!env.companion) return own;
+  const { temperatureK, lightShare } = env.companion;
+  return (1 - lightShare) * own + lightShare * lightMatch(peakNm, temperatureK);
+}
+
 /** Share of a body's metabolism that can run aerobically in this much O₂: half at an O₂ level rising with its linear size. */
 export function aerobicShare(o2Bar: number, log10BodyMassKg: number): number {
   const halfBar = O2_HALF_BAR_AT_REFERENCE * pow(10, (log10BodyMassKg - O2_REFERENCE_LOG10_KG) / 3);
@@ -300,7 +308,7 @@ type BudgetCache = Map<Genome, Budget>;
 function budgetOf(genome: Genome, env: Environment, cache?: BudgetCache): Budget {
   const cached = cache?.get(genome);
   if (cached) return cached;
-  const match = genome.energySource === "light" ? lightMatch(genome.absorptionPeakNm, env.starTemperatureK) : 1;
+  const match = genome.energySource === "light" ? lightMatchIn(genome.absorptionPeakNm, env) : 1;
   // oxygenYield × uptakePerNeed, with the aerobic share they both read worked out once
   const aerobic = aerobicShare(env.o2Bar, genome.log10BodyMassKg);
   const intake = match * yieldAt(aerobic) * uptakeAt(aerobic, genome.log10BodyMassKg);

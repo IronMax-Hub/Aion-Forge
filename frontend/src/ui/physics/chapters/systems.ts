@@ -201,7 +201,7 @@ export const systems: Chapter = {
         "Removed planets are counted as thrown out; in nature the companion also truncates the disk, so many would never have formed (decision 17). From step 7 they become rogue planets.",
         "The fits cover e up to about 0.7–0.8 and μ 0.1–0.9; companions here reach e 0.8 and μ down to 0.09.",
         "Sharp limits, where nature has a fuzzy band with islands of stability.",
-        "Planets around both stars still receive only their own star's light until BS3.",
+        "A world around both stars is placed as if at the pair's centre: the light it gets is (L₁ + L₂) / a².",
       ],
       laws: [{ law: "gravityStrength", how: "Moves planets' orbits inward (effectiveOrbitAU) before the test; the pair's separation is not scaled (decision 45)" }],
       code: "simulation/binary.ts · sTypeLimitAU, pTypeLimitAU, binaryOrbitOf; simulation/planet.ts · generatePlanetsFor",

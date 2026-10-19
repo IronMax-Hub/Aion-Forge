@@ -43,7 +43,7 @@
 
 import { log, pow } from "./detmath";
 import type { Star } from "./star";
-import { SOLAR_AGE_GYR, SOLAR_TEMPERATURE_K, xuvFluence, xuvLuminosityAt } from "./star";
+import { companionAsStar, companionFluxFactor, SOLAR_AGE_GYR, SOLAR_TEMPERATURE_K, xuvFluence, xuvLuminosityAt } from "./star";
 import { EARTH_ESCAPE_VELOCITY_KMS, WATER_INSIDE_SNOW_LINE } from "./planetPhysics";
 
 /** The dose a world's gravity can hold out against, in Earth doses, at Earth's escape velocity. */
@@ -58,9 +58,16 @@ export const REFERENCE_SUN: Star = {
 /** Earth's XUV fluence to date: the model's Sun at 1 AU over its age, L☉ · Gyr. One Earth dose. */
 export const EARTH_XUV_FLUENCE = xuvFluence(REFERENCE_SUN, 0, SOLAR_AGE_GYR);
 
-/** The XUV dose a world at `orbitAU` receives between t0 and t1 Gyr after its star formed, in Earth doses. */
-export function xuvDose(star: Star, orbitAU: number, t0: number, t1: number): number {
-  return xuvFluence(star, t0, t1) / (orbitAU * orbitAU * EARTH_XUV_FLUENCE);
+/**
+ * The XUV dose a world at `orbitAU` receives between t0 and t1 Gyr after its star formed, in Earth doses;
+ * in a binary, from both stars (BS3), the companion's by its flux factor.
+ */
+export function xuvDose(star: Star, orbitAU: number, t0: number, t1: number, aroundBoth = false): number {
+  const companion = companionAsStar(star);
+  const fluence = companion
+    ? xuvFluence(star, t0, t1) + xuvFluence(companion, t0, t1) * companionFluxFactor(star, orbitAU, aroundBoth)
+    : xuvFluence(star, t0, t1);
+  return fluence / (orbitAU * orbitAU * EARTH_XUV_FLUENCE);
 }
 
 /** The dose a world with this escape velocity can hold out against: X_crit = K · (v_esc / 11.2 km/s)⁴. */

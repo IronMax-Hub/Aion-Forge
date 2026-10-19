@@ -2,7 +2,7 @@ import { createRNG, mixSeed, SALT } from "./rng";
 import { bodyKey, planetKey } from "./bodyKey";
 import { pow } from "./detmath";
 import type { Star } from "./star";
-import { luminosityAt, pastGiantRadiusAU, stellarRadiusAU } from "./star";
+import { companionAsStar, companionLuminosityAt, luminosityAt, pastGiantRadiusAU, stellarRadiusAU } from "./star";
 import { makeConfig } from "./config";
 import { binaryOrbitOf } from "./binary";
 import type { UniverseConfig } from "./config";
@@ -423,10 +423,22 @@ function moonWorld(moon: Moon, giant: Planet, star: Star, galaxySeed: number, co
     moonIndex: moon.moonIndex,
     moonOrbit: moonOrbitOf(moon, giant),
   };
+  if (giant.orbitsBothStars) world.orbitsBothStars = true;
   completeSolidWorld(world, star, galaxySeed, config, worldOf);
   world.habitabilityScore = calcHabitability(world.type, world.atmosphere, world.resourceAbundance, world.surface);
   world.isRare = rareReasonOf(world) !== null;
   return world;
+}
+
+/**
+ * A world's least distance from its star's companion, AU (BS3): around the primary, the pair's
+ * closest approach less the world's orbit; around both, the world's orbit less the companion's
+ * farthest reach from the pair's centre.
+ */
+function companionDistanceAU(orbitAU: number, star: Star, where: "around-primary" | "around-both"): number {
+  const c = star.companion!;
+  if (where === "around-primary") return c.separationAU * (1 - c.eccentricity) - orbitAU;
+  return orbitAU - c.separationAU * (1 + c.eccentricity) * (star.mass / (star.mass + c.mass));
 }
 
 /**
@@ -457,14 +469,20 @@ export function generatePlanetsFor(
   // A star that has since swollen past a planet's orbit has engulfed it
   // or did, as a giant, before it became a remnant (decision 44)
   const starRadiusAU = Math.max(stellarRadiusAU(star), pastGiantRadiusAU(star));
+  // and so can a companion (BS3), at the world's least distance from it
+  const companion = companionAsStar(star);
+  const companionRadiusAU = companion ? Math.max(stellarRadiusAU(companion), pastGiantRadiusAU(companion)) : 0;
 
   let engulfed = 0;
   let tooSmall = 0;
   let unstable = 0;
   const planets: (Planet | null)[] = orbits.map((orbitalRadius, idx) => {
     const mass = planetMassFor(rng(), star.metallicity);
-    // Stellar heating decides what atmosphere a planet can keep
-    const equilibriumK = equilibriumTemp(star.luminosity, effectiveOrbitAU(orbitalRadius, config));
+    const orbitAU = effectiveOrbitAU(orbitalRadius, config);
+    // A companion allows orbits close to the star or far out around both, not between (BS2)
+    const binaryOrbit = star.companion && binaryOrbitOf(orbitAU, star.mass, star.companion);
+    // Stellar heating, from both stars in a binary (BS3), decides what atmosphere a planet can keep
+    const equilibriumK = equilibriumTemp(star.luminosity + companionLuminosityAt(star, orbitAU, binaryOrbit === "around-both", star.age), orbitAU);
     const atmosphere = pickAtmosphere(mass, rng, () => createRNG(mixSeed(galaxySeed, ...bodyKey({ hostStarId: star.id, id: idx }), SALT.AIR))());
     rng(); // the old type roll: still taken so the draws below stay aligned
     // Planets of the same mass differ in make-up, so in size: ±20% around the typical radius
@@ -472,7 +490,7 @@ export function generatePlanetsFor(
     const resourceAbundance = rng();
     // Engulfed planets are gone, and so are bodies too small to be planets (MZ3);
     // their draws are taken all the same, so later planets keep theirs
-    if (effectiveOrbitAU(orbitalRadius, config) <= starRadiusAU) {
+    if (orbitAU <= starRadiusAU || (binaryOrbit && binaryOrbit !== "unstable" && companionDistanceAU(orbitAU, star, binaryOrbit) <= companionRadiusAU)) {
       engulfed++;
       return null;
     }
@@ -480,8 +498,6 @@ export function generatePlanetsFor(
       tooSmall++;
       return null;
     }
-    // A companion allows orbits close to the star or far out around both, not between (BS2)
-    const binaryOrbit = star.companion && binaryOrbitOf(effectiveOrbitAU(orbitalRadius, config), star.mass, star.companion);
     if (binaryOrbit === "unstable") {
       unstable++;
       return null;

@@ -9,7 +9,8 @@
 // How: 100 Myr steps from 0.5 Gyr after the star formed to the star's age
 // (the last step is shortened to end exactly there). Each step:
 //   1. Star      L(t) from luminosityAt: brightening on the main sequence,
-//                then today's luminosity once the star has left it (R2).
+//                then today's luminosity once the star has left it (R2). In a
+//                binary, the companion's light too, on its own clock (BS3).
 //   2. Interior  τ(t) = clamp(√M · e^(−t / 8 Gyr)), plus a moon's tides (MO4),
 //                and the heat it gives the
 //                surface (interiorHeat.ts, IH1), which the climate adds to
@@ -95,7 +96,7 @@ import type { PlanetPhysics } from "./planetPhysics";
 import { bodyKey } from "./bodyKey";
 import { ICE_SHELL_BASE_K, iceShellKm, interiorActivity, interiorHeatFlow, interiorTemperatureK } from "./interiorHeat";
 import type { Star } from "./star";
-import { luminosityAt, mainSequenceEndGyr } from "./star";
+import { companionAsStar, mainSequenceEndGyr, receivedLuminosityAt } from "./star";
 import type { Geography } from "./geography";
 import { areaBelow, BAND_COUNT, seaLevelFor, waterDepthKm } from "./geography";
 import type { ClimateInputs, PresentClimate } from "./climate";
@@ -205,6 +206,7 @@ export const CH4_PRODUCTION_BAR_PER_GYR = 70;
 
 export type WorldEventKind =
   | "star-leaves-main-sequence"
+  | "companion-leaves-main-sequence"
   | "freezes-over"
   | "thaws"
   | "moist-greenhouse"
@@ -371,7 +373,9 @@ export function runWorldHistory(
   // Escape (AE2): the dose before the history begins, and the air it leaves
   const startGyr = Math.min(star.age, FORMATION_DELAY_GYR);
   const formationBackgroundBar = physics.surfacePressureBar;
-  const startDose = xuvDose(star, orbitAU, 0, startGyr);
+  // In a binary, both stars' light and XUV reach the world (BS3)
+  const aroundBoth = planet.orbitsBothStars === true;
+  const startDose = xuvDose(star, orbitAU, 0, startGyr, aroundBoth);
   const startRetained = airRetained(startDose, physics.escapeVelocityKms);
   let backgroundBar = formationBackgroundBar * startRetained;
   let geometry = bandGeometry(physics.axialTiltDeg, physics.tidallyLocked);
@@ -382,11 +386,13 @@ export function runWorldHistory(
   };
   let axialTiltDeg = physics.axialTiltDeg;
   const msEnd = mainSequenceEndGyr(star);
+  const companion = companionAsStar(star);
+  const companionMsEnd = companion ? mainSequenceEndGyr(companion) : Infinity;
 
   // Formation: warm, ice-free, with the water it was born with
   let state: WorldState = {
     tGyr: startGyr,
-    luminosity: luminosityAt(star, startGyr),
+    luminosity: receivedLuminosityAt(star, orbitAU, aroundBoth, startGyr),
     tectonicActivity: interiorActivity(planet, startGyr),
     water: physics.waterInventory,
     co2Bar: INITIAL_CO2_BAR * startRetained,
@@ -492,8 +498,8 @@ export function runWorldHistory(
     if (step === 1 && formationBackgroundBar > 0 && startRetained === 0) events.push({ kind: "air-lost", tGyr: t });
 
     // 1–2. Star and interior; the step's XUV dose and the air it leaves (AE2)
-    const luminosity = luminosityAt(star, t);
-    const stepDose = xuvDose(star, orbitAU, t0, t);
+    const luminosity = receivedLuminosityAt(star, orbitAU, aroundBoth, t);
+    const stepDose = xuvDose(star, orbitAU, t0, t, aroundBoth);
     const dose = state.xuvDose + stepDose;
     const retained = airRetained(dose, physics.escapeVelocityKms);
     // The share the background keeps this step; every gas loses the same share
@@ -509,6 +515,7 @@ export function runWorldHistory(
     }
     const interiorK = interiorTemperatureK(interiorHeatFlow(planet, t));
     if (star.age >= msEnd && t0 < msEnd && t >= msEnd) events.push({ kind: "star-leaves-main-sequence", tGyr: msEnd });
+    if (t0 < companionMsEnd && t >= companionMsEnd) events.push({ kind: "companion-leaves-main-sequence", tGyr: companionMsEnd });
 
     // 5 (drawn first: the pulse feeds this step's chemistry)
     const impact = happens(galaxySeed, planet, step, PURPOSE.IMPACT,

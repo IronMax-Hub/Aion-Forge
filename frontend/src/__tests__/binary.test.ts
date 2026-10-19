@@ -5,7 +5,18 @@ import {
 } from "../simulation/binary";
 import type { Companion } from "../simulation/binary";
 import { effectiveOrbitAU, generatePlanetsFor } from "../simulation/planet";
-import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
+import {
+  companionAsStar, companionLuminosityAt, generateStarsFor, irradianceAt, luminosityAt, mainSequenceEndGyr, receivedLuminosityAt,
+  stellarRadiusAU, UNIVERSE_AGE_GYR, xuvFluence,
+} from "../simulation/star";
+import type { Star } from "../simulation/star";
+import type { Planet } from "../simulation/planet";
+import { planetKey } from "../simulation/planet";
+import type { PlanetPhysics } from "../simulation/planetPhysics";
+import { runWorldHistory } from "../simulation/worldHistory";
+import { buildGeography } from "../simulation/geography";
+import { environmentContext, environmentFor } from "../simulation/evolution/environment";
+import { EARTH_XUV_FLUENCE, xuvDose } from "../simulation/atmosphericEscape";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { makeConfig } from "../simulation/config";
 
@@ -138,5 +149,88 @@ describe("where planets can orbit (BS2)", () => {
       expect(system.unstable).toBe(0);
       expect(system.planets.some((p) => p.orbitsBothStars)).toBe(false);
     }
+  });
+});
+
+describe("light from two stars (BS3)", () => {
+  const sun: Star = {
+    id: 1, position: [0, 0, 0], mass: 1, age: 4.6, lifespan: 10, temperature: 5772, luminosity: 1,
+    classification: "main-sequence", isRare: false, metallicity: 0, companion: null,
+  };
+  const twin: Companion = {
+    mass: 1, periodDays: 10, separationAU: 0.1, eccentricity: 0,
+    lifespan: 10, temperature: 5772, luminosity: 1, classification: "main-sequence",
+  };
+  const earth = (overrides: Partial<Planet> = {}): Planet => ({
+    id: 2, key: planetKey(1, 2), hostStarId: 1, orbitalRadius: 1, orbitalIndex: 2, type: "rocky", size: 1, mass: 1,
+    temperature: 288, atmosphere: "moderate", formationAtmosphere: "moderate", resourceAbundance: 0.5, habitabilityScore: 0.8,
+    isRare: false, surface: null, life: null, worldEvents: [], everLiquidWater: false, moons: [], ...overrides,
+  });
+  const earthPhysics: PlanetPhysics = {
+    surfaceGravity: 1, escapeVelocityKms: 11.2, surfacePressureBar: 1, tidallyLocked: false, orbitalPeriodYears: 1,
+    rotationPeriodHours: 24, axialTiltDeg: 23, snowLineAU: 2.3, waterInventory: 0.08,
+  };
+  const historyOf = (star: Star, world: Planet) =>
+    runWorldHistory(world, earthPhysics, buildGeography(world, earthPhysics, 42), star, 42, undefined, { keepSnapshots: true });
+
+  it("equals luminosityAt / a² exactly around a single star", () => {
+    for (const star of stars.filter((s) => !s.companion).slice(0, 300)) {
+      for (const t of [0, star.age / 2, star.age]) {
+        expect(receivedLuminosityAt(star, 1.7, false, t)).toBe(luminosityAt(star, t));
+        expect(irradianceAt(star, 1.7, false, t)).toBe(luminosityAt(star, t) / (1.7 * 1.7));
+      }
+      expect(xuvDose(star, 1.7, 0, star.age)).toBe(xuvFluence(star, 0, star.age) / (1.7 * 1.7 * EARTH_XUV_FLUENCE));
+    }
+  });
+
+  it("adds the companion's orbit-averaged flux: L₂ / (a_b²√(1 − e²)) around the primary, L₂ / a² around both", () => {
+    const star = { ...sun, companion: { ...twin, separationAU: 20, eccentricity: 0.6, luminosity: 0.5 } };
+    const companion = companionAsStar(star)!;
+    const l2 = luminosityAt(companion, 3);
+    expect(irradianceAt(star, 1, false, 3)).toBeCloseTo(luminosityAt(sun, 3) + l2 / (400 * 0.8), 12);
+    expect(irradianceAt(star, 50, true, 3)).toBeCloseTo((luminosityAt(sun, 3) + l2) / 2500, 12);
+    expect(xuvDose(star, 1, 0, 3)).toBeGreaterThan(xuvDose(sun, 1, 0, 3));
+  });
+
+  it("warms a world around a pair of Suns with twice the light", () => {
+    const pair = { ...sun, companion: twin };
+    const single = historyOf(sun, earth());
+    const both = historyOf(pair, earth({ orbitsBothStars: true }));
+    expect(both.final.luminosity).toBeCloseTo(2 * single.final.luminosity, 12);
+    expect(both.present.meanK).toBeGreaterThan(single.present.meanK);
+  });
+
+  it("records the companion leaving the main sequence, on its own clock", () => {
+    // The primary is still on the main sequence; the companion's shorter life (by construction) has ended it
+    const star: Star = { ...sun, age: 9, lifespan: 12, companion: { ...twin, separationAU: 30, lifespan: 10, classification: "red-giant", luminosity: 500, temperature: 4000 } };
+    const h = historyOf(star, earth());
+    expect(h.events.find((e) => e.kind === "companion-leaves-main-sequence")?.tGyr).toBe(mainSequenceEndGyr(companionAsStar(star)!));
+    expect(h.events.some((e) => e.kind === "star-leaves-main-sequence")).toBe(false);
+    expect(h.final.luminosity).toBeGreaterThan(luminosityAt(star, 9));
+  });
+
+  it("gives life each star's share of the light, and no companion around a single star", () => {
+    const world = earth({ orbitsBothStars: true });
+    const pair = { ...sun, companion: { ...twin, temperature: 3500, luminosity: 0.25 } };
+    const snapshot = historyOf(pair, world).snapshots!.at(-1)!;
+    const env = environmentFor(snapshot, environmentContext(world, earthPhysics, pair, makeConfig(42)));
+    const own = luminosityAt(pair, snapshot.tGyr);
+    const added = companionLuminosityAt(pair, 1, true, snapshot.tGyr);
+    expect(env.companion!.temperatureK).toBe(3500);
+    expect(env.companion!.lightShare).toBeCloseTo(added / (own + added), 12);
+    const alone = historyOf(sun, earth()).snapshots!.at(-1)!;
+    expect("companion" in environmentFor(alone, environmentContext(earth(), earthPhysics, sun, makeConfig(42)))).toBe(false);
+  });
+
+  it("lets a swollen companion engulf the worlds within its reach", () => {
+    const config = makeConfig(100000);
+    const host = starsOf(100000).find((s) => s.classification === "main-sequence" && s.mass > 0.8 && generatePlanetsFor({ ...s, companion: null }, 100000, config).planets.length >= 3)!;
+    const close = { ...twin, mass: 0.9, separationAU: 0.05 };
+    const dwarf = generatePlanetsFor({ ...host, companion: close }, 100000, config);
+    const giantCompanion = { ...close, classification: "red-giant" as const, luminosity: 5000, temperature: 3000 };
+    const swollen = generatePlanetsFor({ ...host, companion: giantCompanion }, 100000, config);
+    const reachAU = stellarRadiusAU(companionAsStar({ ...host, companion: giantCompanion })!);
+    expect(swollen.engulfed).toBeGreaterThan(dwarf.engulfed);
+    for (const p of swollen.planets) expect(effectiveOrbitAU(p.orbitalRadius, config)).toBeGreaterThan(reachAU);
   });
 });

@@ -72,8 +72,9 @@ describe("the Great Filter funnel", () => {
     // stays liquid below water's triple point too, as on airless Europa (IH3 had counted it frozen)
     // (6,549, 3,032, 2,307, 426, 165, 127, 28, 14, 6, 3, 0, 0), then MO5's large moons and wandering tilts
     // (6,549, 3,034, 2,302, 425, 161, 123, 29, 14, 8, 7, 0, 0 of 7,650 planets). Rules v15 (BS2): 757 planets
-    // drawn where a companion allows no orbit are removed
-    expect(funnel.steps.map((s) => s.passed)).toEqual([5911, 2762, 2121, 395, 153, 119, 27, 13, 7, 6, 0, 0]);
+    // drawn where a companion allows no orbit are removed (5,911, 2,762, 2,121, 395, 153, 119, 27, 13, 7, 6, 0, 0),
+    // then BS3's light from both stars
+    expect(funnel.steps.map((s) => s.passed)).toEqual([5911, 2760, 2120, 394, 153, 119, 26, 13, 7, 6, 0, 0]);
     for (let g = 1; g < funnel.steps.length; g++) {
       expect(funnel.steps[g].arrived).toBe(funnel.steps[g - 1].passed);
       expect(funnel.steps[g].passed).toBeLessThanOrEqual(funnel.steps[g].arrived);
@@ -129,7 +130,7 @@ describe("where worlds stop", () => {
   it("counts which of fire's conditions fail where minds have no fire", () => {
     const index = indexOf100000();
     const fire = breakdown(index, seedStars, "fire");
-    expect(fire.stopped).toBe(27 - 13);
+    expect(fire.stopped).toBe(26 - 13);
     // Every stopped world fails at least one condition, and none fails more than the stopped count
     const { noLand, thinAir, lowOxygen } = fire.fire!;
     expect(noLand + thinAir + lowOxygen).toBeGreaterThanOrEqual(fire.stopped);

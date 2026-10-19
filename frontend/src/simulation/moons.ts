@@ -37,6 +37,7 @@ import { createRNG, mixSeed, SALT } from "./rng";
 import { bodyKey, moonKey } from "./bodyKey";
 import { pow } from "./detmath";
 import type { Star } from "./star";
+import { companionLuminosityAt } from "./star";
 import type { AtmosphereType, Planet } from "./planet";
 import type { UniverseConfig } from "./config";
 import { atmosphereFromDraw, effectiveOrbitAU, typicalRadiusForMass } from "./planetBasics";
@@ -140,7 +141,9 @@ function listedToday(
   const gravity = moon.mass / (moon.size * moon.size);
   const waterKm = waterDepthKm(moon.waterInventory, gravity);
   const icy = moon.waterInventory > 0;
-  const surfaceK = equilibriumTemperatureK(star.luminosity, orbitAU, icy ? ALBEDO.ice : ALBEDO.land);
+  // Both stars' light in a binary (BS3)
+  const light = star.luminosity + companionLuminosityAt(star, orbitAU, giant.orbitsBothStars === true, star.age);
+  const surfaceK = equilibriumTemperatureK(light, orbitAU, icy ? ALBEDO.ice : ALBEDO.land);
   return { heatFlowWm2, waterKm, shellKm: Math.min(waterKm, iceShellKm(heatFlowWm2, surfaceK)) };
 }
 

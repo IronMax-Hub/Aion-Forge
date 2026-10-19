@@ -240,13 +240,15 @@ export const stars: Chapter = {
       why: "Multiplicity rises with stellar mass, and solar-type binaries' periods follow a broad log-normal; Kepler's law turns a period into a separation. Each companion is drawn from its own stream, so every other star and planet is unchanged.",
       source: "Duchêne & Kraus 2013; Raghavan et al. 2010",
       limits: [
-        "Companions limit where planets can orbit (BS2, in the chapter on planetary systems); their light reaches planets from BS3.",
+        "Companions limit where planets can orbit (in the chapter on planetary systems).",
+        "Every world in a binary receives both stars' light, ultraviolet and XUV, each star on its own clock: around its own star, the companion's orbit-averaged L₂ / (a_b² √(1 − e²)); around both, (L₁ + L₂) / a². Changes within one orbit, such as eclipses, average out over a 100 Myr step. A swollen companion engulfs the worlds within its reach.",
+        "The disk's snow line and dust line read the primary's light alone.",
         "Companions have no planets of their own (decision 15); triples and higher multiples are not made.",
         "The period spread is not cut off at short periods, so a few pairs are drawn closer than their stars' radii allow.",
         "Separations do not read the laboratory's gravity (decision 45).",
       ],
       laws: [{ law: "entropyRate", how: "Divides the companion's lifespan, as any star's" }],
-      code: "simulation/binary.ts · drawCompanion; simulation/star.ts · companionFrom",
+      code: "simulation/binary.ts · drawCompanion; simulation/star.ts · companionFrom, receivedLuminosityAt, irradianceAt",
       effect: (ctx) => {
         const binaries = ctx.stars.filter((s) => s.companion);
         const sunLike = ctx.stars.filter((s) => s.mass >= 0.5 && s.mass < 1.3);

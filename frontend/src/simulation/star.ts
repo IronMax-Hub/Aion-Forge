@@ -256,6 +256,61 @@ export function temperatureAt(star: Star, tGyr: number): number {
   return Math.min(hi, Math.max(lo, t));
 }
 
+// ── Light from two stars (Galaxy Through Time BS3) ────────────────────────────
+//
+// A world in a binary receives the light of both stars, each on its own clock:
+// the companion is a star like any other, with its primary's age, so
+// luminosityAt, temperatureAt and xuvFluence read it unchanged.
+//
+// The companion's flux, orbit-averaged over the pair's eccentric orbit:
+//   around the primary (S-type)   L₂ / (a_b² · √(1 − e²))
+//   around both (P-type)          L₂ / a²
+// Readers take starlight as a luminosity and a distance, so the companion's
+// light is given as the luminosity that, from the primary's place at the
+// world's distance a, gives the same flux: L₂ · (a² / (a_b² √(1 − e²))) for
+// S-type, L₂ for P-type. A single star adds nothing, so its worlds see exactly
+// what they did before.
+//
+// Limits: changes within one orbit (the companion approaching and receding,
+// eclipses) average out within a 100 Myr step. An S-type world is taken to be
+// at the primary's place as the companion sees it (a ≪ a_b).
+
+/** The companion as a star of its own, with its primary's id, place, age and metallicity; null for a single star. */
+export function companionAsStar(star: Star): Star | null {
+  const c = star.companion;
+  if (!c) return null;
+  return {
+    id: star.id, position: star.position, mass: c.mass, age: star.age, lifespan: c.lifespan,
+    temperature: c.temperature, luminosity: c.luminosity, classification: c.classification,
+    isRare: false, metallicity: star.metallicity, companion: null,
+  };
+}
+
+/** The companion's flux at a world over the flux it would give from the primary's place at the world's distance. */
+export function companionFluxFactor(star: Star, orbitAU: number, aroundBoth: boolean): number {
+  const c = star.companion;
+  if (!c) return 0;
+  if (aroundBoth) return 1;
+  return (orbitAU * orbitAU) / (c.separationAU * c.separationAU * Math.sqrt(1 - c.eccentricity * c.eccentricity));
+}
+
+/** The companion's light at a world t Gyr after the pair formed, as a luminosity at the world's distance, L☉; 0 for a single star. */
+export function companionLuminosityAt(star: Star, orbitAU: number, aroundBoth: boolean, tGyr: number): number {
+  const companion = companionAsStar(star);
+  return companion ? luminosityAt(companion, tGyr) * companionFluxFactor(star, orbitAU, aroundBoth) : 0;
+}
+
+/** Both stars' light at a world, as one luminosity at the world's distance, L☉; luminosityAt for a single star. */
+export function receivedLuminosityAt(star: Star, orbitAU: number, aroundBoth: boolean, tGyr: number): number {
+  const own = luminosityAt(star, tGyr);
+  return star.companion ? own + companionLuminosityAt(star, orbitAU, aroundBoth, tGyr) : own;
+}
+
+/** The flux of both stars at a world, L☉ / AU²: luminosityAt / a² for a single star. */
+export function irradianceAt(star: Star, orbitAU: number, aroundBoth: boolean, tGyr: number): number {
+  return receivedLuminosityAt(star, orbitAU, aroundBoth, tGyr) / (orbitAU * orbitAU);
+}
+
 // ── Magnetic activity and extreme ultraviolet (Galaxy Through Time AE1) ──────
 //
 // Why it exists: a young star's extreme ultraviolet (XUV: X-rays and EUV,

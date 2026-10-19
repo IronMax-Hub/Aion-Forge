@@ -183,6 +183,12 @@ export function meanMolarMass(composition: AtmosphereComposition): number {
   return mu;
 }
 
+/** The share of the light in the beam that the transited star gives: L₁ / (L₁ + L₂) in a binary (BS4), 1 for a single star. */
+export function transitDilution(star: Star): number {
+  const c = star.companion;
+  return c && c.luminosity > 0 ? star.luminosity / (star.luminosity + c.luminosity) : 1;
+}
+
 /**
  * The planet's transit spectrum: how deep its transit is at each wavelength,
  * from its air, temperature and gravity. `clouds` defaults to the planet's own
@@ -198,6 +204,8 @@ export function transitSpectrum(
   const scaleHeightM = (BOLTZMANN * temperatureK) / (meanMolarMass(composition) * ATOMIC_MASS_KG * g);
   const planetRadiusM = planet.size * EARTH_RADIUS_M;
   const starRadiusM = stellarRadiusAU(star) * AU_M;
+  // A companion's light is in the telescope's beam too and dilutes the transit (BS4)
+  const dilution = transitDilution(star);
 
   // The σ at which the limb turns opaque at the reference level
   const referenceBar = composition.pressureBar;
@@ -209,7 +217,7 @@ export function transitSpectrum(
   // white dwarf's planet) blocks all of it, and no light passes through its air
   const depthOf = (heightM: number) => {
     const ratio = Math.min(1, (planetRadiusM + heightM) / starRadiusM);
-    return ratio * ratio * 1e6;
+    return ratio * ratio * 1e6 * dilution;
   };
   const depthPpm = meanCrossSections(composition).map((sigmaCm2) => {
     const sigmaM2 = sigmaCm2 * CM2_TO_M2;

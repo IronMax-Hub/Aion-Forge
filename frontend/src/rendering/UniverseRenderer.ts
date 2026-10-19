@@ -3,14 +3,19 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { GalaxyParticles } from "../simulation/galaxy";
 import type { Star, StellarPopulation } from "../simulation/star";
-import { temperatureToColor } from "../simulation/star";
+import { companionAsStar, stellarRadiusAU, temperatureToColor } from "../simulation/star";
+import { pairLight } from "../simulation/binary";
+import { formatSig, spectralType, STELLAR_CLASS_NAME } from "../ui/format";
 import type { Planet, PlanetarySystem, SolidWorld } from "../simulation/planet";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
 import type { Civilization } from "../simulation/civilization";
 import { SkyBackground } from "./background";
-import { disposeSystemGroup, hostStarObject, INNER_MOON_ORBIT_SECONDS, orbitLine, systemLights, SystemOrbits } from "./systemView";
+import {
+  companionStartAngle, disposeSystemGroup, distantStarMarker, FASTEST_PAIR_ORBIT_SECONDS, hostStarObject, INNER_MOON_ORBIT_SECONDS, orbitLine,
+  secondsPerOrbit, SYSTEM_STARLIGHT_INTENSITY, systemLights, SystemOrbits,
+} from "./systemView";
 import { SystemGlobes } from "./systemGlobes";
 import { PlanetView, ORBIT_DISTANCE, starlightIntensity } from "./planet/PlanetView";
 import { GlobeTextureCache, drawsSurface, giantLookOf } from "./planet/globe";
@@ -497,13 +502,15 @@ export class UniverseRenderer {
       pos[i * 3 + 1] = s.position[1];
       pos[i * 3 + 2] = s.position[2];
 
-      const [r, g, b] = temperatureToColor(s.temperature);
+      // A binary is one point at this scale: its colour from both stars' light, its size from their sum (BS4)
+      const seen = pairLight(s);
+      const [r, g, b] = temperatureToColor(seen.temperature);
       col[i * 3]     = r;
       col[i * 3 + 1] = g;
       col[i * 3 + 2] = b;
 
       // ENH-504 / ENH-505: classification-aware size
-      const { baseSize } = stellarProfile(s.temperature, s.luminosity, s.isRare);
+      const { baseSize } = stellarProfile(seen.temperature, seen.luminosity, s.isRare);
       sizes[i] = Math.max(0.5, Math.min(12, baseSize));
     }
 
@@ -567,18 +574,20 @@ export class UniverseRenderer {
 
     const [sr, sg, sb] = temperatureToColor(hostStar.temperature);
     const starCol = new THREE.Color(sr, sg, sb);
-
-    // Host star, as light (systemView.ts), and the starlight the planets are lit by
-    group.add(hostStarObject(starCol, HOST_STAR_RADIUS * scale), ...systemLights(starCol));
+    const maxDistance = Math.min(DEFAULT_DISTANCE.max * scale, this.camera.far / 2);
 
     const markers = new Map<string, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
     // Each planet's meshes ride in a carrier that goes round the orbit (systemView.ts)
     this.systemOrbits = new SystemOrbits();
+    // Host star, as light (systemView.ts), and the starlight the planets are lit by; in a binary, its
+    // companion too (BS4), and the group the primary's own planets ride in
+    const ownPlanetsParent = this.addStars(group, hostStar, system, starCol, scale, maxDistance);
     for (const planet of system.planets) {
       const orbitR = planet.orbitalRadius * SYSTEM_UNITS_PER_AU;
-      group.add(orbitLine(orbitR));
+      const parent = planet.orbitsBothStars ? group : ownPlanetsParent;
+      parent.add(orbitLine(orbitR));
       const carrier = new THREE.Group();
-      group.add(carrier);
+      parent.add(carrier);
       this.systemOrbits.add(planet, carrier, orbitR, innermostAU * SYSTEM_UNITS_PER_AU, system.galaxySeed);
 
       const [pr, pg, pb] = PLANET_COLORS[planet.type];
@@ -624,11 +633,75 @@ export class UniverseRenderer {
     this.controls.target.copy(starPos);
     this.camera.position.copy(starPos.clone().addScaledVector(SYSTEM_CAMERA_OFFSET, scale));
     // No farther than half the camera's far plane, or the system would be clipped away
-    this.systemMaxDistance = Math.min(DEFAULT_DISTANCE.max * scale, this.camera.far / 2);
+    this.systemMaxDistance = maxDistance;
     this.controls.maxDistance = this.systemMaxDistance;
     this.controls.autoRotate      = true;
     this.controls.autoRotateSpeed = SYSTEM_AUTO_ROTATE_SPEED;
     this.systemGlobes.start(group, hostStar, system.galaxySeed, this.planetData, markers, planets, this.systemOrbits, this.camera, !prefersReducedMotion());
+  }
+
+  /**
+   * The host star and, in a binary, its companion (BS4); returns the group the primary's own planets
+   * go in. When a planet orbits both stars, the pair circles its common centre at the group's origin,
+   * each star at its share of the separation (the lighter farther out), and the primary's own planets
+   * ride with it. Otherwise the primary stays at the origin and the companion is a fixed marker at its
+   * distance, labelled, drawn closer when it lies beyond half the view's reach. Stars are lit in
+   * proportion to their light. Not to scale: a close pair is drawn far enough apart to see both.
+   */
+  private addStars(
+    group: THREE.Group, hostStar: Star, system: PlanetarySystem, starCol: THREE.Color, scale: number, maxDistance: number,
+  ): THREE.Object3D {
+    const companion = hostStar.companion;
+    const companionStar = companionAsStar(hostStar);
+    if (!companion || !companionStar) {
+      group.add(hostStarObject(starCol, HOST_STAR_RADIUS * scale), ...systemLights(starCol));
+      return group;
+    }
+    const [cr, cg, cb] = temperatureToColor(companion.temperature);
+    const companionCol = new THREE.Color(cr, cg, cb);
+    const total = hostStar.luminosity + companion.luminosity;
+    const ownShare = total > 0 ? hostStar.luminosity / total : 1;
+    const sizeRatio = (r: number) => Math.min(1.5, Math.max(0.5, r));
+    const primaryRadiusAU = stellarRadiusAU(hostStar);
+    const companionSize = sizeRatio(primaryRadiusAU > 0 ? stellarRadiusAU(companionStar) / primaryRadiusAU : 1);
+    const startAngle = companionStartAngle(hostStar.id, system.galaxySeed);
+    const separation = companion.separationAU * SYSTEM_UNITS_PER_AU;
+
+    const aroundBoth = system.planets.filter((p) => p.orbitsBothStars);
+    if (aroundBoth.length === 0) {
+      // A distant companion: a fixed marker, which gives no light worth drawing at the planets
+      const radius = HOST_STAR_RADIUS * scale;
+      group.add(hostStarObject(starCol, radius), ...systemLights(starCol));
+      const reach = maxDistance / 2;
+      const drawn = Math.min(reach, Math.max(separation, 3 * radius * (1 + companionSize)));
+      const kind = spectralType(companion.temperature, companion.classification) ?? STELLAR_CLASS_NAME[companion.classification];
+      const marker = distantStarMarker(companionCol, radius * companionSize,
+        `Companion · ${kind} · ${formatSig(companion.separationAU)} AU${drawn < separation ? " (drawn closer)" : ""}`);
+      marker.position.set(drawn * Math.cos(startAngle), 0, -drawn * Math.sin(startAngle));
+      group.add(marker);
+      return group;
+    }
+
+    // A close pair circling its common centre, inside the innermost planet that orbits both
+    const innermostBothAU = Math.min(...aroundBoth.map((p) => p.orbitalRadius));
+    const ownPlanets = system.planets.length > aroundBoth.length;
+    const radius = Math.min(HOST_STAR_RADIUS * scale, (innermostBothAU * SYSTEM_UNITS_PER_AU) / 10);
+    const drawnSeparation = Math.min(
+      0.6 * innermostBothAU * SYSTEM_UNITS_PER_AU,
+      ownPlanets ? separation : Math.max(separation, 3 * radius * (1 + companionSize)),
+    );
+    const companionMassShare = companion.mass / (hostStar.mass + companion.mass);
+    const innermostAU = Math.min(...system.planets.map((p) => p.orbitalRadius));
+    const seconds = Math.max(FASTEST_PAIR_ORBIT_SECONDS, secondsPerOrbit(companion.separationAU, innermostAU));
+    const primaryCarrier = new THREE.Group();
+    const companionCarrier = new THREE.Group();
+    group.add(primaryCarrier, companionCarrier);
+    this.systemOrbits.addStar("pair-primary", primaryCarrier, drawnSeparation * companionMassShare, seconds, startAngle + Math.PI);
+    this.systemOrbits.addStar("pair-companion", companionCarrier, drawnSeparation * (1 - companionMassShare), seconds, startAngle);
+    primaryCarrier.add(hostStarObject(starCol, radius), ...systemLights(starCol, SYSTEM_STARLIGHT_INTENSITY * ownShare));
+    companionCarrier.add(hostStarObject(companionCol, radius * companionSize),
+      new THREE.PointLight(companionCol, SYSTEM_STARLIGHT_INTENSITY * (1 - ownShare), 0, 0));
+    return primaryCarrier;
   }
 
   /**

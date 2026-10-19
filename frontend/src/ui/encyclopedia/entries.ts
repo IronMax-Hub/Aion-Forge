@@ -46,7 +46,7 @@ import { CIVILIZATION_STAGE_CODES, LIFE_STAGE_CODES } from "../../simulation/uni
 import { funnelOf } from "../../simulation/greatFilter";
 import type { UniverseIndex } from "../../simulation/universeIndex";
 import {
-  airPhrase, bodyName, citation, formatAirChange, formatMetallicity, metalShare, formatGravity, formatGyr, formatInt, formatLightYears, formatPercent, formatPressure, formatRotation, formatSig,
+  airPhrase, bodyName, citation, formatAirChange, formatCompanion, formatMetallicity, metalShare, formatGravity, formatGyr, formatInt, formatLightYears, formatPercent, formatPressure, formatRotation, formatSig,
   formatSurfaceShares, formatTemperatureRange, formatTilt, formatIndex, LIGHT_YEARS_PER_UNIT, PLANET_TYPE_LABEL, planetName,
   spectralType, starName, STELLAR_CLASS_NAME,
 } from "../format";
@@ -346,7 +346,7 @@ function planetFacts(planet: Planet, star: Star, world: SolidWorld | null, ctx: 
   const facts: Entry["facts"] = [
     { label: "Designation", value: bodyName(planet) },
     { label: "Type", value: PLANET_TYPE_LABEL[planet.type] },
-    { label: "Orbit", value: `${formatSig(planet.orbitalRadius)} AU` },
+    { label: "Orbit", value: `${formatSig(planet.orbitalRadius)} AU${planet.orbitsBothStars ? ", around both stars" : ""}` },
     { label: "Period", value: physics.orbitalPeriodYears < 1
       ? `${formatSig(physics.orbitalPeriodYears * 365.25)} days` : `${formatSig(physics.orbitalPeriodYears)} years` },
     { label: "Mass", value: `${formatSig(planet.mass)} M⊕` },
@@ -493,6 +493,7 @@ export function starEntry(star: Star, planets: readonly Planet[], ctx: EntryCont
     { label: "Lifespan used", value: formatPercent(Math.min(1, star.age / star.lifespan)) },
     { label: "[Fe/H]", value: formatMetallicity(star.metallicity) },
   );
+  if (star.companion) facts.push({ label: "Companion", value: formatCompanion(star.companion) });
   if (star.luminosity > 0) facts.push({ label: "Luminosity", value: `${formatSig(star.luminosity)} L☉` });
   if (star.temperature > 0) facts.push({ label: "Temperature", value: `${formatInt(star.temperature)} K` });
   facts.push(

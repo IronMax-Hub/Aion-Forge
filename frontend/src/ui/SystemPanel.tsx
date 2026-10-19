@@ -56,6 +56,7 @@ export function SystemPanel({ system, star, onSelectPlanet }: Props) {
                 </th>
                 <td>
                   {PLANET_TYPE_LABEL[planet.type]}
+                  {planet.orbitsBothStars && <span className="system-table-note">orbits both stars</span>}
                   {lifeLabels.get(planet.id) !== "—" && (
                     <span className={`system-table-life${lifeLabels.get(planet.id) === "Extinct" ? " extinct" : ""}`}>
                       {lifeLabels.get(planet.id)} life

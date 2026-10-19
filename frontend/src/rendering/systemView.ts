@@ -15,6 +15,10 @@
 // - Light: a point light at the star in its colour (no fall-off: planets are drawn
 //   enlarged, far from true scale, so a true fall-off would only mislead), and a
 //   faint fill so night sides are not pure black.
+// - A binary (BS4): when a planet orbits both stars, the pair circles its
+//   common centre, each star at its share of the separation, and planets of
+//   the primary alone ride with it; otherwise the companion is a fixed marker
+//   at its distance, with a label, drawn closer when it lies beyond the view.
 // - Orbits (SystemOrbits): each planet circles the star at its true period
 //   relative to the others (Kepler: P ∝ a^1.5 around one star), compressed so
 //   the innermost goes round once a minute. Where each starts is drawn from its
@@ -140,11 +144,53 @@ export function orbitLine(radius: number): THREE.LineLoop {
 }
 
 /** The starlight planets are lit by, from the star at the group's origin, and the night-side fill. */
-export function systemLights(color: THREE.Color): THREE.Light[] {
+export function systemLights(color: THREE.Color, intensity = SYSTEM_STARLIGHT_INTENSITY): THREE.Light[] {
   return [
-    new THREE.PointLight(color, SYSTEM_STARLIGHT_INTENSITY, 0, 0),
+    new THREE.PointLight(color, intensity, 0, 0),
     new THREE.AmbientLight(0xffffff, NIGHT_FILL_INTENSITY),
   ];
+}
+
+// A text label in the system view: its height as a share of the view's, and its canvas font
+const LABEL_HEIGHT = 0.032;
+const LABEL_FONT_PX = 28;
+const LABEL_COLOUR = "rgba(200, 206, 214, 0.9)";
+
+/** A one-line text label that stays the same size on screen, hanging below the point it is placed at. */
+export function labelSprite(text: string): THREE.Sprite {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+  const font = `${LABEL_FONT_PX}px "IBM Plex Mono", monospace`;
+  ctx.font = font;
+  canvas.width = Math.ceil(ctx.measureText(text).width) + 8;
+  canvas.height = Math.ceil(LABEL_FONT_PX * 1.4);
+  ctx.font = font;   // resizing the canvas resets its context
+  ctx.fillStyle = LABEL_COLOUR;
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, 4, canvas.height / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, sizeAttenuation: false, transparent: true, depthWrite: false }));
+  sprite.scale.set(LABEL_HEIGHT * canvas.width / canvas.height, LABEL_HEIGHT, 1);
+  sprite.center.set(0.5, 1.6);
+  return sprite;
+}
+
+// A distant companion's dot: its height as a share of the view's, so it shows at any zoom
+const DISTANT_STAR_DOT = 0.014;
+
+/**
+ * A star far from the system's centre (BS4): the star itself, a glow dot that keeps its size on screen
+ * so it shows when the star is smaller than a pixel, and a label under it.
+ */
+export function distantStarMarker(color: THREE.Color, radius: number, label: string): THREE.Group {
+  const group = hostStarObject(color, radius);
+  const dot = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTexture(), color, sizeAttenuation: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  dot.scale.setScalar(DISTANT_STAR_DOT);
+  group.add(dot, labelSprite(label));
+  return group;
 }
 
 /** Frees a system group's GPU resources, textures included. */
@@ -195,6 +241,17 @@ export function orbitStartAngle(body: BodyRef, galaxySeed: number): number {
   return createRNG(mixSeed(galaxySeed, ...bodyKey(body), SALT.VISUAL, ORBIT_PHASE_STREAM))() * 2 * Math.PI;
 }
 
+// The VISUAL sub-stream where a binary's companion starts on its orbit (BS4)
+const COMPANION_PHASE_STREAM = 4;
+
+/** Where a star's companion starts round the pair's orbit, radians, from the star's VISUAL sub-stream (BS4). */
+export function companionStartAngle(starId: number, galaxySeed: number): number {
+  return createRNG(mixSeed(galaxySeed, starId, SALT.VISUAL, COMPANION_PHASE_STREAM))() * 2 * Math.PI;
+}
+
+/** A close pair goes round in no less than this many seconds on screen, so it never strobes (BS4). */
+export const FASTEST_PAIR_ORBIT_SECONDS = 4;
+
 /** The innermost moon of a planet goes round once in this many seconds on screen (MO6). */
 export const INNER_MOON_ORBIT_SECONDS = 8;
 
@@ -219,6 +276,14 @@ export class SystemOrbits {
       carrier, radius, startAngle: orbitStartAngle(planet, galaxySeed),
       secondsPerOrbit: secondsPerOrbit(radius, innermost), followers: [], parent: null,
     });
+  }
+
+  /**
+   * Adds one star of a close binary (BS4), going round the pair's centre at the group's origin.
+   * Add the pair before the planets, so a planet riding on its star is placed after the star moves.
+   */
+  addStar(key: string, carrier: THREE.Group, radius: number, seconds: number, startAngle: number): void {
+    this.orbits.set(key, { carrier, radius, startAngle, secondsPerOrbit: seconds, followers: [], parent: null });
   }
 
   /** Adds a moon's carrier inside its planet's (added first), going round once in `seconds` on screen. */

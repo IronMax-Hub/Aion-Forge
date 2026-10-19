@@ -154,3 +154,17 @@ export function binaryOrbitOf(orbitAU: number, primaryMass: number, companion: C
   if (orbitAU > pTypeLimitAU(primaryMass, companion)) return "around-both";
   return "unstable";
 }
+
+// ── The pair as one point of light (BS4) ──────────────────────────────────────
+
+/**
+ * A binary seen from afar, where the two stars are one point: their combined
+ * luminosity, and the luminosity-weighted temperature (each star's colour in
+ * proportion to its light). A single star is itself.
+ */
+export function pairLight(star: { temperature: number; luminosity: number; companion: Companion | null }): { temperature: number; luminosity: number } {
+  const c = star.companion;
+  const luminosity = star.luminosity + (c ? c.luminosity : 0);
+  if (!c || luminosity <= 0) return { temperature: star.temperature, luminosity: star.luminosity };
+  return { temperature: (star.luminosity * star.temperature + c.luminosity * c.temperature) / luminosity, luminosity };
+}

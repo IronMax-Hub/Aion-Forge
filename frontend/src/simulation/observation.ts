@@ -32,6 +32,8 @@
 // - A smaller planet gives a weaker signal only at the same gravity. At the
 //   same density its gravity falls with its size, its air stands taller in
 //   proportion, and its features come out about as strong (signal ∝ R_p·H).
+// - In a binary both stars are in the beam (BS4): the companion adds photons,
+//   so noise, and dilutes the transit (spectrum.ts, transitDilution).
 // - Presentation of simulation data: nothing here changes the universe.
 
 import { createRNG, gaussian, mixSeed, SALT } from "./rng";
@@ -79,7 +81,14 @@ const REFERENCE_PHOTONS = photonsPerBin(1, SUN_TEMPERATURE_K, REFERENCE_WAVELENG
 
 /** One-sigma noise per bin, ppm, after this many transits of this star. */
 export function noisePerBin(star: Star, transits: number, wavelengthUm: number): number {
-  return REFERENCE_NOISE_PPM * Math.sqrt(REFERENCE_PHOTONS / (transits * photonsPerBin(star.luminosity, star.temperature, wavelengthUm)));
+  return REFERENCE_NOISE_PPM * Math.sqrt(REFERENCE_PHOTONS / (transits * photonsInBeam(star, wavelengthUm)));
+}
+
+/** Photons in a bin from every star in the beam: in a binary, the companion's too (BS4). */
+function photonsInBeam(star: Star, wavelengthUm: number): number {
+  const own = photonsPerBin(star.luminosity, star.temperature, wavelengthUm);
+  const c = star.companion;
+  return c && c.luminosity > 0 && c.temperature > 0 ? own + photonsPerBin(c.luminosity, c.temperature, wavelengthUm) : own;
 }
 
 /**

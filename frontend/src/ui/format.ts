@@ -173,6 +173,12 @@ export const STELLAR_CLASS_NAME: Record<StellarClass, string> = {
   "black-hole":    "black hole",
 };
 
+/** A companion star in one line, e.g. "K3 V, 0.62 M☉, 42 AU, e 0.31" (BS4). */
+export function formatCompanion(c: { temperature: number; classification: StellarClass; mass: number; separationAU: number; eccentricity: number }): string {
+  const kind = spectralType(c.temperature, c.classification) ?? STELLAR_CLASS_NAME[c.classification];
+  return `${kind}, ${formatSig(c.mass, 2)} M☉, ${formatSig(c.separationAU)} AU, e ${c.eccentricity.toFixed(2)}`;
+}
+
 /** Catalogue label for a star, e.g. "Star 0006". */
 export function starName(starId: number): string {
   return `Star ${starId.toString().padStart(4, "0")}`;

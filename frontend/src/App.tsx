@@ -5,7 +5,7 @@ import { UniverseRenderer } from "./rendering/UniverseRenderer";
 import type { PlanetSight, ViewScale } from "./rendering/UniverseRenderer";
 import { generateGalaxy, buildGalaxyConfig, GALAXY_PARTICLE_COUNT } from "./simulation/galaxy";
 import type { GalaxyConfig, GalaxyType, GalaxyParticles } from "./simulation/galaxy";
-import { generateStarsFor, UNIVERSE_AGE_GYR } from "./simulation/star";
+import { generateStarsFor, irradianceAt, UNIVERSE_AGE_GYR } from "./simulation/star";
 import type { Star, StellarPopulation } from "./simulation/star";
 import { generatePlanetsFor, solidWorldOf, effectiveOrbitAU, GIANT_PLANET_MASS } from "./simulation/planet";
 import { derivePhysics } from "./simulation/planetPhysics";
@@ -485,7 +485,8 @@ export default function App() {
     return {
       world,
       physics: world?.physics ?? derivePhysics(planet, star, currentSeed, universeConfig),
-      starFlux: star.luminosity / (orbitAU * orbitAU),
+      // Both stars' light in a binary (BS3)
+      starFlux: irradianceAt(star, orbitAU, planet.orbitsBothStars === true, star.age),
       biosphere,
       civilization,
     };
@@ -635,7 +636,7 @@ export default function App() {
     const orbitAU = effectiveOrbitAU(selectedPlanet.orbitalRadius, universeConfig);
     const env = {
       gravityG: selectedPlanet.surface.surfaceGravity,
-      starFlux: selectedStar.luminosity / (orbitAU * orbitAU),
+      starFlux: irradianceAt(selectedStar, orbitAU, selectedPlanet.orbitsBothStars === true, selectedStar.age),
       starTemperatureK: selectedStar.temperature,
     };
     const plans = bodyPlans(life.lineages, env, { galaxySeed: currentSeed, starId: selectedStar.id, planetId: selectedPlanet.id, moonIndex: selectedPlanet.moonIndex });

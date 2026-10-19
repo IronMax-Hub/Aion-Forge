@@ -945,6 +945,12 @@ About half of Sun-like stars have a companion. A companion adds light that brigh
   - Planet table: "orbits both stars".
   - Spectrum (B2, B3): the transit depth diluted by the companion's light, L₁ / (L₁ + L₂), and photon noise from both, since both stars are in the telescope's beam.
 - **Verification:** Screenshots; a dilution test.
+- **Built** 19 Oct 2026; presentation only, no rules change. Galaxy points use `pairLight` in `binary.ts`: the summed luminosity, and the temperature weighted by each star's light. The star panel and the star's encyclopedia facts give the companion as "K4 V, 0.62 M☉, 42 AU, e 0.31" (`formatCompanion`). The planet table and the planet's Orbit fact say "orbits both stars". System view (`addStars` in `UniverseRenderer.ts`; `systemView.ts`):
+  - **A planet orbits both stars.** The pair circles its common centre on the planets' clock (Kepler ratio to the innermost planet, at least 4 s a turn). The primary's own planets ride with it, and each star lights the planets by its share of the light.
+  - **Otherwise.** The companion is a fixed marker at its distance: the star, a dot of fixed screen size, and a label such as "Companion · L0 V · 9.7 AU". Beyond half the view's reach it is drawn closer and the label says so.
+  - Its angle comes from the star's VISUAL stream.
+
+  The planet view's starlight and the field guide's flux read `irradianceAt`. Spectrum: `transitDilution` = L₁ / (L₁ + L₂) scales every bin and the baseline, and `noisePerBin` counts both stars' photons. The first organism's pigment colour, the rings and the globes still face the primary alone.
 
 #### BS5 Measure and tune
 `simulation` · **S**

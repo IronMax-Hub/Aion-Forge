@@ -838,6 +838,12 @@
   color: var(--col-life);
 }
 .system-table-life.extinct { color: var(--col-text-3); }
+/* A planet that orbits both stars of a binary (BS4), on its own line under the type */
+.system-table-note {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--col-text-3);
+}
 
 .system-table-link {
   background: none;

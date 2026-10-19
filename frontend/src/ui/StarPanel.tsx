@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type { Star } from "../simulation/star";
 import { temperatureToColor } from "../simulation/star";
 import type { DiscoveryItem } from "../simulation/persistence";
-import { formatSig, formatInt, formatGyr, formatLightYears, formatMetallicity, spectralType, starName, STELLAR_CLASS_NAME, LIGHT_YEARS_PER_UNIT } from "./format";
+import { formatCompanion, formatSig, formatInt, formatGyr, formatLightYears, formatMetallicity, spectralType, starName, STELLAR_CLASS_NAME, LIGHT_YEARS_PER_UNIT } from "./format";
 import { InspectorTabs } from "./InspectorTabs";
 
 interface Props {
@@ -73,6 +73,10 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
             <span className="data-value">{formatGyr(star.lifespan)}</span>
             <span className="data-label">[Fe/H]</span>
             <span className="data-value">{formatMetallicity(star.metallicity)}</span>
+            {star.companion && <>
+              <span className="data-label">Binary</span>
+              <span className="data-value">companion {formatCompanion(star.companion)}</span>
+            </>}
           </div>
         </div>
 

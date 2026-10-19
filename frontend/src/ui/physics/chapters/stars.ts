@@ -240,7 +240,7 @@ export const stars: Chapter = {
       why: "Multiplicity rises with stellar mass, and solar-type binaries' periods follow a broad log-normal; Kepler's law turns a period into a separation. Each companion is drawn from its own stream, so every other star and planet is unchanged.",
       source: "Duchêne & Kraus 2013; Raghavan et al. 2010",
       limits: [
-        "Companions do not yet act on anything: they limit where planets can orbit from BS2 and add their light from BS3.",
+        "Companions limit where planets can orbit (BS2, in the chapter on planetary systems); their light reaches planets from BS3.",
         "Companions have no planets of their own (decision 15); triples and higher multiples are not made.",
         "The period spread is not cut off at short periods, so a few pairs are drawn closer than their stars' radii allow.",
         "Separations do not read the laboratory's gravity (decision 45).",

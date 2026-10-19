@@ -32,7 +32,7 @@ exports[`reference entries > a frozen living world 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v14 · 0000 h",
+  "citation": "AF-U-0001-86A0 · v15 · 0000 h",
   "designation": "0000 h",
   "facts": [
     {
@@ -198,22 +198,22 @@ exports[`reference entries > a gas giant and its star 1`] = `
 {
   "chronicle": [
     {
-      "agoGyr": 10.566289647938683,
+      "agoGyr": 9.548766698907128,
       "sentence": {
         "sources": [
           "star.age",
           "planet.orbitalIndex",
         ],
-        "text": "The planet formed at 0.524 AU.",
+        "text": "The planet formed at 0.31 AU.",
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v14 · 0006 f",
-  "designation": "0006 f",
+  "citation": "AF-U-0001-86A0 · v15 · 0009 c",
+  "designation": "0009 c",
   "facts": [
     {
       "label": "Designation",
-      "value": "0006 f",
+      "value": "0009 c",
     },
     {
       "label": "Type",
@@ -221,43 +221,43 @@ exports[`reference entries > a gas giant and its star 1`] = `
     },
     {
       "label": "Orbit",
-      "value": "0.524 AU",
+      "value": "0.31 AU",
     },
     {
       "label": "Period",
-      "value": "194 days",
+      "value": "70.8 days",
     },
     {
       "label": "Mass",
-      "value": "96.5 M⊕",
+      "value": "141 M⊕",
     },
     {
       "label": "Radius",
-      "value": "12 R⊕",
+      "value": "15.2 R⊕",
     },
     {
       "label": "Gravity",
-      "value": "0.666 g",
+      "value": "0.614 g",
     },
     {
       "label": "Escape velocity",
-      "value": "31.7 km/s",
+      "value": "34.2 km/s",
     },
     {
       "label": "Day",
-      "value": "13.1 h",
+      "value": "Tidally locked",
     },
     {
       "label": "Tilt",
-      "value": "25.0°",
+      "value": "82.2°",
     },
     {
       "label": "Cloud-top temperature",
-      "value": "214 K",
+      "value": "408 K",
     },
     {
       "label": "Main gases",
-      "value": "H₂ 86.2%, He 13.6%, CH₄ 0.18%",
+      "value": "H₂ 85.9%, He 13.6%, H₂O 0.25%",
     },
     {
       "label": "Habitability",
@@ -272,7 +272,7 @@ exports[`reference entries > a gas giant and its star 1`] = `
     {
       "link": {
         "kind": "star",
-        "starId": 6,
+        "starId": 9,
       },
       "sources": [
         "planet.type",
@@ -281,14 +281,14 @@ exports[`reference entries > a gas giant and its star 1`] = `
         "planet.orbitalRadius",
         "planet.temperature",
       ],
-      "text": "Gas giant orbiting a K9 V star at 0.524 AU, with cloud tops at 214 K.",
+      "text": "Gas giant orbiting a K1 V star at 0.31 AU, with cloud tops at 408 K.",
     },
     {
       "sources": [
         "star.age",
         "planet.orbitalIndex",
       ],
-      "text": "Formed 10.6 Gyr ago.",
+      "text": "Formed 9.55 Gyr ago.",
     },
   ],
   "limits": [
@@ -303,13 +303,13 @@ exports[`reference entries > a gas giant and its star 1`] = `
   "seeAlso": [
     {
       "kind": "star",
-      "starId": 6,
+      "starId": 9,
     },
   ],
   "subject": {
     "kind": "planet",
-    "planetIndex": 4,
-    "starId": 6,
+    "planetIndex": 1,
+    "starId": 9,
   },
   "title": "Gas giant",
 }
@@ -319,7 +319,7 @@ exports[`reference entries > a gas giant and its star 2`] = `
 {
   "chronicle": [
     {
-      "agoGyr": 10.656289647938683,
+      "agoGyr": 9.608766698907129,
       "sentence": {
         "sources": [
           "star.age",
@@ -328,12 +328,12 @@ exports[`reference entries > a gas giant and its star 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v14 · Star 0006",
-  "designation": "Star 0006",
+  "citation": "AF-U-0001-86A0 · v15 · Star 0009",
+  "designation": "Star 0009",
   "facts": [
     {
       "label": "Spectral type",
-      "value": "K9 V",
+      "value": "K1 V",
     },
     {
       "label": "Class",
@@ -341,39 +341,39 @@ exports[`reference entries > a gas giant and its star 2`] = `
     },
     {
       "label": "Mass",
-      "value": "0.512 M☉",
+      "value": "0.794 M☉",
     },
     {
       "label": "Age",
-      "value": "10.7 Gyr",
+      "value": "9.61 Gyr",
     },
     {
       "label": "Lifespan used",
-      "value": "20%",
+      "value": "54%",
     },
     {
       "label": "[Fe/H]",
-      "value": "−1.14 · metal-poor",
+      "value": "−0.49 · metal-poor",
     },
     {
       "label": "Luminosity",
-      "value": "0.0963 L☉",
+      "value": "0.446 L☉",
     },
     {
       "label": "Temperature",
-      "value": "3,790 K",
+      "value": "5,019 K",
     },
     {
       "label": "Distance from centre",
-      "value": "48.5 kly",
+      "value": "34.4 kly",
     },
     {
       "label": "Planets",
-      "value": "5",
+      "value": "1",
     },
     {
       "label": "Planets with life",
-      "value": "0006 e, 0006 h",
+      "value": "None",
     },
   ],
   "lede": [
@@ -384,28 +384,28 @@ exports[`reference entries > a gas giant and its star 2`] = `
         "star.mass",
         "star.age",
       ],
-      "text": "A K9 V star of 0.512 M☉, 10.7 Gyr old.",
+      "text": "A K1 V star of 0.794 M☉, 9.61 Gyr old.",
     },
     {
       "sources": [
         "star.age",
         "star.metallicity",
       ],
-      "text": "Born 10.7 Gyr ago from gas with 1/14 of the Sun's metals.",
+      "text": "Born 9.61 Gyr ago from gas with a third of the Sun's metals.",
     },
     {
       "sources": [
         "star.age",
         "star.lifespan",
       ],
-      "text": "It has used 20% of its lifespan.",
+      "text": "It has used 54% of its lifespan.",
     },
     {
       "sources": [
         "system.planets",
         "planet.life",
       ],
-      "text": "5 planets orbit it; life began on 2 of them.",
+      "text": "1 planet orbits it; life began on none of them.",
     },
   ],
   "limits": [
@@ -429,33 +429,13 @@ exports[`reference entries > a gas giant and its star 2`] = `
     },
     {
       "kind": "planet",
-      "planetIndex": 0,
-      "starId": 6,
-    },
-    {
-      "kind": "planet",
-      "planetIndex": 3,
-      "starId": 6,
-    },
-    {
-      "kind": "planet",
-      "planetIndex": 4,
-      "starId": 6,
-    },
-    {
-      "kind": "planet",
-      "planetIndex": 6,
-      "starId": 6,
-    },
-    {
-      "kind": "planet",
-      "planetIndex": 7,
-      "starId": 6,
+      "planetIndex": 1,
+      "starId": 9,
     },
   ],
   "subject": {
     "kind": "star",
-    "starId": 6,
+    "starId": 9,
   },
   "title": "Main-sequence star",
 }
@@ -465,17 +445,17 @@ exports[`reference entries > a world of ruins 1`] = `
 {
   "chronicle": [
     {
-      "agoGyr": 13.175757467616348,
+      "agoGyr": 13.341894884696229,
       "sentence": {
         "sources": [
           "star.age",
           "planet.orbitalIndex",
         ],
-        "text": "The planet formed at 0.555 AU.",
+        "text": "The planet formed at 0.667 AU.",
       },
     },
     {
-      "agoGyr": 11.735757467616349,
+      "agoGyr": 12.80189488469623,
       "sentence": {
         "sources": [
           "planet.life.startedGyr",
@@ -484,7 +464,25 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 10.235757467616349,
+      "agoGyr": 12.70189488469623,
+      "sentence": {
+        "sources": [
+          "planet.worldEvents.thaws",
+        ],
+        "text": "The ice retreated and the planet thawed.",
+      },
+    },
+    {
+      "agoGyr": 12.70189488469623,
+      "sentence": {
+        "sources": [
+          "planet.worldEvents.moist-greenhouse",
+        ],
+        "text": "The climate grew hot enough for water to rise into the upper air and escape to space.",
+      },
+    },
+    {
+      "agoGyr": 12.20189488469623,
       "sentence": {
         "sources": [
           "planet.life.phylogeny.firsts.light",
@@ -493,16 +491,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 9.335757467616348,
-      "sentence": {
-        "sources": [
-          "planet.life.phylogeny.firsts.land",
-        ],
-        "text": "Life first moved onto land.",
-      },
-    },
-    {
-      "agoGyr": 9.03575746761635,
+      "agoGyr": 12.101894884696229,
       "sentence": {
         "sources": [
           "planet.worldEvents.oxidation",
@@ -511,7 +500,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 7.635757467616349,
+      "agoGyr": 11.00189488469623,
       "sentence": {
         "sources": [
           "planet.life.phylogeny.firsts.multicellular",
@@ -520,7 +509,25 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 4.735757467616349,
+      "agoGyr": 10.90189488469623,
+      "sentence": {
+        "sources": [
+          "planet.worldEvents.moist-greenhouse",
+        ],
+        "text": "The climate grew hot enough for water to rise into the upper air and escape to space.",
+      },
+    },
+    {
+      "agoGyr": 9.30189488469623,
+      "sentence": {
+        "sources": [
+          "planet.worldEvents.moist-greenhouse",
+        ],
+        "text": "The climate grew hot enough for water to rise into the upper air and escape to space.",
+      },
+    },
+    {
+      "agoGyr": 6.201894884696229,
       "sentence": {
         "sources": [
           "civilization.ageGyr",
@@ -529,7 +536,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 4.688642587163569,
+      "agoGyr": 6.201894884696229,
       "sentence": {
         "sources": [
           "civilization.milestones.agriculture",
@@ -538,7 +545,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 4.649128460894254,
+      "agoGyr": 6.199538687658072,
       "sentence": {
         "sources": [
           "civilization.milestones.first-cities",
@@ -547,7 +554,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 4.620250388462096,
+      "agoGyr": 5.707479016249999,
       "sentence": {
         "sources": [
           "civilization.milestones.writing",
@@ -556,7 +563,16 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
     {
-      "agoGyr": 4.335757467616348,
+      "agoGyr": 4.80189488469623,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Mass extinction: asteroid impact ended 25% of living lineages.",
+      },
+    },
+    {
+      "agoGyr": 4.80189488469623,
       "sentence": {
         "sources": [
           "civilization.milestones.collapse",
@@ -564,13 +580,22 @@ exports[`reference entries > a world of ruins 1`] = `
         "text": "Its species died out.",
       },
     },
+    {
+      "agoGyr": 2.5018948846962292,
+      "sentence": {
+        "sources": [
+          "biosphere.extinctions",
+        ],
+        "text": "Mass extinction: asteroid impact ended 30% of living lineages.",
+      },
+    },
   ],
-  "citation": "AF-U-0000-002A · v14 · 0006 c",
-  "designation": "0006 c",
+  "citation": "AF-U-0000-002A · v15 · 0009 c",
+  "designation": "0009 c",
   "facts": [
     {
       "label": "Designation",
-      "value": "0006 c",
+      "value": "0009 c",
     },
     {
       "label": "Type",
@@ -578,15 +603,15 @@ exports[`reference entries > a world of ruins 1`] = `
     },
     {
       "label": "Orbit",
-      "value": "0.555 AU",
+      "value": "0.667 AU",
     },
     {
       "label": "Period",
-      "value": "166 days",
+      "value": "228 days",
     },
     {
       "label": "Mass",
-      "value": "3.31 M⊕",
+      "value": "4.63 M⊕",
     },
     {
       "label": "Radius",
@@ -594,43 +619,43 @@ exports[`reference entries > a world of ruins 1`] = `
     },
     {
       "label": "Gravity",
-      "value": "1.08 g",
+      "value": "1.52 g",
     },
     {
       "label": "Escape velocity",
-      "value": "15.4 km/s",
+      "value": "18.2 km/s",
     },
     {
       "label": "Day",
-      "value": "23.7 h",
+      "value": "14.3 h",
     },
     {
       "label": "Tilt",
-      "value": "19.7°",
+      "value": "3.9°",
     },
     {
       "label": "Ocean / land / ice",
-      "value": "43% / 57% / 0%",
+      "value": "70% / 0% / 30%",
     },
     {
       "label": "Pressure",
-      "value": "1.22 bar (moderate)",
+      "value": "0.345 bar (thin)",
     },
     {
       "label": "Mean temperature",
-      "value": "307 K",
+      "value": "273 K",
     },
     {
       "label": "Temperature range",
-      "value": "284–318 K",
+      "value": "229–296 K",
     },
     {
       "label": "Main gases",
-      "value": "N₂ 79.4%, O₂ 17.5%, H₂O 3.1%",
+      "value": "O₂ 89.3%, CO₂ 7.59%, N₂ 1.71%",
     },
     {
       "label": "Habitability",
-      "value": "0.91",
+      "value": "0.74",
     },
     {
       "label": "Life",
@@ -638,15 +663,15 @@ exports[`reference entries > a world of ruins 1`] = `
     },
     {
       "label": "Living lineages",
-      "value": "28",
+      "value": "32",
     },
     {
       "label": "Largest organism",
-      "value": "43 kg",
+      "value": "300 kg",
     },
     {
       "label": "First mind",
-      "value": "4.74 Gyr ago",
+      "value": "6.2 Gyr ago",
     },
     {
       "label": "Civilization",
@@ -657,7 +682,7 @@ exports[`reference entries > a world of ruins 1`] = `
     {
       "link": {
         "kind": "star",
-        "starId": 6,
+        "starId": 9,
       },
       "sources": [
         "planet.type",
@@ -665,44 +690,65 @@ exports[`reference entries > a world of ruins 1`] = `
         "star.classification",
         "planet.orbitalRadius",
       ],
-      "text": "Rocky planet orbiting a G9 V star at 0.555 AU.",
+      "text": "Rocky planet orbiting a K0 V star at 0.667 AU.",
     },
     {
       "sources": [
         "star.age",
         "planet.orbitalIndex",
       ],
-      "text": "Formed 13.2 Gyr ago.",
+      "text": "Formed 13.3 Gyr ago.",
     },
     {
       "link": {
         "kind": "biosphere",
         "planetIndex": 1,
-        "starId": 6,
+        "starId": 9,
       },
       "sources": [
         "planet.life.startedGyr",
         "star.age",
       ],
-      "text": "Life emerged 11.7 Gyr ago.",
+      "text": "Life emerged 12.8 Gyr ago.",
+    },
+    {
+      "sources": [
+        "biosphere.extinctions",
+      ],
+      "text": "Survived 2 mass extinctions.",
     },
     {
       "link": {
         "kind": "civilization",
         "planetIndex": 1,
-        "starId": 6,
+        "starId": 9,
       },
       "sources": [
         "civilization.techLevel",
         "civilization.ageGyr",
       ],
-      "text": "Developed an agricultural civilization 4.74 Gyr ago.",
+      "text": "Developed an agricultural civilization 6.2 Gyr ago.",
     },
     {
       "sources": [
         "civilization.extinctAgoGyr",
       ],
-      "text": "Its species died out 4.34 Gyr ago.",
+      "text": "Its species died out 4.8 Gyr ago.",
+    },
+    {
+      "sources": [
+        "planet.surface.landFraction",
+        "planet.surface.pressureBar",
+        "planet.surface.o2Bar",
+      ],
+      "text": "Its civilization never had fire: no exposed land, and air too thin (0.345 bar).",
+    },
+    {
+      "sources": [
+        "planet.formationAtmosphere",
+        "planet.atmosphere",
+      ],
+      "text": "Formed with a trace of air; thin today.",
     },
   ],
   "limits": [
@@ -725,43 +771,35 @@ exports[`reference entries > a world of ruins 1`] = `
         "index.lifeBeganGyr",
         "star.age",
       ],
-      "text": "Life began here longer ago than 95% of the other worlds where it began.",
+      "text": "Life began here longer ago than 99% of the other worlds where it began.",
     },
     {
       "sources": [
         "index.lifeStage",
       ],
-      "text": "One of 12 worlds with complex ecosystems today.",
-    },
-    {
-      "sources": [
-        "planet.isRare",
-        "planet.type",
-        "planet.temperature",
-      ],
-      "text": "Rare: a temperate rocky world, 220–320 K, under moderate air.",
+      "text": "One of 11 worlds with complex ecosystems today.",
     },
   ],
   "seeAlso": [
     {
       "kind": "star",
-      "starId": 6,
+      "starId": 9,
     },
     {
       "kind": "biosphere",
       "planetIndex": 1,
-      "starId": 6,
+      "starId": 9,
     },
     {
       "kind": "civilization",
       "planetIndex": 1,
-      "starId": 6,
+      "starId": 9,
     },
   ],
   "subject": {
     "kind": "planet",
     "planetIndex": 1,
-    "starId": 6,
+    "starId": 9,
   },
   "title": "Rocky planet",
 }
@@ -771,7 +809,7 @@ exports[`reference entries > a world of ruins 2`] = `
 {
   "chronicle": [
     {
-      "agoGyr": 4.735757467616349,
+      "agoGyr": 6.201894884696229,
       "sentence": {
         "sources": [
           "civilization.ageGyr",
@@ -780,7 +818,7 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
     {
-      "agoGyr": 4.688642587163569,
+      "agoGyr": 6.201894884696229,
       "sentence": {
         "sources": [
           "civilization.milestones.agriculture",
@@ -789,7 +827,7 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
     {
-      "agoGyr": 4.649128460894254,
+      "agoGyr": 6.199538687658072,
       "sentence": {
         "sources": [
           "civilization.milestones.first-cities",
@@ -798,7 +836,7 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
     {
-      "agoGyr": 4.620250388462096,
+      "agoGyr": 5.707479016249999,
       "sentence": {
         "sources": [
           "civilization.milestones.writing",
@@ -807,7 +845,7 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
     {
-      "agoGyr": 4.335757467616348,
+      "agoGyr": 4.80189488469623,
       "sentence": {
         "sources": [
           "civilization.milestones.collapse",
@@ -816,20 +854,20 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0000-002A · v14 · 0006 c",
-  "designation": "0006 c",
+  "citation": "AF-U-0000-002A · v15 · 0009 c",
+  "designation": "0009 c",
   "facts": [
     {
       "label": "Species",
-      "value": "0006 c · L-519",
+      "value": "0009 c · L-477",
     },
     {
       "label": "Body mass",
-      "value": "4.2 g",
+      "value": "2.9 g",
     },
     {
       "label": "Habitat",
-      "value": "Deep water",
+      "value": "Shallow water",
     },
     {
       "label": "Stage",
@@ -841,15 +879,15 @@ exports[`reference entries > a world of ruins 2`] = `
     },
     {
       "label": "Age",
-      "value": "4.74 Gyr",
+      "value": "6.2 Gyr",
     },
     {
       "label": "Peak population",
-      "value": "9.82 billion",
+      "value": "46.5 billion",
     },
     {
       "label": "Fire",
-      "value": "Possible",
+      "value": "Not possible",
     },
     {
       "label": "Gases it adds to the air",
@@ -861,25 +899,33 @@ exports[`reference entries > a world of ruins 2`] = `
       "sources": [
         "planet.life.phylogeny.mind",
       ],
-      "text": "A mind arose here 4.74 Gyr ago, in a species of 4.2 g bodies living in deep water.",
+      "text": "A mind arose here 6.2 Gyr ago, in a species of 2.9 g bodies living in shallow water.",
     },
     {
       "link": {
         "kind": "civilization",
         "planetIndex": 1,
-        "starId": 6,
+        "starId": 9,
       },
       "sources": [
         "civilization.techLevel",
         "civilization.ageGyr",
       ],
-      "text": "Developed an agricultural civilization 4.74 Gyr ago.",
+      "text": "Developed an agricultural civilization 6.2 Gyr ago.",
     },
     {
       "sources": [
         "civilization.extinctAgoGyr",
       ],
-      "text": "Its species died out 4.34 Gyr ago.",
+      "text": "Its species died out 4.8 Gyr ago.",
+    },
+    {
+      "sources": [
+        "planet.surface.landFraction",
+        "planet.surface.pressureBar",
+        "planet.surface.o2Bar",
+      ],
+      "text": "Its civilization never had fire: no exposed land, and air too thin (0.345 bar).",
     },
   ],
   "limits": [
@@ -901,25 +947,25 @@ exports[`reference entries > a world of ruins 2`] = `
       "sources": [
         "index.mindGyr",
       ],
-      "text": "One of 13 worlds where a mind arose.",
+      "text": "One of 12 worlds where a mind arose.",
     },
   ],
   "seeAlso": [
     {
       "kind": "planet",
       "planetIndex": 1,
-      "starId": 6,
+      "starId": 9,
     },
     {
       "kind": "biosphere",
       "planetIndex": 1,
-      "starId": 6,
+      "starId": 9,
     },
   ],
   "subject": {
     "kind": "civilization",
     "planetIndex": 1,
-    "starId": 6,
+    "starId": 9,
   },
   "title": "Ruins of a civilization",
 }
@@ -984,7 +1030,7 @@ exports[`reference entries > an Earth-like world 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v14 · 0022 c",
+  "citation": "AF-U-0001-86A0 · v15 · 0022 c",
   "designation": "0022 c",
   "facts": [
     {
@@ -1207,7 +1253,7 @@ exports[`reference entries > an ocean world with complex life 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v14 · 0075 c",
+  "citation": "AF-U-0001-86A0 · v15 · 0075 c",
   "designation": "0075 c",
   "facts": [
     {
@@ -1732,7 +1778,7 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v14 · 0075 c",
+  "citation": "AF-U-0001-86A0 · v15 · 0075 c",
   "designation": "0075 c",
   "facts": [
     {
@@ -1825,7 +1871,7 @@ exports[`reference entries > the galaxy 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v14 · Galaxy",
+  "citation": "AF-U-0001-86A0 · v15 · Galaxy",
   "designation": "Galaxy",
   "facts": [
     {
@@ -1842,15 +1888,15 @@ exports[`reference entries > the galaxy 1`] = `
     },
     {
       "label": "Planets",
-      "value": "1,096",
+      "value": "979",
     },
     {
       "label": "Worlds where life began",
-      "value": "341",
+      "value": "313",
     },
     {
       "label": "Worlds with life today",
-      "value": "235",
+      "value": "218",
     },
     {
       "label": "Minds",
@@ -1888,7 +1934,7 @@ exports[`reference entries > the galaxy 1`] = `
         "index.lifeBeganGyr",
         "index.lifeStage",
       ],
-      "text": "Life began on 341 of its 1,096 planets and lives on 235 today.",
+      "text": "Life began on 313 of its 979 planets and lives on 218 today.",
     },
     {
       "link": {

@@ -95,3 +95,62 @@ export function drawCompanion(galaxySeed: number, starId: number, primaryMass: n
     temperatureDraw: rng(),
   };
 }
+
+// ── Where planets can orbit (BS2) ─────────────────────────────────────────────
+//
+// A companion's pull leaves two places where a planet's orbit survives: close
+// to the primary (S-type), or far out around both stars (P-type). Between the
+// two limits no orbit lasts. The limits are Holman & Wiegert's (1999) fits to
+// numerical integrations, in units of the pair's separation a_b, with
+// μ = m₂ / (m₁ + m₂) and e the pair's eccentricity:
+//
+//   S-type  a < a_b · (0.464 − 0.380μ − 0.631e + 0.586μe + 0.150e² − 0.198μe²)
+//   P-type  a > a_b · (1.60 + 5.10e − 2.22e² + 4.12μ − 4.27eμ − 5.09μ² + 4.61e²μ²)
+//
+// A planet drawn between them cannot stay. It is removed with its draws taken
+// and its index left as a gap; from step 7 it becomes a rogue planet. In
+// nature the companion also truncates the disk, so many such planets would
+// never have formed: counting them as thrown out is a simplification
+// (decision 17). Planets beyond the P-type limit orbit both stars.
+//
+// Limits: the fits cover e up to 0.7–0.8 and μ 0.1–0.9; companions here reach
+// e 0.8 and μ down to 0.09, slightly outside. The limits are sharp lines where
+// nature has a fuzzy band with islands of stability. Planets are tested by
+// their distance as the climate reads it (effectiveOrbitAU), and the pair's
+// separation is not scaled by the laboratory's gravity (decision 45).
+
+/** S-type limit coefficients (Holman & Wiegert 1999): 1, μ, e, μe, e², μe². */
+export const S_TYPE_LIMIT = { c: 0.464, mu: -0.380, e: -0.631, muE: 0.586, e2: 0.150, muE2: -0.198 } as const;
+/** P-type limit coefficients (Holman & Wiegert 1999): 1, e, e², μ, eμ, μ², e²μ². */
+export const P_TYPE_LIMIT = { c: 1.60, e: 5.10, e2: -2.22, mu: 4.12, eMu: -4.27, mu2: -5.09, e2Mu2: 4.61 } as const;
+
+/** Where a planet's orbit can last in a binary: around the primary, around both stars, or nowhere. */
+export type BinaryOrbit = "around-primary" | "around-both" | "unstable";
+
+/** The companion's share of the pair's mass, μ = m₂ / (m₁ + m₂). */
+export function massShare(primaryMass: number, companion: Companion): number {
+  return companion.mass / (primaryMass + companion.mass);
+}
+
+/** The widest orbit around the primary that lasts, AU. */
+export function sTypeLimitAU(primaryMass: number, companion: Companion): number {
+  const mu = massShare(primaryMass, companion);
+  const e = companion.eccentricity;
+  const k = S_TYPE_LIMIT;
+  return companion.separationAU * (k.c + k.mu * mu + k.e * e + k.muE * mu * e + k.e2 * e * e + k.muE2 * mu * e * e);
+}
+
+/** The closest orbit around both stars that lasts, AU. */
+export function pTypeLimitAU(primaryMass: number, companion: Companion): number {
+  const mu = massShare(primaryMass, companion);
+  const e = companion.eccentricity;
+  const k = P_TYPE_LIMIT;
+  return companion.separationAU * (k.c + k.e * e + k.e2 * e * e + k.mu * mu + k.eMu * e * mu + k.mu2 * mu * mu + k.e2Mu2 * e * e * mu * mu);
+}
+
+/** Where a planet at `orbitAU` from the primary (or the pair's centre) can orbit. */
+export function binaryOrbitOf(orbitAU: number, primaryMass: number, companion: Companion): BinaryOrbit {
+  if (orbitAU < sTypeLimitAU(primaryMass, companion)) return "around-primary";
+  if (orbitAU > pTypeLimitAU(primaryMass, companion)) return "around-both";
+  return "unstable";
+}

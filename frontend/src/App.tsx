@@ -118,6 +118,7 @@ export default function App() {
   const [showPhysics, setShowPhysics] = useState(false);
   const [surveyEngulfed, setSurveyEngulfed] = useState<number | null>(null);
   const [surveyTooSmall, setSurveyTooSmall] = useState<number | null>(null);
+  const [surveyUnstable, setSurveyUnstable] = useState<number | null>(null);
 
   const [seed, setSeed]             = useState<number>(() => randomSeed());
   const [inputSeed, setInputSeed]   = useState<string>("");
@@ -189,6 +190,7 @@ export default function App() {
     setSurveyIndex(null);
     setSurveyEngulfed(null);
     setSurveyTooSmall(null);
+    setSurveyUnstable(null);
     setEncyclopediaSubject(null);
     setFilterGate(null);
     systemRecordsRef.current = new Map();
@@ -223,6 +225,7 @@ export default function App() {
           setSurveyIndex(survey.index);
           setSurveyEngulfed(survey.engulfedPlanets);
           setSurveyTooSmall(survey.tooSmallPlanets);
+          setSurveyUnstable(survey.unstablePlanets);
           cachedSnapshotRef.current = buildSnapshot(s, config, population.stars.length, survey);
           rendererRef.current?.setLifeMarkers(survey.systems.map(life => ({ starId: life.starId, label: lifeMarkerLabel(life) })));
         },
@@ -728,8 +731,8 @@ export default function App() {
     const population = populationRef.current;
     const galaxy = galaxyConfigRef.current;
     if (!population || !galaxy || !showPhysics) return null;
-    return { config: { ...universeConfig, seed: currentSeed }, galaxy, stars: population.stars, index: surveyIndex, engulfedPlanets: surveyEngulfed, tooSmallPlanets: surveyTooSmall };
-  }, [universeConfig, currentSeed, surveyIndex, surveyEngulfed, surveyTooSmall, showPhysics]);
+    return { config: { ...universeConfig, seed: currentSeed }, galaxy, stars: population.stars, index: surveyIndex, engulfedPlanets: surveyEngulfed, tooSmallPlanets: surveyTooSmall, unstablePlanets: surveyUnstable };
+  }, [universeConfig, currentSeed, surveyIndex, surveyEngulfed, surveyTooSmall, surveyUnstable, showPhysics]);
 
   // The page covers the whole view, so the 3D view stops drawing while it is open
   useEffect(() => { rendererRef.current?.setPaused(showPhysics); }, [showPhysics]);

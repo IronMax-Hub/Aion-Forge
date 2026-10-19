@@ -17,6 +17,7 @@ import {
   TILT_HOLDING_RATIO,
 } from "../../../simulation/moons";
 import { TILT_WANDER } from "../../../simulation/worldHistory";
+import { P_TYPE_LIMIT, pTypeLimitAU, S_TYPE_LIMIT, sTypeLimitAU } from "../../../simulation/binary";
 import { ATMOSPHERE_CODES, INDEX_FLAG, PLANET_TYPE_CODES } from "../../../simulation/universeIndex";
 import type { UniverseIndex } from "../../../simulation/universeIndex";
 import { formatInt, formatPercent, formatSig, PLANET_TYPE_LABEL } from "../../format";
@@ -183,6 +184,35 @@ export const systems: Chapter = {
         const ix = ctx.index!;
         const counts = PLANET_TYPE_CODES.map((type, code) => [type, rowsWhere(ix, (i) => ix.type[i] === code).length] as const).filter(([, n]) => n > 0);
         return [said(`${counts.map(([type, n]) => `${PLANET_TYPE_LABEL[type]}s: ${formatInt(n)}`).join("; ")}.`, "index.type")];
+      },
+    },
+    {
+      id: "binary-orbits",
+      title: "Where a companion lets planets orbit",
+      statement: "A companion star's pull leaves two places where a planet's orbit lasts: close to its star, or far out around both stars. A planet drawn in between cannot stay and is removed; planets beyond the outer limit orbit both stars.",
+      rule: `around the star: a < a_b · (${S_TYPE_LIMIT.c} − ${-S_TYPE_LIMIT.mu}μ − ${-S_TYPE_LIMIT.e}e + ${S_TYPE_LIMIT.muE}μe + ${S_TYPE_LIMIT.e2}e² − ${-S_TYPE_LIMIT.muE2}μe²); around both: a > a_b · (${P_TYPE_LIMIT.c} + ${P_TYPE_LIMIT.e}e − ${-P_TYPE_LIMIT.e2}e² + ${P_TYPE_LIMIT.mu}μ − ${-P_TYPE_LIMIT.eMu}eμ − ${-P_TYPE_LIMIT.mu2}μ² + ${P_TYPE_LIMIT.e2Mu2}e²μ²); μ = m₂ / (m₁ + m₂), a_b and e the pair's separation and eccentricity`,
+      constants: [
+        { name: "Around one of two equal stars, circular", value: `${formatSig(S_TYPE_LIMIT.c + S_TYPE_LIMIT.mu * 0.5)} a_b`, meaning: "The widest lasting orbit around one of two equal stars (μ 0.5, e 0)" },
+        { name: "Around both, circular", value: `${formatSig(P_TYPE_LIMIT.c + P_TYPE_LIMIT.mu * 0.5 + P_TYPE_LIMIT.mu2 * 0.25)} a_b`, meaning: "The closest lasting orbit around an equal pair (μ 0.5, e 0)" },
+      ],
+      why: "Fits to numerical integrations of planets in binaries: an eccentric or heavy companion narrows the room around each star and pushes the room around both further out.",
+      source: "Holman & Wiegert 1999 (AJ 117, 621)",
+      limits: [
+        "Removed planets are counted as thrown out; in nature the companion also truncates the disk, so many would never have formed (decision 17). From step 7 they become rogue planets.",
+        "The fits cover e up to about 0.7–0.8 and μ 0.1–0.9; companions here reach e 0.8 and μ down to 0.09.",
+        "Sharp limits, where nature has a fuzzy band with islands of stability.",
+        "Planets around both stars still receive only their own star's light until BS3.",
+      ],
+      laws: [{ law: "gravityStrength", how: "Moves planets' orbits inward (effectiveOrbitAU) before the test; the pair's separation is not scaled (decision 45)" }],
+      code: "simulation/binary.ts · sTypeLimitAU, pTypeLimitAU, binaryOrbitOf; simulation/planet.ts · generatePlanetsFor",
+      effect: (ctx) => {
+        const binaries = ctx.stars.filter((s) => s.companion);
+        if (binaries.length === 0) return [said("No star here has a companion.", "star.companion")];
+        const out = [said(
+          `In the median binary no orbit lasts between ${formatSig(median(binaries.map((s) => sTypeLimitAU(s.mass, s.companion!))))} AU and ${formatSig(median(binaries.map((s) => pTypeLimitAU(s.mass, s.companion!))))} AU.`,
+          "star.companion", "sTypeLimitAU", "pTypeLimitAU")];
+        if (ctx.unstablePlanets !== null) out.push(said(`${formatInt(ctx.unstablePlanets)} planets were drawn where a companion allows no orbit, and removed.`, "survey.unstablePlanets"));
+        return out;
       },
     },
   ],

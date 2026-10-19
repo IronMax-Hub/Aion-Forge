@@ -4,6 +4,7 @@ import { pow } from "./detmath";
 import type { Star } from "./star";
 import { luminosityAt, pastGiantRadiusAU, stellarRadiusAU } from "./star";
 import { makeConfig } from "./config";
+import { binaryOrbitOf } from "./binary";
 import type { UniverseConfig } from "./config";
 import {
   ATMOSPHERE_DRAW, atmosphereFromDraw, effectiveOrbitAU, GIANT_PLANET_MASS, PLANET_MASS_DRAW, planetMassFromDraw, typicalRadiusForMass,
@@ -76,6 +77,8 @@ export interface Planet {
   moonOrbit?: MoonOrbit;
   /** True when no large moon holds the tilt and other planets' pull makes it wander (MO5, decision 12). */
   tiltFree?: boolean;
+  /** Set when the planet orbits both stars of a binary, beyond the P-type limit (BS2). */
+  orbitsBothStars?: true;
 }
 
 /** A planet's life: its dates, Gyr after its star formed, and what its lineages became (C2.5). */
@@ -118,6 +121,8 @@ export interface PlanetarySystem {
   engulfed: number;
   /** Bodies too small to be planets once scaled by the star's metallicity (MZ3; not in `planets`). */
   tooSmall: number;
+  /** Planets drawn where the star's companion allows no orbit (BS2; not in `planets`). */
+  unstable: number;
 }
 
 // ── Orbital architecture (AF-038 + AF-039 + AF-040) ──────────────────────────
@@ -437,11 +442,11 @@ export function generatePlanetsFor(
 
   // Dead stars don't have planets
   if (star.classification === "neutron-star" || star.classification === "black-hole") {
-    return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0, tooSmall: 0 };
+    return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0, tooSmall: 0, unstable: 0 };
   }
 
   const count = planetCount(star.mass, rng);
-  if (count === 0) return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0, tooSmall: 0 };
+  if (count === 0) return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0, tooSmall: 0, unstable: 0 };
 
   const arch = pickArchitecture(rng());
   // The drawn system, moved out as a whole when the innermost orbit lies inside the
@@ -455,6 +460,7 @@ export function generatePlanetsFor(
 
   let engulfed = 0;
   let tooSmall = 0;
+  let unstable = 0;
   const planets: (Planet | null)[] = orbits.map((orbitalRadius, idx) => {
     const mass = planetMassFor(rng(), star.metallicity);
     // Stellar heating decides what atmosphere a planet can keep
@@ -472,6 +478,12 @@ export function generatePlanetsFor(
     }
     if (mass < PLANET_MASS_DRAW.min) {
       tooSmall++;
+      return null;
+    }
+    // A companion allows orbits close to the star or far out around both, not between (BS2)
+    const binaryOrbit = star.companion && binaryOrbitOf(effectiveOrbitAU(orbitalRadius, config), star.mass, star.companion);
+    if (binaryOrbit === "unstable") {
+      unstable++;
       return null;
     }
 
@@ -496,6 +508,7 @@ export function generatePlanetsFor(
       everLiquidWater: false,
       moons: [],
     };
+    if (binaryOrbit === "around-both") planet.orbitsBothStars = true;
 
     return planet;
   });
@@ -522,7 +535,7 @@ export function generatePlanetsFor(
     planet.habitabilityScore = calcHabitability(planet.type, planet.atmosphere, planet.resourceAbundance, planet.surface);
     planet.isRare = rareReasonOf(planet) !== null;
   }
-  return { hostStarId: star.id, galaxySeed, planets: survivors, engulfed, tooSmall };
+  return { hostStarId: star.id, galaxySeed, planets: survivors, engulfed, tooSmall, unstable };
 }
 
 // ── Color palette for rendering (AF-044) ──────────────────────────────────────

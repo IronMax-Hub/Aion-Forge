@@ -917,6 +917,7 @@ About half of Sun-like stars have a companion. A companion adds light that brigh
 
   A planet drawn between the two limits cannot stay. It is removed, with its draws taken and its index left as a gap; from step 7 it becomes a rogue planet. In nature a companion also truncates the disk, so many such planets would never have formed rather than been thrown out; counting them all as rogues is a choice (decision 17). Planets beyond the P-type limit orbit both stars.
 - **Verification:** The limits at reference values of μ and e; no planet is left between them; single stars are unaffected.
+- **Built** 19 Oct 2026, rules v15. `sTypeLimitAU`, `pTypeLimitAU` and `binaryOrbitOf` in `binary.ts`; `generatePlanetsFor` tests each planet at its `effectiveOrbitAU` after the engulfment and too-small checks, so a body is counted once. Removed planets are counted in `PlanetarySystem.unstable` and `LifeSurvey.unstablePlanets`; planets beyond the P-type limit carry `orbitsBothStars`. Single-star systems are bit-identical to v14 (seeds 100000 and 42), and in binaries the surviving planets keep their orbits, masses and keys. Seed 100000: 927 binaries; 757 planets removed (7,650 → 6,893); funnel 5,911 / 2,762 / 2,121 / 395 / 153 / 119 / 27 / 13 / 7 / 6 / 0 / 0. A Physics page card, "Where a companion lets planets orbit", shows the limits and the removed count.
 
 #### BS3 Light from two stars
 `simulation` · **M**

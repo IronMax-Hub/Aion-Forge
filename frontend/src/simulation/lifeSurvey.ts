@@ -36,6 +36,7 @@ export interface LifeSurvey {
   everLifePlanets: number;      // every planet where life began, living or not (R8)
   engulfedPlanets: number;      // planets that formed and were engulfed by their swelling star (not in the index)
   tooSmallPlanets: number;      // bodies too small to be planets at their star's metallicity (MZ3; not in the index)
+  unstablePlanets: number;      // planets drawn where a companion allows no orbit (BS2; not in the index)
   /** Moon worlds with life today (MO4): counted beside planets, not in lifeBearingPlanets (decision 13). */
   lifeBearingMoons: number;
   civilizationCount: number;    // on planets and moons (decision 13)
@@ -60,6 +61,7 @@ export function surveyLife(
   let everLifePlanets = 0;
   let engulfedPlanets = 0;
   let tooSmallPlanets = 0;
+  let unstablePlanets = 0;
   let lifeBearingMoons = 0;
   let civilizationCount = 0;
   const systems: SystemLife[] = [];
@@ -72,6 +74,7 @@ export function surveyLife(
     totalPlanets += system.planets.length;
     engulfedPlanets += system.engulfed;
     tooSmallPlanets += system.tooSmall;
+    unstablePlanets += system.unstable;
     rows.push(...indexRowsFor(system, star, seed, cfg));
     moonRows.push(...moonRowsFor(system, star, seed, cfg));
 
@@ -133,5 +136,5 @@ export function surveyLife(
     }
   }
 
-  return { totalPlanets, lifeBearingPlanets, everLifePlanets, engulfedPlanets, tooSmallPlanets, lifeBearingMoons, civilizationCount, systems, index: packIndex(rows), moonIndex: packIndex(moonRows) };
+  return { totalPlanets, lifeBearingPlanets, everLifePlanets, engulfedPlanets, tooSmallPlanets, unstablePlanets, lifeBearingMoons, civilizationCount, systems, index: packIndex(rows), moonIndex: packIndex(moonRows) };
 }

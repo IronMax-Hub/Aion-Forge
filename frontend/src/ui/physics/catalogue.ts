@@ -33,6 +33,8 @@ export interface PhysicsContext {
   engulfedPlanets: number | null;
   /** Bodies too small to be planets at their star's metallicity (MZ3, from the survey); null until it finishes. */
   tooSmallPlanets: number | null;
+  /** Planets drawn where a companion allows no orbit (BS2, from the survey); null until it finishes. */
+  unstablePlanets: number | null;
 }
 
 export type LawKey = keyof typeof DEFAULT_CONFIG;

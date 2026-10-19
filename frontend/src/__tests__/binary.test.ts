@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
-  CIRCULAR_BELOW_DAYS, COMPANION_CHANCE, companionChance, LOG_PERIOD_DAYS, MASS_RATIO, MAX_ECCENTRICITY, separationFromPeriod,
+  binaryOrbitOf, CIRCULAR_BELOW_DAYS, COMPANION_CHANCE, companionChance, LOG_PERIOD_DAYS, MASS_RATIO, MAX_ECCENTRICITY,
+  pTypeLimitAU, separationFromPeriod, sTypeLimitAU,
 } from "../simulation/binary";
+import type { Companion } from "../simulation/binary";
+import { effectiveOrbitAU, generatePlanetsFor } from "../simulation/planet";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { makeConfig } from "../simulation/config";
@@ -70,5 +73,70 @@ describe("companions (BS1)", () => {
 
   it("is the same every time", () => {
     expect(starsOf(42).map((s) => s.companion)).toEqual(starsOf(42).map((s) => s.companion));
+  });
+});
+
+describe("where planets can orbit (BS2)", () => {
+  // μ = 0.3 and e = 0.5, at a separation of 10 AU; the values worked by hand from Holman & Wiegert's fits
+  const companion: Companion = {
+    mass: 0.3, periodDays: 10000, separationAU: 10, eccentricity: 0.5,
+    lifespan: 200, temperature: 3400, luminosity: 0.01, classification: "main-sequence",
+  };
+
+  it("gives Holman & Wiegert's limits at reference values", () => {
+    expect(sTypeLimitAU(0.7, companion)).toBeCloseTo(1.4505, 10);
+    expect(pTypeLimitAU(0.7, companion)).toBeCloseTo(38.36125, 10);
+    const circularTwin = { ...companion, mass: 1, eccentricity: 0 };
+    expect(sTypeLimitAU(1, circularTwin)).toBeCloseTo(10 * (0.464 - 0.19), 10);
+    expect(pTypeLimitAU(1, circularTwin)).toBeCloseTo(10 * (1.6 + 2.06 - 1.2725), 10);
+  });
+
+  it("allows orbits close to the star and far around both, never between", () => {
+    expect(binaryOrbitOf(1, 0.7, companion)).toBe("around-primary");
+    expect(binaryOrbitOf(10, 0.7, companion)).toBe("unstable");
+    expect(binaryOrbitOf(40, 0.7, companion)).toBe("around-both");
+  });
+
+  const seed = 100000;
+  const config = makeConfig(seed);
+  const all = starsOf(seed);
+  const systems = all.filter((s) => s.companion).slice(0, 250).map((star) => ({ star, system: generatePlanetsFor(star, seed, config) }));
+
+  it("leaves no planet between the limits, and marks those around both stars", () => {
+    let removed = 0;
+    let aroundBoth = 0;
+    for (const { star, system } of systems) {
+      removed += system.unstable;
+      for (const p of system.planets) {
+        const where = binaryOrbitOf(effectiveOrbitAU(p.orbitalRadius, config), star.mass, star.companion!);
+        expect(where).not.toBe("unstable");
+        expect(p.orbitsBothStars === true).toBe(where === "around-both");
+        if (p.orbitsBothStars) aroundBoth++;
+      }
+    }
+    // The sample must exercise both outcomes
+    expect(removed).toBeGreaterThan(0);
+    expect(aroundBoth).toBeGreaterThan(0);
+  });
+
+  it("takes a removed planet's draws, so the others keep their orbits, masses and indices", () => {
+    for (const { star, system } of systems) {
+      const alone = generatePlanetsFor({ ...star, companion: null }, seed, config);
+      expect(alone.unstable).toBe(0);
+      expect(system.planets.length + system.unstable).toBe(alone.planets.length);
+      const byIndex = new Map(alone.planets.map((p) => [p.orbitalIndex, p]));
+      for (const p of system.planets) {
+        const twin = byIndex.get(p.orbitalIndex)!;
+        expect([p.key, p.orbitalRadius, p.mass, p.size, p.resourceAbundance]).toEqual([twin.key, twin.orbitalRadius, twin.mass, twin.size, twin.resourceAbundance]);
+      }
+    }
+  });
+
+  it("leaves single stars' systems untouched", () => {
+    for (const star of all.filter((s) => !s.companion).slice(0, 200)) {
+      const system = generatePlanetsFor(star, seed, config);
+      expect(system.unstable).toBe(0);
+      expect(system.planets.some((p) => p.orbitsBothStars)).toBe(false);
+    }
   });
 });

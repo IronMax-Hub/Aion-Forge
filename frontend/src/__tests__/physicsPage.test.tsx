@@ -17,7 +17,7 @@ function contextOf(seed: number, overrides: Partial<Omit<UniverseConfig, "seed">
   const galaxy = buildGalaxyConfig(seed, config);
   const stars = generateStarsFor(galaxy, UNIVERSE_AGE_GYR, config).stars;
   const survey = surveyLife(stars.slice(0, sample), seed, config);
-  return { config, galaxy, stars, index: survey.index, engulfedPlanets: survey.engulfedPlanets, tooSmallPlanets: survey.tooSmallPlanets };
+  return { config, galaxy, stars, index: survey.index, engulfedPlanets: survey.engulfedPlanets, tooSmallPlanets: survey.tooSmallPlanets, unstablePlanets: survey.unstablePlanets };
 }
 
 const contexts = [
@@ -81,7 +81,7 @@ describe("the Physics page's catalogue", () => {
   });
 
   it("measures the cards that do not need the survey before it finishes", () => {
-    const ctx = { ...contexts[0], index: null, engulfedPlanets: null, tooSmallPlanets: null };
+    const ctx = { ...contexts[0], index: null, engulfedPlanets: null, tooSmallPlanets: null, unstablePlanets: null };
     for (const card of cards.filter((c) => c.effect && !c.needsIndex)) {
       for (const s of card.effect!(ctx)) expect(s.text, card.id).not.toMatch(BAD);
     }

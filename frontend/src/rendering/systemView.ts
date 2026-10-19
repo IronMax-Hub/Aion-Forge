@@ -9,8 +9,9 @@
 //
 // How:
 // - The star: a sphere whose brightness falls toward its edge (limb darkening,
-//   as the Sun's does), pushed past white so the tone mapping saturates its
-//   centre, inside an additive glow sprite in the star's colour.
+//   as the Sun's does), in its display colour (starColour.ts) and outside the
+//   tone mapping so the colour is not washed to white, inside a restrained
+//   additive glow in the same colour.
 // - Orbits: one-pixel line loops, the same width at every zoom.
 // - Light: a point light at the star in its colour (no fall-off: planets are drawn
 //   enlarged, far from true scale, so a true fall-off would only mislead), and a
@@ -39,13 +40,16 @@ import type { BodyRef } from "../simulation/bodyKey";
 
 // Limb darkening: brightness at the edge as a share of the centre's (the Sun's is about 0.4 in visible light)
 const LIMB_BRIGHTNESS = 0.45;
-// The star's centre is drawn this much brighter than white: it saturates, while its darker limb still shows
-const STAR_SURFACE_BRIGHTNESS = 1.4;
+// The star's centre is drawn at its display colour, outside the tone mapping, which would wash it toward
+// white (at 1.4 and tone-mapped it once saturated to white); its darker limb still shows
+const STAR_SURFACE_BRIGHTNESS = 1;
+// How far the star's surface is lightened toward white, so its centre reads as hot (it was 0.35)
+const STAR_SURFACE_WHITENING = 0.12;
 const STAR_SEGMENTS = 64;
 // The glow sprite spans this many star radii, and its texture this many texels
-const GLOW_RADII = 9;
+const GLOW_RADII = 7;
 const GLOW_TEXTURE_SIZE = 128;
-const GLOW_OPACITY = 1;
+const GLOW_OPACITY = 0.6;
 
 const ORBIT_SEGMENTS = 256;
 const ORBIT_COLOUR = 0x4a525d;
@@ -83,7 +87,6 @@ const STAR_FRAGMENT = /* glsl */`
     float mu = clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0);
     float limb = mix(limbBrightness, 1.0, mu);
     gl_FragColor = vec4(starColor * brightness * limb, 1.0);
-    #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
 `;
@@ -120,7 +123,7 @@ export function hostStarObject(color: THREE.Color, radius: number): THREE.Group 
       vertexShader: STAR_VERTEX,
       fragmentShader: STAR_FRAGMENT,
       uniforms: {
-        starColor: { value: color.clone().lerp(new THREE.Color(1, 1, 1), 0.35) },
+        starColor: { value: color.clone().lerp(new THREE.Color(1, 1, 1), STAR_SURFACE_WHITENING) },
         brightness: { value: STAR_SURFACE_BRIGHTNESS },
         limbBrightness: { value: LIMB_BRIGHTNESS },
       },
@@ -128,7 +131,7 @@ export function hostStarObject(color: THREE.Color, radius: number): THREE.Group 
   );
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTexture(), color, transparent: true, opacity: GLOW_OPACITY,
-    blending: THREE.AdditiveBlending, depthWrite: false,
+    blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
   }));
   glow.scale.setScalar(radius * GLOW_RADII);
   group.add(surface, glow);
@@ -309,7 +312,7 @@ const DISTANT_STAR_DOT = 0.014;
 export function distantStarMarker(color: THREE.Color, radius: number, label: string): THREE.Group {
   const group = hostStarObject(color, radius);
   const dot = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: glowTexture(), color, sizeAttenuation: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    map: glowTexture(), color, sizeAttenuation: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
   }));
   dot.scale.setScalar(DISTANT_STAR_DOT);
   group.add(dot, labelSprite(label));

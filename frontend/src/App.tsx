@@ -1067,7 +1067,7 @@ export default function App() {
       {/* ── Stage: the rendered universe, with tool panels floating over it ── */}
       <main className="stage">
         <canvas ref={canvasRef} className="viewport" />
-        {viewScale?.mode === "system" && currentSystem && selectedStar && <SystemKey system={currentSystem} star={selectedStar} />}
+        {viewScale?.mode === "system" && currentSystem && selectedStar && <SystemKey system={currentSystem} star={selectedStar} scale={viewScale} />}
 
         {showConfigPanel && (
           <RealityConfigPanel
@@ -1243,7 +1243,8 @@ export default function App() {
           <span className="statusbar-error" role="alert">Life survey failed: {surveyError}</span>
         )}
         <div className="statusbar-right">
-          <ScaleBar scale={viewScale} />
+          {/* In the system view the scale sits in the view's key */}
+          {viewScale?.mode !== "system" && <ScaleBar scale={viewScale} />}
           <AudioControls onFirstInteraction={initAudio} />
         </div>
       </footer>

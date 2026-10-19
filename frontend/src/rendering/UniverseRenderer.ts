@@ -5,6 +5,7 @@ import type { GalaxyParticles } from "../simulation/galaxy";
 import type { Star, StellarPopulation } from "../simulation/star";
 import { companionAsStar, stellarRadiusAU, temperatureToColor } from "../simulation/star";
 import { pairLight } from "../simulation/binary";
+import { starDisplayColour, starDisplayThreeColour } from "./starColour";
 import { moonKey } from "../simulation/bodyKey";
 import { formatSig, spectralType, STELLAR_CLASS_NAME } from "../ui/format";
 import type { Planet, PlanetarySystem, SolidWorld } from "../simulation/planet";
@@ -521,7 +522,7 @@ export class UniverseRenderer {
 
       // A binary is one point at this scale: its colour from both stars' light, its size from their sum (BS4)
       const seen = pairLight(s);
-      const [r, g, b] = temperatureToColor(seen.temperature);
+      const [r, g, b] = starDisplayColour(seen.temperature);
       col[i * 3]     = r;
       col[i * 3 + 1] = g;
       col[i * 3 + 2] = b;
@@ -589,6 +590,7 @@ export class UniverseRenderer {
     const innermostAU = system.planets.length > 0 ? Math.min(...system.planets.map((p) => p.orbitalRadius)) : 0;
     const scale = Math.max(1, innermostAU / USUAL_INNER_ORBIT_AU);
 
+    // The star's true colour lights its planets; it is drawn in its display colour (starColour.ts)
     const [sr, sg, sb] = temperatureToColor(hostStar.temperature);
     const starCol = new THREE.Color(sr, sg, sb);
     const maxDistance = Math.min(DEFAULT_DISTANCE.max * scale, this.camera.far / 2);
@@ -681,11 +683,13 @@ export class UniverseRenderer {
     const companion = hostStar.companion;
     const companionStar = companionAsStar(hostStar);
     if (!companion || !companionStar) {
-      group.add(hostStarObject(starCol, HOST_STAR_RADIUS * scale), ...systemLights(starCol));
+      group.add(hostStarObject(starDisplayThreeColour(hostStar.temperature), HOST_STAR_RADIUS * scale), ...systemLights(starCol));
       return group;
     }
     const [cr, cg, cb] = temperatureToColor(companion.temperature);
     const companionCol = new THREE.Color(cr, cg, cb);
+    const drawnCol = starDisplayThreeColour(hostStar.temperature);
+    const companionDrawnCol = starDisplayThreeColour(companion.temperature);
     const total = hostStar.luminosity + companion.luminosity;
     const ownShare = total > 0 ? hostStar.luminosity / total : 1;
     const primaryRadiusAU = stellarRadiusAU(hostStar);
@@ -701,12 +705,12 @@ export class UniverseRenderer {
     if (aroundBoth.length === 0) {
       // A companion round the primary: their relative orbit, with the centre of mass on the line between them
       const radius = HOST_STAR_RADIUS * scale;
-      group.add(hostStarObject(starCol, radius), ...systemLights(starCol));
+      group.add(hostStarObject(drawnCol, radius), ...systemLights(starCol));
       const closest = 3 * radius * (1 + companionSize);
       const a = Math.min(maxDistance / 2 / (1 + e), Math.max(trueA, closest / (1 - e)));
       const relative: KeplerPath = { a, e, share: 1, periapsis };
-      group.add(keplerLine(relative, companionCol, COMPANION_ORBIT_OPACITY));
-      const marker = distantStarMarker(companionCol, radius * companionSize,
+      group.add(keplerLine(relative, companionDrawnCol, COMPANION_ORBIT_OPACITY));
+      const marker = distantStarMarker(companionDrawnCol, radius * companionSize,
         `Companion · ${starKindOf(companion)} · ${formatSig(companion.separationAU)} AU${a < trueA ? " (drawn closer)" : a > trueA ? " (drawn apart)" : ""}`);
       const centre = new THREE.Group();
       centre.add(barycentreMarker());
@@ -728,12 +732,12 @@ export class UniverseRenderer {
     const companionCarrier = new THREE.Group();
     group.add(
       primaryCarrier, companionCarrier, barycentreMarker(),
-      keplerLine(primaryPath, starCol, COMPANION_ORBIT_OPACITY), keplerLine(companionPath, companionCol, COMPANION_ORBIT_OPACITY),
+      keplerLine(primaryPath, drawnCol, COMPANION_ORBIT_OPACITY), keplerLine(companionPath, companionDrawnCol, COMPANION_ORBIT_OPACITY),
     );
     this.systemOrbits.addStar("pair-primary", primaryCarrier, primaryPath, seconds);
     this.systemOrbits.addStar("pair-companion", companionCarrier, companionPath, seconds);
-    primaryCarrier.add(hostStarObject(starCol, radius), ...systemLights(starCol, SYSTEM_STARLIGHT_INTENSITY * ownShare));
-    companionCarrier.add(hostStarObject(companionCol, radius * companionSize),
+    primaryCarrier.add(hostStarObject(drawnCol, radius), ...systemLights(starCol, SYSTEM_STARLIGHT_INTENSITY * ownShare));
+    companionCarrier.add(hostStarObject(companionDrawnCol, radius * companionSize),
       new THREE.PointLight(companionCol, SYSTEM_STARLIGHT_INTENSITY * (1 - ownShare), 0, 0));
     return primaryCarrier;
   }

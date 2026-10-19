@@ -458,7 +458,18 @@ export function xuvFluence(star: Star, t0: number, t1: number): number {
 }
 
 // ── Temperature → RGB (AF-027) ────────────────────────────────────────────────
+//
+// A blackbody's colour, 0–1 per channel, from Tanner Helland's fit (in 0–255
+// units: red 329.70 · (T/100 − 60)^−0.1332 and green 288.12 · (T/100 − 60)^−0.0755
+// above 6,600 K). Display only: nothing the simulation decides reads it.
+// Until 19 Oct 2026 the red and green factors were 3.29 and 2.88 rather than
+// 329.70 / 255 and 288.12 / 255, which turned every star above 6,600 K white.
 
+/** The red and green factors of the fit above 6,600 K, as shares of 255. */
+const HOT_RED = 329.698727446 / 255;
+const HOT_GREEN = 288.1221695283 / 255;
+
+/** A blackbody's display colour at this temperature, sRGB 0–1. */
 export function temperatureToColor(temp: number): [number, number, number] {
   if (temp <= 0) return [0.15, 0.08, 0.25];
   const t = Math.max(1000, Math.min(temp, 40000)) / 100;
@@ -467,14 +478,14 @@ export function temperatureToColor(temp: number): [number, number, number] {
   if (t <= 66) {
     r = 1;
   } else {
-    r = Math.max(0, Math.min(1, pow(t - 60, -0.1332) * 3.29));
+    r = Math.max(0, Math.min(1, pow(t - 60, -0.1332) * HOT_RED));
   }
 
   let g: number;
   if (t <= 66) {
     g = Math.max(0, Math.min(1, log(t) * 0.3909 - 0.5516));
   } else {
-    g = Math.max(0, Math.min(1, pow(t - 60, -0.0755) * 2.88));
+    g = Math.max(0, Math.min(1, pow(t - 60, -0.0755) * HOT_GREEN));
   }
 
   let b: number;

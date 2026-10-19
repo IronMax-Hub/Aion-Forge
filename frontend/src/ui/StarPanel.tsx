@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import type { Star } from "../simulation/star";
-import { temperatureToColor } from "../simulation/star";
+import { starDisplayCss } from "../rendering/starColour";
 import type { DiscoveryItem } from "../simulation/persistence";
 import { formatCompanion, formatSig, formatInt, formatGyr, formatLightYears, formatMetallicity, spectralType, starName, STELLAR_CLASS_NAME, LIGHT_YEARS_PER_UNIT } from "./format";
 import { InspectorTabs } from "./InspectorTabs";
@@ -30,8 +30,7 @@ const CAN_HAVE_PLANETS: Record<string, boolean> = {
 export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscovery, bookmarked, onToggleBookmark, entryView }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
 
-  const [r, g, b] = temperatureToColor(star.temperature);
-  const starColor  = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+  const starColor  = starDisplayCss(star.temperature);
   const canExplore = CAN_HAVE_PLANETS[star.classification];
   const spectral   = spectralType(star.temperature, star.classification);
   const subtitle   = spectral ? `${spectral} · ${STELLAR_CLASS_NAME[star.classification]}` : STELLAR_CLASS_NAME[star.classification];

@@ -2400,7 +2400,17 @@ h5.physics-label, h4.physics-label { display: block; margin-bottom: var(--sp-1);
   color: var(--col-text-2);
   pointer-events: none;
 }
-.system-key-title { color: var(--col-text-1); margin-bottom: var(--sp-2); }
+.system-key-title { color: var(--col-text-1); margin: var(--sp-3) 0 var(--sp-2); }
+.system-key .scale-bar { margin-bottom: var(--sp-2); }
+.system-key .scale-bar-line { border-color: var(--col-text-2); }
+.system-key .scale-bar-label { color: var(--col-text-1); }
+.system-key-notes { color: var(--col-text-3); }
 .system-key ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); }
 .system-key li { display: flex; align-items: center; gap: var(--sp-2); }
 .system-key-swatch { display: inline-flex; flex: none; }
+
+/* On narrow screens the system view's key keeps only its scale, so it does not cover the view */
+@media (max-width: 767px) {
+  .system-key ul, .system-key-title { display: none; }
+  .system-key .scale-bar { margin-bottom: 0; }
+}

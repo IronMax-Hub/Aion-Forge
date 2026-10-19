@@ -24,9 +24,14 @@
 // Each globe and air shell sits in its planet's carrier (systemView.ts) and
 // follows it round its orbit: its light comes from where the star now is, and a
 // locked planet keeps the same face to it.
+// - Spin: as in the planet view (A8), a planet not locked to its star turns
+//   about its pole once per SECONDS_PER_ROTATION, whatever its real day, its
+//   clouds with it; a locked planet does not turn, and under reduced motion
+//   none does.
 //
-// Limits: globes do not spin, and city lights and orbital shells (A9) are left
-// to the planet view; on a planet this small they would not read.
+// Limits: clouds do not drift over the ground, and city lights and orbital
+// shells (A9) are left to the planet view; on a planet this small they would
+// not read.
 //
 // Presentation only: it reads planets and their worlds and never writes them.
 
@@ -39,7 +44,7 @@ import type { GlobeSurface } from "./planet/globe";
 import { SYSTEM_DETAIL } from "./planet/globeBake";
 import { cubeSphereGeometry } from "./planet/cubeSphere";
 import { atmosphereShell, hasVisibleAtmosphere } from "./planet/atmosphere";
-import { FADE_IN_MS, glowColourOf, globeMaterial, globeOrientation, starlightIntensity } from "./planet/PlanetView";
+import { FADE_IN_MS, glowColourOf, globeMaterial, globeOrientation, spinAngle, starlightIntensity } from "./planet/PlanetView";
 import { vegetationOf } from "./planet/life";
 import type { PlanetSight } from "./UniverseRenderer";
 import type { SystemOrbits } from "./systemView";
@@ -54,6 +59,9 @@ export const SYSTEM_GLOBE_CACHE_SIZE = 12;
 const SYSTEM_SHELL_RADIUS = 1.08;
 const GLOBE_SEGMENTS = 32;
 const NIGHT_FILL_INTENSITY = 0.03;
+// Scratch values for turning globes each frame
+const SPIN = new THREE.Quaternion();
+const TURN = new THREE.Matrix4();
 
 /** One planet waiting for, or showing, its globe. */
 interface GlobeJob {
@@ -64,7 +72,12 @@ interface GlobeJob {
   surface: GlobeSurface | null;
   globe: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> | null;
   fadeStartMs: number | null;
+  /** The globe's orientation before its spin: its pole, or for a locked planet its face to the star. */
+  base: THREE.Quaternion;
 }
+
+// Turn about the globe's own pole (its local +y)
+const POLE = new THREE.Vector3(0, 1, 0);
 
 export class SystemGlobes {
   private readonly cache = new GlobeTextureCache(SYSTEM_GLOBE_CACHE_SIZE, SYSTEM_DETAIL);
@@ -72,6 +85,8 @@ export class SystemGlobes {
   private star: Star | null = null;
   private galaxySeed = 0;
   private fade = true;
+  /** When the system opened, ms: every free globe's spin counts from it. */
+  private openedMs = 0;
   private orbits: SystemOrbits | null = null;
 
   /**
@@ -88,6 +103,7 @@ export class SystemGlobes {
     this.star = star;
     this.galaxySeed = galaxySeed;
     this.fade = fade;
+    this.openedMs = performance.now();
     this.orbits = orbits;
     group.updateMatrixWorld();
     const [sr, sg, sb] = temperatureToColor(star.temperature);
@@ -98,7 +114,7 @@ export class SystemGlobes {
       const sight = sights.get(planet.key);
       if (!marker || !sight?.physics) continue;
       if (hasVisibleAtmosphere(planet)) this.addAir(planet, sight, marker, starColor);
-      this.jobs.push({ planet, sight, marker, surface: null, globe: null, fadeStartMs: null });
+      this.jobs.push({ planet, sight, marker, surface: null, globe: null, fadeStartMs: null, base: new THREE.Quaternion() });
     }
     const distance = (job: GlobeJob) => job.marker.getWorldPosition(new THREE.Vector3()).distanceTo(camera.position);
     this.jobs.sort((a, b) => distance(a) - distance(b));
@@ -132,6 +148,20 @@ export class SystemGlobes {
     for (const j of this.jobs) this.stepFade(j, nowMs);
   }
 
+  /** Turns every free globe to where its spin has brought it; call once per frame. */
+  spin(nowMs: number): void {
+    if (!this.fade) return;   // reduced motion: nothing turns
+    for (const job of this.jobs) if (job.globe && job.surface?.spins) this.turn(job, nowMs);
+  }
+
+  /** Sets a globe's orientation, its base turned by its spin, and tells its shader. */
+  private turn(job: GlobeJob, nowMs: number): void {
+    const globe = job.globe!;
+    globe.quaternion.copy(job.base);
+    if (this.fade && job.surface!.spins) globe.quaternion.multiply(SPIN.setFromAxisAngle(POLE, spinAngle(nowMs - this.openedMs)));
+    globe.material.uniforms.localToWorld.value.setFromMatrix4(TURN.makeRotationFromQuaternion(globe.quaternion));
+  }
+
   /** Frees every cached bake: for a new universe, where planet keys name different planets. */
   clear(): void {
     this.stop();
@@ -149,14 +179,14 @@ export class SystemGlobes {
     const globe = new THREE.Mesh(cubeSphereGeometry(GLOBE_SEGMENTS), material);
     globe.scale.setScalar(marker.geometry.parameters.radius);
     marker.parent!.add(globe);
-    // Lit from where the star is; a locked planet's substellar point keeps facing it
-    const turn = new THREE.Matrix4();
+    // Lit from where the star is; a locked planet's substellar point keeps facing it.
+    // The globe is the job's before following, since following places it at once.
+    job.globe = globe;
     this.orbits!.follow(planet.key, ({ toStar }) => {
       material.uniforms.toStar.value.copy(toStar);
-      globe.quaternion.copy(globeOrientation(surface, toStar));
-      material.uniforms.localToWorld.value.setFromMatrix4(turn.makeRotationFromQuaternion(globe.quaternion));
+      job.base.copy(globeOrientation(surface, toStar));
+      this.turn(job, performance.now());
     });
-    job.globe = globe;
     job.fadeStartMs = this.fade ? nowMs : null;
     if (!this.fade) marker.material.visible = false;
   }

@@ -1228,6 +1228,7 @@ export class UniverseRenderer {
       } else if (this.mode === "system") {
         this.systemGlobes.update(this.renderer, performance.now());   // the approach's bake goes first
       }
+      if (this.mode === "system") this.systemGlobes.spin(performance.now());
       this.stepTween();
       this.controls.update();
 

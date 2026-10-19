@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as THREE from "three";
-import { INNER_ORBIT_SECONDS, SystemOrbits, orbitStartAngle, secondsPerOrbit } from "../rendering/systemView";
+import { eccentricAnomaly, INNER_ORBIT_SECONDS, keplerPlace, SystemOrbits, orbitStartAngle, secondsPerOrbit } from "../rendering/systemView";
 import type { OrbitPlace } from "../rendering/systemView";
 import type { Planet } from "../simulation/planet";
 
@@ -42,5 +42,37 @@ describe("orbital motion in the system view", () => {
     // A whole orbit later it is back where it started
     orbits.advance(INNER_ORBIT_SECONDS * 3 / 4);
     expect(places[2].centre.distanceTo(start.centre)).toBeLessThan(1e-9);
+  });
+});
+
+describe("a binary's stars on Kepler ellipses (BS4)", () => {
+  it("solves Kepler's equation", () => {
+    for (const e of [0, 0.3, 0.8, 0.95]) {
+      for (const M of [0.1, 1, 2.5, 4, 6]) {
+        const E = eccentricAnomaly(M, e);
+        expect(E - e * Math.sin(E)).toBeCloseTo(M, 10);
+      }
+    }
+  });
+
+  it("is closest at a(1 − e) and farthest at a(1 + e), toward its periapsis", () => {
+    const path = { a: 10, e: 0.4, share: 1, periapsis: 0 };
+    const [xp, zp] = keplerPlace(path, 0);
+    expect(xp).toBeCloseTo(6, 10);
+    expect(zp).toBeCloseTo(0, 10);
+    const [xa] = keplerPlace(path, Math.PI);
+    expect(xa).toBeCloseTo(-14, 10);
+  });
+
+  it("keeps the centre of mass still: m₁ r₁ + m₂ r₂ = 0 at every moment", () => {
+    const mu = 0.3;   // the companion's share of the mass
+    const primary = { a: 5, e: 0.6, share: -mu, periapsis: 1.2 };
+    const companion = { ...primary, share: 1 - mu };
+    for (const M of [0, 0.7, 2, 3.5, 5.9]) {
+      const [x1, z1] = keplerPlace(primary, M);
+      const [x2, z2] = keplerPlace(companion, M);
+      expect((1 - mu) * x1 + mu * x2).toBeCloseTo(0, 10);
+      expect((1 - mu) * z1 + mu * z2).toBeCloseTo(0, 10);
+    }
   });
 });

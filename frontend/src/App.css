@@ -2383,3 +2383,23 @@ h5.physics-label, h4.physics-label { display: block; margin-bottom: var(--sp-1);
 
 .physics-missing { font-size: var(--fs-sm); color: var(--col-text-3); }
 .physics-missing ul { margin: 0; padding-left: var(--sp-6); }
+
+/* The system view's key (BS4 legibility): bottom left of the stage, over the view, never catching the pointer */
+.system-key {
+  position: absolute;
+  left: var(--sp-4);
+  bottom: var(--sp-4);
+  z-index: 1;
+  max-width: 300px;
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--col-surface) 85%, transparent);
+  border: 1px solid var(--col-border-3);
+  border-radius: 4px;
+  font-size: var(--fs-xs);
+  color: var(--col-text-2);
+  pointer-events: none;
+}
+.system-key-title { color: var(--col-text-1); margin-bottom: var(--sp-2); }
+.system-key ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); }
+.system-key li { display: flex; align-items: center; gap: var(--sp-2); }
+.system-key-swatch { display: inline-flex; flex: none; }

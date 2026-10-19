@@ -50,6 +50,7 @@ const GLOW_OPACITY = 1;
 const ORBIT_SEGMENTS = 256;
 const ORBIT_COLOUR = 0x4a525d;
 const ORBIT_OPACITY = 0.55;
+const CIRCUMBINARY_ORBIT_COLOUR = 0x8a7f6a;
 
 /** Starlight on the planets, as the planet view's at Earth's flux (PlanetView.ts). */
 export const SYSTEM_STARLIGHT_INTENSITY = 2.6;
@@ -126,6 +127,75 @@ export function hostStarObject(color: THREE.Color, radius: number): THREE.Group 
   glow.scale.setScalar(radius * GLOW_RADII);
   group.add(surface, glow);
   return group;
+}
+
+/** The eccentric anomaly E for a mean anomaly M (Kepler's equation M = E − e sin E, by Newton's method). */
+export function eccentricAnomaly(meanAnomaly: number, e: number): number {
+  let E = e < 0.8 ? meanAnomaly : Math.PI;
+  for (let i = 0; i < 30; i++) {
+    const step = (E - e * Math.sin(E) - meanAnomaly) / (1 - e * Math.cos(E));
+    E -= step;
+    if (Math.abs(step) < 1e-12) break;
+  }
+  return E;
+}
+
+/** Where a body on a Kepler path is, x and z in its group, at this mean anomaly. */
+export function keplerPlace(path: KeplerPath, meanAnomaly: number): [number, number] {
+  const E = eccentricAnomaly(meanAnomaly, path.e);
+  // Relative position in the orbit's own frame, periapsis along +x' (the focus at the origin)
+  const xo = path.a * (Math.cos(E) - path.e);
+  const yo = path.a * Math.sqrt(1 - path.e * path.e) * Math.sin(E);
+  const c = Math.cos(path.periapsis);
+  const s = Math.sin(path.periapsis);
+  // Turned by the periapsis angle about +y, then scaled by the body's share
+  return [path.share * (xo * c - yo * s), -path.share * (xo * s + yo * c)];
+}
+
+/** A Kepler path drawn whole: a one-pixel ellipse in the x–z plane. */
+export function keplerLine(path: KeplerPath, colour: THREE.ColorRepresentation, opacity: number): THREE.LineLoop {
+  const points = new Float32Array(ORBIT_SEGMENTS * 3);
+  for (let i = 0; i < ORBIT_SEGMENTS; i++) {
+    // Even steps in eccentric anomaly, so the ellipse is smooth at both ends
+    const E = (i / ORBIT_SEGMENTS) * 2 * Math.PI;
+    const M = E - path.e * Math.sin(E);
+    const [x, z] = keplerPlace(path, M);
+    points[i * 3] = x;
+    points[i * 3 + 2] = z;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(points, 3));
+  return new THREE.LineLoop(geometry, new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity, depthWrite: false }));
+}
+
+// The centre of mass's cross: its arms, and its colour
+const BARYCENTRE_COLOUR = 0xc8ced6;
+
+/** A binary's centre of mass: a small flat cross of this half-width, and a ring round it. */
+export function barycentreMarker(halfWidth: number): THREE.Group {
+  const group = new THREE.Group();
+  const material = new THREE.LineBasicMaterial({ color: BARYCENTRE_COLOUR, transparent: true, opacity: 0.8, depthWrite: false });
+  const cross = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-halfWidth, 0, 0), new THREE.Vector3(halfWidth, 0, 0),
+    new THREE.Vector3(0, 0, -halfWidth), new THREE.Vector3(0, 0, halfWidth),
+  ]);
+  group.add(new THREE.LineSegments(cross, material));
+  const ring = orbitLine(halfWidth * 0.6);
+  (ring.material as THREE.Material).dispose();
+  ring.material = material;
+  group.add(ring);
+  return group;
+}
+
+/** A planet's orbit around both stars of a binary (BS4): the orbit's circle, dashed, in a warmer grey. */
+export function circumbinaryOrbitLine(radius: number): THREE.LineLoop {
+  const line = orbitLine(radius);
+  line.material = new THREE.LineDashedMaterial({
+    color: CIRCUMBINARY_ORBIT_COLOUR, transparent: true, opacity: ORBIT_OPACITY, depthWrite: false,
+    dashSize: (radius * 2 * Math.PI) / 120, gapSize: (radius * 2 * Math.PI) / 240,
+  });
+  line.computeLineDistances();
+  return line;
 }
 
 /** A planet's orbit: a one-pixel circle of this radius in the x–z plane. */
@@ -226,9 +296,24 @@ export interface OrbitPlace {
 /** Something drawn with a planet that must know where it is: its light direction, its centre. */
 export type OrbitFollower = (place: OrbitPlace) => void;
 
+/**
+ * A body on a Kepler ellipse (BS4): a binary's stars and its centre of mass. The pair's relative
+ * orbit has semi-major axis `a` (scene units), eccentricity `e` and its closest approach toward
+ * `periapsis` (radians about +y); the body sits at `share` of the relative position, negative for
+ * the primary, which is on the far side of the centre of mass from its companion.
+ */
+export interface KeplerPath {
+  a: number;
+  e: number;
+  share: number;
+  periapsis: number;
+}
+
 interface Orbit {
   carrier: THREE.Group;
   radius: number;
+  /** Set for a binary's stars and centre of mass: an ellipse instead of the circle of `radius`. */
+  kepler?: KeplerPath;
   startAngle: number;
   secondsPerOrbit: number;
   followers: OrbitFollower[];
@@ -282,8 +367,8 @@ export class SystemOrbits {
    * Adds one star of a close binary (BS4), going round the pair's centre at the group's origin.
    * Add the pair before the planets, so a planet riding on its star is placed after the star moves.
    */
-  addStar(key: string, carrier: THREE.Group, radius: number, seconds: number, startAngle: number): void {
-    this.orbits.set(key, { carrier, radius, startAngle, secondsPerOrbit: seconds, followers: [], parent: null });
+  addStar(key: string, carrier: THREE.Group, path: KeplerPath, seconds: number): void {
+    this.orbits.set(key, { carrier, radius: 0, kepler: path, startAngle: 0, secondsPerOrbit: seconds, followers: [], parent: null });
   }
 
   /** Adds a moon's carrier inside its planet's (added first), going round once in `seconds` on screen. */
@@ -317,6 +402,13 @@ export class SystemOrbits {
 
   private placeOne(orbit: Orbit): void {
     const angle = orbit.startAngle + (this.elapsedSeconds / orbit.secondsPerOrbit) * 2 * Math.PI;
+    if (orbit.kepler) {
+      // The angle is the mean anomaly: equal times sweep equal areas, fastest at closest approach
+      const [x, z] = keplerPlace(orbit.kepler, angle);
+      orbit.carrier.position.set(x, 0, z);
+      orbit.carrier.updateWorldMatrix(true, false);
+      return;
+    }
     orbit.carrier.position.set(orbit.radius * Math.cos(angle), 0, -orbit.radius * Math.sin(angle));
     orbit.carrier.updateWorldMatrix(true, false);
     const { place } = this;

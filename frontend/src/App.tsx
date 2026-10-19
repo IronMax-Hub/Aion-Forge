@@ -37,6 +37,7 @@ import { layoutTree } from "./ui/treeOfLife";
 import { TreeOfLifePanel } from "./ui/TreeOfLifePanel";
 import { bodyPlans } from "./rendering/life/morphology";
 import { ScaleBar } from "./ui/ScaleBar";
+import { SystemKey } from "./ui/SystemKey";
 import { GreatFilterPanel } from "./ui/GreatFilterPanel";
 import { PhysicsPage } from "./ui/PhysicsPage";
 import type { GateId } from "./simulation/greatFilter";
@@ -1055,6 +1056,7 @@ export default function App() {
       {/* ── Stage: the rendered universe, with tool panels floating over it ── */}
       <main className="stage">
         <canvas ref={canvasRef} className="viewport" />
+        {viewScale?.mode === "system" && currentSystem && selectedStar && <SystemKey system={currentSystem} star={selectedStar} />}
 
         {showConfigPanel && (
           <RealityConfigPanel

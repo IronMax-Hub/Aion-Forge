@@ -72,7 +72,7 @@ export function runSurveyChunk(
   const { generation, seed, config, chunk, from, to } = request;
   try {
     const survey = surveyLife(starsOf(seed, config).slice(from, to), seed, config);
-    post({ kind: "chunk", generation, chunk, survey }, indexBuffers(survey.index));
+    post({ kind: "chunk", generation, chunk, survey }, [...indexBuffers(survey.index), ...indexBuffers(survey.moonIndex)]);
   } catch (err) {
     post({ kind: "error", generation, message: err instanceof Error ? err.message : String(err) });
   }
@@ -90,5 +90,6 @@ export function mergeSurveys(parts: LifeSurvey[]): LifeSurvey {
     civilizationCount: parts.reduce((sum, p) => sum + p.civilizationCount, 0),
     systems: parts.flatMap((p) => p.systems),
     index: mergeIndices(parts.map((p) => p.index)),
+    moonIndex: mergeIndices(parts.map((p) => p.moonIndex)),
   };
 }

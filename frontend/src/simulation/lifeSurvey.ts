@@ -11,7 +11,7 @@ import { generateBiosphere } from "./biosphere";
 import type { LifeStage } from "./biosphere";
 import { generateCivilization } from "./civilization";
 import type { TechStage } from "./civilization";
-import { indexRowsFor, packIndex } from "./universeIndex";
+import { indexRowsFor, moonRowsFor, packIndex } from "./universeIndex";
 import type { IndexRow, UniverseIndex } from "./universeIndex";
 
 /** Life stages that count as organisms. Prebiotic chemistry is not yet life. */
@@ -40,7 +40,8 @@ export interface LifeSurvey {
   lifeBearingMoons: number;
   civilizationCount: number;    // on planets and moons (decision 13)
   systems: SystemLife[];        // only systems with organisms, in star order
-  index: UniverseIndex;         // every world, in star and planet order (EN0)
+  index: UniverseIndex;         // every planet, in star and planet order (EN0)
+  moonIndex: UniverseIndex;     // every moon world, in star, planet and moon order (MO7)
 }
 
 /** How often, in stars, the survey reports its progress. */
@@ -63,6 +64,7 @@ export function surveyLife(
   let civilizationCount = 0;
   const systems: SystemLife[] = [];
   const rows: IndexRow[] = [];
+  const moonRows: IndexRow[] = [];
 
   for (const [index, star] of stars.entries()) {
     if (onProgress && index > 0 && index % SURVEY_PROGRESS_INTERVAL === 0) onProgress(index, stars.length);
@@ -71,6 +73,7 @@ export function surveyLife(
     engulfedPlanets += system.engulfed;
     tooSmallPlanets += system.tooSmall;
     rows.push(...indexRowsFor(system, star, seed, cfg));
+    moonRows.push(...moonRowsFor(system, star, seed, cfg));
 
     let mostAdvanced = -1;
     let lifePlanetCount = 0;
@@ -130,5 +133,5 @@ export function surveyLife(
     }
   }
 
-  return { totalPlanets, lifeBearingPlanets, everLifePlanets, engulfedPlanets, tooSmallPlanets, lifeBearingMoons, civilizationCount, systems, index: packIndex(rows) };
+  return { totalPlanets, lifeBearingPlanets, everLifePlanets, engulfedPlanets, tooSmallPlanets, lifeBearingMoons, civilizationCount, systems, index: packIndex(rows), moonIndex: packIndex(moonRows) };
 }

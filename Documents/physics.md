@@ -274,3 +274,16 @@ Moons of at least 0.018 M⊕ are worlds (decision 11). Their streams are keyed b
 | `TILT_WANDER` | σ 5° per step, within ±20° | A bounded walk, motivated by Lissauer et al. 2012 (decision 12). Only planets with siblings wander, and none locked to its star |
 
 Seed 100000: 24% of rocky planets have a large moon, and 633 hold their planet's tilt. 5,788 tilts wander. 395 large moons are worlds, and 10 carry life today.
+
+### Measured (MO7, 19 Oct 2026)
+
+From the stats harness, entry "2026-10-19 · rules v14". Familiar Reality, seed 100000:
+- 4,909 moons, of which 1,201 are worlds: 806 around giants and 395 large moons of rocky planets.
+- 359 moon worlds hold liquid water today, and 295 are living. Across seeds 100000, 42 and 7777, one moon carries a civilization.
+- 472 moon worlds are above 373 K, and 305 moons have Io's tidal heat or more (decision 29, open).
+- 5,788 planets' tilts wander.
+
+**Survey time.** A single-thread survey went from 23.4 s at v13 to 33.2 s at v14 (+42%; +56% on seed 42), against decision 14's +25%:
+- Living worlds' evolution takes most of it: 25.5 s on 2,302 living planets and 4.0 s on 329 living moons, against 3.1 s on every lifeless world.
+- The rise comes from the IH3 fix's extra living planets and from moons.
+- Skipping worlds that never hold liquid water would save about 1%.

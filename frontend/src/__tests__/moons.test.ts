@@ -5,6 +5,7 @@ import { PLANET_MASS_DRAW } from "../simulation/planetBasics";
 import { buildGeography } from "../simulation/geography";
 import { surveyLife } from "../simulation/lifeSurvey";
 import { generateBiosphere } from "../simulation/biosphere";
+import { WORLD_KIND } from "../simulation/universeIndex";
 import type { Planet } from "../simulation/planet";
 import { derivePhysics } from "../simulation/planetPhysics";
 import { tidalHeatFlow } from "../simulation/interiorHeat";
@@ -208,5 +209,24 @@ describe("large moons of rocky planets (MO5)", () => {
       const holds = planet.moons.some((m) => m.mass / planet.mass >= TILT_HOLDING_RATIO);
       expect(planet.tiltFree).toBe(siblings && !holds);
     }
+  });
+});
+
+describe("moons in the survey's index (MO7)", () => {
+  it("gives every moon world a row of its own kind, pointing at its planet, apart from the planets' index", () => {
+    const survey = surveyLife(stars.slice(0, 150), seed, config);
+    const expected = stars.slice(0, 150).flatMap((star) => generatePlanetsFor(star, seed, config).planets.flatMap((p) =>
+      p.moons.flatMap((m) => (m.world ? [{ starId: star.id, parent: p.id, moon: m.moonIndex, mass: m.world.mass }] : []))));
+    expect(expected.length).toBeGreaterThan(0);
+    const ix = survey.moonIndex;
+    expect(ix.count).toBe(expected.length);
+    expected.forEach((e, i) => {
+      expect(ix.kind[i]).toBe(WORLD_KIND.MOON);
+      expect(ix.starId[i]).toBe(e.starId);
+      expect(ix.parentIndex[i]).toBe(e.parent);
+      expect(ix.planetIndex[i]).toBe(e.moon);
+      expect(ix.massEarths[i]).toBeCloseTo(e.mass, 6);
+    });
+    for (let i = 0; i < survey.index.count; i++) expect(survey.index.kind[i]).toBe(WORLD_KIND.PLANET);
   });
 });

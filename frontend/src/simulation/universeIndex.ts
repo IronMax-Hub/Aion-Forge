@@ -25,7 +25,7 @@
 
 import type { Star } from "./star";
 import type { UniverseConfig } from "./config";
-import type { AtmosphereType, PlanetarySystem, PlanetType } from "./planet";
+import type { AtmosphereType, Planet, PlanetarySystem, PlanetType } from "./planet";
 import { effectiveOrbitAU } from "./planetBasics";
 import { derivePhysics } from "./planetPhysics";
 import { generateBiosphere } from "./biosphere";
@@ -38,8 +38,8 @@ import type { FirstKind } from "./evolution/engine";
 
 // ── Codes ─────────────────────────────────────────────────────────────────────
 
-/** What a row describes. Moons (step 5) and rogue planets (step 7) will join the planets. */
-export const WORLD_KIND = { PLANET: 0 } as const;
+/** What a row describes: a planet, or a moon world (MO7). Rogue planets (step 7) will join them. */
+export const WORLD_KIND = { PLANET: 0, MOON: 1 } as const;
 
 /** A row's `parentIndex` when it orbits no planet. */
 export const NO_PARENT = -1;
@@ -147,70 +147,85 @@ type ColumnArray = UniverseIndex[IndexColumn];
 
 /** A system's rows, one per planet in planet index order, read from the generators. */
 export function indexRowsFor(system: PlanetarySystem, star: Star, galaxySeed: number, config: UniverseConfig): IndexRow[] {
-  return system.planets.map((planet) => {
-    const surface = planet.surface;
-    const life = planet.life;
-    const phylogeny = life?.phylogeny ?? null;
-    const biosphere = generateBiosphere(planet, star);
-    const civilization = generateCivilization(biosphere, planet, galaxySeed).civilization;
-    const air = atmosphereComposition(planet, civilization).mixingRatios;
+  return system.planets.map((planet) => worldRow(planet, star, galaxySeed, config, WORLD_KIND.PLANET, NO_PARENT, planet.id));
+}
 
-    const firstGyr = (kind: FirstKind) => phylogeny?.firsts.find((f) => f.kind === kind)?.tGyr ?? NaN;
-    const industry = civilization?.milestones.find((m) => m.type === "industry");
+/**
+ * A system's moon worlds' rows (MO7), planet by planet, inner moons first: `planetIndex` is the moon's
+ * index among its planet's moons and `parentIndex` its planet's index. They form an index of their own
+ * (LifeSurvey.moonIndex), so every reader of the planets' index still reads planets (decision 13).
+ */
+export function moonRowsFor(system: PlanetarySystem, star: Star, galaxySeed: number, config: UniverseConfig): IndexRow[] {
+  return system.planets.flatMap((planet) => planet.moons.flatMap((moon) =>
+    (moon.world ? [worldRow(moon.world, star, galaxySeed, config, WORLD_KIND.MOON, planet.id, moon.moonIndex)] : [])));
+}
 
-    let flags = 0;
-    if (planet.isRare) flags |= INDEX_FLAG.RARE;
-    if (derivePhysics(planet, star, galaxySeed, config).tidallyLocked) flags |= INDEX_FLAG.TIDALLY_LOCKED;
-    if (planet.everLiquidWater) flags |= INDEX_FLAG.EVER_LIQUID_WATER;
-    if (canSustainFire(planet)) flags |= INDEX_FLAG.FIRE_POSSIBLE;
-    if ((air.O2 ?? 0) >= BIOSIGNATURE_O2_SHARE && (air.CH4 ?? 0) >= BIOSIGNATURE_CH4_SHARE) flags |= INDEX_FLAG.O2_WITH_CH4;
-    if ((air.CFC11 ?? 0) > 0 || (air.CFC12 ?? 0) > 0) flags |= INDEX_FLAG.CFCS;
-    const recorded = (kind: string) => planet.worldEvents.some((e) => e.kind === kind);
-    if (recorded("freezes-over")) flags |= INDEX_FLAG.FROZE_OVER;
-    if (recorded("runaway-greenhouse")) flags |= INDEX_FLAG.RUNAWAY;
-    if (recorded("oceans-lost")) flags |= INDEX_FLAG.OCEANS_LOST;
-    if (surface?.steam) flags |= INDEX_FLAG.STEAM_TODAY;
-    if (recorded("air-lost")) flags |= INDEX_FLAG.AIR_LOST;
+/** One world's row: a planet's, or a moon world's (MO7). */
+function worldRow(
+  planet: Planet, star: Star, galaxySeed: number, config: UniverseConfig, kind: number, parentIndex: number, planetIndex: number,
+): IndexRow {
+  const surface = planet.surface;
+  const life = planet.life;
+  const phylogeny = life?.phylogeny ?? null;
+  const biosphere = generateBiosphere(planet, star);
+  const civilization = generateCivilization(biosphere, planet, galaxySeed).civilization;
+  const air = atmosphereComposition(planet, civilization).mixingRatios;
 
-    return {
-      starId: star.id,
-      planetIndex: planet.id,
-      kind: WORLD_KIND.PLANET,
-      parentIndex: NO_PARENT,
-      type: PLANET_TYPE_CODES.indexOf(planet.type),
-      formationAtmosphere: ATMOSPHERE_CODES.indexOf(planet.formationAtmosphere),
-      massEarths: planet.mass,
-      radiusEarths: planet.size,
-      orbitAU: effectiveOrbitAU(planet.orbitalRadius, config),
-      temperatureK: planet.temperature,
-      oceanFraction: surface?.oceanFraction ?? NaN,
-      iceFraction: surface?.iceFraction ?? NaN,
-      landFraction: surface?.landFraction ?? NaN,
-      pressureBar: surface?.pressureBar ?? NaN,
-      o2Bar: surface?.o2Bar ?? NaN,
-      flags,
-      lifeBeganGyr: life?.startedGyr ?? NaN,
-      lifeEndedGyr: life?.endedGyr ?? NaN,
-      lifeStage: LIFE_STAGE_CODES.indexOf(biosphere.stage),
-      livingLineages: phylogeny?.livingLineages ?? 0,
-      massExtinctions: biosphere.extinctions
-        .filter((e) => e.severityLoss >= MASS_EXTINCTION_SHARE && e.severityLoss < 1).length,
-      largestLog10Kg: phylogeny?.largestLog10BodyMassKg ?? NaN,
-      firstLightGyr: firstGyr("light"),
-      firstMulticellularGyr: firstGyr("multicellular"),
-      firstLandGyr: firstGyr("land"),
-      firstKilogramGyr: firstGyr("kilogram"),
-      oxidationGyr: planet.worldEvents.find((e) => e.kind === "oxidation")?.tGyr ?? NaN,
-      lifeOxygenGyr: life?.oxygenGyr ?? NaN,
-      mindGyr: phylogeny?.mind?.tGyr ?? NaN,
-      mindLog10Kg: phylogeny?.mind?.log10BodyMassKg ?? NaN,
-      civilizationStage: CIVILIZATION_STAGE_CODES.indexOf(civilization?.techStage ?? "none"),
-      highestStage: CIVILIZATION_STAGE_CODES.indexOf(civilization ? techLevelToStage(civilization.techLevel, false) : "none"),
-      industryGyr: industry ? star.age - industry.timeAgo : NaN,
-      collapses: civilization?.collapsesCount ?? 0,
-      speciesEndedAgoGyr: civilization?.extinctAgoGyr ?? NaN,
-    };
-  });
+  const firstGyr = (first: FirstKind) => phylogeny?.firsts.find((f) => f.kind === first)?.tGyr ?? NaN;
+  const industry = civilization?.milestones.find((m) => m.type === "industry");
+
+  let flags = 0;
+  if (planet.isRare) flags |= INDEX_FLAG.RARE;
+  if (derivePhysics(planet, star, galaxySeed, config).tidallyLocked) flags |= INDEX_FLAG.TIDALLY_LOCKED;
+  if (planet.everLiquidWater) flags |= INDEX_FLAG.EVER_LIQUID_WATER;
+  if (canSustainFire(planet)) flags |= INDEX_FLAG.FIRE_POSSIBLE;
+  if ((air.O2 ?? 0) >= BIOSIGNATURE_O2_SHARE && (air.CH4 ?? 0) >= BIOSIGNATURE_CH4_SHARE) flags |= INDEX_FLAG.O2_WITH_CH4;
+  if ((air.CFC11 ?? 0) > 0 || (air.CFC12 ?? 0) > 0) flags |= INDEX_FLAG.CFCS;
+  const recorded = (kind: string) => planet.worldEvents.some((e) => e.kind === kind);
+  if (recorded("freezes-over")) flags |= INDEX_FLAG.FROZE_OVER;
+  if (recorded("runaway-greenhouse")) flags |= INDEX_FLAG.RUNAWAY;
+  if (recorded("oceans-lost")) flags |= INDEX_FLAG.OCEANS_LOST;
+  if (surface?.steam) flags |= INDEX_FLAG.STEAM_TODAY;
+  if (recorded("air-lost")) flags |= INDEX_FLAG.AIR_LOST;
+
+  return {
+    starId: star.id,
+    planetIndex,
+    kind,
+    parentIndex,
+    type: PLANET_TYPE_CODES.indexOf(planet.type),
+    formationAtmosphere: ATMOSPHERE_CODES.indexOf(planet.formationAtmosphere),
+    massEarths: planet.mass,
+    radiusEarths: planet.size,
+    orbitAU: effectiveOrbitAU(planet.orbitalRadius, config),
+    temperatureK: planet.temperature,
+    oceanFraction: surface?.oceanFraction ?? NaN,
+    iceFraction: surface?.iceFraction ?? NaN,
+    landFraction: surface?.landFraction ?? NaN,
+    pressureBar: surface?.pressureBar ?? NaN,
+    o2Bar: surface?.o2Bar ?? NaN,
+    flags,
+    lifeBeganGyr: life?.startedGyr ?? NaN,
+    lifeEndedGyr: life?.endedGyr ?? NaN,
+    lifeStage: LIFE_STAGE_CODES.indexOf(biosphere.stage),
+    livingLineages: phylogeny?.livingLineages ?? 0,
+    massExtinctions: biosphere.extinctions
+      .filter((e) => e.severityLoss >= MASS_EXTINCTION_SHARE && e.severityLoss < 1).length,
+    largestLog10Kg: phylogeny?.largestLog10BodyMassKg ?? NaN,
+    firstLightGyr: firstGyr("light"),
+    firstMulticellularGyr: firstGyr("multicellular"),
+    firstLandGyr: firstGyr("land"),
+    firstKilogramGyr: firstGyr("kilogram"),
+    oxidationGyr: planet.worldEvents.find((e) => e.kind === "oxidation")?.tGyr ?? NaN,
+    lifeOxygenGyr: life?.oxygenGyr ?? NaN,
+    mindGyr: phylogeny?.mind?.tGyr ?? NaN,
+    mindLog10Kg: phylogeny?.mind?.log10BodyMassKg ?? NaN,
+    civilizationStage: CIVILIZATION_STAGE_CODES.indexOf(civilization?.techStage ?? "none"),
+    highestStage: CIVILIZATION_STAGE_CODES.indexOf(civilization ? techLevelToStage(civilization.techLevel, false) : "none"),
+    industryGyr: industry ? star.age - industry.timeAgo : NaN,
+    collapses: civilization?.collapsesCount ?? 0,
+    speciesEndedAgoGyr: civilization?.extinctAgoGyr ?? NaN,
+  };
 }
 
 /** An index of a run of worlds, from their rows in order. */

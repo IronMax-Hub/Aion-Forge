@@ -852,6 +852,29 @@ Giant planets build satellite systems in the disks around them, and those moons 
 - **Depends on:** MO4.
 - **Deliverables:** Moon rows in the index (kind = moon). Stats columns: moons per universe, moons with histories, moons with liquid water (open or under ice), living moons, moon civilizations, planets with wandering tilt, and survey time before and after (decision 14).
 - **Verification:** The harness run.
+- **Built** 19 Oct 2026.
+  - **Moon rows.** `WORLD_KIND.MOON`. `moonRowsFor` writes one row per moon world: `planetIndex` is the moon's index and `parentIndex` its planet's. The rows go into an index of their own, `LifeSurvey.moonIndex`, merged and transferred like the planets'. Every reader of `survey.index` (the Great Filter, the encyclopedia's ranks, the Physics page) still reads planets, as decision 13 counts them.
+  - **Harness.** A moons table. Moon worlds are counted apart in the harness's `worldOf`, so they stay out of every planet column.
+  - **Familiar Reality** (seeds 100000 / 42 / 7777):
+
+    | Measure | Values |
+    |---|---|
+    | Moons | 4,909 / 7,226 / 5,141 |
+    | Moon worlds | 1,201 / 1,829 / 1,378 |
+    | Liquid water today | 359 / 634 / 379 |
+    | Living | 295 / 548 / 313 |
+    | Moon civilizations | 0 / 1 / 0 |
+    | Above 373 K | 472 / 704 / 582 |
+    | Io's tidal heat or more | 305 / 629 / 365 |
+    | Wandering tilts | 5,788 / 5,768 / 5,779 |
+
+  - **Systems with organisms**, v13 → v14: 753 / 761 / 736 → 811 / 830 / 803 (+8% to +9%). This includes the IH3 fix (MO4) and systems whose only life is on moons (MO6).
+  - **Survey time (decision 14), over budget.** Single-thread surveys of the whole galaxy, run one after another on the same machine, v13 → v14: 23.4 → 33.2 s, 27.3 → 42.7 s and 23.3 → 33.0 s (+42% to +56%), against the +25% budget. The harness's parallel timings show more (+63% to +89%), but they include contention.
+  - **Where the time goes** (seed 100000, single-thread history time): living planets 25.5 s, lifeless planets 2.6 s, living moons 4.0 s, lifeless moons 0.45 s.
+    - Moons are about 14% of the total. The rest of the rise is more living planets: 2,302 against 2,094 at v13, from the IH3 fix.
+    - The physics skip rule would save only the 0.35 s spent on the 712 moon worlds that never hold liquid water, because life already never begins without it.
+    - Left for the owner (decision 14).
+  - **Decision 29 (no tidal ceiling).** 305 moons have Io's tidal heat or more, and 472 moon worlds are above 373 K. Left for the owner.
 
 ### Step 6 — Binary stars
 

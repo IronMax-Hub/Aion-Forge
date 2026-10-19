@@ -25,6 +25,12 @@
 // star age, and by [Fe/H] the planets per star, the giant and solid shares, the
 // median solid planet's mass and the worlds living today.
 //
+// Since MO7: moons. Moon worlds run histories through the same worldOf, so they
+// are counted apart and kept out of every planet column: moons, moon worlds,
+// those with liquid water today (open or under ice), living moons, moon
+// civilizations, moon worlds above 373 K and moons with Io's tidal heat or more
+// (decision 29), and planets whose tilt wanders (MO5).
+//
 // Since IH4: heat from inside, from each history as it goes by: worlds living
 // today that are frozen over, worlds frozen solid today (water, none of it
 // liquid), and worlds whose life ended when their oceans froze solid.
@@ -44,6 +50,7 @@ import type { UniverseConfig } from "../src/simulation/config";
 import { EARTH_PATH, firstsOrder } from "./earthPath";
 import { CONDITIONS, funnelOf, GATES } from "../src/simulation/greatFilter";
 import { ATMOSPHERE_CODES, INDEX_FLAG } from "../src/simulation/universeIndex";
+import { tidalHeatFlow } from "../src/simulation/interiorHeat";
 import { atmosphereClassOf } from "../src/simulation/planetPhysics";
 
 export const SEEDS = [100000, 42, 7777];
@@ -88,7 +95,23 @@ export interface Row {
   escape: Escape;
   /** Metallicity (MZ5), from the index and the stars. */
   metals: Metals;
+  /** Moons (MO7). */
+  moons: Moons;
 }
+
+export interface Moons {
+  moons: number;              // every moon, worlds or not
+  worlds: number;             // moon worlds: those with histories
+  liquidToday: number;        // moon worlds with open water or water under ice today
+  living: number;             // moon worlds with life today
+  civilizations: number;      // moon worlds with a civilization, living or in ruins
+  hot: number;                // moon worlds above 373 K today
+  ioHeated: number;           // moons with Io's tidal heat or more (decision 29)
+  tiltFree: number;           // planets whose tilt wanders (MO5)
+}
+
+/** Io's tidal heat, W/m²: moons at or above it are counted (decision 29). */
+const IO_TIDAL_HEAT_W_M2 = 2.2;
 
 /** Star ages, Gyr, and [Fe/H] bins, dex, for the metallicity table. */
 const AGE_BINS = [[0, 2], [2, 6], [6, 10], [10, Infinity]] as const;
@@ -131,6 +154,7 @@ export function measureUniverse(presetName: string, seed: number): Row {
   let geographyMs = 0;
   let historyMs = 0;
   // The same steps as solidWorldOf, timed, with each history read and let go
+  const moonCounts = { moons: 0, worlds: 0, liquidToday: 0, hot: 0, ioHeated: 0, tiltFree: 0 };
   const worldOf = (planet: Planet, star: Star, galaxySeed: number, cfg?: UniverseConfig): SolidWorld => {
     const physics = derivePhysics(planet, star, galaxySeed, cfg ?? config);
     let start = performance.now();
@@ -139,6 +163,14 @@ export function measureUniverse(presetName: string, seed: number): Row {
     start = performance.now();
     const history = runWorldHistory(planet, physics, geography, star, galaxySeed, cfg ?? config);
     historyMs += performance.now() - start;
+
+    // A moon world (MO7): counted apart, and kept out of every planet column
+    if (planet.moonOrbit) {
+      moonCounts.worlds++;
+      if (history.present.oceanFraction > 0.01 || history.present.liquidUnderIceFraction > 0) moonCounts.liquidToday++;
+      if (history.present.meanK > 373) moonCounts.hot++;
+      return { physics, geography, history };
+    }
 
     const had = (kind: string) => history.events.some((e) => e.kind === kind);
     oceans.push(geography.oceanFraction);
@@ -175,6 +207,11 @@ export function measureUniverse(presetName: string, seed: number): Row {
     const system = generatePlanetsFor(star, seed, config, worldOf);
     for (const planet of system.planets) {
       planets++;
+      if (planet.tiltFree) moonCounts.tiltFree++;
+      for (const moon of planet.moons) {
+        moonCounts.moons++;
+        if (tidalHeatFlow(moon, planet) >= IO_TIDAL_HEAT_W_M2) moonCounts.ioHeated++;
+      }
       if (derivePhysics(planet, star, seed, config).tidallyLocked) locked++;
     }
     return system;
@@ -218,6 +255,11 @@ export function measureUniverse(presetName: string, seed: number): Row {
     funnel: funnelOf(survey.index).steps.map((step) => step.passed),
     escape: escapeOf(survey, stars),
     metals: metalsOf(survey, stars),
+    moons: {
+      ...moonCounts,
+      living: survey.lifeBearingMoons,
+      civilizations: [...Array(survey.moonIndex.count).keys()].filter((i) => survey.moonIndex.highestStage[i] > 0).length,
+    },
   };
 }
 
@@ -352,6 +394,20 @@ export function heatTable(rows: Row[]): string {
   for (const { preset, seed, survey, geography: g, history: h } of rows) {
     const living = Math.round(h.livingShare * g.solidPlanets);
     lines.push(`| ${preset} | ${seed} | ${g.solidPlanets} | ${(h.liquidTodayShare * 100).toFixed(1)}% | ${living} | ${h.livingFrozenOver} | ${h.frozenSolidToday} | ${h.lifeEndedFrozenSolid} | ${survey.systems.length} |`);
+  }
+  return lines.join("\n");
+}
+
+/** Moons in every universe, as a Markdown table (MO7). */
+export function moonsTable(rows: Row[]): string {
+  const lines = [
+    "Moons: every moon; moon worlds (with histories); moon worlds with liquid water today (open or under ice); living moons; moon civilizations (living or in ruins); moon worlds above 373 K; moons with Io's tidal heat or more; planets whose tilt wanders.",
+    "",
+    "| Preset | Seed | Moons | Moon worlds | Liquid water today | Living | Civilizations | Above 373 K | Io's tidal heat or more | Wandering tilts |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+  ];
+  for (const { preset, seed, moons: m } of rows) {
+    lines.push(`| ${preset} | ${seed} | ${m.moons} | ${m.worlds} | ${m.liquidToday} | ${m.living} | ${m.civilizations} | ${m.hot} | ${m.ioHeated} | ${m.tiltFree} |`);
   }
   return lines.join("\n");
 }

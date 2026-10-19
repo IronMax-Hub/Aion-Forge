@@ -45,7 +45,7 @@ if (!isMainThread) {
   });
   parentPort.postMessage({ ready: true });
 } else {
-  const { universes, table, ordersReport, funnelTable, escapeTable, metalsTable, heatTable } = await load(UNIVERSE_MODULE);
+  const { universes, table, ordersReport, funnelTable, escapeTable, metalsTable, heatTable, moonsTable } = await load(UNIVERSE_MODULE);
   const { SIMULATION_RULES_VERSION } = await load(VERSION_MODULE);
   const jobs = universes().map((u, index) => ({ ...u, index }));
   const rows = new Array(jobs.length);
@@ -72,7 +72,7 @@ if (!isMainThread) {
     }
   });
 
-  const report = `${table(rows)}\n\n${funnelTable(rows)}\n\n${escapeTable(rows)}\n\n${metalsTable(rows)}\n\n${heatTable(rows)}\n\n${ordersReport(rows)}`;
+  const report = `${table(rows)}\n\n${funnelTable(rows)}\n\n${escapeTable(rows)}\n\n${metalsTable(rows)}\n\n${heatTable(rows)}\n\n${moonsTable(rows)}\n\n${ordersReport(rows)}`;
   const entry = `\n## ${new Date().toISOString().slice(0, 10)} · commit ${commitId()} · rules v${SIMULATION_RULES_VERSION}\n\n${report}\n`;
   if (!existsSync(STATS_FILE)) writeFileSync(STATS_FILE, FILE_HEADER);
   appendFileSync(STATS_FILE, entry);

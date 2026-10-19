@@ -27,9 +27,9 @@ describe("planet view", () => {
     expect(view.towardStar.x).toBeCloseTo(0.6, 12);
     expect(view.towardStar.y).toBeCloseTo(0.8, 12);
     const light = view.scene.children.find((c) => c instanceof THREE.DirectionalLight) as THREE.DirectionalLight;
-    // A Sun-like star gives white light
+    // A Sun-like star gives near-white light (three.js holds it linear: blue ~0.8 is ~0.9 in sRGB)
     expect(light.color.r).toBeCloseTo(1, 1);
-    expect(light.color.b).toBeGreaterThan(0.8);
+    expect(light.color.b).toBeGreaterThan(0.75);
   });
 
   it("fades in over 400 ms", () => {

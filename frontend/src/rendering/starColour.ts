@@ -34,6 +34,12 @@ export function starDisplayThreeColour(temperatureK: number): THREE.Color {
   return new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
 }
 
+/** A star's true colour for the light it casts: its blackbody hue unboosted, read as sRGB like the drawn colour. */
+export function starLightThreeColour(temperatureK: number): THREE.Color {
+  const [r, g, b] = temperatureToColor(temperatureK);
+  return new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
+}
+
 /** The same colour as a CSS rgb() string. */
 export function starDisplayCss(temperatureK: number): string {
   const [r, g, b] = starDisplayColour(temperatureK);

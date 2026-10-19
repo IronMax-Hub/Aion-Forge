@@ -3,9 +3,9 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { GalaxyParticles } from "../simulation/galaxy";
 import type { Star, StellarPopulation } from "../simulation/star";
-import { companionAsStar, stellarRadiusAU, temperatureToColor } from "../simulation/star";
+import { companionAsStar, stellarRadiusAU } from "../simulation/star";
 import { pairLight } from "../simulation/binary";
-import { starDisplayColour, starDisplayThreeColour } from "./starColour";
+import { starDisplayColour, starDisplayThreeColour, starLightThreeColour } from "./starColour";
 import { moonKey } from "../simulation/bodyKey";
 import { formatSig, spectralType, STELLAR_CLASS_NAME } from "../ui/format";
 import type { Planet, PlanetarySystem, SolidWorld } from "../simulation/planet";
@@ -591,8 +591,7 @@ export class UniverseRenderer {
     const scale = Math.max(1, innermostAU / USUAL_INNER_ORBIT_AU);
 
     // The star's true colour lights its planets; it is drawn in its display colour (starColour.ts)
-    const [sr, sg, sb] = temperatureToColor(hostStar.temperature);
-    const starCol = new THREE.Color(sr, sg, sb);
+    const starCol = starLightThreeColour(hostStar.temperature);
     const maxDistance = Math.min(DEFAULT_DISTANCE.max * scale, this.camera.far / 2);
 
     const markers = new Map<string, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
@@ -686,8 +685,7 @@ export class UniverseRenderer {
       group.add(hostStarObject(starDisplayThreeColour(hostStar.temperature), HOST_STAR_RADIUS * scale), ...systemLights(starCol));
       return group;
     }
-    const [cr, cg, cb] = temperatureToColor(companion.temperature);
-    const companionCol = new THREE.Color(cr, cg, cb);
+    const companionCol = starLightThreeColour(companion.temperature);
     const drawnCol = starDisplayThreeColour(hostStar.temperature);
     const companionDrawnCol = starDisplayThreeColour(companion.temperature);
     const total = hostStar.luminosity + companion.luminosity;

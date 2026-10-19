@@ -42,6 +42,7 @@ import type { Planet } from "../../simulation/planet";
 import { PLANET_COLORS } from "../../simulation/planet";
 import type { Star } from "../../simulation/star";
 import { temperatureToColor } from "../../simulation/star";
+import { starLightThreeColour } from "../starColour";
 import type { GlobeSurface } from "./globe";
 import { cubeSphereGeometry } from "./cubeSphere";
 import { atmosphereShell, cloudDriftAngle, cloudSphere, hasVisibleAtmosphere } from "./atmosphere";
@@ -201,8 +202,7 @@ export class PlanetView {
   constructor(planet: Planet, star: Star, towardStar: THREE.Vector3, fade: boolean, nowMs: number, options: PlanetViewOptions = {}) {
     this.kmPerUnit = planet.size * EARTH_RADIUS_KM;
     this.lightDirection = towardStar.clone().normalize();
-    const [sr, sg, sb] = temperatureToColor(star.temperature);
-    const starColor = new THREE.Color(sr, sg, sb);
+    const starColor = starLightThreeColour(star.temperature);
     const intensity = starlightIntensity(options.starFlux ?? 1);
 
     if (options.surface) {

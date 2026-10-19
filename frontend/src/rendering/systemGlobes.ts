@@ -38,7 +38,7 @@
 import * as THREE from "three";
 import type { Planet } from "../simulation/planet";
 import type { Star } from "../simulation/star";
-import { temperatureToColor } from "../simulation/star";
+import { starLightThreeColour } from "./starColour";
 import { GlobeTextureCache, drawsSurface } from "./planet/globe";
 import type { GlobeSurface } from "./planet/globe";
 import { SYSTEM_DETAIL } from "./planet/globeBake";
@@ -106,8 +106,7 @@ export class SystemGlobes {
     this.openedMs = performance.now();
     this.orbits = orbits;
     group.updateMatrixWorld();
-    const [sr, sg, sb] = temperatureToColor(star.temperature);
-    const starColor = new THREE.Color(sr, sg, sb);
+    const starColor = starLightThreeColour(star.temperature);
 
     for (const planet of planets) {
       const marker = markers.get(planet.key);
@@ -171,9 +170,8 @@ export class SystemGlobes {
   private showGlobe(job: GlobeJob, nowMs: number): void {
     const { marker, planet, sight } = job;
     const surface = job.surface!;
-    const [sr, sg, sb] = temperatureToColor(this.star!.temperature);
     const material = globeMaterial(surface, {
-      toStar: new THREE.Vector3(1, 0, 0), starColor: new THREE.Color(sr, sg, sb), starIntensity: starlightIntensity(sight.starFlux),
+      toStar: new THREE.Vector3(1, 0, 0), starColor: starLightThreeColour(this.star!.temperature), starIntensity: starlightIntensity(sight.starFlux),
       opacity: this.fade ? 0 : 1, glowColour: glowColourOf(planet.temperature), shimmer: 0, cloudsOnGround: true,
     });
     const globe = new THREE.Mesh(cubeSphereGeometry(GLOBE_SEGMENTS), material);

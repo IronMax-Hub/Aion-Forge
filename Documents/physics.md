@@ -289,3 +289,40 @@ From the stats harness, entry "2026-10-19 · rules v14". Familiar Reality, seed 
 - Skipping worlds that never hold liquid water would save about 1%.
 
 Decision 14 accepts this and records it (owner, 19 Oct 2026).
+
+## Step 6: binary stars (BS1–BS4, rules v15)
+
+| Constant | Value | Why |
+|---|---|---|
+| `COMPANION_CHANCE` | 0.26 below 0.5 M☉ · 0.46 to 1.3 · 0.6 to 5 · 0.75 above | Multiplicity rises with mass (Duchêne & Kraus 2013; Raghavan et al. 2010) |
+| `MASS_RATIO` | q uniform 0.1–1 | No companion is heavier than its primary |
+| `LOG_PERIOD_DAYS` | median 5.03, σ 2.28 dex | Solar-type binaries' periods (Raghavan et al. 2010); separation by Kepler |
+| `CIRCULAR_BELOW_DAYS`, `MAX_ECCENTRICITY` | 12 days; uniform 0–0.8 above | Tides circularise close pairs |
+| `S_TYPE_LIMIT`, `P_TYPE_LIMIT` | Holman & Wiegert 1999 | Where a planet's orbit lasts: close to its star, or far out around both |
+
+Each companion is drawn from its own stream (BS1), so every star and every single-star system is bit-identical to v14. Planets drawn between the two limits are removed with their draws taken (BS2, decision 17). Every world in a binary receives both stars' light, ultraviolet and XUV, each star on its own clock (BS3). A swollen companion engulfs the worlds within its reach.
+
+### Measured (BS5, 19 Oct 2026)
+
+From the stats harness, entry "2026-10-19 · commit 9f85f14 · rules v15". Familiar Reality, seeds 100000 / 42 / 7777:
+- 927 / 956 / 957 of 2,000 stars have a companion. By mass, the shares are within sampling error of the rule's chances (26%, 43–46%, 58–60%, 73–79%).
+- 757 / 809 / 742 planets were removed where a companion allows no orbit: planets fell 9.6–9.9% (7,650 → 6,893 on seed 100000).
+- 337 / 336 / 325 planets orbit both stars, and 69 / 62 / 60 of them live today.
+- Against v14:
+  - Life-bearing planets fell 7–11% (1,575 → 1,459; 1,702 → 1,551; 1,520 → 1,356).
+  - Systems with organisms fell 6–7% (811 → 756; 830 → 777; 803 → 746).
+  - Civilizations went 29 → 26, 50 → 46 and 31 → 31.
+- BS3's light from both stars moved seed 100000's funnel by only a few worlds (2,762 → 2,760 with liquid water at some time; 27 → 26 minds). No world there was engulfed by a companion.
+- Survey time fell with the planet count (parallel run: 88 → 83 s on seed 100000).
+
+**Living worlds per star.** A binary holds 0.40–0.50 worlds living today, a single star 0.93–1.03. The gap mixes two causes:
+- the companion's effect: removed planets, and shared light;
+- binaries' heavier primaries: companions are likelier around heavy stars, which live shorter lives.
+
+The share of each has not been separated.
+
+### Open after BS5
+
+- Companions have no planets of their own (decision 15); triples are not made.
+- The first organism's pigment peak, and the disk's snow and dust lines, read the primary alone.
+- A world's orbital period reads its own star's mass, even around both stars.

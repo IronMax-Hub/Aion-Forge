@@ -959,6 +959,13 @@ About half of Sun-like stars have a companion. A companion adds light that brigh
 - **Depends on:** BS3.
 - **Deliverables:** Stats columns: the binary share by mass, planets removed by instability, planets orbiting both stars, and living worlds in binaries.
 - **Verification:** The harness run.
+- **Built** 19 Oct 2026 (harness 9f85f14). `binariesTable` in `stats/universe.ts`. Measured in `Documents/stats.md` (entry "commit 9f85f14 · rules v15") and `Documents/physics.md` (Step 6). Familiar Reality, seeds 100000 / 42 / 7777:
+  - 927 / 956 / 957 binaries; their shares by mass match the rule.
+  - 757 / 809 / 742 planets removed (planets −10%); 337 / 336 / 325 orbit both stars, 69 / 62 / 60 of them living.
+  - Against v14: life-bearing planets −7 to −11%, systems with organisms −6 to −7%, civilizations 29 → 26, 50 → 46, 31 → 31.
+  - A binary holds 0.40–0.50 living worlds and a single star 0.93–1.03. The gap mixes the companion's effect with binaries' heavier primaries; not separated.
+
+  **Step 6 complete.**
 
 ### Step 7 — Rogue planets
 

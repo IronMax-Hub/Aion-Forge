@@ -1121,6 +1121,12 @@ export class UniverseRenderer {
     this.hoveredPlanetKey = null;
   }
 
+  /** Selects a star from outside the view (the star search): as a click on it does, in the galaxy view. */
+  showStar(star: Star) {
+    if (this.mode !== "galaxy") return;
+    this.selectStar(star);
+  }
+
   private selectStar(star: Star) {
     this.onStarSelected?.(star);
     this.highlightStar(star);

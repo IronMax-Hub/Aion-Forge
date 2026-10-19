@@ -2414,3 +2414,39 @@ h5.physics-label, h4.physics-label { display: block; margin-bottom: var(--sp-1);
   .system-key ul, .system-key-title { display: none; }
   .system-key .scale-bar { margin-bottom: 0; }
 }
+
+/* The sidebar's star search */
+.star-search { display: grid; gap: var(--sp-2); }
+.star-search-input {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--col-deep);
+  border: 1px solid var(--col-border-3);
+  border-radius: 3px;
+  color: var(--col-text-1);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+.star-search-input:focus-visible { outline: 1px solid var(--col-accent); outline-offset: 0; }
+.star-search-status { font-size: var(--fs-xs); color: var(--col-text-3); }
+.star-search-results { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
+.star-search-result {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-1) var(--sp-2);
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--col-text-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.star-search-result:hover, .star-search-result:focus-visible { background: var(--col-hover); color: var(--col-text-1); }
+.star-search-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+.star-search-name { font-family: var(--font-mono); }
+.star-search-kind { color: var(--col-text-3); }
+.star-search-notes { margin-left: auto; font-size: var(--fs-xs); color: var(--col-life); }

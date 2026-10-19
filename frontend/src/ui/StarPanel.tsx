@@ -74,7 +74,7 @@ export function StarPanel({ star, galaxySeed, onClose, onExplore, onSaveDiscover
             <span className="data-value">{formatMetallicity(star.metallicity)}</span>
             {star.companion && <>
               <span className="data-label">Binary</span>
-              <span className="data-value">companion {formatCompanion(star.companion)}</span>
+              <span className="data-value data-text">companion {formatCompanion(star.companion)}</span>
             </>}
           </div>
         </div>

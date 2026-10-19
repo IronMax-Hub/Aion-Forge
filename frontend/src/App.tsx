@@ -38,6 +38,8 @@ import { TreeOfLifePanel } from "./ui/TreeOfLifePanel";
 import { bodyPlans } from "./rendering/life/morphology";
 import { ScaleBar } from "./ui/ScaleBar";
 import { SystemKey } from "./ui/SystemKey";
+import { StarSearchBox } from "./ui/StarSearchBox";
+import { surveyFactsOf } from "./ui/starSearch";
 import { GreatFilterPanel } from "./ui/GreatFilterPanel";
 import { PhysicsPage } from "./ui/PhysicsPage";
 import type { GateId } from "./simulation/greatFilter";
@@ -850,6 +852,13 @@ export default function App() {
   const starLabel = selectedStar ? starName(selectedStar.id) : null;
   const planetLabel = selectedPlanet ? bodyName(selectedPlanet) : null;
 
+  // The star search (sidebar): what the life survey knows per star, and showing the star picked
+  const starFacts = useMemo(() => (surveyIndex ? surveyFactsOf(surveyIndex) : null), [surveyIndex]);
+  const handleFindStar = (star: Star) => {
+    if (view !== "galaxy") handleExitSystem();
+    rendererRef.current?.showStar(star);
+  };
+
   const handleSelectPlanetFromTable = (planet: Planet) => {
     setSelectedPlanet(planet);
     setSelectedSmallMoon(null);
@@ -937,6 +946,11 @@ export default function App() {
             <dt>Stars</dt><dd>{universeId ? starCount.toLocaleString() : "—"}</dd>
             <dt>Particles</dt><dd>{GALAXY_PARTICLE_COUNT.toLocaleString()}</dd>
           </dl>
+        </section>
+
+        <section className="console-section">
+          <h2 className="console-section-label">Find a star</h2>
+          <StarSearchBox stars={populationRef.current?.stars ?? []} facts={starFacts} onPick={handleFindStar} />
         </section>
 
         <section className="console-section">

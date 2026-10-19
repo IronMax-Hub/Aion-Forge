@@ -31,6 +31,11 @@
 // civilizations, moon worlds above 373 K and moons with Io's tidal heat or more
 // (decision 29), and planets whose tilt wanders (MO5).
 //
+// Since BS5: binary stars: the share of stars with a companion in each of
+// binary.ts's mass bins, the binaries, the planets removed where a companion
+// allows no orbit (BS2), the planets orbiting both stars and those of them
+// living today, and the worlds living today per single star and per binary.
+//
 // Since IH4: heat from inside, from each history as it goes by: worlds living
 // today that are frozen over, worlds frozen solid today (water, none of it
 // liquid), and worlds whose life ended when their oceans froze solid.
@@ -51,6 +56,7 @@ import { EARTH_PATH, firstsOrder } from "./earthPath";
 import { CONDITIONS, funnelOf, GATES } from "../src/simulation/greatFilter";
 import { ATMOSPHERE_CODES, INDEX_FLAG } from "../src/simulation/universeIndex";
 import { tidalHeatFlow } from "../src/simulation/interiorHeat";
+import { COMPANION_CHANCE } from "../src/simulation/binary";
 import { atmosphereClassOf } from "../src/simulation/planetPhysics";
 
 export const SEEDS = [100000, 42, 7777];
@@ -97,6 +103,18 @@ export interface Row {
   metals: Metals;
   /** Moons (MO7). */
   moons: Moons;
+  /** Binary stars (BS5). */
+  binaries: Binaries;
+}
+
+export interface Binaries {
+  shareByMass: number[];      // stars with a companion, in COMPANION_CHANCE's mass bins; NaN where a bin is empty
+  binaries: number;           // stars with a companion
+  removed: number;            // planets drawn where a companion allows no orbit (BS2)
+  aroundBoth: number;         // planets orbiting both stars
+  livingAroundBoth: number;   // of those, living today
+  livingPerSingle: number;    // worlds living today per single star
+  livingPerBinary: number;    // worlds living today per binary
 }
 
 export interface Moons {
@@ -203,11 +221,16 @@ export function measureUniverse(presetName: string, seed: number): Row {
 
   let planets = 0;
   let locked = 0;
+  const aroundBoth = { planets: 0, living: 0 };
   const planetsOf = (star: Star) => {
     const system = generatePlanetsFor(star, seed, config, worldOf);
     for (const planet of system.planets) {
       planets++;
       if (planet.tiltFree) moonCounts.tiltFree++;
+      if (planet.orbitsBothStars) {
+        aroundBoth.planets++;
+        if (planet.life && planet.life.endedGyr === null) aroundBoth.living++;
+      }
       for (const moon of planet.moons) {
         moonCounts.moons++;
         if (tidalHeatFlow(moon, planet) >= IO_TIDAL_HEAT_W_M2) moonCounts.ioHeated++;
@@ -260,6 +283,35 @@ export function measureUniverse(presetName: string, seed: number): Row {
       living: survey.lifeBearingMoons,
       civilizations: [...Array(survey.moonIndex.count).keys()].filter((i) => survey.moonIndex.highestStage[i] > 0).length,
     },
+    binaries: binariesOf(survey, stars, aroundBoth),
+  };
+}
+
+/** What binaries did (BS5), from the stars, the survey and the planets orbiting both stars. */
+function binariesOf(survey: LifeSurvey, stars: Star[], aroundBoth: { planets: number; living: number }): Binaries {
+  let from = 0;
+  const shareByMass = COMPANION_CHANCE.map((bin) => {
+    const inBin = stars.filter((s) => s.mass >= from && s.mass < bin.massBelow);
+    from = bin.massBelow;
+    return inBin.length === 0 ? NaN : inBin.filter((s) => s.companion).length / inBin.length;
+  });
+  const binary = new Set(stars.filter((s) => s.companion).map((s) => s.id));
+  const ix = survey.index;
+  let livingInBinaries = 0;
+  let livingInSingles = 0;
+  for (let i = 0; i < ix.count; i++) {
+    if (ix.lifeStage[i] === 0) continue;
+    if (binary.has(ix.starId[i])) livingInBinaries++;
+    else livingInSingles++;
+  }
+  return {
+    shareByMass,
+    binaries: binary.size,
+    removed: survey.unstablePlanets,
+    aroundBoth: aroundBoth.planets,
+    livingAroundBoth: aroundBoth.living,
+    livingPerSingle: livingInSingles / Math.max(1, stars.length - binary.size),
+    livingPerBinary: livingInBinaries / Math.max(1, binary.size),
   };
 }
 
@@ -408,6 +460,27 @@ export function moonsTable(rows: Row[]): string {
   ];
   for (const { preset, seed, moons: m } of rows) {
     lines.push(`| ${preset} | ${seed} | ${m.moons} | ${m.worlds} | ${m.liquidToday} | ${m.living} | ${m.civilizations} | ${m.hot} | ${m.ioHeated} | ${m.tiltFree} |`);
+  }
+  return lines.join("\n");
+}
+
+/** Binary stars in every universe, as a Markdown table (BS5). */
+export function binariesTable(rows: Row[]): string {
+  let from = 0;
+  const bins = COMPANION_CHANCE.map((bin) => {
+    const label = bin.massBelow === Infinity ? `≥ ${from} M☉` : `${from}–${bin.massBelow} M☉`;
+    from = bin.massBelow;
+    return `${label} (${(bin.chance * 100).toFixed(0)}%)`;
+  });
+  const lines = [
+    "Binary stars: the share of stars with a companion by mass (the rule's chance in brackets); binaries; planets removed where a companion allows no orbit; planets orbiting both stars, and those of them living today; worlds living today per single star and per binary.",
+    "",
+    `| Preset | Seed | ${bins.join(" | ")} | Binaries | Planets removed | Around both stars | Living around both | Living per single star | Living per binary |`,
+    `|---|---:|${bins.map(() => "---:").join("|")}|---:|---:|---:|---:|---:|---:|`,
+  ];
+  const percent = (x: number) => (Number.isNaN(x) ? "–" : `${(x * 100).toFixed(0)}%`);
+  for (const { preset, seed, binaries: b } of rows) {
+    lines.push(`| ${preset} | ${seed} | ${b.shareByMass.map(percent).join(" | ")} | ${b.binaries} | ${b.removed} | ${b.aroundBoth} | ${b.livingAroundBoth} | ${b.livingPerSingle.toFixed(3)} | ${b.livingPerBinary.toFixed(3)} |`);
   }
   return lines.join("\n");
 }

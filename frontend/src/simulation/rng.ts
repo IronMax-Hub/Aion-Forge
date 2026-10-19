@@ -69,6 +69,7 @@ export const SALT = {
   AIR:            0xA1A5E5C4,   // the atmosphere draw of planets too small to have taken one before AE2 (decision 43)
   METALLICITY:    0x3E7A1F2C,   // each star's scatter about its gas's metallicity (MZ2)
   MOON:           0x300F5A7E,   // a giant's regular moons (MO2)
+  COMPANION:      0xB1A2C0DE,   // each star's companion, if it has one (BS1)
 } as const;
 
 /** A standard normal draw (Box–Muller), from two draws of `rng`. */

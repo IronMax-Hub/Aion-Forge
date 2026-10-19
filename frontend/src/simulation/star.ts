@@ -3,6 +3,8 @@ import { feH, gasMetallicity } from "./metallicity";
 import { pow, log, sin, cos, exp } from "./detmath";
 import type { GalaxyConfig } from "./galaxy";
 import { makeConfig } from "./config";
+import { drawCompanion } from "./binary";
+import type { Companion, CompanionDraw } from "./binary";
 import type { UniverseConfig } from "./config";
 
 // ── Data model (AF-018) ───────────────────────────────────────────────────────
@@ -26,6 +28,7 @@ export interface Star {
   classification: StellarClass;
   isRare: boolean;
   metallicity: number; // [Fe/H], dex: the gas it formed from (MZ2)
+  companion: Companion | null; // its binary companion (BS1)
 }
 
 // ── Mass distribution (AF-020) ────────────────────────────────────────────────
@@ -501,6 +504,25 @@ function starMetallicity(galaxy: GalaxyConfig, id: number, [x, , z]: [number, nu
   return feH(gasMetallicity(galaxy.type, rFraction, bornGyr)) + METALLICITY_SCATTER_DEX * scatter;
 }
 
+// ── Companions (BS1) ──────────────────────────────────────────────────────────
+
+/** A companion at its primary's age: lifespan, class, temperature and luminosity by the rules for any star. */
+function companionFrom(draw: CompanionDraw, age: number, entropyRate: number): Companion {
+  const lifespan = calcLifespan(draw.mass) / entropyRate;
+  const classification = classify(draw.mass, age, lifespan);
+  const temperature = calcTemperature(classification, draw.mass, draw.temperatureDraw);
+  return {
+    mass: draw.mass,
+    periodDays: draw.periodDays,
+    separationAU: draw.separationAU,
+    eccentricity: draw.eccentricity,
+    lifespan,
+    temperature,
+    luminosity: calcLuminosity(classification, draw.mass, temperature),
+    classification,
+  };
+}
+
 export function generateStarsFor(
   galaxy: GalaxyConfig,
   universeAgeBY = UNIVERSE_AGE_GYR,
@@ -534,7 +556,10 @@ export function generateStarsFor(
 
     const metallicity = starMetallicity(galaxy, i, pos, universeAgeBY - age);
 
-    stars.push({ id: i, position: pos, mass, age, lifespan, temperature: temp, luminosity, classification: cls, isRare, metallicity });
+    const draw = drawCompanion(galaxy.seed, i, mass);
+    const companion = draw && companionFrom(draw, age, config.entropyRate);
+
+    stars.push({ id: i, position: pos, mass, age, lifespan, temperature: temp, luminosity, classification: cls, isRare, metallicity, companion });
   }
 
   return { stars, galaxySeed: galaxy.seed };

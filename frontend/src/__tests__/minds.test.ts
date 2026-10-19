@@ -72,7 +72,7 @@ describe("finding a mind", () => {
 
 const star: Star = {
   id: 1, position: [0, 0, 0], mass: 1, age: 4.6, lifespan: 10, temperature: 5772, luminosity: 1,
-  classification: "main-sequence", isRare: false, metallicity: 0,
+  classification: "main-sequence", isRare: false, metallicity: 0, companion: null,
 };
 const earthAir: PlanetSurface = {
   oceanFraction: 0.7, iceFraction: 0.03, landFraction: 0.27, habitableFraction: 0.8, liquidUnderIce: 0, surfaceGravity: 1, pressureBar: 1, o2Bar: 0.21,

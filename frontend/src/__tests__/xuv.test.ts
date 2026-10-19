@@ -9,7 +9,7 @@ import { buildGalaxyConfig } from "../simulation/galaxy";
 
 const sun: Star = {
   id: 0, position: [0, 0, 0], mass: 1, age: 4.6, lifespan: 10, temperature: 5772, luminosity: 1,
-  classification: "main-sequence", isRare: false, metallicity: 0,
+  classification: "main-sequence", isRare: false, metallicity: 0, companion: null,
 };
 const config = makeConfig(100000);
 const stars = generateStarsFor(buildGalaxyConfig(100000, config), UNIVERSE_AGE_GYR, config).stars;

@@ -22,7 +22,7 @@ const giants = stars.flatMap((star) => generatePlanetsFor(star, seed, config).pl
 
 const sun: Star = {
   id: 1, position: [0, 0, 0], mass: 1, age: 4.6, lifespan: 10, temperature: 5772, luminosity: 1,
-  classification: "main-sequence", isRare: false, metallicity: 0,
+  classification: "main-sequence", isRare: false, metallicity: 0, companion: null,
 };
 const jupiter: Planet = {
   id: 4, key: "1-4", hostStarId: 1, orbitalRadius: 5.2, orbitalIndex: 4, type: "gas-giant", size: 11.2, mass: 317.8,

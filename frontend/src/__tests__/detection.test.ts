@@ -18,7 +18,7 @@ import { OXIDATION_O2_BAR } from "../simulation/worldHistory";
 const seed = 100000;
 const sun: Star = {
   id: 1, position: [0, 0, 0], mass: 1, age: 4.6, lifespan: 10, temperature: 5772, luminosity: 1,
-  classification: "main-sequence", isRare: false, metallicity: 0,
+  classification: "main-sequence", isRare: false, metallicity: 0, companion: null,
 };
 const redDwarf: Star = { ...sun, temperature: 3000, luminosity: 0.005 };
 const earthSurface: PlanetSurface = {

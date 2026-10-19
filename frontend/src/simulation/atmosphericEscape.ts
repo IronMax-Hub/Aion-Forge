@@ -52,7 +52,7 @@ export const ESCAPE_K = 10;
 /** The model's Sun: Earth's XUV dose is counted from it. */
 export const REFERENCE_SUN: Star = {
   id: -1, position: [0, 0, 0], mass: 1, age: SOLAR_AGE_GYR, lifespan: 10, temperature: SOLAR_TEMPERATURE_K, luminosity: 1,
-  classification: "main-sequence", isRare: false, metallicity: 0,
+  classification: "main-sequence", isRare: false, metallicity: 0, companion: null,
 };
 
 /** Earth's XUV fluence to date: the model's Sun at 1 AU over its age, L☉ · Gyr. One Earth dose. */

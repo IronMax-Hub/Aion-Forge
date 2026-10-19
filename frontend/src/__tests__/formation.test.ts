@@ -21,7 +21,7 @@ describe("where planets form", () => {
   it("puts the Sun's dust-sublimation line at ~0.03 AU, well inside its planets", () => {
     const sun: Star = {
       id: 1, position: [0, 0, 0], mass: 1, age: 4.6, lifespan: 10, temperature: 5772, luminosity: 1,
-      classification: "main-sequence", isRare: false, metallicity: 0,
+      classification: "main-sequence", isRare: false, metallicity: 0, companion: null,
     };
     expect(dustSublimationAU(sun)).toBeCloseTo(0.0343 * Math.sqrt(luminosityAt(sun, 0)), 4);
     expect(dustSublimationAU(sun)).toBeLessThan(0.1);

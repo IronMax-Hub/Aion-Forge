@@ -8,6 +8,9 @@ import {
   WHITE_DWARF_LUMINOSITY, XUV_MAX_NM, XUV_SATURATED_SHARE, xuvLuminosityAt,
 } from "../../../simulation/star";
 import type { Star, StellarClass } from "../../../simulation/star";
+import {
+  CIRCULAR_BELOW_DAYS, COMPANION_CHANCE, DAYS_PER_YEAR, LOG_PERIOD_DAYS, MASS_RATIO, MAX_ECCENTRICITY,
+} from "../../../simulation/binary";
 import { formatGyr, formatInt, formatPercent, formatSig, spectralType, starName, STELLAR_CLASS_NAME } from "../../format";
 import type { Chapter } from "../catalogue";
 import { exact, median, said } from "../catalogue";
@@ -220,9 +223,42 @@ export const stars: Chapter = {
       code: "simulation/star.ts · RARE_STAR",
       effect: (ctx) => [said(`${formatInt(ctx.stars.filter((s) => s.isRare).length)} of its stars are rare.`, "star.isRare")],
     },
+    {
+      id: "star-companions",
+      title: "Companions",
+      statement: "About half of Sun-like stars have a companion, more among heavy stars and fewer among red dwarfs. A companion is lighter than its primary, shares its age, and orbits it at a distance drawn from the observed spread of binary periods, from days to millions of years.",
+      rule: `chance ${COMPANION_CHANCE.map((b) => `${b.chance} below ${b.massBelow} M☉`).join(", ").replace(" below Infinity M☉", " above")}; companion mass = q × primary, q uniform ${MASS_RATIO.min}–${MASS_RATIO.max}; log₁₀(period / days) normal, median ${LOG_PERIOD_DAYS.median}, σ ${LOG_PERIOD_DAYS.sigma}; a³ = (M₁ + M₂) × (period / ${DAYS_PER_YEAR} days)² (AU); e = 0 below ${CIRCULAR_BELOW_DAYS} days, else uniform 0–${MAX_ECCENTRICITY}`,
+      constants: [
+        ...COMPANION_CHANCE.map((b, i) => ({
+          name: b.massBelow === Infinity ? `Above ${COMPANION_CHANCE[i - 1].massBelow} M☉` : `Below ${b.massBelow} M☉`,
+          value: formatPercent(b.chance),
+          meaning: "Chance of a companion",
+        })),
+        { name: "Median period", value: `10^${LOG_PERIOD_DAYS.median} days`, meaning: `About ${formatInt(Math.pow(10, LOG_PERIOD_DAYS.median) / DAYS_PER_YEAR)} years; spread ${LOG_PERIOD_DAYS.sigma} dex` },
+        { name: "Circular below", value: exact(CIRCULAR_BELOW_DAYS, "days"), meaning: "Tides have circularised closer orbits" },
+      ],
+      why: "Multiplicity rises with stellar mass, and solar-type binaries' periods follow a broad log-normal; Kepler's law turns a period into a separation. Each companion is drawn from its own stream, so every other star and planet is unchanged.",
+      source: "Duchêne & Kraus 2013; Raghavan et al. 2010",
+      limits: [
+        "Companions do not yet act on anything: they limit where planets can orbit from BS2 and add their light from BS3.",
+        "Companions have no planets of their own (decision 15); triples and higher multiples are not made.",
+        "The period spread is not cut off at short periods, so a few pairs are drawn closer than their stars' radii allow.",
+        "Separations do not read the laboratory's gravity (decision 45).",
+      ],
+      laws: [{ law: "entropyRate", how: "Divides the companion's lifespan, as any star's" }],
+      code: "simulation/binary.ts · drawCompanion; simulation/star.ts · companionFrom",
+      effect: (ctx) => {
+        const binaries = ctx.stars.filter((s) => s.companion);
+        const sunLike = ctx.stars.filter((s) => s.mass >= 0.5 && s.mass < 1.3);
+        return [
+          said(`${formatInt(binaries.length)} of its ${formatInt(ctx.stars.length)} stars have a companion; among Sun-like stars (0.5–1.3 M☉), ${formatPercent(sunLike.filter((s) => s.companion).length / Math.max(1, sunLike.length))}.`, "star.companion"),
+          said(`The median pair is ${formatSig(median(binaries.map((s) => s.companion!.separationAU)))} AU apart.`, "star.companion.separationAU"),
+        ];
+      },
+    },
   ],
   missing: [
-    "No binary or multiple stars (step 6).",
+    "No triple or higher multiple stars, and companions without planets of their own (step 6).",
     "No metallicity (step 4).",
     "No stars that died before today; the galaxy's past light is not modelled (step 9).",
   ],

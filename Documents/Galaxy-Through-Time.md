@@ -899,6 +899,7 @@ About half of Sun-like stars have a companion. A companion adds light that brigh
 
   The population stays 2,000 star systems. Companions belong to a system and are not new members, and the star stream is untouched.
 - **Verification:** The fractions per mass bin match within sampling error; no companion is heavier than its primary; stars are unchanged apart from the new field; determinism.
+- **Built** 19 Oct 2026. `drawCompanion` in `binary.ts` makes the draws; `companionFrom` in `star.ts` gives the companion its lifespan, class, temperature and luminosity by the rules for any star. `Companion` holds mass, period, separation, eccentricity, lifespan, temperature, luminosity and class; its age and metallicity are its primary's. Stars without the new field, and planets, are bit-identical to rules v14 (seeds 100000 and 42). Seed 100000: 940 of 2,000 stars have a companion, 46% of Sun-like stars, median separation 61 AU. A Physics page card, Companions, shows the rule. Nothing reads it until BS2.
 
 #### BS2 Where planets can orbit
 `simulation` · **M**
@@ -1516,9 +1517,9 @@ If the survey goes over its budget, the first thing measured is which bodies can
 | 12 | How far a tilt wanders without a large moon? | **Decided 18 Oct 2026, as recommended.** Within ±20° (Lissauer et al. 2012), rather than chaotically over 0–85° (Laskar et al. 1993); and only in systems with other planets, whose pull drives it. The bounded walk is a modelling choice motivated by those papers, not their mechanism | MO5 |
 | 13 | Moons in stored counts? | **Decided 18 Oct 2026, as recommended.** Civilizations include moons; "life-bearing planets" stays planets; living moons are shown separately | MO4 |
 | 14 | Survey time after moons? | **Decided 19 Oct 2026 by the owner: accept and record.** The measured single-thread rise is +42% to +56% (v13 → v14), over the +25% budget: moons add about +19%, and the IH3 fix's extra living planets the rest; the skip rule would save about 1%. Accept up to +25%, measured; the physics skip rule before anything else if it is more. Decision 35 makes living moons likelier, and a living world's evolution costs far more than a lifeless history, so MO7 measures with it | MO7 |
-| 15 | Planets of their own around companion stars? | Not in this plan | BS1 |
+| 15 | Planets of their own around companion stars? | **Decided 19 Oct 2026, as recommended.** Not in this plan | BS1 |
 | 16 | How rogue planets drift? | Along their star's orbit around the galaxy, at their ejection speed | RP2 |
-| 17 | When rogue planets are ejected? And are planets in a companion's forbidden zone thrown out, or never formed? | During assembly, so a rogue's whole history is starless; companion-forbidden planets count as rogues, stated as a simplification | RP2 |
+| 17 | When rogue planets are ejected? And are planets in a companion's forbidden zone thrown out, or never formed? | **Decided 19 Oct 2026, as recommended.** During assembly, so a rogue's whole history is starless; companion-forbidden planets count as rogues, stated as a simplification | RP2 |
 | 18 | Deep Time's range? | From the galaxy's formation to the present, with no future | DT4 |
 | 19 | The planet view under the clock? | Present day only; Approach returns the clock to Now; the "ancestors of today's stars" limit is stated | DT6 |
 | 20 | Civilization chronicle: terminal collapse when cohesion is below 0.25, and collapse text from the record instead of six random causes? | Accept | DT1 |

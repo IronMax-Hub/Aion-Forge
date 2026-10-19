@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as THREE from "three";
-import { eccentricAnomaly, INNER_ORBIT_SECONDS, keplerPlace, SystemOrbits, orbitStartAngle, secondsPerOrbit } from "../rendering/systemView";
+import { eccentricAnomaly, INNER_ORBIT_SECONDS, keplerPlace, MOON_ORBIT_FADE_PX, moonOrbitVisibility, SystemOrbits, orbitStartAngle, secondsPerOrbit } from "../rendering/systemView";
 import type { OrbitPlace } from "../rendering/systemView";
 import type { Planet } from "../simulation/planet";
 
@@ -74,5 +74,16 @@ describe("a binary's stars on Kepler ellipses (BS4)", () => {
       expect((1 - mu) * x1 + mu * x2).toBeCloseTo(0, 10);
       expect((1 - mu) * z1 + mu * z2).toBeCloseTo(0, 10);
     }
+  });
+});
+
+describe("moon orbits in the system view", () => {
+  it("fade in as they grow on screen: hidden while a smudge, full once readable", () => {
+    expect(moonOrbitVisibility(MOON_ORBIT_FADE_PX.from)).toBe(0);
+    expect(moonOrbitVisibility(1)).toBe(0);
+    expect(moonOrbitVisibility(MOON_ORBIT_FADE_PX.to)).toBe(1);
+    expect(moonOrbitVisibility(500)).toBe(1);
+    const mid = (MOON_ORBIT_FADE_PX.from + MOON_ORBIT_FADE_PX.to) / 2;
+    expect(moonOrbitVisibility(mid)).toBeCloseTo(0.5, 10);
   });
 });

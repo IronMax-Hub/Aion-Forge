@@ -51,6 +51,12 @@ const ORBIT_SEGMENTS = 256;
 const ORBIT_COLOUR = 0x4a525d;
 const ORBIT_OPACITY = 0.55;
 const CIRCUMBINARY_ORBIT_COLOUR = 0x8a7f6a;
+// Moons' orbits: a cooler, fainter line than the planets', so the two levels read apart
+const MOON_ORBIT_COLOUR = 0x6f8aa6;
+const MOON_ORBIT_OPACITY = 0.5;
+// The selected body's orbit, in the interface's selection amber
+const SELECTED_ORBIT_COLOUR = 0xe0a458;
+const SELECTED_ORBIT_OPACITY = 0.9;
 
 /** Starlight on the planets, as the planet view's at Earth's flux (PlanetView.ts). */
 export const SYSTEM_STARLIGHT_INTENSITY = 2.6;
@@ -168,23 +174,70 @@ export function keplerLine(path: KeplerPath, colour: THREE.ColorRepresentation, 
   return new THREE.LineLoop(geometry, new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity, depthWrite: false }));
 }
 
-// The centre of mass's cross: its arms, and its colour
-const BARYCENTRE_COLOUR = 0xc8ced6;
+// The centre of mass's mark: a cross in a ring, the same size on screen at every zoom
+const BARYCENTRE_COLOUR = "rgba(200, 206, 214, 0.9)";
+const BARYCENTRE_HEIGHT = 0.03;
+const BARYCENTRE_TEXTURE_PX = 64;
 
-/** A binary's centre of mass: a small flat cross of this half-width, and a ring round it. */
-export function barycentreMarker(halfWidth: number): THREE.Group {
-  const group = new THREE.Group();
-  const material = new THREE.LineBasicMaterial({ color: BARYCENTRE_COLOUR, transparent: true, opacity: 0.8, depthWrite: false });
-  const cross = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-halfWidth, 0, 0), new THREE.Vector3(halfWidth, 0, 0),
-    new THREE.Vector3(0, 0, -halfWidth), new THREE.Vector3(0, 0, halfWidth),
-  ]);
-  group.add(new THREE.LineSegments(cross, material));
-  const ring = orbitLine(halfWidth * 0.6);
-  (ring.material as THREE.Material).dispose();
-  ring.material = material;
-  group.add(ring);
-  return group;
+/** A binary's centre of mass: a cross in a ring that keeps its size on screen. */
+export function barycentreMarker(): THREE.Sprite {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = BARYCENTRE_TEXTURE_PX;
+  const ctx = canvas.getContext("2d")!;
+  const c = BARYCENTRE_TEXTURE_PX / 2;
+  ctx.strokeStyle = BARYCENTRE_COLOUR;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(4, c); ctx.lineTo(BARYCENTRE_TEXTURE_PX - 4, c);
+  ctx.moveTo(c, 4); ctx.lineTo(c, BARYCENTRE_TEXTURE_PX - 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(c, c, BARYCENTRE_TEXTURE_PX * 0.22, 0, 2 * Math.PI);
+  ctx.stroke();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, sizeAttenuation: false, transparent: true, depthWrite: false }));
+  sprite.scale.setScalar(BARYCENTRE_HEIGHT);
+  return sprite;
+}
+
+/** A moon's orbit round its planet: one pixel wide, in a cooler, fainter colour than the planets' orbits. */
+export function moonOrbitLine(radius: number): THREE.LineLoop {
+  const line = orbitLine(radius);
+  const material = line.material as THREE.LineBasicMaterial;
+  material.color.set(MOON_ORBIT_COLOUR);
+  material.opacity = MOON_ORBIT_OPACITY;
+  return line;
+}
+
+/** Marks an orbit as the selected body's, or puts it back as it was drawn. */
+export function markOrbit(line: THREE.LineLoop, selected: boolean): void {
+  const material = line.material as THREE.LineBasicMaterial;
+  line.userData.drawn ??= { colour: material.color.getHex(), opacity: material.opacity };
+  const drawn = line.userData.drawn as { colour: number; opacity: number };
+  material.color.set(selected ? SELECTED_ORBIT_COLOUR : drawn.colour);
+  material.opacity = selected ? SELECTED_ORBIT_OPACITY : drawn.opacity;
+  line.userData.selected = selected;
+}
+
+/**
+ * How visible a moon's orbit is, 0–1, from its radius on screen in pixels: hidden below
+ * MOON_ORBIT_FADE_PX.from, where it would be a smudge round its planet, full from .to.
+ */
+export function moonOrbitVisibility(radiusPx: number): number {
+  return Math.min(1, Math.max(0, (radiusPx - MOON_ORBIT_FADE_PX.from) / (MOON_ORBIT_FADE_PX.to - MOON_ORBIT_FADE_PX.from)));
+}
+export const MOON_ORBIT_FADE_PX = { from: 6, to: 20 } as const;
+
+/** The drawn opacity of a moon's orbit at this visibility; a selected one is always fully shown. */
+export function fadeMoonOrbit(line: THREE.LineLoop, visibility: number): void {
+  if (line.userData.selected) {
+    line.visible = true;
+    return;
+  }
+  const material = line.material as THREE.LineBasicMaterial;
+  material.opacity = MOON_ORBIT_OPACITY * visibility;
+  line.visible = visibility > 0;
 }
 
 /** A planet's orbit around both stars of a binary (BS4): the orbit's circle, dashed, in a warmer grey. */

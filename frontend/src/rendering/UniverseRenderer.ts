@@ -5,6 +5,7 @@ import type { GalaxyParticles } from "../simulation/galaxy";
 import type { Star, StellarPopulation } from "../simulation/star";
 import { companionAsStar, stellarRadiusAU, temperatureToColor } from "../simulation/star";
 import { pairLight } from "../simulation/binary";
+import { moonKey } from "../simulation/bodyKey";
 import { formatSig, spectralType, STELLAR_CLASS_NAME } from "../ui/format";
 import type { Planet, PlanetarySystem, SolidWorld } from "../simulation/planet";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
@@ -14,7 +15,7 @@ import type { Civilization } from "../simulation/civilization";
 import { SkyBackground } from "./background";
 import {
   barycentreMarker, circumbinaryOrbitLine, companionStartAngle, disposeSystemGroup, distantStarMarker, FASTEST_PAIR_ORBIT_SECONDS,
-  hostStarObject, INNER_MOON_ORBIT_SECONDS, keplerLine, orbitLine,
+  fadeMoonOrbit, hostStarObject, INNER_MOON_ORBIT_SECONDS, keplerLine, markOrbit, moonOrbitLine, moonOrbitVisibility, orbitLine,
   secondsPerOrbit, SYSTEM_STARLIGHT_INTENSITY, systemLights, SystemOrbits,
 } from "./systemView";
 import type { KeplerPath } from "./systemView";
@@ -227,6 +228,8 @@ const MOON_DISTANCE = { base: 2, perDoubling: 1.2 };
 const MOON_SIZE = { perEarthRadius: 0.035, min: 0.008, max: 0.03 };
 // Moons too small to be worlds are drawn in the grey of ice and rock
 const SMALL_MOON_COLOUR: [number, number, number] = [0.7, 0.72, 0.75];
+// A body on screen can be picked within at least this many pixels of its centre
+const PICK_RADIUS_PX = 12;
 // A binary's star orbits (BS4), drawn in each star's colour
 const COMPANION_ORBIT_OPACITY = 0.45;
 
@@ -333,7 +336,8 @@ export class UniverseRenderer {
   private starData:   Star[]   = [];
   private planetData: Planet[] = [];
   private onStarSelected:   ((star: Star | null)     => void) | null = null;
-  private onPlanetSelected: ((planet: Planet | null) => void) | null = null;
+  /** Called with the planet picked in the system view; for a moon too small to be a world, its planet and the moon's index. */
+  private onPlanetSelected: ((planet: Planet | null, smallMoonIndex?: number) => void) | null = null;
   private onPlanetApproach: ((planet: Planet) => void) | null = null;
 
   // System view: the label shown beside the planet under the pointer (life is named there, never drawn on the planet)
@@ -358,6 +362,10 @@ export class UniverseRenderer {
   // The system view's planets going round their star, their spheres (for picking), and the last frame's time
   private systemOrbits = new SystemOrbits();
   private systemMarkers = new Map<string, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
+  /** Every body's orbit line in the system view, by body key: planets' and moons'. */
+  private orbitLines = new Map<string, THREE.LineLoop>();
+  /** Moons' orbit lines with the planet carrier they circle, faded by their size on screen. */
+  private moonOrbits: { line: THREE.LineLoop; carrier: THREE.Object3D; radius: number }[] = [];
   private orbitsMove = false;
   private lastFrameMs = performance.now();
   // The planet the system view's camera is on, following it round its orbit; null: the star
@@ -545,7 +553,7 @@ export class UniverseRenderer {
   renderPlanetarySystem(
     system: PlanetarySystem,
     hostStar: Star,
-    onPlanetSelected: (planet: Planet | null) => void,
+    onPlanetSelected: (planet: Planet | null, smallMoonIndex?: number) => void,
     sight: SystemSight = {},
   ) {
     const { onPlanetApproach = null, planetLabels = new Map(), planets = new Map() } = sight;
@@ -586,6 +594,8 @@ export class UniverseRenderer {
     const maxDistance = Math.min(DEFAULT_DISTANCE.max * scale, this.camera.far / 2);
 
     const markers = new Map<string, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>();
+    const orbitLines = new Map<string, THREE.LineLoop>();
+    this.moonOrbits = [];
     // Each planet's meshes ride in a carrier that goes round the orbit (systemView.ts)
     this.systemOrbits = new SystemOrbits();
     // Host star, as light (systemView.ts), and the starlight the planets are lit by; in a binary, its
@@ -594,7 +604,9 @@ export class UniverseRenderer {
     for (const planet of system.planets) {
       const orbitR = planet.orbitalRadius * SYSTEM_UNITS_PER_AU;
       const parent = planet.orbitsBothStars ? group : ownPlanetsParent;
-      parent.add(planet.orbitsBothStars ? circumbinaryOrbitLine(orbitR) : orbitLine(orbitR));
+      const orbit = planet.orbitsBothStars ? circumbinaryOrbitLine(orbitR) : orbitLine(orbitR);
+      parent.add(orbit);
+      orbitLines.set(planet.key, orbit);
       const carrier = new THREE.Group();
       parent.add(carrier);
       this.systemOrbits.add(planet, carrier, orbitR, innermostAU * SYSTEM_UNITS_PER_AU, system.galaxySeed);
@@ -607,7 +619,7 @@ export class UniverseRenderer {
       markers.set(planet.key, pMesh);
       pMesh.userData = { planetKey: planet.key };
       carrier.add(pMesh);
-      this.addMoonMarkers(planet, pSize, scale, markers, system.galaxySeed);
+      this.addMoonMarkers(planet, pSize, scale, markers, orbitLines, system.galaxySeed);
 
       // A giant's rings, as the planet view draws them (its VISUAL stream, globe.ts), in its equatorial plane
       const planetSight = planets.get(planet.key);
@@ -630,6 +642,7 @@ export class UniverseRenderer {
 
     this.systemOrbits.advance(0);
     this.systemMarkers = markers;
+    this.orbitLines = orbitLines;
     this.systemScale = scale;
     this.focusedPlanetKey = null;
     this.controls.minDistance = DEFAULT_DISTANCE.min;
@@ -684,7 +697,6 @@ export class UniverseRenderer {
     const innermostAU = system.planets.length > 0 ? Math.min(...system.planets.map((p) => p.orbitalRadius)) : companion.separationAU;
     const seconds = Math.max(FASTEST_PAIR_ORBIT_SECONDS, secondsPerOrbit(companion.separationAU, innermostAU));
     const aroundBoth = system.planets.filter((p) => p.orbitsBothStars);
-    const centreOf = (a: number) => barycentreMarker(Math.max(a * 0.04, HOST_STAR_RADIUS * scale * 0.5));
 
     if (aroundBoth.length === 0) {
       // A companion round the primary: their relative orbit, with the centre of mass on the line between them
@@ -697,7 +709,7 @@ export class UniverseRenderer {
       const marker = distantStarMarker(companionCol, radius * companionSize,
         `Companion · ${starKindOf(companion)} · ${formatSig(companion.separationAU)} AU${a < trueA ? " (drawn closer)" : a > trueA ? " (drawn apart)" : ""}`);
       const centre = new THREE.Group();
-      centre.add(centreOf(a));
+      centre.add(barycentreMarker());
       group.add(marker, centre);
       this.systemOrbits.addStar("pair-companion", marker, relative, seconds);
       this.systemOrbits.addStar("pair-centre", centre, { ...relative, share: mu }, seconds);
@@ -715,7 +727,7 @@ export class UniverseRenderer {
     const primaryCarrier = new THREE.Group();
     const companionCarrier = new THREE.Group();
     group.add(
-      primaryCarrier, companionCarrier, centreOf(a),
+      primaryCarrier, companionCarrier, barycentreMarker(),
       keplerLine(primaryPath, starCol, COMPANION_ORBIT_OPACITY), keplerLine(companionPath, companionCol, COMPANION_ORBIT_OPACITY),
     );
     this.systemOrbits.addStar("pair-primary", primaryCarrier, primaryPath, seconds);
@@ -733,14 +745,18 @@ export class UniverseRenderer {
    */
   private addMoonMarkers(
     planet: Planet, planetSize: number, scale: number,
-    markers: Map<string, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>, galaxySeed: number,
+    markers: Map<string, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>, orbitLines: Map<string, THREE.LineLoop>,
+    galaxySeed: number,
   ): void {
     const carrier = this.systemOrbits.carrierOf(planet.key);
     if (!carrier || planet.moons.length === 0) return;
     const innermost = planet.moons[0];
     for (const moon of planet.moons) {
       const distance = planetSize * (MOON_DISTANCE.base + MOON_DISTANCE.perDoubling * Math.log2(moon.orbitPlanetRadii / innermost.orbitPlanetRadii + 1));
-      carrier.add(orbitLine(distance));
+      const orbit = moonOrbitLine(distance);
+      carrier.add(orbit);
+      orbitLines.set(moon.key, orbit);
+      this.moonOrbits.push({ line: orbit, carrier, radius: distance });
       const moonCarrier = new THREE.Group();
       this.systemOrbits.addMoon(moon, planet.key, moonCarrier, distance,
         INNER_MOON_ORBIT_SECONDS * (moon.orbitalPeriodHours / innermost.orbitalPeriodHours), galaxySeed);
@@ -751,10 +767,9 @@ export class UniverseRenderer {
         new THREE.MeshStandardMaterial({ color: new THREE.Color(r, g, b), roughness: 0.9, metalness: 0 }),
       );
       moonCarrier.add(mesh);
-      if (moon.world) {
-        mesh.userData = { planetKey: moon.world.key };
-        markers.set(moon.world.key, mesh);
-      }
+      // Every moon can be picked and focused; one too small to be a world selects its planet, naming the moon
+      mesh.userData = moon.world ? { planetKey: moon.world.key } : { planetKey: moon.key, moonOf: planet.key, moonIndex: moon.moonIndex };
+      markers.set(moon.key, mesh);
     }
   }
 
@@ -780,6 +795,8 @@ export class UniverseRenderer {
     this.focusedPlanetKey = null;
     this.controls.minDistance = DEFAULT_DISTANCE.min;
     this.systemMarkers = new Map();
+    this.orbitLines = new Map();
+    this.moonOrbits = [];
     this.systemOrbits = new SystemOrbits();
     this.systemHostStar = null;
     this.onPlanetApproach = null;
@@ -849,12 +866,16 @@ export class UniverseRenderer {
    * planet as it orbits, circling it; null glides back to the whole system.
    * Does nothing outside the system view, during an approach, or if already there.
    */
-  focusPlanet(planet: Planet | null) {
+  focusPlanet(planet: Planet | null, smallMoonIndex: number | null = null) {
     if (this.mode !== "system" || !this.systemHostStar || this.tween?.onDone) return;
-    const key = planet?.key ?? null;
+    // A moon too small to be a world is focused by its own key (MO6 moon keys)
+    const key = planet && smallMoonIndex !== null ? moonKey(planet.hostStarId, planet.id, smallMoonIndex) : planet?.key ?? null;
     if (key === this.focusedPlanetKey) return;
     const marker = key !== null ? this.systemMarkers.get(key) : undefined;
     if (key !== null && !marker) return;
+    // The focused body's orbit is drawn in the selection colour
+    if (this.focusedPlanetKey !== null) { const line = this.orbitLines.get(this.focusedPlanetKey); if (line) markOrbit(line, false); }
+    if (key !== null) { const line = this.orbitLines.get(key); if (line) markOrbit(line, true); }
     this.focusedPlanetKey = key;
 
     // Keep the direction the camera looks from; only the distance and the point it circles change
@@ -963,6 +984,11 @@ export class UniverseRenderer {
     if (this.mode === "planet") return;
     if (this.mode === "system" && this.systemGroup) {
       const hit = this.planetMeshAt(ndc);
+      if (hit?.userData.moonOf) {
+        const planet = this.planetData.find(p => p.key === hit.userData.moonOf) ?? null;
+        this.onPlanetSelected?.(planet, hit.userData.moonIndex as number);
+        return;
+      }
       const key = hit ? hit.userData.planetKey as string : null;
       this.onPlanetSelected?.(key !== null ? this.planetData.find(p => p.key === key) ?? null : null);
       return;
@@ -1000,11 +1026,47 @@ export class UniverseRenderer {
     );
   }
 
-  /** The system view's planet sphere under a point on screen (normalized device coordinates), if any. */
+  /**
+   * The system view's body under a point on screen (normalized device coordinates), if any: the one
+   * whose drawn sphere, widened to at least PICK_RADIUS_PX, holds the point, nearest its centre.
+   * Measured on screen, so a moon a few pixels wide is as easy to pick as a planet.
+   */
   private planetMeshAt(ndc: THREE.Vector2): THREE.Object3D | null {
     if (!this.systemGroup) return null;
-    this.raycaster.setFromCamera(ndc, this.camera);
-    return this.raycaster.intersectObjects([...this.systemMarkers.values()], false)[0]?.object ?? null;
+    const { width, height } = this.renderer.domElement.getBoundingClientRect();
+    const pxPerUnitAt1 = height / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2));
+    const centre = new THREE.Vector3();
+    let best: THREE.Object3D | null = null;
+    let bestScore = Infinity;
+    for (const marker of this.systemMarkers.values()) {
+      marker.getWorldPosition(centre);
+      const distance = centre.distanceTo(this.camera.position);
+      const projected = centre.project(this.camera);
+      if (projected.z > 1) continue;   // behind the camera
+      const dx = (projected.x - ndc.x) * width / 2;
+      const dy = (projected.y - ndc.y) * height / 2;
+      const offPx = Math.hypot(dx, dy);
+      const radiusPx = Math.max(PICK_RADIUS_PX, (marker.geometry.parameters.radius / distance) * pxPerUnitAt1);
+      if (offPx > radiusPx) continue;
+      // Nearest centre wins, as a share of the target's size, so a moon in front of its planet can be picked
+      const score = offPx / radiusPx;
+      if (score < bestScore) {
+        bestScore = score;
+        best = marker;
+      }
+    }
+    return best;
+  }
+
+  /** Fades moons' orbits in as they grow on screen, so a far planet is not ringed with smudges. */
+  private fadeMoonOrbits() {
+    if (this.moonOrbits.length === 0) return;
+    const pxPerUnitAt1 = this.renderer.domElement.clientHeight / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2));
+    const centre = new THREE.Vector3();
+    for (const { line, carrier, radius } of this.moonOrbits) {
+      const distance = carrier.getWorldPosition(centre).distanceTo(this.camera.position);
+      fadeMoonOrbit(line, moonOrbitVisibility((radius / distance) * pxPerUnitAt1));
+    }
   }
 
   // ── System view: hover label ──────────────────────────────────────────────
@@ -1250,7 +1312,10 @@ export class UniverseRenderer {
       } else if (this.mode === "system") {
         this.systemGlobes.update(this.renderer, performance.now());   // the approach's bake goes first
       }
-      if (this.mode === "system") this.systemGlobes.spin(performance.now());
+      if (this.mode === "system") {
+        this.systemGlobes.spin(performance.now());
+        this.fadeMoonOrbits();
+      }
       this.stepTween();
       this.controls.update();
 

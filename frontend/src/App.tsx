@@ -46,7 +46,7 @@ import { subjectKey } from "./ui/encyclopedia/subjects";
 import { biosphereEntry, civilizationEntry, galaxyEntry, planetEntry, starEntry } from "./ui/encyclopedia/entries";
 import type { Entry, SubjectRef } from "./ui/encyclopedia/entry";
 import type { UniverseIndex } from "./simulation/universeIndex";
-import { bodyName, starName, planetLifeLabel, lifeMarkerLabel, PLANET_TYPE_LABEL } from "./ui/format";
+import { bodyName, moonName, starName, planetLifeLabel, lifeMarkerLabel, PLANET_TYPE_LABEL } from "./ui/format";
 import { makeUniverseId, generateUniverseSummary, importUniverseFromFile } from "./simulation/persistence";
 import type { UniverseMeta, DiscoveryItem } from "./simulation/persistence";
 import { makeJournalEntry } from "./simulation/journal";
@@ -151,6 +151,10 @@ export default function App() {
 
   const [selectedStar,         setSelectedStar]         = useState<Star | null>(null);
   const [selectedPlanet,       setSelectedPlanet]       = useState<Planet | null>(null);
+  // A moon too small to be a world, picked in the system view or the planet panel: it has no panel of its own,
+  // so its planet is selected and the camera focuses the moon. It counts only while its planet stays selected.
+  const [selectedSmallMoon,    setSelectedSmallMoon]    = useState<{ planetKey: string; moonIndex: number } | null>(null);
+  const smallMoonIndex = selectedSmallMoon && selectedSmallMoon.planetKey === selectedPlanet?.key ? selectedSmallMoon.moonIndex : null;
   const [selectedBiosphere,    setSelectedBiosphere]    = useState<Biosphere | null>(null);
   const [selectedCivilization, setSelectedCivilization] = useState<Civilization | null>(null);
   const [selectedSpecies,      setSelectedSpecies]      = useState<Species | null>(null);
@@ -562,17 +566,23 @@ export default function App() {
     ui.panelOpen();
     ambientLayer.setContext("system");
 
-    rendererRef.current.renderPlanetarySystem(system, star, (planet) => {
+    rendererRef.current.renderPlanetarySystem(system, star, (planet, moonIndex) => {
       setSelectedPlanet(planet);
+      setSelectedSmallMoon(planet && moonIndex !== undefined ? { planetKey: planet.key, moonIndex } : null);
       setSelectedBiosphere(null);
       ui.inspect();
     }, {
       onPlanetApproach: approachPlanet,
-      planetLabels: new Map(bodies.map((body) => {
-        const life = planetLifeLabel(biospheres.get(body.key)!);
-        const name = `${bodyName(body)} · ${body.moonOrbit ? "moon · " : ""}${PLANET_TYPE_LABEL[body.type]}`;
-        return [body.key, life === "—" ? name : `${name} · ${life} life`];
-      })),
+      planetLabels: new Map([
+        ...bodies.map((body): [string, string] => {
+          const life = planetLifeLabel(biospheres.get(body.key)!);
+          const name = `${bodyName(body)} · ${body.moonOrbit ? "moon · " : ""}${PLANET_TYPE_LABEL[body.type]}`;
+          return [body.key, life === "—" ? name : `${name} · ${life} life`];
+        }),
+        // Moons too small to be worlds, by name
+        ...system.planets.flatMap((planet) => planet.moons.filter((moon) => !moon.world).map((moon): [string, string] =>
+          [moon.key, `${moonName(moon.hostStarId, planet.orbitalIndex, moon.moonIndex)} · moon`])),
+      ]),
       planets: sights,
     });
     return system.planets;
@@ -612,8 +622,8 @@ export default function App() {
   // (from the view, the table, Escape or the panel's back button); not while in orbit
   useEffect(() => {
     if (view !== "system" || orbiting) return;
-    rendererRef.current?.focusPlanet(selectedPlanet);
-  }, [selectedPlanet, view, orbiting]);
+    rendererRef.current?.focusPlanet(selectedPlanet, smallMoonIndex);
+  }, [selectedPlanet, smallMoonIndex, view, orbiting]);
 
   function leaveOrbit() {
     setOrbiting(false);
@@ -842,6 +852,7 @@ export default function App() {
 
   const handleSelectPlanetFromTable = (planet: Planet) => {
     setSelectedPlanet(planet);
+    setSelectedSmallMoon(null);
     setSelectedBiosphere(null);
     ui.inspect();
   };
@@ -1174,6 +1185,8 @@ export default function App() {
             onLeaveOrbit={leaveOrbit}
             onScanBiosphere={handleScanBiosphere}
             entryView={entryViewOf(subjectOf(selectedPlanet, "planet"))}
+            selectedMoonIndex={smallMoonIndex}
+            onSelectSmallMoon={(moonIndex) => setSelectedSmallMoon(moonIndex === null ? null : { planetKey: selectedPlanet.key, moonIndex })}
             onSelectMoon={(moon) => {
               setSelectedPlanet(moon);
               setSelectedBiosphere(null);

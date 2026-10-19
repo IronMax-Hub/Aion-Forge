@@ -39,6 +39,10 @@ interface Props {
   entryView: ReactNode;
   /** Selects one of its moon worlds (MO6). */
   onSelectMoon?: (moon: Planet) => void;
+  /** The moon too small to be a world that the view is focused on, by its index; null for none. */
+  selectedMoonIndex?: number | null;
+  /** Focuses one of its moons too small to be worlds (null: back to the planet). */
+  onSelectSmallMoon?: (moonIndex: number | null) => void;
 }
 
 const ATMO_LABEL: Record<string, string> = {
@@ -79,6 +83,7 @@ const CAN_HAVE_LIFE: Record<string, boolean> = {
 export function PlanetPanel({
   planet, star, galaxySeed, civilization, discoveries, onSaveDiscovery,
   world, physics, orbiting, onClose, onBack, onApproach, onLeaveOrbit, onScanBiosphere, entryView, onSelectMoon,
+  selectedMoonIndex = null, onSelectSmallMoon,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [r, g, b] = PLANET_COLORS[planet.type];
@@ -196,11 +201,21 @@ export function PlanetPanel({
           <div className="inspector-section">
             <div className="section-title">Moons</div>
             {planet.moons.map((moon) => (
-              <div key={moon.key} className="moon-row">
+              <div
+                key={moon.key}
+                className={`moon-row${moon.moonIndex === selectedMoonIndex ? " selected" : ""}`}
+                ref={moon.moonIndex === selectedMoonIndex ? (row) => row?.scrollIntoView({ block: "nearest" }) : undefined}
+              >
                 <div className="moon-row-head">
                   {moon.world && onSelectMoon
                     ? <button className="breadcrumb-link" onClick={() => onSelectMoon(moon.world!)}>{moonName(moon.hostStarId, planet.orbitalIndex, moon.moonIndex)}</button>
-                    : <span>{moonName(moon.hostStarId, planet.orbitalIndex, moon.moonIndex)}</span>}
+                    : onSelectSmallMoon
+                      ? <button className="breadcrumb-link" aria-pressed={moon.moonIndex === selectedMoonIndex}
+                          title={moon.moonIndex === selectedMoonIndex ? "Back to the planet" : "Show this moon in the view"}
+                          onClick={() => onSelectSmallMoon(moon.moonIndex === selectedMoonIndex ? null : moon.moonIndex)}>
+                          {moonName(moon.hostStarId, planet.orbitalIndex, moon.moonIndex)}
+                        </button>
+                      : <span>{moonName(moon.hostStarId, planet.orbitalIndex, moon.moonIndex)}</span>}
                   <span className="moon-row-life">{moon.world ? moonLifeOf(moon.world, star) : "No history (too small)"}</span>
                 </div>
                 <div className="data-grid">

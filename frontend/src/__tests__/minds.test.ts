@@ -4,7 +4,7 @@ import type { EvolutionState, Lineage } from "../simulation/evolution/engine";
 import type { Genome } from "../simulation/evolution/genome";
 import type { MindSummary, PhylogenySummary } from "../simulation/evolution/phylogeny";
 import { generateBiosphere } from "../simulation/biosphere";
-import { canSustainFire, generateCivilization } from "../simulation/civilization";
+import { canSustainFire, generateCivilization, mindCanUseFire } from "../simulation/civilization";
 import { planetKey } from "../simulation/planet";
 import type { Planet, PlanetSurface } from "../simulation/planet";
 import type { Star } from "../simulation/star";
@@ -73,6 +73,7 @@ describe("finding a mind", () => {
     const found = findMind(state([root, grazer, sidebranch, mind]), 0.5, 3)!;
     expect(found.consumerAncestry).toBeCloseTo(2 / 3, 12);   // itself and its parent, not the root; the side branch is not an ancestor
     expect(found.temperatureSpanK).toBe(60);
+    expect(found.habitat).toBe("land");
   });
 });
 
@@ -87,7 +88,7 @@ const earthAir: PlanetSurface = {
     backgroundBar: 0.78, co2Bar: 4e-4, ch4Bar: 0, ozone: 1, water: 0.5, steam: false,
 };
 const mindOf = (overrides: Partial<MindSummary> = {}): MindSummary => ({
-  tGyr: 4.0, lineageId: 7, informationProcessing: 0.62, log10BodyMassKg: 1.5, consumerAncestry: 0.5, temperatureSpanK: 75,
+  tGyr: 4.0, lineageId: 7, informationProcessing: 0.62, log10BodyMassKg: 1.5, consumerAncestry: 0.5, temperatureSpanK: 75, habitat: "land",
   ageGyr: 0.6, speciesEndedAgoGyr: null, ...overrides,
 });
 function planetWith(mind: MindSummary | null, surface: PlanetSurface = earthAir, endedGyr: number | null = null): Planet {
@@ -140,5 +141,18 @@ describe("a civilization", () => {
       const civ = civOf(planetWith(mindOf({ lineageId, ageGyr: 3 }), thin)).civilization!;
       expect(["collapsed", "primitive", "agricultural"]).toContain(civ.techStage);
     }
+  });
+
+  it("cannot reach industry when its mind lives in water, even where fire is possible (rules v17)", () => {
+    expect(mindCanUseFire(planetWith(mindOf(), earthAir))).toBe(true);
+    expect(mindCanUseFire(planetWith(mindOf({ habitat: "shallow-water" }), earthAir))).toBe(false);
+    let reached = 0;
+    for (let lineageId = 0; lineageId < 40; lineageId++) {
+      const onLand = civOf(planetWith(mindOf({ lineageId, ageGyr: 3 }))).civilization!;
+      const inWater = civOf(planetWith(mindOf({ lineageId, ageGyr: 3, habitat: "shallow-water" }))).civilization!;
+      if (onLand.techStage !== "collapsed" && onLand.techStage !== "primitive" && onLand.techStage !== "agricultural") reached++;
+      expect(["collapsed", "primitive", "agricultural"]).toContain(inWater.techStage);
+    }
+    expect(reached).toBeGreaterThan(0);   // the same minds on land do get past farming
   });
 });

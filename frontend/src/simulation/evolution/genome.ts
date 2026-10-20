@@ -79,7 +79,7 @@ export const TRAIT_READERS: Readonly<Record<keyof Genome, readonly string[]>> = 
   energySource: ["energy intake"],
   absorptionPeakNm: ["light capture", "vegetation colour"],
   log10BodyMassKg: ["maintenance cost", "support cost", "oxygen yield", "life stage"],
-  habitat: ["energy intake", "UV cost", "support cost"],
+  habitat: ["energy intake", "UV cost", "support cost", "oxygen yield (dissolved in water)", "competition share (sight)", "fire (minds)"],
   thermalOptimumK: ["thermal cost"],
   informationProcessing: ["competition share", "information cost", "minds"],
 };

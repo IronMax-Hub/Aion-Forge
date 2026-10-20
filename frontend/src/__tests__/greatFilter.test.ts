@@ -5,7 +5,7 @@ import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import type { Star } from "../simulation/star";
 import { generatePlanetsFor } from "../simulation/planet";
 import { generateBiosphere } from "../simulation/biosphere";
-import { canSustainFire, generateCivilization, techLevelToStage } from "../simulation/civilization";
+import { generateCivilization, mindCanUseFire, techLevelToStage } from "../simulation/civilization";
 import { surveyLife } from "../simulation/lifeSurvey";
 import { breakdown, FILTER_MIN_ARRIVING, funnelOf, GATES, quantile, spreadOf, stoppedAt } from "../simulation/greatFilter";
 import type { UniverseIndex } from "../simulation/universeIndex";
@@ -34,7 +34,7 @@ function directGates(seed: number, stars: Star[]): number[] {
         planet.life?.oxygenGyr != null,
         first("multicellular"),
         phylogeny?.mind != null,
-        canSustainFire(planet),
+        mindCanUseFire(planet),
         highest === "industrial" || highest === "information" || highest === "space-age",
         highest === "information" || highest === "space-age",
         highest === "space-age",
@@ -74,15 +74,16 @@ describe("the Great Filter funnel", () => {
     // (6,549, 3,034, 2,302, 425, 161, 123, 29, 14, 8, 7, 0, 0 of 7,650 planets). Rules v15 (BS2): 757 planets
     // drawn where a companion allows no orbit are removed (5,911, 2,762, 2,121, 395, 153, 119, 27, 13, 7, 6, 0, 0),
     // then BS3's light from both stars (…, 119, 26, 13, 7, 6, 0, 0). Rules v16: minds must eat other life,
-    // and a species ends when its consumer line does
-    expect(funnel.steps.map((s) => s.passed)).toEqual([5911, 2760, 2120, 394, 153, 119, 24, 11, 5, 4, 0, 0]);
+    // and a species ends when its consumer line does (…, 119, 24, 11, 5, 4, 0, 0). Rules v17: a consumer gains
+    // from thinking as far as it sees, water life breathes dissolved oxygen, and only a mind on land has fire
+    expect(funnel.steps.map((s) => s.passed)).toEqual([5911, 2760, 2120, 395, 152, 116, 10, 3, 3, 3, 0, 0]);
     for (let g = 1; g < funnel.steps.length; g++) {
       expect(funnel.steps[g].arrived).toBe(funnel.steps[g - 1].passed);
       expect(funnel.steps[g].passed).toBeLessThanOrEqual(funnel.steps[g].arrived);
     }
-    // The steepest gate that at least ten worlds reach: from v13 (IH2), life to light-using life (about 13%);
-    // before it, light-using life to an oxygenated sky
-    expect(funnel.filter).toBe("light");
+    // The steepest gate that at least ten worlds reach: from v17, a multicellular body to a mind (10 of 116,
+    // about 9%); v13–v16, life to light-using life (about 13%); before it, light-using life to an oxygenated sky
+    expect(funnel.filter).toBe("mind");
   });
 
   it("equals counts made directly from the generators", () => {
@@ -128,14 +129,14 @@ describe("where worlds stop", () => {
     }
   });
 
-  it("counts which of fire's conditions fail where minds have no fire", () => {
+  it("counts which of fire's conditions fail where minds have no fire, a mind in water among them (rules v17)", () => {
     const index = indexOf100000();
     const fire = breakdown(index, seedStars, "fire");
-    expect(fire.stopped).toBe(26 - 13);
+    expect(fire.stopped).toBe(10 - 3);
     // Every stopped world fails at least one condition, and none fails more than the stopped count
-    const { noLand, thinAir, lowOxygen } = fire.fire!;
-    expect(noLand + thinAir + lowOxygen).toBeGreaterThanOrEqual(fire.stopped);
-    for (const n of [noLand, thinAir, lowOxygen]) expect(n).toBeLessThanOrEqual(fire.stopped);
+    const { noLand, thinAir, lowOxygen, inWater } = fire.fire!;
+    expect(noLand + thinAir + lowOxygen + inWater).toBeGreaterThanOrEqual(fire.stopped);
+    for (const n of [noLand, thinAir, lowOxygen, inWater]) expect(n).toBeLessThanOrEqual(fire.stopped);
   });
 
   it("interpolates quantiles", () => {

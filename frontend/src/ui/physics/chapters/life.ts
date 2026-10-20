@@ -10,7 +10,7 @@ import {
 import { TRAIT_RANGES } from "../../../simulation/evolution/genome";
 import {
   AEROBIC_YIELD, CHEMICAL_SUPPLY, COST, DRIFT_TOLERANCE, KILL_CHANCE, LINEAGE_CAP, MAX_LEVEL, MULTICELLULAR_LOG10_KG, MUTATION_SIGMA,
-  PREDATION_LOSS, SPECIATION_PER_GYR, TROPHIC_EFFICIENCY,
+  PREDATION_LOSS, WATER_SIGHT, WATER_O2_SHARE, SPECIATION_PER_GYR, TROPHIC_EFFICIENCY,
 } from "../../../simulation/evolution/engine";
 import { MASS_EXTINCTION_SHARE } from "../../../simulation/history";
 import { RECENT_CATASTROPHES } from "../../../simulation/evolution/phylogeny";
@@ -103,7 +103,7 @@ export const life: Chapter = {
     {
       id: "engine",
       title: "Evolution: branching, drift, competition",
-      statement: "Lineages split into new ones, drift a little each step, and keep a change unless it costs them. They share the energy of their niche by how well they do; consumers eat the level below, if no heavier than themselves. A lineage with no surplus dies out.",
+      statement: "Lineages split into new ones, drift a little each step, and keep a change unless it costs them. They share the energy of their niche by how well they do, and thinking helps a consumer only as far as it can see; consumers eat the level below, if no heavier than themselves. A lineage with no surplus dies out.",
       rule: `speciation ${SPECIATION_PER_GYR} per Gyr (faster after extinctions); costs: maintenance ${COST.maintenance}, information ${COST.information} × info², heat ${COST.thermal}, land support ${COST.support} × g × M^(7/12), UV ${COST.uv}; consumers draw ${formatPercent(TROPHIC_EFFICIENCY)} of the level below; aerobic life gets ${AEROBIC_YIELD}× the energy`,
       constants: [
         { name: "Lineage cap", value: exact(LINEAGE_CAP), meaning: "Most lineages alive at once" },
@@ -111,6 +111,8 @@ export const life: Chapter = {
         { name: "Drift tolerance", value: formatPercent(DRIFT_TOLERANCE), meaning: "A change costing less than this can spread" },
         { name: "Body-mass drift", value: `${MUTATION_SIGMA.log10BodyMassKg} dex per step`, meaning: "" },
         { name: "Prey loss", value: exact(PREDATION_LOSS), meaning: "What eaters take, prey lose" },
+        { name: "Sight in water", value: exact(WATER_SIGHT), meaning: "A consumer's gain from thinking, relative to clear air (on land: the air's transmission)" },
+        { name: "Oxygen in water", value: `1/${Math.round(1 / WATER_O2_SHARE)}`, meaning: "What dissolves, relative to air at the same partial pressure (Henry's law)" },
       ],
       why: "Selection with drift: variants that do better spread, nearly neutral ones can spread by chance, and empty niches invite new lineages.",
       limits: ["Biomass is at equilibrium each step; no population lags.", "At most 32 living lineages: a world's diversity is a sample, not a census."],
@@ -257,22 +259,24 @@ export const minds: Chapter = {
     {
       id: "fire",
       title: "Fire",
-      statement: "Industry needs open fire, and fire needs exposed land, air thick enough to burn in, and enough oxygen. A mind on a world without them can farm but goes no further.",
+      statement: "Industry needs open fire, and fire needs a mind that lives on land, exposed land, air thick enough to burn in, and enough oxygen. A mind without them can farm but goes no further.",
       constants: [
         { name: "Exposed land", value: `≥ ${formatPercent(FIRE_MIN_LAND)}`, meaning: "" },
         { name: "Pressure", value: `≥ ${exact(FIRE_MIN_PRESSURE_BAR, "bar")}`, meaning: "" },
         { name: "Oxygen", value: `≥ ${exact(FIRE_MIN_O2_BAR, "bar")}`, meaning: "Earth: 0.21 bar" },
       ],
-      why: "Smelting metal needs flame. The limit comes from the world, not from who evolved: an aquatic mind is capped because its world has no fire.",
+      why: "Smelting metal needs flame, and flame does not burn under water: an aquatic mind is capped even on a world where fire is possible.",
       limits: ["Read from today's air, not when the civilization lived (DT1)."],
       laws: [],
-      code: "simulation/civilization.ts · canSustainFire",
+      code: "simulation/civilization.ts · mindCanUseFire",
       needsIndex: true,
       effect: (ctx) => {
         const ix = ctx.index!;
         const m = mindRows(ix);
         const fire = m.filter((i) => (ix.flags[i] & INDEX_FLAG.FIRE_POSSIBLE) !== 0).length;
-        return [said(m.length === 0 ? "No mind has arisen to need fire." : `Fire is possible on ${formatInt(fire)} of the ${formatInt(m.length)} worlds with a mind.`, "index.flags.FIRE_POSSIBLE", "index.mindGyr")];
+        const onLand = m.filter((i) => (ix.flags[i] & INDEX_FLAG.MIND_IN_WATER) === 0).length;
+        const both = m.filter((i) => (ix.flags[i] & INDEX_FLAG.FIRE_POSSIBLE) !== 0 && (ix.flags[i] & INDEX_FLAG.MIND_IN_WATER) === 0).length;
+        return [said(m.length === 0 ? "No mind has arisen to need fire." : `Fire is possible on ${formatInt(fire)} of the ${formatInt(m.length)} worlds with a mind; ${formatInt(onLand)} of those minds live on land, and ${formatInt(both)} have both.`, "index.flags.FIRE_POSSIBLE", "index.flags.MIND_IN_WATER", "index.mindGyr")];
       },
     },
   ],

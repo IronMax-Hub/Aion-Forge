@@ -15,7 +15,7 @@ A lineage is a population sharing one set of traits. It passes them on, with dri
 | Energy source | chemical · light · consumer | energy intake |
 | Absorption peak | 400–1,100 nm; carried by every lineage, read only while it uses light | light capture; vegetation colour |
 | Body mass | 10⁻¹⁵ to 10⁵ kg, stored as log10 kg | maintenance, support and oxygen-yield costs; life stage |
-| Habitat | deep water · shallow water · land | energy intake; UV and support costs |
+| Habitat | deep water · shallow water · land | energy intake; UV and support costs; oxygen yield (dissolved in water) and a consumer's sight (v17); fire for a mind (v17) |
 | Thermal optimum | 250–400 K | thermal-mismatch cost |
 | Information processing | 0–1 | competition share; information cost; minds |
 
@@ -167,7 +167,32 @@ Owner decisions:
 - **A mind must be a consumer.** Light users keep the information bonus; they simply cannot become minds.
 - **A mind's species is its lineage and the descendants that still eat other life, through an unbroken line of consumers.** One function (`mindSpecies`, minds.ts) defines it for the simulation (phylogeny.ts) and the field guide.
 
-Open, to measure before deciding: 25 of 26 minds at v15 lived in water, yet the fire rule reads only the planet (land, O₂), not where the species lives.
+Open, to measure before deciding: 25 of 26 minds at v15 lived in water, yet the fire rule reads only the planet (land, O₂), not where the species lives. Taken up in v17 below.
+
+### Land minds (rules v17, 2026-10-20)
+
+Measured at v16 on seed 100000: of 24 minds, 21 lived in shallow seas, 2 in deep water and 1 on land, yet water minds reached industry and the information age, because fire was read from the planet only. Three causes made land minds rare: little land (only ~37 of 2,120 living worlds ever grew a land animal over 1 g, from the W·g ocean depth); nothing made thinking pay more on land than in water; and the mind is the first lineage to cross the threshold, which the far larger, older sea fauna nearly always won.
+
+Owner decisions (all three physical, none naming an outcome):
+
+- **Thinking pays as far as a consumer sees.** A consumer's information bonus to its competition share is multiplied by its sight: the air's transmission on land (already computed from pressure), `WATER_SIGHT` = 0.01 in water. Light carries kilometres through air but metres to tens of metres through water; when vertebrates came onto land eyes tripled and visual range grew about a hundredfold (MacIver et al. 2017, PNAS 114: E2375). Light users keep the bonus unscaled (plants do not hunt by sight).
+- **Water life breathes dissolved oxygen.** The aerobic share and yield of a lineage in water read `WATER_O2_SHARE` = 1/30 of the air's O₂ (Henry's law near 25 °C: ~1.3 mmol/L/atm dissolved against 41 mmol/L/atm as gas).
+- **Only a mind on land has fire** (`mindCanUseFire`): the planet's fire conditions and a mind lineage living on land. The Great Filter's fire gate is now "Fire within the mind's reach", and its shortfalls count minds in water.
+
+Measured on seed 100000 (one universe, before the stats run):
+
+| Rules | Minds | On land |
+|---|---:|---:|
+| v16 | 24 | 1 |
+| v17, sight only | 11 | 2 |
+| v17, sight + dissolved oxygen | 10 | 4 |
+
+Surprises and limits, recorded rather than tuned away (CLAUDE.md §4, §12):
+
+- **Minds became rarer overall.** Sea animals lost their reason to think, and land animals descend from them, so colonists arrive with little information processing and must evolve it on land (median best land animal 0.42 at v16, 0.26 at v17).
+- **Light users take hold later in some runs** (engine test seeds 3 and 9 no longer within 4 Gyr), and one test Earth's light users, arising at 3.2 Gyr, had not yet oxidised the air by 4.6 Gyr. The two tests were narrowed and say so.
+- **Sight alone understates water senses**: sound carries far in water. A water sensing of 0.1 gave 20 minds, 7 on land, on seed 100000; not adopted (owner chose the vision value with dissolved oxygen).
+- The ceiling is land: the number of worlds with large land animals is set by geography, not by these rules.
 
 ## The timeline (C2.7)
 

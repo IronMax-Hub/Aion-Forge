@@ -37,7 +37,9 @@
 //          yield: anaerobic 1/18 of aerobic, rising smoothly with O₂. The O₂
 //                 at which half the gain is reached rises with the body's
 //                 linear size, (M / 10⁻⁹ kg)^⅓, since oxygen must diffuse
-//                 further into a bigger body (owner decision).
+//                 further into a bigger body (owner decision). In water,
+//                 O₂ is what dissolves: WATER_O2_SHARE of the air's
+//                 (rules v17, owner decision; Henry's law).
 //          uptake: need grows as M^¾ (Kleiber) but uptake through surfaces
 //                 as M^⅔, so a body relying on its surfaces takes in
 //                 relatively less, (M / M_cell)^(−1/12); oxygen-powered
@@ -49,8 +51,11 @@
 //                   and UV · surfaceUV
 //                 + in shallow water: UV · surfaceUV · SHALLOW_UV_SHARE
 //      Energy reaching a niche in a band is shared among its lineages by
-//      weight, surplus⁺ × (1 + INFO_SHARE_BONUS · info) for light users and
-//      consumers. Producers draw on the band's light (sunlit water, land) or
+//      weight, surplus⁺ × (1 + INFO_SHARE_BONUS · info) for light users, and
+//      surplus⁺ × (1 + INFO_SHARE_BONUS · info · sight) for consumers: a
+//      hunter or grazer gains from thinking as far as it can see (rules v17,
+//      owner decision). Sight is the air's transmission on land and
+//      WATER_SIGHT in water. Producers draw on the band's light (sunlit water, land) or
 //      chemical energy (deep water, ∝ tectonic activity). A consumer draws
 //      TROPHIC_EFFICIENCY of the biomass one level down in its habitat, can
 //      eat only lineages no heavier than itself (owner decision), and what it
@@ -110,6 +115,15 @@ const SUPPORT_EXPONENT = 7 / 12;
 
 // Competition
 const INFO_SHARE_BONUS = 3;
+// How far a consumer sees in water, relative to clear air (rules v17, owner decision). Light carries
+// kilometres through air but metres to tens of metres through water: about a hundredth. When
+// vertebrates came onto land, eyes tripled and visual range grew about a hundredfold, which is
+// argued to have made planning pay (MacIver et al. 2017, PNAS 114: E2375).
+export const WATER_SIGHT = 0.01;
+// Oxygen per litre of water over that per litre of air at the same O₂ partial pressure (rules v17, owner
+// decision). Henry's law near 25 °C: about 1.3 mmol/L/atm dissolved against 41 mmol/L/atm as gas, ~1/32.
+// Water life breathes this much less oxygen than land life under the same air.
+export const WATER_O2_SHARE = 1 / 30;
 const MIN_NICHE_SHARE = 0.005;
 // Share of a prey's production lost for each unit of its eaters' surplus-weighted share
 export const PREDATION_LOSS = 0.5;
@@ -310,7 +324,9 @@ function budgetOf(genome: Genome, env: Environment, cache?: BudgetCache): Budget
   if (cached) return cached;
   const match = genome.energySource === "light" ? lightMatchIn(genome.absorptionPeakNm, env) : 1;
   // oxygenYield × uptakePerNeed, with the aerobic share they both read worked out once
-  const aerobic = aerobicShare(env.o2Bar, genome.log10BodyMassKg);
+  // In water a body breathes dissolved oxygen: WATER_O2_SHARE of what air holds at the same partial pressure
+  const o2Bar = genome.habitat === "land" ? env.o2Bar : env.o2Bar * WATER_O2_SHARE;
+  const aerobic = aerobicShare(o2Bar, genome.log10BodyMassKg);
   const intake = match * yieldAt(aerobic) * uptakeAt(aerobic, genome.log10BodyMassKg);
   let fixedCosts = COST.maintenance + COST.information * genome.informationProcessing * genome.informationProcessing;
   if (genome.habitat === "land") {
@@ -347,8 +363,14 @@ export function canEat(consumer: Lineage, prey: Lineage): boolean {
     && prey.genome.log10BodyMassKg <= consumer.genome.log10BodyMassKg;
 }
 
-function shareWeight(genome: Genome, surplus: number): number {
-  const bonus = genome.energySource === "chemical" ? 0 : INFO_SHARE_BONUS * genome.informationProcessing;
+/** How far a consumer in this habitat sees, relative to clear air: the air's transmission on land. */
+export function sightIn(habitat: Habitat, env: Environment): number {
+  return habitat === "land" ? env.airTransmission : WATER_SIGHT;
+}
+
+function shareWeight(genome: Genome, surplus: number, env: Environment): number {
+  const bonus = genome.energySource === "chemical" ? 0
+    : INFO_SHARE_BONUS * genome.informationProcessing * (genome.energySource === "consumer" ? sightIn(genome.habitat, env) : 1);
   return Math.max(0, surplus) * (1 + bonus);
 }
 
@@ -491,7 +513,7 @@ function compete(alive: Lineage[], env: Environment, budgets: BudgetCache = new 
     for (let b = 0; b < bandCount; b++) {
       const at = i * bandCount + b;
       surplus[at] = bandSurplus(lineage.genome, budget, env.bands[b]);
-      weight[at] = shareWeight(lineage.genome, surplus[at]);
+      weight[at] = shareWeight(lineage.genome, surplus[at], env);
     }
   });
   const sumBands = (l: Lineage) => { let t = 0; for (let b = 0; b < bandCount; b++) t += l.bandBiomass[b]; l.biomass = t; };

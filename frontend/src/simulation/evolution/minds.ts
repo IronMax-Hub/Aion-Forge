@@ -41,6 +41,7 @@
 // the history (phylogeny.ts).
 
 import type { EvolutionState, Lineage } from "./engine";
+import type { Habitat } from "./genome";
 
 /** Information processing a mind needs at the default Intelligence setting. */
 export const MIND_BASE_THRESHOLD = 0.5;
@@ -58,6 +59,8 @@ export interface Mind {
   consumerAncestry: number;
   /** Width of the habitat temperatures the lineage and its ancestors lived in, K. */
   temperatureSpanK: number;
+  /** Where the mind's lineage lived when it appeared: only a mind on land can use fire (rules v17). */
+  habitat: Habitat;
 }
 
 /** The information processing a mind needs under an Intelligence setting. */
@@ -88,6 +91,7 @@ export function findMind(state: EvolutionState, threshold: number, tGyr: number)
     log10BodyMassKg: mind.genome.log10BodyMassKg,
     consumerAncestry: consumerAncestryOf(mind, state.lineages),
     temperatureSpanK: Math.max(0, mind.warmestK - mind.coldestK),
+    habitat: mind.genome.habitat,
   };
 }
 

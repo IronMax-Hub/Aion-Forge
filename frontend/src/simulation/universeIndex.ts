@@ -81,6 +81,8 @@ export const INDEX_FLAG = {
   STEAM_TODAY: 1 << 9,
   /** Escape took the last of its air (AE2). */
   AIR_LOST: 1 << 10,
+  /** Its mind lives in water, where there is no fire (rules v17). */
+  MIND_IN_WATER: 1 << 11,
 } as const;
 
 // The biosignature pair, as mixing ratios: O₂ at least 1%, CH₄ at least 1 ppm
@@ -179,6 +181,8 @@ function worldRow(
   if (derivePhysics(planet, star, galaxySeed, config).tidallyLocked) flags |= INDEX_FLAG.TIDALLY_LOCKED;
   if (planet.everLiquidWater) flags |= INDEX_FLAG.EVER_LIQUID_WATER;
   if (canSustainFire(planet)) flags |= INDEX_FLAG.FIRE_POSSIBLE;
+  const mindHabitat = planet.life?.phylogeny.mind?.habitat;
+  if (mindHabitat !== undefined && mindHabitat !== "land") flags |= INDEX_FLAG.MIND_IN_WATER;
   if ((air.O2 ?? 0) >= BIOSIGNATURE_O2_SHARE && (air.CH4 ?? 0) >= BIOSIGNATURE_CH4_SHARE) flags |= INDEX_FLAG.O2_WITH_CH4;
   if ((air.CFC11 ?? 0) > 0 || (air.CFC12 ?? 0) > 0) flags |= INDEX_FLAG.CFCS;
   const recorded = (kind: string) => planet.worldEvents.some((e) => e.kind === kind);

@@ -14,7 +14,7 @@
 // same share among the worlds that passed. These are shares, not causes. For
 // the dated gates, how long the passing worlds waited, and how many stopped
 // worlds have had less time than half of them needed: "not yet" rather than
-// "perhaps never". At the fire gate, which of fire's three conditions fail.
+// "perhaps never". At the fire gate, which of fire's conditions fail.
 //
 // Many seeds (GF5): the median and range of each gate over several
 // universes under the same laws, to tell a universe's luck from its laws.
@@ -23,7 +23,8 @@
 // - Gate 5 reads life's own oxygen against the volcanic and crust sinks
 //   (lifeOxygenGyr, decision 3), not the real air's first oxidation, which
 //   also counts oxygen from escaping water.
-// - Fire is read from today's air and land (canSustainFire); until DT1 a
+// - Fire is read from today's air and land (canSustainFire) and from where the
+//   mind lives (rules v17: a mind in water has none); until DT1 a
 //   civilization's stages are those of its final tech level, so one that fell
 //   reaches only what its ruined level allows (index limits).
 // - Moons and rogue planets join after steps 5 and 7.
@@ -62,7 +63,7 @@ export const GATES: readonly Gate[] = [
   { id: "oxygen", label: "Life's oxygen filled the air", passes: (ix, i) => has(ix.lifeOxygenGyr[i]) },
   { id: "multicellular", label: "A multicellular body", passes: (ix, i) => has(ix.firstMulticellularGyr[i]) },
   { id: "mind", label: "A mind", passes: (ix, i) => has(ix.mindGyr[i]) },
-  { id: "fire", label: "Open fire possible today", passes: (ix, i) => (ix.flags[i] & INDEX_FLAG.FIRE_POSSIBLE) !== 0 },
+  { id: "fire", label: "Fire within the mind's reach", passes: (ix, i) => (ix.flags[i] & INDEX_FLAG.FIRE_POSSIBLE) !== 0 && (ix.flags[i] & INDEX_FLAG.MIND_IN_WATER) === 0 },
   { id: "industry", label: "Industry reached", passes: (ix, i) => ix.highestStage[i] >= STAGE("industrial") && ix.highestStage[i] !== STAGE("collapsed") },
   { id: "communication", label: "Global communication reached", passes: (ix, i) => ix.highestStage[i] >= STAGE("information") && ix.highestStage[i] !== STAGE("collapsed") },
   { id: "spaceflight", label: "Spaceflight reached", passes: (ix, i) => ix.highestStage[i] === STAGE("space-age") },
@@ -195,6 +196,8 @@ export interface FireShortfalls {
   noLand: number;
   thinAir: number;
   lowOxygen: number;
+  /** The mind lives in water (rules v17). */
+  inWater: number;
 }
 
 export interface Breakdown {
@@ -247,6 +250,7 @@ export function breakdown(index: UniverseIndex, stars: readonly Star[], gate: Ga
     noLand: stopped.filter((i) => index.landFraction[i] < FIRE_MIN_LAND).length,
     thinAir: stopped.filter((i) => index.pressureBar[i] < FIRE_MIN_PRESSURE_BAR).length,
     lowOxygen: stopped.filter((i) => index.o2Bar[i] < FIRE_MIN_O2_BAR).length,
+    inWater: stopped.filter((i) => (index.flags[i] & INDEX_FLAG.MIND_IN_WATER) !== 0).length,
   } : null;
 
   return {

@@ -6,7 +6,7 @@ import type { Star } from "../simulation/star";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { makeConfig } from "../simulation/config";
 import { generateBiosphere } from "../simulation/biosphere";
-import { generateCivilization, canSustainFire } from "../simulation/civilization";
+import { generateCivilization, canSustainFire, mindCanUseFire } from "../simulation/civilization";
 import { derivePhysics, atmosphereClassOf } from "../simulation/planetPhysics";
 
 // Worlds Up Close A3: planet type, temperature and habitability are read from
@@ -14,8 +14,8 @@ import { derivePhysics, atmosphereClassOf } from "../simulation/planetPhysics";
 
 const seed = 100000;
 const config = makeConfig(seed);
-// 410 stars: from rules v16 (minds must be consumers) the first civilization on a world without fire is star 403's
-const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 410);
+// 510 stars: from rules v17 the first civilization without fire is star 507's (a mind in deep water)
+const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 510);
 const all: { star: Star; planet: Planet }[] = stars.flatMap((star) =>
   generatePlanetsFor(star, seed, config).planets.map((planet) => ({ star, planet })));
 const solid = all.filter(({ planet }) => planet.mass <= GIANT_PLANET_MASS);
@@ -111,12 +111,12 @@ describe("fire", () => {
     for (const { planet } of giants) expect(canSustainFire(planet)).toBe(false);
   });
 
-  it("stops every civilization on a world without fire short of industry", () => {
+  it("stops every civilization without fire (on its world, or because its mind lives in water) short of industry", () => {
     let fireless = 0;
     for (const { star, planet } of all) {
       const bio = generateBiosphere(planet, star);
       const civ = generateCivilization(bio, planet, seed).civilization;
-      if (!civ || canSustainFire(planet)) continue;
+      if (!civ || mindCanUseFire(planet)) continue;
       fireless++;
       expect(["collapsed", "primitive", "agricultural"]).toContain(civ.techStage);
     }

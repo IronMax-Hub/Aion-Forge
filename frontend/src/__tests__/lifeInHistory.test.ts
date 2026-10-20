@@ -156,8 +156,12 @@ describe("life's air", () => {
       if (history.lifeOxygenGyr !== null) same++;
     }
     expect(same).toBeGreaterThan(0);
-    // An Earth whose light users thrive holds its air oxidised by its own oxygen
-    for (const h of earths.filter((e) => e.final.lightBiomass > 0.1)) expect(h.lifeOxygenGyr).not.toBeNull();
+    // An Earth whose light users thrive, and have had 1.5 Gyr to fill the sinks, holds its air oxidised by its
+    // own oxygen (rules v17: one Earth's light users arose at 3.2 Gyr and had not yet done it by 4.6)
+    const thriving = earths.filter((e) => e.final.lightBiomass > 0.1
+      && (e.life?.firsts.find((f) => f.kind === "light")?.tGyr ?? Infinity) <= sun.age - 1.5);
+    expect(thriving.length).toBeGreaterThan(0);
+    for (const h of thriving) expect(h.lifeOxygenGyr).not.toBeNull();
     // A lifeless world oxidised by escaping water has no life's oxygen
     const dry = { ...makeConfig(42), emergenceSensitivity: 0 };
     const planet: Planet = {

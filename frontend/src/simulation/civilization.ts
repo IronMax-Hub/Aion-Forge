@@ -237,6 +237,14 @@ export const FIRE_MIN_O2_BAR = 0.16;        // oxygen partial pressure (Earth: 0
 // Without fire, technology stops just short of industry
 const FIRELESS_TECH_CEILING = INDUSTRIAL_TECH_LEVEL - 1e-9;
 
+/**
+ * Whether a planet's mind can use fire: the planet has what open fire needs and
+ * the mind lives on land (rules v17, owner decision: flame does not burn under water).
+ */
+export function mindCanUseFire(planet: Planet): boolean {
+  return canSustainFire(planet) && planet.life?.phylogeny.mind?.habitat === "land";
+}
+
 /** Whether the planet today has what open fire needs. */
 export function canSustainFire(planet: Planet): boolean {
   const surface = planet.surface;
@@ -321,7 +329,7 @@ export function generateCivilization(
   const finallyCollapsed = fellApart || extinctAgoGyr !== null;
 
   techLevel      = Math.min(1, Math.max(0, techLevel));
-  if (!canSustainFire(planet)) techLevel = Math.min(techLevel, FIRELESS_TECH_CEILING);
+  if (!mindCanUseFire(planet)) techLevel = Math.min(techLevel, FIRELESS_TECH_CEILING);
   socialCohesion = Math.min(1, Math.max(0, socialCohesion));
   const techStage = techLevelToStage(techLevel, finallyCollapsed);
 

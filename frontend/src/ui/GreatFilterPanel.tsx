@@ -164,8 +164,9 @@ function Breakdown({ index, stars, gate, onOpenWorld }: {
         <div className="inspector-section">
           <h4 className="section-title">Why there is no fire</h4>
           <p className="gf-text">
-            Of the {formatInt(b.stopped)} minds without fire, {formatInt(b.fire.noLand)} have no exposed land, {formatInt(b.fire.lowOxygen)} too
-            little oxygen and {formatInt(b.fire.thinAir)} too thin an air (a world can lack more than one).
+            Of the {formatInt(b.stopped)} minds without fire, {formatInt(b.fire.inWater)} live in water, {formatInt(b.fire.noLand)} have no
+            exposed land, {formatInt(b.fire.lowOxygen)} too little oxygen and {formatInt(b.fire.thinAir)} too thin an air (a world can lack
+            more than one).
           </p>
         </div>
       )}

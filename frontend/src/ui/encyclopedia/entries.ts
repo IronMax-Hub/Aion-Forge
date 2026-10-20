@@ -30,7 +30,7 @@ import { derivePhysics } from "../../simulation/planetPhysics";
 import { generateBiosphere, STAGE_LABEL } from "../../simulation/biosphere";
 import type { Biosphere, LifeStage } from "../../simulation/biosphere";
 import {
-  canSustainFire, generateCivilization, techLevelToStage, TECH_STAGE_LABEL,
+  canSustainFire, generateCivilization, mindCanUseFire, techLevelToStage, TECH_STAGE_LABEL,
   FIRE_MIN_LAND, FIRE_MIN_PRESSURE_BAR, FIRE_MIN_O2_BAR,
 } from "../../simulation/civilization";
 import type { Civilization, Species, TechStage } from "../../simulation/civilization";
@@ -219,17 +219,18 @@ function civilizationSentences(planet: Planet, civ: Civilization): Sentence[] {
     out.push(sentence("It is active today.", ["civilization.techStage"]));
   }
 
-  // The three conditions of canSustainFire, named where they fail
+  // Fire's conditions (mindCanUseFire), named where they fail
   const surface = planet.surface;
-  if ((highest === "primitive" || highest === "agricultural") && surface && !canSustainFire(planet)) {
+  if ((highest === "primitive" || highest === "agricultural") && surface && !mindCanUseFire(planet)) {
     const fails: string[] = [];
+    if (planet.life?.phylogeny.mind?.habitat !== "land") fails.push("its species lives in water");
     if (surface.landFraction < FIRE_MIN_LAND) {
       fails.push(surface.landFraction === 0 ? "no exposed land" : `too little exposed land (${formatPercent(surface.landFraction)})`);
     }
     if (surface.pressureBar < FIRE_MIN_PRESSURE_BAR) fails.push(`air too thin (${formatPressure(surface.pressureBar)})`);
     if (surface.o2Bar < FIRE_MIN_O2_BAR) fails.push(`too little oxygen (${formatPressure(surface.o2Bar)})`);
     out.push(sentence(`Its civilization never had fire: ${listWords(fails)}.`,
-      ["planet.surface.landFraction", "planet.surface.pressureBar", "planet.surface.o2Bar"]));
+      ["planet.life.phylogeny.mind.habitat", "planet.surface.landFraction", "planet.surface.pressureBar", "planet.surface.o2Bar"]));
   }
   return out;
 }

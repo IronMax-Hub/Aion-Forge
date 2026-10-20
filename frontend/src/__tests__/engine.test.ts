@@ -158,10 +158,12 @@ describe("evolution", () => {
   });
 
   it("branches into light users and consumers, and records each first once, when it happens", () => {
+    // Light users take hold within these 4 Gyr in most runs, not all: from rules v17 two runs (seeds 3, 9)
+    // evolve light users that never establish in time (in v16 they did, at 3.5 and 4.0 Gyr)
+    expect(oxic.filter(({ final }) => final.firsts.some((f) => f.kind === "light")).length).toBeGreaterThanOrEqual(10);
     for (const { final } of oxic) {
       const kinds = final.firsts.map((f) => f.kind);
       expect(new Set(kinds).size).toBe(kinds.length);
-      expect(kinds).toContain("light");
       expect(kinds).toContain("consumer");
       for (const f of final.firsts) {
         const lineage = final.lineages[f.lineageId];

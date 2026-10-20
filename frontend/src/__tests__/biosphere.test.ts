@@ -164,7 +164,7 @@ describe("the phylogeny summary", () => {
   });
 
   it("keeps a mind's species alive while its lineage or a consumer descended from it lives (owner decisions, rules v16)", () => {
-    const mind = { tGyr: 3, lineageId: 1, informationProcessing: 0.6, log10BodyMassKg: 1, consumerAncestry: 1, temperatureSpanK: 20 };
+    const mind = { tGyr: 3, lineageId: 1, informationProcessing: 0.6, log10BodyMassKg: 1, consumerAncestry: 1, temperatureSpanK: 20, habitat: "land" as const };
     const root = lineage("land", 0, [0.1, 0]);
     const mindLine = lineage("land", 1, [0, 0], {}, 3.5);
     const daughter = lineage("land", 1, [0.1, 0]);

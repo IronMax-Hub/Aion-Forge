@@ -125,18 +125,18 @@ Sound is off by default; turn it on from the status bar.
 
 ## Quick Start Seeds
 
-These seeds produce universes worth exploring. Figures are for the default parameters under simulation rules v10, as the life survey counts them: worlds with organisms (microbial or more advanced), civilizations (living or in ruins), and how many systems host a civilization that got past farming.
+These seeds produce universes worth exploring. Figures are for the default parameters under simulation rules v17, as the life survey counts them: worlds with organisms (microbial or more advanced), civilizations (living or in ruins), and how many systems host a civilization that got past farming.
 
 | Seed | Galaxy Type | Worlds with organisms | Civilizations | Systems past agriculture |
 |------|-------------|---:|---:|---:|
-| `161803` | Elliptical | 3200 | 77 | 15 |
-| `100000` | Spiral | 3297 | 89 | 13 |
-| `271828` | Elliptical | 3304 | 86 | 11 |
-| `137035` | Irregular | 3327 | 77 | 11 |
-| `404040` | Elliptical | 3258 | 65 | 11 |
-| `3141592` | Spiral | 3161 | 75 | 10 |
+| `161803` | Elliptical | 1580 | 14 | 2 |
+| `404040` | Elliptical | 1621 | 12 | 1 |
+| `100000` | Spiral | 1461 | 10 | 1 |
+| `3141592` | Spiral | 1467 | 2 | 1 |
+| `271828` | Elliptical | 1720 | 4 | 0 |
+| `137035` | Irregular | 995 | 0 | 0 |
 
-With 2,000 stars per universe, default parameters give every seed a similar amount of life; what differs is where it arises and what becomes of it. Life begins on most worlds with liquid water within a few hundred million years and evolves inside its planet's history. Most of it stays microbial: nearly half of living worlds are frozen over, with life under the ice and no light, and bodies larger than a microgram need an oxygen atmosphere that most worlds never get. A civilization begins when a lineage that eats other life and is heavier than a gram evolves enough information processing to count as a mind, and about a third of them are ruins whose species died out. Civilizations need fire to get past farming, and fire needs exposed land and enough oxygen, so many stop at agriculture. For a quieter universe, change the laws instead: the **Fragile Life** preset leaves life on about a tenth of solid planets and no minds; **Abundant Life** and **Eternal Stars** give the most.
+With 2,000 stars per universe, default parameters give these seeds between about 1,000 and 1,700 worlds with organisms; what differs most is where life arises and what becomes of it. Life begins on most worlds with liquid water within a few hundred million years and evolves inside its planet's history. Most of it stays microbial: nearly half of living worlds are frozen over, with life under the ice and no light, and bodies larger than a microgram need an oxygen atmosphere that most worlds never get. A civilization begins when a lineage that eats other life and is heavier than a gram evolves enough information processing to count as a mind. Thinking pays an animal only as far as it can see, far in air and barely in water, so minds are rare, and most of their civilizations are ruins whose species died out. Civilizations need fire to get past farming, and fire needs a mind that lives on land, exposed land and enough oxygen, so most stop at agriculture. For a quieter universe, change the laws instead: the **Fragile Life** preset leaves life on about a tenth of solid planets and no minds; **Abundant Life** and **Eternal Stars** give the most.
 
 Generating a universe takes about 20 seconds on a four-core machine (under a minute on one core), because every planet's life is evolved through its history; the survey runs in the background on all cores but one, with a progress bar.
 

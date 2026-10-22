@@ -1,5 +1,5 @@
 import type { ViewScale } from "../rendering/UniverseRenderer";
-import { SYSTEM_UNITS_PER_AU } from "../rendering/UniverseRenderer";
+import { SYSTEM_UNITS_PER_AU } from "../rendering/systemLayout";
 import { LIGHT_YEARS_PER_UNIT, niceScaleLength, formatLightYears, formatSig } from "./format";
 
 const MAX_BAR_PX = 110;

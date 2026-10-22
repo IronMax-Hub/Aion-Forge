@@ -20,6 +20,8 @@ import {
   secondsPerOrbit, SYSTEM_STARLIGHT_INTENSITY, systemLights, SystemOrbits,
 } from "./systemView";
 import type { KeplerPath } from "./systemView";
+import { HOST_STAR_RADIUS, SYSTEM_UNITS_PER_AU, systemLayout } from "./systemLayout";
+import type { PlanetLayout } from "./systemLayout";
 import { SystemGlobes } from "./systemGlobes";
 import { PlanetView, ORBIT_DISTANCE, starlightIntensity } from "./planet/PlanetView";
 import { GlobeTextureCache, drawsSurface, giantLookOf } from "./planet/globe";
@@ -162,8 +164,6 @@ function realisticDustColors(particles: GalaxyParticles): Float32Array {
   return out;
 }
 
-/** Planetary-system view draws orbits at this many scene units per AU. */
-export const SYSTEM_UNITS_PER_AU = 2.5;
 
 /** What the system view is given besides the system: callbacks and what it labels and draws each planet with. */
 export interface SystemSight {
@@ -213,20 +213,17 @@ const MAX_ORBIT_STEP_MS = 100;
 // (there the planet fills about half the view, and its 256-texel bake is still sharp)
 const FOCUS_FRAME_RADII = 8;
 const FOCUS_MIN_RADII = 3;
+// A body shrunk to fit a crowded system (systemLayout.ts) can be smaller than the camera's near plane allows at
+// those distances, so the camera stays at least this many near-plane distances beyond its surface
+const FOCUS_NEAR_CLEARANCE = 2;
 // A press that moves farther than this before release is a drag (turning the view), not a click
 const CLICK_SLOP_PX = 5;
 // A system whose innermost planet lies beyond this is drawn at a larger scale (see renderPlanetarySystem)
 const USUAL_INNER_ORBIT_AU = 0.4;
 // Where the system view's camera starts, relative to the star, at the usual scale
 const SYSTEM_CAMERA_OFFSET = new THREE.Vector3(0, 2, 5);
-// The host star's drawn radius at the usual scale (far larger than true scale, as the planets are)
-const HOST_STAR_RADIUS = 0.12;
 // Planet spheres stay round up close: 48 segments keep the outline smooth at the closest zoom
 const SYSTEM_PLANET_SEGMENTS = 48;
-// Moons on screen (MO6): the innermost sits this many planet-marker radii out, each doubling of distance adds this many more
-const MOON_DISTANCE = { base: 2, perDoubling: 1.2 };
-// A moon's sphere: its radius in Earth radii times this, kept between these, in scene units
-const MOON_SIZE = { perEarthRadius: 0.035, min: 0.008, max: 0.03 };
 // Moons too small to be worlds are drawn in the grey of ice and rock
 const SMALL_MOON_COLOUR: [number, number, number] = [0.7, 0.72, 0.75];
 // A body on screen can be picked within at least this many pixels of its centre
@@ -602,6 +599,8 @@ export class UniverseRenderer {
     // Host star, as light (systemView.ts), and the starlight the planets are lit by; in a binary, its
     // companion too (BS4), and the group the primary's own planets ride in
     const ownPlanetsParent = this.addStars(group, hostStar, system, starCol, scale, maxDistance);
+    // Each planet's and moons' drawn sizes, fitted so no body reaches the star or a neighbour (systemLayout.ts)
+    const layouts = systemLayout(system.planets, scale);
     for (const planet of system.planets) {
       const orbitR = planet.orbitalRadius * SYSTEM_UNITS_PER_AU;
       const parent = planet.orbitsBothStars ? group : ownPlanetsParent;
@@ -613,14 +612,15 @@ export class UniverseRenderer {
       this.systemOrbits.add(planet, carrier, orbitR, innermostAU * SYSTEM_UNITS_PER_AU, system.galaxySeed);
 
       const [pr, pg, pb] = PLANET_COLORS[planet.type];
-      const pSize = Math.max(0.025, Math.min(0.09, planet.size * 0.035)) * scale;
+      const layout = layouts.get(planet.key)!;
+      const pSize = layout.planetRadius;
       const pGeo  = new THREE.SphereGeometry(pSize, SYSTEM_PLANET_SEGMENTS, SYSTEM_PLANET_SEGMENTS / 2);
       const pMat  = new THREE.MeshStandardMaterial({ color: new THREE.Color(pr, pg, pb), roughness: 0.9, metalness: 0 });
       const pMesh = new THREE.Mesh(pGeo, pMat);
       markers.set(planet.key, pMesh);
       pMesh.userData = { planetKey: planet.key };
       carrier.add(pMesh);
-      this.addMoonMarkers(planet, pSize, scale, markers, orbitLines, system.galaxySeed);
+      this.addMoonMarkers(planet, layout, markers, orbitLines, system.galaxySeed);
 
       // A giant's rings, as the planet view draws them (its VISUAL stream, globe.ts), in its equatorial plane
       const planetSight = planets.get(planet.key);
@@ -741,20 +741,20 @@ export class UniverseRenderer {
   }
 
   /**
-   * A planet's moons (MO6), going round it at scaled distances: farther moons farther out on a log scale,
-   * clear of the planet's sphere, with their real period ratios. Moon worlds can be picked and approached
+   * A planet's moons (MO6), going round it at the distances and sizes of its layout (systemLayout.ts),
+   * with their real period ratios. Moon worlds can be picked and approached
    * as planets can; smaller moons are only drawn.
    */
   private addMoonMarkers(
-    planet: Planet, planetSize: number, scale: number,
+    planet: Planet, layout: PlanetLayout,
     markers: Map<string, THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>, orbitLines: Map<string, THREE.LineLoop>,
     galaxySeed: number,
   ): void {
     const carrier = this.systemOrbits.carrierOf(planet.key);
     if (!carrier || planet.moons.length === 0) return;
     const innermost = planet.moons[0];
-    for (const moon of planet.moons) {
-      const distance = planetSize * (MOON_DISTANCE.base + MOON_DISTANCE.perDoubling * Math.log2(moon.orbitPlanetRadii / innermost.orbitPlanetRadii + 1));
+    planet.moons.forEach((moon, i) => {
+      const { distance, radius: size } = layout.moons[i];
       const orbit = moonOrbitLine(distance);
       carrier.add(orbit);
       orbitLines.set(moon.key, orbit);
@@ -762,7 +762,6 @@ export class UniverseRenderer {
       const moonCarrier = new THREE.Group();
       this.systemOrbits.addMoon(moon, planet.key, moonCarrier, distance,
         INNER_MOON_ORBIT_SECONDS * (moon.orbitalPeriodHours / innermost.orbitalPeriodHours), galaxySeed);
-      const size = Math.max(MOON_SIZE.min, Math.min(MOON_SIZE.max, moon.size * MOON_SIZE.perEarthRadius)) * scale;
       const [r, g, b] = moon.world ? PLANET_COLORS[moon.world.type] : SMALL_MOON_COLOUR;
       const mesh = new THREE.Mesh(
         new THREE.SphereGeometry(size, SYSTEM_PLANET_SEGMENTS / 2, SYSTEM_PLANET_SEGMENTS / 4),
@@ -772,7 +771,7 @@ export class UniverseRenderer {
       // Every moon can be picked and focused; one too small to be a world selects its planet, naming the moon
       mesh.userData = moon.world ? { planetKey: moon.world.key } : { planetKey: moon.key, moonOf: planet.key, moonIndex: moon.moonIndex };
       markers.set(moon.key, mesh);
-    }
+    });
   }
 
   exitSystemView() {
@@ -886,7 +885,7 @@ export class UniverseRenderer {
       ? marker.getWorldPosition(new THREE.Vector3())
       : new THREE.Vector3(...this.systemHostStar.position);
     const distance = marker
-      ? marker.geometry.parameters.radius * FOCUS_FRAME_RADII
+      ? this.focusDistance(marker.geometry.parameters.radius, FOCUS_FRAME_RADII)
       : SYSTEM_CAMERA_OFFSET.length() * this.systemScale;
     this.controls.minDistance = this.focusMinDistance();
     // The planets wait while the camera glides (see the render loop), so the glide ends on the planet
@@ -896,10 +895,15 @@ export class UniverseRenderer {
     };
   }
 
+  /** How far from a body of this radius the camera sits at this many of its radii, kept clear of the near plane. */
+  private focusDistance(radius: number, radii: number): number {
+    return Math.max(radius * radii, radius + FOCUS_NEAR_CLEARANCE * this.camera.near);
+  }
+
   /** How close the camera may come: to a focused planet, FOCUS_MIN_RADII of its radii. */
   private focusMinDistance(): number {
     const marker = this.focusedPlanetKey !== null ? this.systemMarkers.get(this.focusedPlanetKey) : undefined;
-    return marker ? marker.geometry.parameters.radius * FOCUS_MIN_RADII : DEFAULT_DISTANCE.min;
+    return marker ? this.focusDistance(marker.geometry.parameters.radius, FOCUS_MIN_RADII) : DEFAULT_DISTANCE.min;
   }
 
   /** Moves the camera with the focused planet, keeping its place relative to it. */

@@ -18,6 +18,7 @@ import {
 } from "../../../simulation/moons";
 import { TILT_WANDER } from "../../../simulation/worldHistory";
 import { P_TYPE_LIMIT, pTypeLimitAU, S_TYPE_LIMIT, sTypeLimitAU } from "../../../simulation/binary";
+import { HILL_SPACING } from "../../../simulation/rogues";
 import { ATMOSPHERE_CODES, INDEX_FLAG, PLANET_TYPE_CODES } from "../../../simulation/universeIndex";
 import type { UniverseIndex } from "../../../simulation/universeIndex";
 import { formatInt, formatPercent, formatSig, PLANET_TYPE_LABEL } from "../../format";
@@ -185,6 +186,28 @@ export const systems: Chapter = {
         const counts = PLANET_TYPE_CODES.map((type, code) => [type, rowsWhere(ix, (i) => ix.type[i] === code).length] as const).filter(([, n]) => n > 0);
         return [said(`${counts.map(([type, n]) => `${PLANET_TYPE_LABEL[type]}s: ${formatInt(n)}`).join("; ")}.`, "index.type")];
       },
+    },
+    {
+      id: "neighbour-spacing",
+      title: "Neighbours too close to share their orbits",
+      statement: "Two planets on neighbouring orbits pull on each other. Closer together than a few times the distance over which their gravity rules the star's, they cannot both keep their orbits: the lighter one is thrown out of the system.",
+      rule: `R_H = ((m₁ + m₂) / 3M★)^⅓ · (a₁ + a₂) / 2; neighbours closer than ${formatSig(HILL_SPACING)} R_H cannot both stay; the lighter leaves (the outer if equal); checked from the innermost pair outward until none is too close`,
+      constants: [
+        { name: "Spacing", value: `2√3 ≈ ${formatSig(HILL_SPACING)} mutual Hill radii`, meaning: "The limit for two planets alone (decision 31)" },
+      ],
+      why: "Gladman's limit for two planets: closer than this their orbits cross sooner or later. Most such pairs here pair a giant with a lighter neighbour, whose escape velocity is high enough to fling it out rather than collide.",
+      source: "Gladman 1993 (Icarus 106, 247)",
+      limits: [
+        "Systems of many planets are unstable over billions of years at about 8–10 mutual Hill radii (Chambers et al. 1996), so many kept systems would in nature not last.",
+        "The survivor keeps its orbit; real scattering would make it eccentric or move it.",
+        "Pairs never merge, though a few close-in ones would more likely collide than eject.",
+        "That the lighter planet leaves is this model's choice: the limit says only that the pair is unstable. From RP2 thrown-out planets become rogue planets.",
+      ],
+      laws: [],
+      code: "simulation/rogues.ts · HILL_SPACING, settleNeighbours; simulation/planet.ts · generatePlanetsFor",
+      effect: (ctx) => ctx.ejectedPlanets === null
+        ? [said("Counted once the life survey finishes.", "survey.ejectedPlanets")]
+        : [said(`${formatInt(ctx.ejectedPlanets)} planets were thrown out by a neighbour too close to share their orbits.`, "survey.ejectedPlanets")],
     },
     {
       id: "binary-orbits",

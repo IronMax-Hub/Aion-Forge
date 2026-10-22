@@ -32,7 +32,7 @@ exports[`reference entries > a frozen living world 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v17 · 0000 h",
+  "citation": "AF-U-0001-86A0 · v18 · 0000 h",
   "designation": "0000 h",
   "facts": [
     {
@@ -208,7 +208,7 @@ exports[`reference entries > a gas giant and its star 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v17 · 0009 c",
+  "citation": "AF-U-0001-86A0 · v18 · 0009 c",
   "designation": "0009 c",
   "facts": [
     {
@@ -328,7 +328,7 @@ exports[`reference entries > a gas giant and its star 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v17 · Star 0009",
+  "citation": "AF-U-0001-86A0 · v18 · Star 0009",
   "designation": "Star 0009",
   "facts": [
     {
@@ -581,7 +581,7 @@ exports[`reference entries > a world of ruins 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0000-002A · v17 · 0055 c",
+  "citation": "AF-U-0000-002A · v18 · 0055 c",
   "designation": "0055 c",
   "facts": [
     {
@@ -832,7 +832,7 @@ exports[`reference entries > a world of ruins 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0000-002A · v17 · 0055 c",
+  "citation": "AF-U-0000-002A · v18 · 0055 c",
   "designation": "0055 c",
   "facts": [
     {
@@ -1018,7 +1018,7 @@ exports[`reference entries > an Earth-like world 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v17 · 0022 c",
+  "citation": "AF-U-0001-86A0 · v18 · 0022 c",
   "designation": "0022 c",
   "facts": [
     {
@@ -1256,7 +1256,7 @@ exports[`reference entries > an ocean world with complex life 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v17 · 0075 c",
+  "citation": "AF-U-0001-86A0 · v18 · 0075 c",
   "designation": "0075 c",
   "facts": [
     {
@@ -1769,7 +1769,7 @@ exports[`reference entries > an ocean world with complex life 2`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v17 · 0075 c",
+  "citation": "AF-U-0001-86A0 · v18 · 0075 c",
   "designation": "0075 c",
   "facts": [
     {
@@ -1862,7 +1862,7 @@ exports[`reference entries > the galaxy 1`] = `
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v17 · Galaxy",
+  "citation": "AF-U-0001-86A0 · v18 · Galaxy",
   "designation": "Galaxy",
   "facts": [
     {
@@ -1879,15 +1879,15 @@ exports[`reference entries > the galaxy 1`] = `
     },
     {
       "label": "Planets",
-      "value": "979",
+      "value": "960",
     },
     {
       "label": "Worlds where life began",
-      "value": "313",
+      "value": "304",
     },
     {
       "label": "Worlds with life today",
-      "value": "216",
+      "value": "210",
     },
     {
       "label": "Minds",
@@ -1925,7 +1925,7 @@ exports[`reference entries > the galaxy 1`] = `
         "index.lifeBeganGyr",
         "index.lifeStage",
       ],
-      "text": "Life began on 313 of its 979 planets and lives on 216 today.",
+      "text": "Life began on 304 of its 960 planets and lives on 210 today.",
     },
     {
       "link": {

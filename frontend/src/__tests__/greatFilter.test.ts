@@ -56,7 +56,7 @@ const indexOf100000 = () => (fullIndex ??= surveyLife(seedStars, SEED, makeConfi
 describe("the Great Filter funnel", () => {
   it("counts seed 100000's funnel, and never rises", () => {
     const funnel = funnelOf(indexOf100000());
-    expect(funnel.worlds).toBe(6893);
+    expect(funnel.worlds).toBe(6766);
     // The plan's table is rules v10 (8,537 planets; 7,134, 4,730, 4,167, 1,706, 334, 271, 86, 37, 22, 13, 3, 3).
     // Rules v11: AE1's activity curve, then AE2's escape, water loss, one atmosphere draw and past giants
     // (109 planets engulfed by the giants today's white dwarfs once were)
@@ -76,7 +76,9 @@ describe("the Great Filter funnel", () => {
     // then BS3's light from both stars (…, 119, 26, 13, 7, 6, 0, 0). Rules v16: minds must eat other life,
     // and a species ends when its consumer line does (…, 119, 24, 11, 5, 4, 0, 0). Rules v17: a consumer gains
     // from thinking as far as it sees, water life breathes dissolved oxygen, and only a mind on land has fire
-    expect(funnel.steps.map((s) => s.passed)).toEqual([5911, 2760, 2120, 395, 152, 116, 10, 3, 3, 3, 0, 0]);
+    // (5,911, 2,760, 2,120, 395, 152, 116, 10, 3, 3, 3, 0, 0 of 6,893 planets). Rules v18 (RP1): 127 planets
+    // thrown out by a neighbour too close to share their orbits
+    expect(funnel.steps.map((s) => s.passed)).toEqual([5806, 2690, 2062, 388, 151, 115, 10, 3, 3, 3, 0, 0]);
     for (let g = 1; g < funnel.steps.length; g++) {
       expect(funnel.steps[g].arrived).toBe(funnel.steps[g - 1].passed);
       expect(funnel.steps[g].passed).toBeLessThanOrEqual(funnel.steps[g].arrived);

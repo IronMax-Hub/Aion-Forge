@@ -134,10 +134,17 @@ describe("where planets can orbit (BS2)", () => {
     for (const { star, system } of systems) {
       const alone = generatePlanetsFor({ ...star, companion: null }, seed, config);
       expect(alone.unstable).toBe(0);
-      expect(system.planets.length + system.unstable).toBe(alone.planets.length);
+      // Every drawn planet is accounted for either way: kept, engulfed, too small, unstable or thrown out (RP1)
+      const drawn = (s: typeof system) => s.planets.length + s.engulfed + s.tooSmall + s.unstable + s.ejected;
+      expect(drawn(system)).toBe(drawn(alone));
       const byIndex = new Map(alone.planets.map((p) => [p.orbitalIndex, p]));
       for (const p of system.planets) {
-        const twin = byIndex.get(p.orbitalIndex)!;
+        const twin = byIndex.get(p.orbitalIndex);
+        // Without the companion, a neighbour it removed can throw this planet out instead (RP1)
+        if (!twin) {
+          expect(alone.ejected).toBeGreaterThan(0);
+          continue;
+        }
         expect([p.key, p.orbitalRadius, p.mass, p.size, p.resourceAbundance]).toEqual([twin.key, twin.orbitalRadius, twin.mass, twin.size, twin.resourceAbundance]);
       }
     }

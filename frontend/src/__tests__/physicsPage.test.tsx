@@ -17,7 +17,7 @@ function contextOf(seed: number, overrides: Partial<Omit<UniverseConfig, "seed">
   const galaxy = buildGalaxyConfig(seed, config);
   const stars = generateStarsFor(galaxy, UNIVERSE_AGE_GYR, config).stars;
   const survey = surveyLife(stars.slice(0, sample), seed, config);
-  return { config, galaxy, stars, index: survey.index, engulfedPlanets: survey.engulfedPlanets, tooSmallPlanets: survey.tooSmallPlanets, unstablePlanets: survey.unstablePlanets };
+  return { config, galaxy, stars, index: survey.index, engulfedPlanets: survey.engulfedPlanets, tooSmallPlanets: survey.tooSmallPlanets, unstablePlanets: survey.unstablePlanets, ejectedPlanets: survey.ejectedPlanets };
 }
 
 const contexts = [
@@ -81,7 +81,7 @@ describe("the Physics page's catalogue", () => {
   });
 
   it("measures the cards that do not need the survey before it finishes", () => {
-    const ctx = { ...contexts[0], index: null, engulfedPlanets: null, tooSmallPlanets: null, unstablePlanets: null };
+    const ctx = { ...contexts[0], index: null, engulfedPlanets: null, tooSmallPlanets: null, unstablePlanets: null, ejectedPlanets: null };
     for (const card of cards.filter((c) => c.effect && !c.needsIndex)) {
       for (const s of card.effect!(ctx)) expect(s.text, card.id).not.toMatch(BAD);
     }
@@ -111,7 +111,7 @@ describe("the catalogue keeps up with the code", () => {
     NO_PARENT: "index code", WORLD_KIND: "index code", ENERGY_SOURCES: "list of genome values", HABITATS: "list of genome values",
     TRAIT_READERS: "documentation table", BAND_AXIS: "drawing axis", CONDITIONS: "Great Filter breakdown, a measure",
     ORGANISM_STAGES: "list", SURVEY_PROGRESS_INTERVAL: "progress reporting", SPECTRUM_WAVELENGTHS_UM: "derived from the bins shown",
-    PLANCK_C2_NM_K: "physical constant", STEFAN_BOLTZMANN: "physical constant", GAS_CONSTANT: "physical constant", MOON_TAG: "stream key tag", GRAVITATIONAL_CONSTANT: "physical constant", STEPS_PER_GYR: "shown as STEP_GYR", INDUSTRIAL_TECH_LEVEL: "shown through TECH_STAGE_FROM",
+    PLANCK_C2_NM_K: "physical constant", STEFAN_BOLTZMANN: "physical constant", GAS_CONSTANT: "physical constant", MOON_TAG: "stream key tag", GRAVITATIONAL_CONSTANT: "physical constant", EARTH_MASS_IN_SUNS: "physical constant", STEPS_PER_GYR: "shown as STEP_GYR", INDUSTRIAL_TECH_LEVEL: "shown through TECH_STAGE_FROM",
   };
 
   it("shows every exported rule constant of the simulation on some card", () => {

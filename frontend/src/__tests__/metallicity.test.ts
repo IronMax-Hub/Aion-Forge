@@ -98,10 +98,15 @@ describe("planets from the disk's solids (MZ3)", () => {
 
   it("makes a metal-poor star's planets no heavier than the same draws at solar metallicity", () => {
     for (const star of stars) {
-      const solar = new Map(at(star, 0).planets.map((p) => [p.orbitalIndex, p]));
+      const solarSystem = at(star, 0);
+      const solar = new Map(solarSystem.planets.map((p) => [p.orbitalIndex, p]));
       for (const planet of at(star, -1).planets) {
-        const twin = solar.get(planet.orbitalIndex)!;
-        expect(twin).toBeDefined();
+        const twin = solar.get(planet.orbitalIndex);
+        // At solar metallicity the heavier planets may throw a neighbour out (RP1); lighter ones stay
+        if (!twin) {
+          expect(solarSystem.ejected).toBeGreaterThan(0);
+          continue;
+        }
         expect(planet.mass).toBeCloseTo(twin.mass / 10, 9);
         // Every draw stays in place whatever the masses: the same orbit and resources
         expect(planet.orbitalRadius).toBe(twin.orbitalRadius);

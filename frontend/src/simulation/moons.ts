@@ -62,7 +62,7 @@ export const MOON_ECCENTRICITY = { min: 0.001, max: 0.01 } as const;
 export const MOON_WATER = { minShare: 0.1, maxShare: 0.5, unitsPerShare: 340 } as const;
 
 const EARTH_RADIUS_AU = 6371 / 1.495978707e8;
-const EARTH_MASS_IN_SUNS = 3.003e-6;
+export const EARTH_MASS_IN_SUNS = 3.003e-6;
 const EARTH_GM_KM3_S2 = 398600.4;
 const EARTH_RADIUS_KM = 6371;
 const SECONDS_PER_HOUR = 3600;

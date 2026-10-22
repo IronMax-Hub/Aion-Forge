@@ -15,12 +15,13 @@
 // stability limits; v16: minds must eat other life, and a mind's species keeps
 // only its consumer descendants — owner decision after plant minds were found;
 // v17: a consumer gains from thinking as far as it sees, water life breathes
-// dissolved oxygen, and only a mind on land has fire). Presentation-only changes never bump it.
+// dissolved oxygen, and only a mind on land has fire; v18: step 7, rogue planets, from
+// RP1's unstable neighbours). Presentation-only changes never bump it.
 //
 // Limits: it records which rules made a record, not what those rules were. An
 // older version cannot be re-run; a recount always uses the current rules.
 
-export const SIMULATION_RULES_VERSION = 17;
+export const SIMULATION_RULES_VERSION = 18;
 
 /** Whether a record's numbers were produced by rules older than the current ones. */
 export function countedUnderOlderRules(rulesVersion: number): boolean {

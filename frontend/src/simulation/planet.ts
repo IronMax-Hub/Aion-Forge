@@ -5,6 +5,7 @@ import type { Star } from "./star";
 import { companionAsStar, companionLuminosityAt, luminosityAt, pastGiantRadiusAU, stellarRadiusAU } from "./star";
 import { makeConfig } from "./config";
 import { binaryOrbitOf } from "./binary";
+import { settleNeighbours } from "./rogues";
 import type { UniverseConfig } from "./config";
 import {
   ATMOSPHERE_DRAW, atmosphereFromDraw, effectiveOrbitAU, GIANT_PLANET_MASS, PLANET_MASS_DRAW, planetMassFromDraw, typicalRadiusForMass,
@@ -123,6 +124,8 @@ export interface PlanetarySystem {
   tooSmall: number;
   /** Planets drawn where the star's companion allows no orbit (BS2; not in `planets`). */
   unstable: number;
+  /** Planets thrown out by a neighbour too close to share their orbits (RP1; not in `planets`). */
+  ejected: number;
 }
 
 // ── Orbital architecture (AF-038 + AF-039 + AF-040) ──────────────────────────
@@ -454,11 +457,11 @@ export function generatePlanetsFor(
 
   // Dead stars don't have planets
   if (star.classification === "neutron-star" || star.classification === "black-hole") {
-    return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0, tooSmall: 0, unstable: 0 };
+    return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0, tooSmall: 0, unstable: 0, ejected: 0 };
   }
 
   const count = planetCount(star.mass, rng);
-  if (count === 0) return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0, tooSmall: 0, unstable: 0 };
+  if (count === 0) return { hostStarId: star.id, galaxySeed, planets: [], engulfed: 0, tooSmall: 0, unstable: 0, ejected: 0 };
 
   const arch = pickArchitecture(rng());
   // The drawn system, moved out as a whole when the innermost orbit lies inside the
@@ -529,8 +532,10 @@ export function generatePlanetsFor(
     return planet;
   });
 
-  // Survivors keep their index, id and key: a missing planet leaves a gap, as it would in a catalogue
-  const survivors = planets.filter((planet): planet is Planet => planet !== null);
+  // Survivors keep their index, id and key: a missing planet leaves a gap, as it would in a catalogue.
+  // Of neighbours too close to share their orbits, the lighter is thrown out (RP1)
+  const settled = settleNeighbours(planets.filter((planet): planet is Planet => planet !== null), star.mass, star.mass + (star.companion?.mass ?? 0));
+  const survivors = settled.kept;
   // Every draw above is taken; now each world is completed, knowing its siblings (MO5)
   const hasSiblings = survivors.length > 1;
   for (const planet of survivors) {
@@ -551,7 +556,7 @@ export function generatePlanetsFor(
     planet.habitabilityScore = calcHabitability(planet.type, planet.atmosphere, planet.resourceAbundance, planet.surface);
     planet.isRare = rareReasonOf(planet) !== null;
   }
-  return { hostStarId: star.id, galaxySeed, planets: survivors, engulfed, tooSmall, unstable };
+  return { hostStarId: star.id, galaxySeed, planets: survivors, engulfed, tooSmall, unstable, ejected: settled.ejected.length };
 }
 
 // ── Color palette for rendering (AF-044) ──────────────────────────────────────

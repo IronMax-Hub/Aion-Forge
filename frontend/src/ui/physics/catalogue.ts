@@ -35,6 +35,8 @@ export interface PhysicsContext {
   tooSmallPlanets: number | null;
   /** Planets drawn where a companion allows no orbit (BS2, from the survey); null until it finishes. */
   unstablePlanets: number | null;
+  /** Planets thrown out by a neighbour too close to share their orbits (RP1, from the survey); null until it finishes. */
+  ejectedPlanets: number | null;
 }
 
 export type LawKey = keyof typeof DEFAULT_CONFIG;

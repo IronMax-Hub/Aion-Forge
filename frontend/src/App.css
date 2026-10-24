@@ -630,6 +630,11 @@
   flex-shrink: 0;
 }
 
+.inspector-dot.black-hole-dot {   /* a shadow ringed by warm light, like the galaxy-view symbol */
+  background: #000;
+  box-shadow: 0 0 0 2px rgba(255, 160, 80, 0.85);
+}
+
 .inspector-title-block {
   flex: 1;
   display: flex;

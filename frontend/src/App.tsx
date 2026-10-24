@@ -23,6 +23,9 @@ import { compareUniverses, makeExperimentRecord, buildSnapshot } from "./simulat
 import { SIMULATION_RULES_VERSION } from "./simulation/version";
 import type { UniverseSnapshot, UniverseComparison, ExperimentRecord } from "./simulation/experiment";
 import { StarPanel } from "./ui/StarPanel";
+import { BlackHolePanel } from "./ui/BlackHolePanel";
+import { centralBlackHoleFor } from "./simulation/blackHole";
+import type { CentralBlackHole } from "./simulation/blackHole";
 import { PlanetPanel } from "./ui/PlanetPanel";
 import { BiospherePanel } from "./ui/BiospherePanel";
 import { CivilizationPanel } from "./ui/CivilizationPanel";
@@ -48,7 +51,7 @@ import { subjectKey } from "./ui/encyclopedia/subjects";
 import { biosphereEntry, civilizationEntry, galaxyEntry, planetEntry, starEntry } from "./ui/encyclopedia/entries";
 import type { Entry, SubjectRef } from "./ui/encyclopedia/entry";
 import type { UniverseIndex } from "./simulation/universeIndex";
-import { bodyName, moonName, starName, planetLifeLabel, lifeMarkerLabel, civilizationMarkerLabel, PLANET_TYPE_LABEL } from "./ui/format";
+import { bodyName, moonName, starName, planetLifeLabel, lifeMarkerLabel, civilizationMarkerLabel, formatSolarMasses, PLANET_TYPE_LABEL } from "./ui/format";
 import { makeUniverseId, generateUniverseSummary, importUniverseFromFile } from "./simulation/persistence";
 import type { UniverseMeta, DiscoveryItem } from "./simulation/persistence";
 import { makeJournalEntry } from "./simulation/journal";
@@ -154,6 +157,9 @@ export default function App() {
   const [showGallery,       setShowGallery]       = useState(false);
 
   const [selectedStar,         setSelectedStar]         = useState<Star | null>(null);
+  const [centralBlackHole,     setCentralBlackHole]     = useState<CentralBlackHole | null>(null);
+  const [blackHoleSelected,    setBlackHoleSelected]    = useState(false);
+  const [nearBlackHole,        setNearBlackHole]        = useState(false);   // in its close-up
   const [selectedPlanet,       setSelectedPlanet]       = useState<Planet | null>(null);
   // A moon too small to be a world, picked in the system view or the planet panel: it has no panel of its own,
   // so its planet is selected and the camera focuses the moon. It counts only while its planet stays selected.
@@ -184,6 +190,8 @@ export default function App() {
     const config = cfg ?? universeConfig;
     setIsGenerating(true);
     setSelectedStar(null);
+    setBlackHoleSelected(false);
+    setNearBlackHole(false);
     setSelectedPlanet(null);
     setSelectedBiosphere(null);
     setSelectedCivilization(null);
@@ -218,8 +226,16 @@ export default function App() {
       setStarCount(population.stars.length);
       setCurrentSeed(s);
       rendererRef.current?.renderGalaxy(particles);
+      const blackHole = centralBlackHoleFor(galaxyCfg);
+      setCentralBlackHole(blackHole);
+      rendererRef.current?.setCentralBlackHole(blackHole, s, () => {
+        setSelectedStar(null);
+        setBlackHoleSelected(true);
+        ui.inspect();
+      });
       rendererRef.current?.renderStars(population, (star) => {
         setSelectedStar(star);
+        setBlackHoleSelected(false);
         setSelectedPlanet(null);
         setSelectedBiosphere(null);
         ui.inspect();
@@ -283,12 +299,23 @@ export default function App() {
       if (showHistoryPanel) { setShowHistoryPanel(false); return; }
       if (showTimeline)     { setShowTimeline(false);     return; }
       if (comparison)       { setComparison(null);        return; }
+      if (nearBlackHole)    { leaveBlackHole();           return; }   // up one level: back to the galaxy
       if (orbiting && view === "system") { leaveOrbit(); return; }   // up one level: back to the system
       if (view === "system" && selectedPlanet) { setSelectedPlanet(null); return; }   // off the planet, to the whole system
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [showPhysics, encyclopediaSubject, showGreatFilter, showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, orbiting, view, selectedPlanet]);
+  }, [showPhysics, encyclopediaSubject, showGreatFilter, showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, nearBlackHole, orbiting, view, selectedPlanet]);
+
+  function approachBlackHole() {
+    rendererRef.current?.approachBlackHole();
+    setNearBlackHole(true);
+  }
+
+  function leaveBlackHole() {
+    rendererRef.current?.leaveBlackHole();
+    setNearBlackHole(false);
+  }
 
   const handleRandomize = () => {
     const s = randomSeed();
@@ -852,6 +879,7 @@ export default function App() {
   let statusText = "Ready";
   if (isGenerating)                                                          statusText = "Generating…";
   else if (surveyProgress !== null)                                         statusText = `Surveying life… ${Math.round(surveyProgress * 100)}%`;
+  else if (nearBlackHole)                                                    statusText = "Drag to circle the black hole; scroll to come closer";
   else if (view === "galaxy" && !selectedStar)                              statusText = "Select a star to inspect it";
   else if (view === "galaxy" && selectedStar)                               statusText = "Open the system to see its planets";
   else if (view === "system" && orbiting)                                   statusText = "Drag to look around the planet; scroll to change altitude";
@@ -885,9 +913,15 @@ export default function App() {
         <nav className="breadcrumb" aria-label="Location">
           <span className="breadcrumb-id">{universeId ?? "——————"}</span>
           <span className="breadcrumb-sep" aria-hidden="true">/</span>
-          {view === "galaxy"
+          {view === "galaxy" && !nearBlackHole
             ? <span className="breadcrumb-current">Galaxy</span>
-            : <button className="breadcrumb-link" onClick={handleExitSystem}>Galaxy</button>}
+            : <button className="breadcrumb-link" onClick={nearBlackHole ? leaveBlackHole : handleExitSystem}>Galaxy</button>}
+          {nearBlackHole && (
+            <>
+              <span className="breadcrumb-sep" aria-hidden="true">/</span>
+              <span className="breadcrumb-current">Black hole</span>
+            </>
+          )}
           {starLabel && (
             <>
               <span className="breadcrumb-sep" aria-hidden="true">/</span>
@@ -955,6 +989,7 @@ export default function App() {
             <dt>Morphology</dt><dd className="kv-text">{universeId ? galaxyType : "—"}</dd>
             <dt>Stars</dt><dd>{universeId ? starCount.toLocaleString() : "—"}</dd>
             <dt>Particles</dt><dd>{GALAXY_PARTICLE_COUNT.toLocaleString()}</dd>
+            <dt>Black hole</dt><dd>{universeId ? (centralBlackHole ? formatSolarMasses(centralBlackHole.massSolar) : "None") : "—"}</dd>
           </dl>
         </section>
 
@@ -1193,7 +1228,15 @@ export default function App() {
 
       {/* ── Right dock: whatever is selected ── */}
       <aside className="dock" aria-label="Selection">
-        {view === "galaxy" && selectedStar ? (
+        {view === "galaxy" && blackHoleSelected && centralBlackHole ? (
+          <BlackHolePanel
+            blackHole={centralBlackHole}
+            near={nearBlackHole}
+            onApproach={approachBlackHole}
+            onLeave={leaveBlackHole}
+            onClose={() => { leaveBlackHole(); setBlackHoleSelected(false); }}
+          />
+        ) : view === "galaxy" && selectedStar ? (
           <StarPanel
             key={`${currentSeed}-${selectedStar.id}`}
             star={selectedStar}

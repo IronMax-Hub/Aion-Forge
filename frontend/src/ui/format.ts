@@ -328,3 +328,19 @@ export function civilizationMarkerLabel(civ: SystemCivilization): string {
   const living = civ.living > 1 ? `${main} +${civ.living - 1}` : main;
   return civ.ruins > 0 ? `${living} · ${ruins}` : living;
 }
+
+// ── Central black hole ───────────────────────────────────────────────────────
+
+/** A mass in solar masses in words above a thousand, e.g. "4.3 million M☉". */
+export function formatSolarMasses(massSolar: number): string {
+  const scales: [number, string][] = [[1e9, "billion"], [1e6, "million"], [1e3, "thousand"]];
+  const scale = scales.find(([size]) => massSolar >= size);
+  return scale ? `${formatSig(massSolar / scale[0], 2)} ${scale[1]} M☉` : `${formatSig(massSolar, 2)} M☉`;
+}
+
+export const KM_PER_AU = 1.496e8;
+
+/** A radius given in km, in AU once it reaches a hundredth of one. */
+export function formatHorizonRadius(km: number): string {
+  return km >= 0.01 * KM_PER_AU ? `${formatSig(km / KM_PER_AU, 2)} AU` : `${formatSig(km, 2)} km`;
+}

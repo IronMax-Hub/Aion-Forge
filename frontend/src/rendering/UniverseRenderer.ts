@@ -13,6 +13,8 @@ import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
 import type { Civilization } from "../simulation/civilization";
+import type { CentralBlackHole } from "../simulation/blackHole";
+import { BlackHoleView, BLACK_HOLE_DISTANCE, START_ELEVATION_DEG } from "./blackHole/BlackHoleView";
 import { SkyBackground } from "./background";
 import {
   barycentreMarker, circumbinaryOrbitLine, companionStartAngle, disposeSystemGroup, distantStarMarker, FASTEST_PAIR_ORBIT_SECONDS,
@@ -188,12 +190,13 @@ export interface PlanetSight {
   civilization?: Civilization | null;
 }
 
-export type ViewMode = "galaxy" | "system" | "planet";
+export type ViewMode = "galaxy" | "system" | "planet" | "blackHole";
 
 /**
  * How large one screen pixel is, in scene units, and which view it applies to:
  * at the orbit target in the galaxy and system views, at the nearest surface in
- * the planet view, whose scene unit is `kmPerUnit` kilometres.
+ * the planet view, whose scene unit is `kmPerUnit` kilometres, and at the black
+ * hole in its close-up, whose scene unit is its horizon radius, also `kmPerUnit`.
  */
 export interface ViewScale {
   mode: ViewMode;
@@ -294,6 +297,16 @@ function makeCivilizationRingTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(canvas);
 }
 
+// ── Central black hole ───────────────────────────────────────────────────────
+//
+// At galaxy scale a black hole is invisible: Sagittarius A*'s horizon is 0.08 AU
+// across, a hundred-millionth of a scene unit. What marks a galaxy's centre is its
+// crowded core of stars, so nothing is drawn there; a click on the core selects the
+// black hole, and the reticle marks it as it marks a selected star.
+
+/** How near the galaxy's centre on screen, px, a click selects its black hole. */
+const BLACK_HOLE_PICK_RADIUS_PX = 12;
+
 // ── Life and civilization markers ────────────────────────────────────────────
 
 /** One star system with life, as the galaxy view should mark it. */
@@ -343,6 +356,11 @@ export class UniverseRenderer {
   private paused = false;
 
   private galaxyMesh:      THREE.Points | null = null;
+  private blackHole:       CentralBlackHole | null = null;
+  private blackHoleSeed = 0;
+  private blackHoleView:   BlackHoleView | null = null;
+  private galaxyCameraPose: { position: THREE.Vector3; target: THREE.Vector3 } | null = null;
+  private onBlackHoleSelected: (() => void) | null = null;
   private starMesh:        THREE.Points | null = null;
   private highlightMesh:   THREE.Points | null = null;
   private nebulaGroup:     THREE.Group  | null = null;
@@ -809,6 +827,7 @@ export class UniverseRenderer {
   }
 
   exitSystemView() {
+    this.leaveBlackHole();
     this.closePlanetView();
     this.systemGlobes.stop();
     this.hidePlanetLabel();
@@ -988,10 +1007,15 @@ export class UniverseRenderer {
 
   // A thin square frame drawn at constant screen size, like a telescope's target marker.
   private highlightStar(star: Star | null) {
+    this.highlightAt(star?.position ?? null);
+  }
+
+  /** Put the selection reticle on a point of the galaxy, or remove it. */
+  private highlightAt(position: readonly [number, number, number] | null) {
     this.clearMesh("highlightMesh");
-    if (!star) return;
+    if (!position) return;
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(star.position), 3));
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(position), 3));
     this.reticleTexture ??= makeReticleTexture();
     const mat = new THREE.PointsMaterial({
       map: this.reticleTexture, size: 28, sizeAttenuation: false,
@@ -1021,7 +1045,7 @@ export class UniverseRenderer {
     );
     this.raycaster.setFromCamera(ndc, this.camera);
 
-    if (this.mode === "planet") return;
+    if (this.mode === "planet" || this.mode === "blackHole") return;
     if (this.mode === "system" && this.systemGroup) {
       const hit = this.planetMeshAt(ndc);
       if (hit?.userData.moonOf) {
@@ -1034,6 +1058,10 @@ export class UniverseRenderer {
       return;
     }
 
+    if (this.blackHoleAt(e.clientX - rect.left, e.clientY - rect.top)) {
+      this.selectBlackHole();
+      return;
+    }
     if (!this.starMesh || this.starData.length === 0) return;
     this.raycaster.params.Points = { threshold: 3 };
     const hits = this.raycaster.intersectObject(this.starMesh);
@@ -1169,6 +1197,67 @@ export class UniverseRenderer {
     this.onStarSelected?.(star);
     this.highlightStar(star);
     this.tweenCameraTo(new THREE.Vector3(...star.position));
+    this.controls.autoRotate = false;
+  }
+
+  // ── Central black hole ────────────────────────────────────────────────────
+
+  /** The galaxy's central black hole, or none; a click on the galaxy's centre selects it and calls onSelected. */
+  setCentralBlackHole(blackHole: CentralBlackHole | null, galaxySeed: number, onSelected: () => void) {
+    this.leaveBlackHole();
+    this.onBlackHoleSelected = onSelected;
+    this.blackHole = blackHole;
+    this.blackHoleSeed = galaxySeed;
+  }
+
+  /** Go from the galaxy view to the close-up of its central black hole. */
+  approachBlackHole() {
+    if (this.mode !== "galaxy" || !this.blackHole) return;
+    this.galaxyCameraPose = { position: this.camera.position.clone(), target: this.controls.target.clone() };
+    this.tween = null;
+    this.blackHoleView = new BlackHoleView(this.blackHole, this.blackHoleSeed, !prefersReducedMotion(), performance.now());
+    this.mode = "blackHole";
+    this.lastReportedScale = 0;
+    this.applyMarkerVisibility();
+
+    const elevation = THREE.MathUtils.degToRad(START_ELEVATION_DEG);
+    this.controls.target.set(0, 0, 0);
+    this.camera.position.set(0, Math.sin(elevation), Math.cos(elevation)).multiplyScalar(BLACK_HOLE_DISTANCE.start);
+    this.controls.minDistance = BLACK_HOLE_DISTANCE.min;
+    this.controls.maxDistance = BLACK_HOLE_DISTANCE.max;
+    this.controls.autoRotate = false;
+  }
+
+  /** Back from the black hole's close-up to the galaxy view, where it was left; nothing outside the close-up. */
+  leaveBlackHole() {
+    if (!this.blackHoleView) return;
+    this.blackHoleView.dispose();
+    this.blackHoleView = null;
+    this.mode = "galaxy";
+    this.lastReportedScale = 0;
+    this.controls.minDistance = DEFAULT_DISTANCE.min;
+    this.controls.maxDistance = DEFAULT_DISTANCE.max;
+    if (this.galaxyCameraPose) {
+      this.camera.position.copy(this.galaxyCameraPose.position);
+      this.controls.target.copy(this.galaxyCameraPose.target);
+      this.galaxyCameraPose = null;
+    }
+    this.applyMarkerVisibility();
+  }
+
+  /** Whether a point on the canvas, in CSS pixels, falls on the galaxy's centre, where its black hole is. */
+  private blackHoleAt(x: number, y: number): boolean {
+    if (!this.blackHole) return false;
+    const centre = new THREE.Vector3(0, 0, 0).project(this.camera);
+    if (centre.z < -1 || centre.z > 1) return false;
+    const { clientWidth, clientHeight } = this.renderer.domElement;
+    return Math.hypot((centre.x + 1) / 2 * clientWidth - x, (1 - centre.y) / 2 * clientHeight - y) <= BLACK_HOLE_PICK_RADIUS_PX;
+  }
+
+  private selectBlackHole() {
+    this.onBlackHoleSelected?.();
+    this.highlightAt([0, 0, 0]);
+    this.tweenCameraTo(new THREE.Vector3(0, 0, 0));
     this.controls.autoRotate = false;
   }
 
@@ -1405,6 +1494,8 @@ export class UniverseRenderer {
       if (this.mode === "planet" && this.planetView) {
         this.planetView.update(performance.now());
         this.renderer.render(this.planetView.scene, this.camera);
+      } else if (this.mode === "blackHole" && this.blackHoleView) {
+        this.blackHoleView.render(this.renderer, this.camera, performance.now());
       } else {
         this.renderer.render(this.scene, this.camera);
       }
@@ -1434,7 +1525,9 @@ export class UniverseRenderer {
     this.lastReportedScale = unitsPerPixel;
     this.onViewScale(inPlanetView
       ? { mode: "planet", unitsPerPixel, kmPerUnit: this.planetView!.kmPerUnit }
-      : { mode: this.mode, unitsPerPixel });
+      : this.blackHoleView
+        ? { mode: "blackHole", unitsPerPixel, kmPerUnit: this.blackHoleView.kmPerUnit }
+        : { mode: this.mode, unitsPerPixel });
   }
 
   private onResize = () => {
@@ -1466,6 +1559,7 @@ export class UniverseRenderer {
     this.clearMarkers();
     this.lifeRingTexture?.dispose();
     this.civilizationRingTexture?.dispose();
+    this.leaveBlackHole();
     this.labelRenderer.domElement.remove();
     this.sky.dispose();
     if (this.nebulaGroup) {

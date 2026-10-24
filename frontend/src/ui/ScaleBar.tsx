@@ -1,6 +1,6 @@
 import type { ViewScale } from "../rendering/UniverseRenderer";
 import { SYSTEM_UNITS_PER_AU } from "../rendering/systemLayout";
-import { LIGHT_YEARS_PER_UNIT, niceScaleLength, formatLightYears, formatSig } from "./format";
+import { KM_PER_AU, LIGHT_YEARS_PER_UNIT, niceScaleLength, formatLightYears, formatSig } from "./format";
 
 const MAX_BAR_PX = 110;
 
@@ -10,10 +10,11 @@ function unitOf(scale: ViewScale): { perPixel: number; label: (length: number) =
     case "galaxy": return { perPixel: scale.unitsPerPixel * LIGHT_YEARS_PER_UNIT, label: formatLightYears };
     case "system": return { perPixel: scale.unitsPerPixel / SYSTEM_UNITS_PER_AU, label: (l) => `${formatSig(l)} AU` };
     case "planet": return { perPixel: scale.unitsPerPixel * (scale.kmPerUnit ?? 0), label: (l) => `${formatSig(l)} km` };
+    case "blackHole": return { perPixel: scale.unitsPerPixel * (scale.kmPerUnit ?? 0) / KM_PER_AU, label: (l) => `${formatSig(l)} AU` };
   }
 }
 
-/** A map-style scale bar for the current view: light-years in the galaxy, AU in a planetary system, km in orbit. */
+/** A map-style scale bar for the current view: light-years in the galaxy, AU in a planetary system, km in orbit, AU around a black hole. */
 export function ScaleBar({ scale }: { scale: ViewScale | null }) {
   if (!scale || !(scale.unitsPerPixel > 0)) return null;
   const { perPixel, label: labelFor } = unitOf(scale);

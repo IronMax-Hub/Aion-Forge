@@ -70,6 +70,7 @@ export const SALT = {
   METALLICITY:    0x3E7A1F2C,   // each star's scatter about its gas's metallicity (MZ2)
   MOON:           0x300F5A7E,   // a giant's regular moons (MO2)
   COMPANION:      0xB1A2C0DE,   // each star's companion, if it has one (BS1)
+  BLACK_HOLE:     0xB1AC0E01,   // the galaxy's central black hole, if it has one
 } as const;
 
 /** A standard normal draw (Box–Muller), from two draws of `rng`. */

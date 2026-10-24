@@ -1,21 +1,25 @@
 /**
  * Ambient layer — the auditory foundation of Aion Forge.
  *
- * A bed is made of two things, both procedural:
+ * A bed is made of up to three things, all procedural:
  *   - swells: soft voices that rise, hold and fade on notes from a small set,
  *     each followed by a rest, so no tone sits unchanged and the harmony drifts;
- *   - wind: pink noise through a band that slowly wanders, so the air breathes.
+ *   - wind: pink noise through a band that slowly wanders, so the air breathes;
+ *   - pulse (civilizations only): soft struck notes in a repeating rhythm.
  *
  * Each view has its own pitch set, register and colour; the universe (scene.ts)
  * sets the key they share: the tonic, the scale every note is moved to, and
- * the pace. What a view is looking at (a star, a planet) colours its bed further. Every choice of note, length, rest and pan comes from a stream
- * seeded by the universe and the view, so a view of a universe always unfolds
- * the same way from the moment it opens. Nothing here should demand attention.
+ * the pace. What a view is looking at (a star, a planet, life) colours its bed
+ * further. Every choice of note, length, rest and pan comes from streams seeded
+ * by the universe, the view and its subject — one per voice, one for the wind,
+ * one for the pulse, so timer jitter cannot reorder the draws — and a view of a
+ * subject always unfolds the same way from the moment it opens.
+ * Nothing here should demand attention.
  */
 
 import { audioEngine } from "./engine";
 import { createRNG, mixSeed, type RNG } from "../simulation/rng";
-import { DEFAULT_KEY, rootFor, snapToScale, type UniverseKey, type ViewColour } from "./scene";
+import { DEFAULT_KEY, rootFor, snapToScale, type PulsePattern, type UniverseKey, type ViewColour } from "./scene";
 
 interface AmbientProfile {
   /** The bed's root is the key's tonic in the octave from here (MIDI; 57 = A3 = 220 Hz) */
@@ -36,6 +40,8 @@ interface AmbientProfile {
   windGain:     number;
   /** 0–1: how deeply the wind rises and falls, like waves */
   waves?:       number;
+  /** Multiplies rests between swells */
+  space?:       number;
   /** Overall bed gain */
   gain:         number;
 }
@@ -93,6 +99,8 @@ function coloured(p: AmbientProfile, c: ViewColour): AmbientProfile {
     windGain:     p.windGain * (c.wind ?? 1),
     windBand:     [p.windBand[0] * shade, p.windBand[1] * shade],
     waves:        c.waves ?? p.waves,
+    intervals:    c.noteCount ? p.intervals.slice(0, Math.max(1, c.noteCount)) : p.intervals,
+    space:        c.space ?? p.space,
   };
 }
 
@@ -104,6 +112,10 @@ const WIND_MOVE_S   = [4, 9];    // seconds between the wind band's moves
 const WAVE_PERIOD_S = [7, 12];   // seconds for the wind to rise and fall once over an ocean
 const MAX_PAN       = 0.7;       // voices spread across the stereo field
 const FIRST_RISE_S  = 2;         // a new bed's first swells rise this fast, so a view change has no gap
+const PULSE_PEAK    = 0.05;      // one pulse's peak gain at strength 1
+const PULSE_RING_S  = 0.35;      // time constant of a pulse's decay
+const PULSE_OCTAVE  = 12;        // pulses sound an octave above the bed's root
+const PULSE_FLOOR   = 0.15;      // a fading pulse fades to this share of its level, not to nothing
 
 const LOOKAHEAD_S   = 2;         // swells are placed on the audio clock this far ahead
 const TICK_MS       = 500;       // how often the scheduler looks ahead
@@ -119,16 +131,32 @@ interface Bed {
   key:       UniverseKey;
   /** MIDI note of the bed's root: the key's tonic in the profile's register */
   root:      number;
-  rng:       RNG;
+  /** The bed's scale: the view's own, or else the universe's */
+  scale:     readonly number[];
   gain:      GainNode;
+  /** One stream per voice slot */
+  slotRng:   RNG[];
+  windRng:   RNG;
   /** Audio-clock time each voice slot is free to start its next swell */
   nextStart: number[];
   /** Whether each slot has sounded yet (its first swell rises fast) */
   started:   boolean[];
   windAt:    number;
   windBand:  BiquadFilterNode;
+  pulse:     PulseState | null;
   sources:   Set<AudioScheduledSourceNode>;
   timer?:    ReturnType<typeof setInterval>;
+}
+
+interface PulseState {
+  pattern: PulsePattern;
+  rng:     RNG;
+  /** Audio-clock time of the next step */
+  at:      number;
+  step:    number;
+  /** Sounding steps so far, which walk through the pattern's notes */
+  struck:  number;
+  level:   number;
 }
 
 const between = (rng: RNG, [lo, hi]: readonly number[]) => lo + rng() * (hi - lo);
@@ -190,7 +218,11 @@ class AmbientLayer {
     const key = this.key;
     const root = rootFor(profile.registerMidi, key.tonic);
     const view = Math.max(0, VIEW_ORDER.indexOf(context));
-    const rng = createRNG(mixSeed(AMBIENT_SEED, key.seed, view, colour.subject ?? 0));
+    const base = mixSeed(AMBIENT_SEED, key.seed, view, colour.subject ?? 0);
+    const stream = (n: number) => createRNG(mixSeed(base, n));
+    const windRng = stream(0);
+    const pulseRng = stream(1);
+    const slotRng = Array.from({ length: profile.voices }, (_, i) => stream(2 + i));
 
     const gain = ctx.createGain();
     gain.gain.value = 0;
@@ -198,14 +230,20 @@ class AmbientLayer {
     gain.gain.setTargetAtTime(profile.gain, ctx.currentTime, FADE_IN_TAU);
 
     const sources = new Set<AudioScheduledSourceNode>();
-    const windBand = this.buildWind(ctx, gain, profile, rng, sources);
+    const windBand = this.buildWind(ctx, gain, profile, windRng, sources);
 
     // Stagger the first swells a little so the voices do not enter together.
     const now = ctx.currentTime;
-    const nextStart = Array.from({ length: profile.voices }, (_, i) => now + i * between(rng, [0.3, 1.2]));
+    const nextStart = slotRng.map((rng, i) => now + i * between(rng, [0.3, 1.2]));
     const started = nextStart.map(() => false);
+    const pulse = colour.pulse
+      ? { pattern: colour.pulse, rng: pulseRng, at: now + FIRST_RISE_S, step: 0, struck: 0, level: 1 }
+      : null;
 
-    const bed: Bed = { profile, key, root, rng, gain, nextStart, started, windAt: now, windBand, sources };
+    const bed: Bed = {
+      profile, key, root, scale: colour.scale ?? key.scale, gain, slotRng, windRng,
+      nextStart, started, windAt: now, windBand, pulse, sources,
+    };
     bed.timer = setInterval(() => this.schedule(bed), TICK_MS);
     this.schedule(bed);
     return bed;
@@ -220,27 +258,70 @@ class AmbientLayer {
     for (let slot = 0; slot < bed.nextStart.length; slot++) {
       while (bed.nextStart[slot] < horizon) {
         const start = Math.max(bed.nextStart[slot], ctx.currentTime);
-        const length = between(bed.rng, bed.profile.swellSeconds) * bed.key.pace;
-        this.swell(ctx, bed, start, length, bed.started[slot] ? undefined : FIRST_RISE_S);
+        const rng = bed.slotRng[slot];
+        const length = between(rng, bed.profile.swellSeconds) * bed.key.pace;
+        this.swell(ctx, bed, rng, start, length, bed.started[slot] ? undefined : FIRST_RISE_S);
         bed.started[slot] = true;
-        bed.nextStart[slot] = start + length + between(bed.rng, bed.profile.restSeconds) * bed.key.pace;
+        const rest = between(rng, bed.profile.restSeconds) * bed.key.pace * (bed.profile.space ?? 1);
+        bed.nextStart[slot] = start + length + rest;
       }
     }
 
     while (bed.windAt < horizon) {
-      const target = between(bed.rng, bed.profile.windBand);
+      const target = between(bed.windRng, bed.profile.windBand);
       bed.windBand.frequency.setTargetAtTime(target, bed.windAt, 2.5);
-      bed.windAt += between(bed.rng, WIND_MOVE_S);
+      bed.windAt += between(bed.windRng, WIND_MOVE_S);
     }
+
+    const pulse = bed.pulse;
+    while (pulse && pulse.at < horizon) {
+      const { pattern, rng } = pulse;
+      const strength = pattern.steps[pulse.step % pattern.steps.length];
+      // Every step draws the same two numbers, sounding or not, so the stream never shifts.
+      const dropped = rng() < pattern.falter;
+      const drift = (rng() * 2 - 1) * pattern.falter * pattern.stepSeconds;
+      if (strength > 0 && !dropped) {
+        const note = pattern.notes[pulse.struck % pattern.notes.length];
+        const at = Math.max(ctx.currentTime, pulse.at + drift);
+        this.strike(ctx, bed, at, snapToScale(note, bed.scale), strength * pulse.level);
+        pulse.struck++;
+      }
+      pulse.step++;
+      if (pulse.step % pattern.steps.length === 0) {
+        pulse.level = Math.max(PULSE_FLOOR, pulse.level * pattern.fade);
+      }
+      pulse.at += pattern.stepSeconds;
+    }
+  }
+
+  /** One pulse: a triangle wave struck and ringing away, through a lowpass. */
+  private strike(ctx: AudioContext, bed: Bed, at: number, interval: number, strength: number): void {
+    const freq = midiToHz(bed.root + PULSE_OCTAVE + interval);
+    const amp = ctx.createGain();
+    amp.gain.setValueAtTime(0, at);
+    amp.gain.linearRampToValueAtTime(PULSE_PEAK * strength, at + 0.008);
+    amp.gain.setTargetAtTime(0, at + 0.008, PULSE_RING_S);
+    amp.connect(bed.gain);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = freq * bed.pulse!.pattern.brightness;
+    filter.connect(amp);
+
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.value = freq;
+    osc.connect(filter);
+    this.track(bed, osc, at, at + 8 * PULSE_RING_S, () => amp.disconnect());
   }
 
   /**
    * One voice: two slightly detuned saw waves through a lowpass that opens as
    * the voice rises and closes as it fades, so it brightens and darkens like a breath.
    */
-  private swell(ctx: AudioContext, bed: Bed, start: number, length: number, quickRise?: number): void {
-    const { profile, key, rng } = bed;
-    const interval = snapToScale(profile.intervals[Math.floor(rng() * profile.intervals.length)], key.scale);
+  private swell(ctx: AudioContext, bed: Bed, rng: RNG, start: number, length: number, quickRise?: number): void {
+    const { profile } = bed;
+    const interval = snapToScale(profile.intervals[Math.floor(rng() * profile.intervals.length)], bed.scale);
     const freq = midiToHz(bed.root + interval);
     const slowRise = length * between(rng, [0.3, 0.45]);
     const rise = quickRise ?? slowRise;

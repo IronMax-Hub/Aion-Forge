@@ -11,7 +11,7 @@
 
 import { createRNG } from "../simulation/rng";
 
-export type AudioLayer = "ambient" | "discovery" | "interface" | "civilization";
+export type AudioLayer = "ambient" | "discovery" | "interface";
 
 export interface AudioPreferences {
   masterVolume:    number;  // 0–1
@@ -141,7 +141,7 @@ class AionAudioEngine {
     this.masterGain.connect(this.ctx.destination);
     const bus = buildOutputBus(this.ctx, this.masterGain);
 
-    for (const layer of ["ambient", "discovery", "interface", "civilization"] as AudioLayer[]) {
+    for (const layer of ["ambient", "discovery", "interface"] as AudioLayer[]) {
       const g = this.ctx.createGain();
       g.connect(bus);
       this.layerGains.set(layer, g);
@@ -184,7 +184,6 @@ class AionAudioEngine {
       ambient:      ambientVolume,
       discovery:    discoveryVolume,
       interface:    interfaceVolume,
-      civilization: ambientVolume * 0.6,
     };
     for (const [layer, gain] of this.layerGains) {
       gain.gain.setTargetAtTime(layerVols[layer], now, 0.05);

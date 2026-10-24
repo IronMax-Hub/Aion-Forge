@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { audioEngine, ambientLayer, universeKey, systemColour, planetColour, discovery, ui, lab, civLayer } from "./audio";
+import { audioEngine, ambientLayer, universeKey, systemColour, planetColour, biosphereColour, civilizationColour, discovery, ui, lab } from "./audio";
 import { AudioControls } from "./ui/AudioControls";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
 import type { PlanetSight, ViewScale } from "./rendering/UniverseRenderer";
@@ -606,7 +606,7 @@ export default function App() {
     setSelectedCivilization(null);
     setSelectedSpecies(null);
     setView("biosphere");
-    ambientLayer.setContext("biosphere");
+    ambientLayer.setContext("biosphere", biosphereColour(selectedPlanet.key, bio.stage, bio.diversity, bio.extinctAt !== null));
     if (bio.hasLife) discovery.firstLife();
   }, [selectedPlanet, selectedStar]);
 
@@ -617,8 +617,7 @@ export default function App() {
       setSelectedCivilization(result.civilization);
       setSelectedSpecies(result.species);
       setView("civilization");
-      ambientLayer.setContext("civilization");
-      civLayer.activate(result.civilization.techStage);
+      ambientLayer.setContext("civilization", civilizationColour(selectedPlanet.key, result.civilization.techStage));
       if (result.civilization.isRare) discovery.remarkableCivilization();
       else discovery.civilizationMilestone();
     }
@@ -778,7 +777,6 @@ export default function App() {
     rendererRef.current?.exitSystemView();
     ui.back();
     ambientLayer.setContext("galaxy");
-    civLayer.deactivate();
   };
 
   const handleBackToPlanet = () => {
@@ -788,7 +786,6 @@ export default function App() {
     setView("system");
     ui.back();
     ambientLayer.setContext(orbiting ? "planet" : "system");
-    civLayer.deactivate();
   };
 
   const handleBackToBiosphere = () => {
@@ -797,7 +794,6 @@ export default function App() {
     setView("biosphere");
     ui.back();
     ambientLayer.setContext("biosphere");
-    civLayer.deactivate();
   };
 
   const handleBackToStar = () => {

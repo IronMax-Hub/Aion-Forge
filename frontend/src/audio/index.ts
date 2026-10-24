@@ -7,5 +7,5 @@
 export { audioEngine }      from "./engine";
 export type { AudioPreferences } from "./engine";
 export { ambientLayer }     from "./ambient";
-export { universeKey, systemColour, planetColour } from "./scene";
-export { discovery, ui, lab, timeline, civLayer } from "./sounds";
+export { universeKey, systemColour, planetColour, biosphereColour, civilizationColour } from "./scene";
+export { discovery, ui, lab, timeline } from "./sounds";

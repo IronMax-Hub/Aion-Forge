@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { planetColour, rootFor, snapToScale, subjectSeed, systemColour, universeKey } from "../audio/scene";
+import { biosphereColour, civilizationColour, planetColour, rootFor, snapToScale, subjectSeed, systemColour, universeKey } from "../audio/scene";
+import type { TechStageName } from "../audio/scene";
 
 describe("universeKey", () => {
   it("is the same for the same universe", () => {
@@ -113,5 +114,62 @@ describe("subjectSeed", () => {
   it("is stable and tells keys apart", () => {
     expect(subjectSeed("12-3")).toBe(subjectSeed("12-3"));
     expect(subjectSeed("12-3")).not.toBe(subjectSeed("12-4"));
+  });
+});
+
+describe("biosphereColour", () => {
+  it("grows voices and notes with life", () => {
+    const stages = ["none", "microbial", "multicellular", "complex", "dominant"] as const;
+    const colours = stages.map((stage) => biosphereColour("1-1", stage, 0, false));
+    for (let i = 1; i < colours.length; i++) {
+      expect(colours[i].voices!).toBeGreaterThanOrEqual(colours[i - 1].voices!);
+      expect(colours[i].noteCount!).toBeGreaterThan(colours[i - 1].noteCount!);
+    }
+    expect(colours[0].space!).toBeGreaterThan(1);           // no life: near silence
+    expect(colours[1].registerShift).toBe(12);              // microbial: high
+  });
+
+  it("adds notes for diverse living worlds only", () => {
+    expect(biosphereColour("1-1", "complex", 1, false).noteCount).toBe(7);
+    expect(biosphereColour("1-1", "complex", 0.2, false).noteCount).toBe(5);
+    expect(biosphereColour("1-1", "none", 1, false).noteCount).toBe(2);
+  });
+
+  it("makes ended life a single, sparse voice in a minor scale", () => {
+    const ended = biosphereColour("1-1", "none", 0, true);
+    expect(ended.voices).toBe(1);
+    expect(ended.space!).toBeGreaterThan(1);
+    expect(ended.scale).toEqual([0, 2, 3, 5, 7, 8, 10]);
+  });
+});
+
+describe("civilizationColour", () => {
+  const stages: TechStageName[] = ["primitive", "agricultural", "industrial", "information", "space-age", "collapsed"];
+
+  it("gives every stage a sounding pulse", () => {
+    for (const stage of stages) {
+      const { pulse } = civilizationColour("1-1", stage);
+      expect(pulse!.steps.some((v) => v > 0)).toBe(true);
+      expect(pulse!.notes.length).toBeGreaterThan(0);
+      expect(pulse!.stepSeconds).toBeGreaterThan(0);
+    }
+  });
+
+  it("falters and fades only when collapsed", () => {
+    for (const stage of stages) {
+      const { pulse } = civilizationColour("1-1", stage);
+      const collapsed = stage === "collapsed";
+      expect(pulse!.falter > 0).toBe(collapsed);
+      expect(pulse!.fade < 1).toBe(collapsed);
+    }
+  });
+
+  it("quickens from primitive to information age", () => {
+    const beatsPerSecond = (stage: TechStageName) => {
+      const { pulse } = civilizationColour("1-1", stage);
+      return pulse!.steps.filter((v) => v > 0).length / (pulse!.steps.length * pulse!.stepSeconds);
+    };
+    expect(beatsPerSecond("information")).toBeGreaterThan(beatsPerSecond("industrial"));
+    expect(beatsPerSecond("industrial")).toBeGreaterThan(beatsPerSecond("primitive"));
   });
 });

@@ -15,6 +15,9 @@
  *   planet count     → voices (one per two planets, 1–4)
  *   air pressure     → wind (none without air; thick air dense and dark)
  *   ocean share      → the wind rises and falls like waves
+ *   life stage       → how many voices, how many notes (none: near silence;
+ *                      microbial: sparse and high; complex: full); extinct life thin and minor
+ *   tech stage       → a slow pulse instead of a held tone, its rhythm the civilization's
  */
 
 import { mixSeed } from "../simulation/rng";
@@ -91,6 +94,30 @@ export interface ViewColour {
   windShade?:     number;
   /** 0–1: how deeply the wind rises and falls, like waves */
   waves?:         number;
+  /** How many of the view's notes voices may choose, from the lowest up */
+  noteCount?:     number;
+  /** Multiplies the rests between swells: above 1 is sparser */
+  space?:         number;
+  /** Replaces the universe's scale for this view */
+  scale?:         readonly number[];
+  /** A repeating pulse over the bed */
+  pulse?:         PulsePattern;
+}
+
+/** A rhythm of soft struck notes, repeating. */
+export interface PulsePattern {
+  /** Seconds per step */
+  stepSeconds: number;
+  /** Strength of each step, 0 = rest; the pattern repeats */
+  steps:       readonly number[];
+  /** Semitones above the tonic that sounding steps walk through, moved to the scale */
+  notes:       readonly number[];
+  /** How far a pulse's filter opens, as a multiple of its pitch */
+  brightness:  number;
+  /** 0–1: the chance a beat is dropped, and how far beats drift (share of a step) */
+  falter:      number;
+  /** Each cycle's level relative to the last: below 1 fades (to a floor) */
+  fade:        number;
 }
 
 const SUN_K               = 5800;
@@ -139,4 +166,59 @@ export function planetColour(planetKey: string, pressureBar: number | null, ocea
     windShade: Math.max(DARKEST_SHADE, (1 / (1 + pressure)) ** SHADE_EXPONENT),
     waves:     clamp(oceanFraction, [0, 1]),
   };
+}
+
+const NATURAL_MINOR = [0, 2, 3, 5, 7, 8, 10] as const;
+const DIVERSITY_NOTES = 2;  // the most diverse life adds this many notes
+
+export type LifeStageName = "none" | "prebiotic" | "microbial" | "multicellular" | "complex" | "dominant";
+
+const LIFE_SOUND: Record<LifeStageName, ViewColour> = {
+  none:          { voices: 1, noteCount: 2, space: 2.5, brightness: 0.8 },
+  prebiotic:     { voices: 1, noteCount: 2, space: 2.5, brightness: 0.8 },
+  microbial:     { voices: 2, noteCount: 3, space: 1.5, registerShift: 12 },
+  multicellular: { voices: 3, noteCount: 4 },
+  complex:       { voices: 4, noteCount: 5 },
+  dominant:      { voices: 4, noteCount: 6 },
+};
+
+/**
+ * A biosphere: more voices and notes as life grows, more notes with diversity;
+ * life that has ended is a single, sparse, darker voice in a minor scale.
+ */
+export function biosphereColour(planetKey: string, stage: LifeStageName, diversity: number, extinct: boolean): ViewColour {
+  const subject = subjectSeed(planetKey);
+  if (extinct) return { subject, voices: 1, noteCount: 3, space: 2, brightness: 0.7, scale: NATURAL_MINOR };
+  const base = LIFE_SOUND[stage];
+  const living = stage !== "none" && stage !== "prebiotic";
+  const extra = living ? Math.round(clamp(diversity, [0, 1]) * DIVERSITY_NOTES) : 0;
+  return { subject, ...base, noteCount: base.noteCount! + extra };
+}
+
+export type TechStageName = "primitive" | "agricultural" | "industrial" | "information" | "space-age" | "collapsed";
+
+const TECH_PULSE: Record<TechStageName, PulsePattern> = {
+  // A heartbeat: two close beats, then a long rest
+  primitive:    { stepSeconds: 0.3,  steps: [1, 0.6, 0, 0, 0, 0, 0, 0], notes: [0],
+                  brightness: 2, falter: 0, fade: 1 },
+  // Two slow beats, the second softer
+  agricultural: { stepSeconds: 0.5,  steps: [1, 0, 0.5, 0], notes: [0, 7],
+                  brightness: 2.5, falter: 0, fade: 1 },
+  // Steady and even
+  industrial:   { stepSeconds: 0.4,  steps: [1, 0.5, 0.7, 0.5], notes: [0, 0, 7, 0],
+                  brightness: 3, falter: 0, fade: 1 },
+  // Quicker and brighter
+  information:  { stepSeconds: 0.25, steps: [1, 0.4, 0.6, 0.4, 0.8, 0.4, 0.6, 0.4], notes: [0, 7, 12, 7],
+                  brightness: 4, falter: 0, fade: 1 },
+  // A gentle rising arpeggio
+  "space-age":  { stepSeconds: 0.3,  steps: [0.8, 0.6, 0.7, 0.6, 0, 0], notes: [0, 4, 7, 12],
+                  brightness: 4.5, falter: 0, fade: 1 },
+  // Faltering, drifting and fading
+  collapsed:    { stepSeconds: 0.6,  steps: [1, 0, 0, 0.4, 0, 0, 0, 0], notes: [0],
+                  brightness: 1.5, falter: 0.35, fade: 0.97 },
+};
+
+/** A civilization: a pulse whose rhythm follows its technology. */
+export function civilizationColour(planetKey: string, techStage: TechStageName): ViewColour {
+  return { subject: subjectSeed(planetKey), pulse: TECH_PULSE[techStage] };
 }

@@ -1,117 +1,126 @@
 /**
  * Ambient layer — the auditory foundation of Aion Forge.
  *
- * Sounds are entirely procedural: filtered noise for texture,
- * low sine oscillators for cosmic presence, slow LFOs for movement.
- * Nothing here should demand attention.
+ * A bed is made of two things, both procedural:
+ *   - swells: soft voices that rise, hold and fade on notes from a small set,
+ *     each followed by a rest, so no tone sits unchanged and the harmony drifts;
+ *   - wind: pink noise through a band that slowly wanders, so the air breathes.
+ *
+ * Each view has its own pitch set, register and colour. Every choice of note,
+ * length, rest and pan comes from a seeded stream, so a view always unfolds
+ * the same way from the moment it opens. Nothing here should demand attention.
  */
 
 import { audioEngine } from "./engine";
-
-interface AmbientVoice {
-  osc:         OscillatorNode;
-  gainNode:    GainNode;
-  lfo?:        OscillatorNode;
-  lfoGain?:    GainNode;
-}
+import { createRNG, mixSeed, type RNG } from "../simulation/rng";
 
 interface AmbientProfile {
-  /** Base drone frequencies (Hz) */
-  drones:      number[];
-  /** Noise filter cutoff (Hz) — shapes the texture */
-  noiseCutoff: number;
-  /** Noise gain (0–1) */
-  noiseGain:   number;
-  /** LFO rate (Hz) for slow movement */
-  lfoRate:     number;
-  /** LFO depth (semitone fraction of base freq) */
-  lfoDepth:    number;
-  /** Overall layer gain multiplier */
-  gain:        number;
+  /** Lowest note, as a MIDI number (57 = A3 = 220 Hz) */
+  rootMidi:     number;
+  /** Notes voices may choose, in semitones above the root */
+  intervals:    number[];
+  /** Voices that may sound at once */
+  voices:       number;
+  /** Swell length range (seconds, rise + hold + fade) */
+  swellSeconds: [number, number];
+  /** Rest after a swell (seconds) */
+  restSeconds:  [number, number];
+  /** Filter opening at a swell's peak, as a multiple of the note's pitch */
+  brightness:   number;
+  /** Range the wind band wanders through (Hz) */
+  windBand:     [number, number];
+  /** Wind level relative to the voices */
+  windGain:     number;
+  /** Overall bed gain */
+  gain:         number;
 }
 
-// Each view context has a distinct atmospheric character
+// Each view context has a distinct character. Roots sit at or above ~110 Hz
+// so the bed is heard on small speakers; the colour comes from the interval set.
 const PROFILES: Record<string, AmbientProfile> = {
-  galaxy: {
-    drones:      [32, 48, 64],
-    noiseCutoff: 180,
-    noiseGain:   0.018,
-    lfoRate:     0.04,
-    lfoDepth:    0.4,
-    gain:        0.55,
+  galaxy: {        // open fifths and ninths: wide, unresolved
+    rootMidi: 50, intervals: [0, 7, 12, 14, 19, 24],
+    voices: 3, swellSeconds: [14, 26], restSeconds: [3, 10],
+    brightness: 3.0, windBand: [300, 1400], windGain: 0.5, gain: 0.9,
   },
-  system: {
-    drones:      [48, 72, 96],
-    noiseCutoff: 280,
-    noiseGain:   0.012,
-    lfoRate:     0.06,
-    lfoDepth:    0.3,
-    gain:        0.45,
+  system: {        // fourths: a little closer, a little brighter
+    rootMidi: 52, intervals: [0, 5, 7, 12, 17, 19],
+    voices: 3, swellSeconds: [12, 22], restSeconds: [3, 9],
+    brightness: 3.5, windBand: [400, 1800], windGain: 0.4, gain: 0.85,
   },
   planet: {
-    drones:      [60, 80, 120],
-    noiseCutoff: 400,
-    noiseGain:   0.010,
-    lfoRate:     0.08,
-    lfoDepth:    0.25,
-    gain:        0.40,
+    rootMidi: 53, intervals: [0, 7, 9, 12, 16, 19],
+    voices: 3, swellSeconds: [12, 22], restSeconds: [3, 9],
+    brightness: 3.5, windBand: [250, 1200], windGain: 0.7, gain: 0.85,
   },
-  biosphere: {
-    drones:      [55, 82.5, 110],
-    noiseCutoff: 600,
-    noiseGain:   0.014,
-    lfoRate:     0.12,
-    lfoDepth:    0.2,
-    gain:        0.42,
+  biosphere: {     // major sixths: warm
+    rootMidi: 48, intervals: [0, 4, 7, 9, 12, 16],
+    voices: 3, swellSeconds: [10, 20], restSeconds: [2, 8],
+    brightness: 4.0, windBand: [500, 2200], windGain: 0.45, gain: 0.85,
   },
-  civilization: {
-    drones:      [64, 96, 128],
-    noiseCutoff: 500,
-    noiseGain:   0.010,
-    lfoRate:     0.10,
-    lfoDepth:    0.18,
-    gain:        0.38,
+  civilization: {  // pentatonic: ordered, human
+    rootMidi: 50, intervals: [0, 2, 7, 9, 12, 14],
+    voices: 3, swellSeconds: [10, 18], restSeconds: [2, 7],
+    brightness: 4.0, windBand: [400, 1600], windGain: 0.35, gain: 0.8,
   },
-  timeline: {
-    drones:      [40, 60, 80],
-    noiseCutoff: 220,
-    noiseGain:   0.016,
-    lfoRate:     0.03,
-    lfoDepth:    0.5,
-    gain:        0.50,
+  timeline: {      // minor, slow: deep time
+    rootMidi: 45, intervals: [0, 7, 10, 12, 15, 19],
+    voices: 2, swellSeconds: [18, 30], restSeconds: [4, 12],
+    brightness: 2.5, windBand: [200, 900], windGain: 0.6, gain: 0.9,
   },
-  laboratory: {
-    drones:      [55, 110, 165],
-    noiseCutoff: 350,
-    noiseGain:   0.009,
-    lfoRate:     0.07,
-    lfoDepth:    0.22,
-    gain:        0.35,
+  laboratory: {    // sparse and clear
+    rootMidi: 55, intervals: [0, 2, 7, 12, 14],
+    voices: 2, swellSeconds: [10, 18], restSeconds: [3, 9],
+    brightness: 4.5, windBand: [600, 2400], windGain: 0.3, gain: 0.8,
   },
 };
 
-/** One view's sound: drones and noise sharing a gain, built and retired together. */
-interface Bed {
-  gain:    GainNode;
-  voices:  AmbientVoice[];
-  noise:   AudioBufferSourceNode | null;
-}
+const VIEW_ORDER = Object.keys(PROFILES);
+
+const AMBIENT_SEED  = 0xA3B1E7;  // fixed: a view always opens the same way
+const VOICE_PEAK    = 0.06;      // one swell's peak gain
+const DETUNE_CENTS  = 6;         // the two oscillators of a voice drift apart by this
+const WIND_LEVEL    = 0.06;      // wind gain at windGain = 1
+const WIND_MOVE_S   = [4, 9];    // seconds between the wind band's moves
+const MAX_PAN       = 0.7;       // voices spread across the stereo field
+const FIRST_RISE_S  = 2;         // a new bed's first swells rise this fast, so a view change has no gap
+
+const LOOKAHEAD_S   = 2;         // swells are placed on the audio clock this far ahead
+const TICK_MS       = 500;       // how often the scheduler looks ahead
 
 const FADE_IN_TAU   = 1.5;  // seconds (time constant) for a new bed to swell in
-const FADE_OUT_TAU  = 1.0;  // seconds (time constant) for an old bed to fade away
+const FADE_OUT_TAU  = 2.5;  // seconds (time constant) for an old bed to fade away
 const RETIRE_AFTER  = 6;    // seconds until a fading bed's sources stop (≈ 6 τ: silent)
 const STOP_FADE_TAU = 1.5;  // seconds (time constant) when sound is turned off
 
+/** One view's sound: swells and wind sharing a gain, built and retired together. */
+interface Bed {
+  profile:   AmbientProfile;
+  rng:       RNG;
+  gain:      GainNode;
+  /** Audio-clock time each voice slot is free to start its next swell */
+  nextStart: number[];
+  /** Whether each slot has sounded yet (its first swell rises fast) */
+  started:   boolean[];
+  windAt:    number;
+  windBand:  BiquadFilterNode;
+  sources:   Set<AudioScheduledSourceNode>;
+  timer?:    ReturnType<typeof setInterval>;
+}
+
+const between = (rng: RNG, [lo, hi]: readonly number[]) => lo + rng() * (hi - lo);
+const midiToHz = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
+
 class AmbientLayer {
-  private bed:          Bed | null = null;
-  private noiseBuffer:  AudioBuffer | null = null;
+  private bed:        Bed | null = null;
+  private pinkNoise:  AudioBuffer | null = null;
   private currentContext = "galaxy";
   private running = false;
 
   start(): void {
     if (this.running || !audioEngine.isReady) return;
     this.running = true;
-    this.bed = this.buildBed(PROFILES[this.currentContext]);
+    this.bed = this.buildBed(this.currentContext);
   }
 
   stop(): void {
@@ -126,109 +135,168 @@ class AmbientLayer {
     this.currentContext = context;
     // Crossfade: the new bed swells in while the old one fades, with no gap between.
     if (this.bed) this.retire(this.bed, FADE_OUT_TAU);
-    this.bed = this.buildBed(PROFILES[context] ?? PROFILES.galaxy);
+    this.bed = this.buildBed(context);
   }
 
-  private buildBed(profile: AmbientProfile): Bed | null {
+  private buildBed(context: string): Bed | null {
     const ctx = audioEngine.context;
     const layerGain = audioEngine.layerGain("ambient");
     if (!ctx || !layerGain) return null;
+    const profile = PROFILES[context] ?? PROFILES.galaxy;
+    const rng = createRNG(mixSeed(AMBIENT_SEED, Math.max(0, VIEW_ORDER.indexOf(context))));
 
     const gain = ctx.createGain();
     gain.gain.value = 0;
     gain.connect(layerGain);
     gain.gain.setTargetAtTime(profile.gain, ctx.currentTime, FADE_IN_TAU);
 
-    const voices = profile.drones.map((freq) =>
-      this.buildDrone(ctx, gain, freq, profile.lfoRate, profile.lfoDepth));
-    const noise = this.buildNoise(ctx, gain, profile.noiseCutoff, profile.noiseGain);
-    return { gain, voices, noise };
+    const sources = new Set<AudioScheduledSourceNode>();
+    const windBand = this.buildWind(ctx, gain, profile, sources);
+
+    // Stagger the first swells a little so the voices do not enter together.
+    const now = ctx.currentTime;
+    const nextStart = Array.from({ length: profile.voices }, (_, i) => now + i * between(rng, [0.3, 1.2]));
+    const started = nextStart.map(() => false);
+
+    const bed: Bed = { profile, rng, gain, nextStart, started, windAt: now, windBand, sources };
+    bed.timer = setInterval(() => this.schedule(bed), TICK_MS);
+    this.schedule(bed);
+    return bed;
   }
 
-  /** Fade a bed out and stop its sources once it is silent. */
+  /** Place every swell and wind move that falls inside the lookahead window. */
+  private schedule(bed: Bed): void {
+    const ctx = audioEngine.context;
+    if (!ctx) return;
+    const horizon = ctx.currentTime + LOOKAHEAD_S;
+
+    for (let slot = 0; slot < bed.nextStart.length; slot++) {
+      while (bed.nextStart[slot] < horizon) {
+        const start = Math.max(bed.nextStart[slot], ctx.currentTime);
+        const length = between(bed.rng, bed.profile.swellSeconds);
+        this.swell(ctx, bed, start, length, bed.started[slot] ? undefined : FIRST_RISE_S);
+        bed.started[slot] = true;
+        bed.nextStart[slot] = start + length + between(bed.rng, bed.profile.restSeconds);
+      }
+    }
+
+    while (bed.windAt < horizon) {
+      const target = between(bed.rng, bed.profile.windBand);
+      bed.windBand.frequency.setTargetAtTime(target, bed.windAt, 2.5);
+      bed.windAt += between(bed.rng, WIND_MOVE_S);
+    }
+  }
+
+  /**
+   * One voice: two slightly detuned saw waves through a lowpass that opens as
+   * the voice rises and closes as it fades, so it brightens and darkens like a breath.
+   */
+  private swell(ctx: AudioContext, bed: Bed, start: number, length: number, quickRise?: number): void {
+    const { profile, rng } = bed;
+    const interval = profile.intervals[Math.floor(rng() * profile.intervals.length)];
+    const freq = midiToHz(profile.rootMidi + interval);
+    const slowRise = length * between(rng, [0.3, 0.45]);
+    const rise = quickRise ?? slowRise;
+    const fade = length * between(rng, [0.35, 0.5]);
+    const peakAt = start + rise;
+    const fadeAt = start + length - fade;
+    const end = start + length;
+
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = (rng() * 2 - 1) * MAX_PAN;
+    pan.connect(bed.gain);
+
+    const amp = ctx.createGain();
+    amp.gain.setValueAtTime(0, start);
+    amp.gain.linearRampToValueAtTime(VOICE_PEAK, peakAt);
+    amp.gain.setValueAtTime(VOICE_PEAK, fadeAt);
+    amp.gain.linearRampToValueAtTime(0, end);
+    amp.connect(pan);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.Q.value = 0.7;
+    filter.frequency.setValueAtTime(freq, start);
+    filter.frequency.exponentialRampToValueAtTime(freq * profile.brightness, peakAt);
+    filter.frequency.setValueAtTime(freq * profile.brightness, fadeAt);
+    filter.frequency.exponentialRampToValueAtTime(freq, end);
+    filter.connect(amp);
+
+    for (const cents of [-DETUNE_CENTS / 2, DETUNE_CENTS / 2]) {
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.value = freq;
+      osc.detune.value = cents;
+      osc.connect(filter);
+      this.track(bed, osc, start, end + 0.05, () => pan.disconnect());
+    }
+  }
+
+  /** Looping pink noise through a wandering band. Returns the band filter. */
+  private buildWind(
+    ctx: AudioContext,
+    output: GainNode,
+    profile: AmbientProfile,
+    sources: Set<AudioScheduledSourceNode>,
+  ): BiquadFilterNode {
+    const source = ctx.createBufferSource();
+    source.buffer = this.pinkNoiseBuffer(ctx);
+    source.loop = true;
+
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.Q.value = 0.8;
+    band.frequency.value = profile.windBand[0];
+
+    const level = ctx.createGain();
+    level.gain.value = WIND_LEVEL * profile.windGain;
+
+    source.connect(band);
+    band.connect(level);
+    level.connect(output);
+    source.start();
+    sources.add(source);
+    return band;
+  }
+
+  /** Start a source at `start`, stop it at `stop`, and forget it once it ends. */
+  private track(bed: Bed, node: AudioScheduledSourceNode, start: number, stop: number, onEnd: () => void): void {
+    node.start(start);
+    node.stop(stop);
+    bed.sources.add(node);
+    node.onended = () => { bed.sources.delete(node); onEnd(); };
+  }
+
+  /** Fade a bed out, stop scheduling, and stop its sources once it is silent. */
   private retire(bed: Bed, fadeTau: number): void {
+    clearInterval(bed.timer);
     const ctx = audioEngine.context;
     if (!ctx) return;
     const now = ctx.currentTime;
     bed.gain.gain.cancelScheduledValues(now);
     bed.gain.gain.setTargetAtTime(0, now, fadeTau);
     const stopAt = now + RETIRE_AFTER * fadeTau;
-    for (const v of bed.voices) {
-      v.osc.stop(stopAt);
-      v.lfo?.stop(stopAt);
-    }
-    bed.noise?.stop(stopAt);
-    const last = bed.noise ?? bed.voices[0]?.osc;
-    if (last) last.onended = () => bed.gain.disconnect();
+    // A later stop() replaces an earlier one; swells already silent by then cost nothing.
+    for (const node of bed.sources) node.stop(stopAt);
+    setTimeout(() => bed.gain.disconnect(), (stopAt - now) * 1000 + 100);
   }
 
-  private buildDrone(
-    ctx: AudioContext,
-    output: GainNode,
-    baseFreq: number,
-    lfoRate: number,
-    lfoDepth: number,
-  ): AmbientVoice {
-    const gainNode = ctx.createGain();
-    gainNode.gain.value = 0.06 + Math.random() * 0.03;
-    gainNode.connect(output);
-
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = baseFreq;
-    osc.connect(gainNode);
-
-    // LFO for slow frequency drift
-    const lfo = ctx.createOscillator();
-    lfo.type = "sine";
-    lfo.frequency.value = lfoRate + (Math.random() - 0.5) * lfoRate * 0.3;
-
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.value = baseFreq * lfoDepth * 0.015;
-    lfo.connect(lfoGain);
-    lfoGain.connect(osc.frequency);
-
-    osc.start();
-    lfo.start();
-
-    return { osc, gainNode, lfo, lfoGain };
-  }
-
-  private buildNoise(
-    ctx: AudioContext,
-    output: GainNode,
-    cutoff: number,
-    gain: number,
-  ): AudioBufferSourceNode {
-    const source = ctx.createBufferSource();
-    source.buffer = this.whiteNoise(ctx);
-    source.loop = true;
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = cutoff;
-    filter.Q.value = 0.5;
-
-    const noiseGainNode = ctx.createGain();
-    noiseGainNode.gain.value = gain;
-
-    source.connect(filter);
-    filter.connect(noiseGainNode);
-    noiseGainNode.connect(output);
-    source.start();
-    return source;
-  }
-
-  /** White noise, 4 seconds, made once and looped by every bed. */
-  private whiteNoise(ctx: AudioContext): AudioBuffer {
-    if (this.noiseBuffer) return this.noiseBuffer;
-    const bufferSize = ctx.sampleRate * 4;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  /** Pink noise (Kellet's filter on seeded white noise), 6 seconds, made once and shared. */
+  private pinkNoiseBuffer(ctx: AudioContext): AudioBuffer {
+    if (this.pinkNoise) return this.pinkNoise;
+    const length = ctx.sampleRate * 6;
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
     const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
+    const rng = createRNG(mixSeed(AMBIENT_SEED, 0xFFFF));
+    let b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < length; i++) {
+      const white = rng() * 2 - 1;
+      b0 = 0.99765 * b0 + white * 0.0990460;
+      b1 = 0.96300 * b1 + white * 0.2965164;
+      b2 = 0.57000 * b2 + white * 1.0526913;
+      data[i] = (b0 + b1 + b2 + white * 0.1848) * 0.2;
     }
-    this.noiseBuffer = buffer;
+    this.pinkNoise = buffer;
     return buffer;
   }
 }

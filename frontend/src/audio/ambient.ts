@@ -6,18 +6,21 @@
  *     each followed by a rest, so no tone sits unchanged and the harmony drifts;
  *   - wind: pink noise through a band that slowly wanders, so the air breathes.
  *
- * Each view has its own pitch set, register and colour. Every choice of note,
- * length, rest and pan comes from a seeded stream, so a view always unfolds
+ * Each view has its own pitch set, register and colour; the universe (scene.ts)
+ * sets the key they share: the tonic, the scale every note is moved to, and
+ * the pace. Every choice of note, length, rest and pan comes from a stream
+ * seeded by the universe and the view, so a view of a universe always unfolds
  * the same way from the moment it opens. Nothing here should demand attention.
  */
 
 import { audioEngine } from "./engine";
 import { createRNG, mixSeed, type RNG } from "../simulation/rng";
+import { DEFAULT_KEY, rootFor, snapToScale, type UniverseKey } from "./scene";
 
 interface AmbientProfile {
-  /** Lowest note, as a MIDI number (57 = A3 = 220 Hz) */
-  rootMidi:     number;
-  /** Notes voices may choose, in semitones above the root */
+  /** The bed's root is the key's tonic in the octave from here (MIDI; 57 = A3 = 220 Hz) */
+  registerMidi: number;
+  /** Notes voices may choose, in semitones above the root, before moving to the key's scale */
   intervals:    number[];
   /** Voices that may sound at once */
   voices:       number;
@@ -35,41 +38,41 @@ interface AmbientProfile {
   gain:         number;
 }
 
-// Each view context has a distinct character. Roots sit at or above ~110 Hz
+// Each view context has a distinct character. Registers sit at or above ~110 Hz
 // so the bed is heard on small speakers; the colour comes from the interval set.
 const PROFILES: Record<string, AmbientProfile> = {
   galaxy: {        // open fifths and ninths: wide, unresolved
-    rootMidi: 50, intervals: [0, 7, 12, 14, 19, 24],
+    registerMidi: 50, intervals: [0, 7, 12, 14, 19, 24],
     voices: 3, swellSeconds: [14, 26], restSeconds: [3, 10],
     brightness: 3.0, windBand: [300, 1400], windGain: 0.5, gain: 0.9,
   },
   system: {        // fourths: a little closer, a little brighter
-    rootMidi: 52, intervals: [0, 5, 7, 12, 17, 19],
+    registerMidi: 52, intervals: [0, 5, 7, 12, 17, 19],
     voices: 3, swellSeconds: [12, 22], restSeconds: [3, 9],
     brightness: 3.5, windBand: [400, 1800], windGain: 0.4, gain: 0.85,
   },
   planet: {
-    rootMidi: 53, intervals: [0, 7, 9, 12, 16, 19],
+    registerMidi: 53, intervals: [0, 7, 9, 12, 16, 19],
     voices: 3, swellSeconds: [12, 22], restSeconds: [3, 9],
     brightness: 3.5, windBand: [250, 1200], windGain: 0.7, gain: 0.85,
   },
   biosphere: {     // major sixths: warm
-    rootMidi: 48, intervals: [0, 4, 7, 9, 12, 16],
+    registerMidi: 48, intervals: [0, 4, 7, 9, 12, 16],
     voices: 3, swellSeconds: [10, 20], restSeconds: [2, 8],
     brightness: 4.0, windBand: [500, 2200], windGain: 0.45, gain: 0.85,
   },
   civilization: {  // pentatonic: ordered, human
-    rootMidi: 50, intervals: [0, 2, 7, 9, 12, 14],
+    registerMidi: 50, intervals: [0, 2, 7, 9, 12, 14],
     voices: 3, swellSeconds: [10, 18], restSeconds: [2, 7],
     brightness: 4.0, windBand: [400, 1600], windGain: 0.35, gain: 0.8,
   },
   timeline: {      // minor, slow: deep time
-    rootMidi: 45, intervals: [0, 7, 10, 12, 15, 19],
+    registerMidi: 45, intervals: [0, 7, 10, 12, 15, 19],
     voices: 2, swellSeconds: [18, 30], restSeconds: [4, 12],
     brightness: 2.5, windBand: [200, 900], windGain: 0.6, gain: 0.9,
   },
   laboratory: {    // sparse and clear
-    rootMidi: 55, intervals: [0, 2, 7, 12, 14],
+    registerMidi: 55, intervals: [0, 2, 7, 12, 14],
     voices: 2, swellSeconds: [10, 18], restSeconds: [3, 9],
     brightness: 4.5, windBand: [600, 2400], windGain: 0.3, gain: 0.8,
   },
@@ -77,7 +80,7 @@ const PROFILES: Record<string, AmbientProfile> = {
 
 const VIEW_ORDER = Object.keys(PROFILES);
 
-const AMBIENT_SEED  = 0xA3B1E7;  // fixed: a view always opens the same way
+const AMBIENT_SEED  = 0xA3B1E7;  // with the universe seed: a view always opens the same way
 const VOICE_PEAK    = 0.06;      // one swell's peak gain
 const DETUNE_CENTS  = 6;         // the two oscillators of a voice drift apart by this
 const WIND_LEVEL    = 0.06;      // wind gain at windGain = 1
@@ -96,6 +99,9 @@ const STOP_FADE_TAU = 1.5;  // seconds (time constant) when sound is turned off
 /** One view's sound: swells and wind sharing a gain, built and retired together. */
 interface Bed {
   profile:   AmbientProfile;
+  key:       UniverseKey;
+  /** MIDI note of the bed's root: the key's tonic in the profile's register */
+  root:      number;
   rng:       RNG;
   gain:      GainNode;
   /** Audio-clock time each voice slot is free to start its next swell */
@@ -115,6 +121,7 @@ class AmbientLayer {
   private bed:        Bed | null = null;
   private pinkNoise:  AudioBuffer | null = null;
   private currentContext = "galaxy";
+  private key: UniverseKey = DEFAULT_KEY;
   private running = false;
 
   start(): void {
@@ -130,6 +137,15 @@ class AmbientLayer {
     this.bed = null;
   }
 
+  /** A new universe opens in `context`: its key replaces the old one, crossfading if sound is playing. */
+  setUniverse(key: UniverseKey, context: string): void {
+    this.key = key;
+    this.currentContext = context;
+    if (!this.running) return;
+    if (this.bed) this.retire(this.bed, FADE_OUT_TAU);
+    this.bed = this.buildBed(this.currentContext);
+  }
+
   setContext(context: string): void {
     if (context === this.currentContext || !this.running) return;
     this.currentContext = context;
@@ -143,7 +159,9 @@ class AmbientLayer {
     const layerGain = audioEngine.layerGain("ambient");
     if (!ctx || !layerGain) return null;
     const profile = PROFILES[context] ?? PROFILES.galaxy;
-    const rng = createRNG(mixSeed(AMBIENT_SEED, Math.max(0, VIEW_ORDER.indexOf(context))));
+    const key = this.key;
+    const root = rootFor(profile.registerMidi, key.tonic);
+    const rng = createRNG(mixSeed(AMBIENT_SEED, key.seed, Math.max(0, VIEW_ORDER.indexOf(context))));
 
     const gain = ctx.createGain();
     gain.gain.value = 0;
@@ -158,7 +176,7 @@ class AmbientLayer {
     const nextStart = Array.from({ length: profile.voices }, (_, i) => now + i * between(rng, [0.3, 1.2]));
     const started = nextStart.map(() => false);
 
-    const bed: Bed = { profile, rng, gain, nextStart, started, windAt: now, windBand, sources };
+    const bed: Bed = { profile, key, root, rng, gain, nextStart, started, windAt: now, windBand, sources };
     bed.timer = setInterval(() => this.schedule(bed), TICK_MS);
     this.schedule(bed);
     return bed;
@@ -173,10 +191,10 @@ class AmbientLayer {
     for (let slot = 0; slot < bed.nextStart.length; slot++) {
       while (bed.nextStart[slot] < horizon) {
         const start = Math.max(bed.nextStart[slot], ctx.currentTime);
-        const length = between(bed.rng, bed.profile.swellSeconds);
+        const length = between(bed.rng, bed.profile.swellSeconds) * bed.key.pace;
         this.swell(ctx, bed, start, length, bed.started[slot] ? undefined : FIRST_RISE_S);
         bed.started[slot] = true;
-        bed.nextStart[slot] = start + length + between(bed.rng, bed.profile.restSeconds);
+        bed.nextStart[slot] = start + length + between(bed.rng, bed.profile.restSeconds) * bed.key.pace;
       }
     }
 
@@ -192,9 +210,9 @@ class AmbientLayer {
    * the voice rises and closes as it fades, so it brightens and darkens like a breath.
    */
   private swell(ctx: AudioContext, bed: Bed, start: number, length: number, quickRise?: number): void {
-    const { profile, rng } = bed;
-    const interval = profile.intervals[Math.floor(rng() * profile.intervals.length)];
-    const freq = midiToHz(profile.rootMidi + interval);
+    const { profile, key, rng } = bed;
+    const interval = snapToScale(profile.intervals[Math.floor(rng() * profile.intervals.length)], key.scale);
+    const freq = midiToHz(bed.root + interval);
     const slowRise = length * between(rng, [0.3, 0.45]);
     const rise = quickRise ?? slowRise;
     const fade = length * between(rng, [0.35, 0.5]);

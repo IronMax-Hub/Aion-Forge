@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { audioEngine, ambientLayer, discovery, ui, lab, civLayer } from "./audio";
+import { audioEngine, ambientLayer, universeKey, discovery, ui, lab, civLayer } from "./audio";
 import { AudioControls } from "./ui/AudioControls";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
 import type { PlanetSight, ViewScale } from "./rendering/UniverseRenderer";
@@ -225,7 +225,7 @@ export default function App() {
       });
       setIsGenerating(false);
       ui.universeLoad();
-      ambientLayer.setContext("galaxy");
+      ambientLayer.setUniverse(universeKey(s, galaxyCfg.type), "galaxy");
       // Survey life off the main thread: it feeds the snapshot and the life markers
       surveyClient.request(s, config, {
         onProgress: setSurveyProgress,

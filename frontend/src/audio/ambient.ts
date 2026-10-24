@@ -8,14 +8,14 @@
  *
  * Each view has its own pitch set, register and colour; the universe (scene.ts)
  * sets the key they share: the tonic, the scale every note is moved to, and
- * the pace. Every choice of note, length, rest and pan comes from a stream
+ * the pace. What a view is looking at (a star, a planet) colours its bed further. Every choice of note, length, rest and pan comes from a stream
  * seeded by the universe and the view, so a view of a universe always unfolds
  * the same way from the moment it opens. Nothing here should demand attention.
  */
 
 import { audioEngine } from "./engine";
 import { createRNG, mixSeed, type RNG } from "../simulation/rng";
-import { DEFAULT_KEY, rootFor, snapToScale, type UniverseKey } from "./scene";
+import { DEFAULT_KEY, rootFor, snapToScale, type UniverseKey, type ViewColour } from "./scene";
 
 interface AmbientProfile {
   /** The bed's root is the key's tonic in the octave from here (MIDI; 57 = A3 = 220 Hz) */
@@ -34,6 +34,8 @@ interface AmbientProfile {
   windBand:     [number, number];
   /** Wind level relative to the voices */
   windGain:     number;
+  /** 0–1: how deeply the wind rises and falls, like waves */
+  waves?:       number;
   /** Overall bed gain */
   gain:         number;
 }
@@ -54,7 +56,7 @@ const PROFILES: Record<string, AmbientProfile> = {
   planet: {
     registerMidi: 53, intervals: [0, 7, 9, 12, 16, 19],
     voices: 3, swellSeconds: [12, 22], restSeconds: [3, 9],
-    brightness: 3.5, windBand: [250, 1200], windGain: 0.7, gain: 0.85,
+    brightness: 3.5, windBand: [250, 1200], windGain: 1.0, gain: 0.85,
   },
   biosphere: {     // major sixths: warm
     registerMidi: 48, intervals: [0, 4, 7, 9, 12, 16],
@@ -80,11 +82,26 @@ const PROFILES: Record<string, AmbientProfile> = {
 
 const VIEW_ORDER = Object.keys(PROFILES);
 
+/** A view's profile as coloured by what it is looking at. */
+function coloured(p: AmbientProfile, c: ViewColour): AmbientProfile {
+  const shade = c.windShade ?? 1;
+  return {
+    ...p,
+    registerMidi: p.registerMidi + (c.registerShift ?? 0),
+    voices:       c.voices ?? p.voices,
+    brightness:   p.brightness * (c.brightness ?? 1),
+    windGain:     p.windGain * (c.wind ?? 1),
+    windBand:     [p.windBand[0] * shade, p.windBand[1] * shade],
+    waves:        c.waves ?? p.waves,
+  };
+}
+
 const AMBIENT_SEED  = 0xA3B1E7;  // with the universe seed: a view always opens the same way
 const VOICE_PEAK    = 0.06;      // one swell's peak gain
 const DETUNE_CENTS  = 6;         // the two oscillators of a voice drift apart by this
 const WIND_LEVEL    = 0.06;      // wind gain at windGain = 1
 const WIND_MOVE_S   = [4, 9];    // seconds between the wind band's moves
+const WAVE_PERIOD_S = [7, 12];   // seconds for the wind to rise and fall once over an ocean
 const MAX_PAN       = 0.7;       // voices spread across the stereo field
 const FIRST_RISE_S  = 2;         // a new bed's first swells rise this fast, so a view change has no gap
 
@@ -122,6 +139,8 @@ class AmbientLayer {
   private pinkNoise:  AudioBuffer | null = null;
   private currentContext = "galaxy";
   private key: UniverseKey = DEFAULT_KEY;
+  /** The last colour each view was given, kept until a new universe */
+  private colours = new Map<string, ViewColour>();
   private running = false;
 
   start(): void {
@@ -140,15 +159,23 @@ class AmbientLayer {
   /** A new universe opens in `context`: its key replaces the old one, crossfading if sound is playing. */
   setUniverse(key: UniverseKey, context: string): void {
     this.key = key;
+    this.colours.clear();
     this.currentContext = context;
     if (!this.running) return;
     if (this.bed) this.retire(this.bed, FADE_OUT_TAU);
     this.bed = this.buildBed(this.currentContext);
   }
 
-  setContext(context: string): void {
-    if (context === this.currentContext || !this.running) return;
+  /**
+   * Show a view, coloured by what it looks at. Without a colour the view keeps
+   * the one it was last given, so returning to a system sounds like that system.
+   */
+  setContext(context: string, colour?: ViewColour): void {
+    const changed = context !== this.currentContext
+      || (colour !== undefined && colour.subject !== this.colours.get(context)?.subject);
+    if (colour) this.colours.set(context, colour);
     this.currentContext = context;
+    if (!changed || !this.running) return;
     // Crossfade: the new bed swells in while the old one fades, with no gap between.
     if (this.bed) this.retire(this.bed, FADE_OUT_TAU);
     this.bed = this.buildBed(context);
@@ -158,10 +185,12 @@ class AmbientLayer {
     const ctx = audioEngine.context;
     const layerGain = audioEngine.layerGain("ambient");
     if (!ctx || !layerGain) return null;
-    const profile = PROFILES[context] ?? PROFILES.galaxy;
+    const colour = this.colours.get(context) ?? {};
+    const profile = coloured(PROFILES[context] ?? PROFILES.galaxy, colour);
     const key = this.key;
     const root = rootFor(profile.registerMidi, key.tonic);
-    const rng = createRNG(mixSeed(AMBIENT_SEED, key.seed, Math.max(0, VIEW_ORDER.indexOf(context))));
+    const view = Math.max(0, VIEW_ORDER.indexOf(context));
+    const rng = createRNG(mixSeed(AMBIENT_SEED, key.seed, view, colour.subject ?? 0));
 
     const gain = ctx.createGain();
     gain.gain.value = 0;
@@ -169,7 +198,7 @@ class AmbientLayer {
     gain.gain.setTargetAtTime(profile.gain, ctx.currentTime, FADE_IN_TAU);
 
     const sources = new Set<AudioScheduledSourceNode>();
-    const windBand = this.buildWind(ctx, gain, profile, sources);
+    const windBand = this.buildWind(ctx, gain, profile, rng, sources);
 
     // Stagger the first swells a little so the voices do not enter together.
     const now = ctx.currentTime;
@@ -250,11 +279,15 @@ class AmbientLayer {
     }
   }
 
-  /** Looping pink noise through a wandering band. Returns the band filter. */
+  /**
+   * Looping pink noise through a wandering band; over an ocean its level rises
+   * and falls like waves. Returns the band filter.
+   */
   private buildWind(
     ctx: AudioContext,
     output: GainNode,
     profile: AmbientProfile,
+    rng: RNG,
     sources: Set<AudioScheduledSourceNode>,
   ): BiquadFilterNode {
     const source = ctx.createBufferSource();
@@ -266,8 +299,23 @@ class AmbientLayer {
     band.Q.value = 0.8;
     band.frequency.value = profile.windBand[0];
 
+    const full = WIND_LEVEL * profile.windGain;
+    const waves = profile.waves ?? 0;
     const level = ctx.createGain();
-    level.gain.value = WIND_LEVEL * profile.windGain;
+    level.gain.value = full * (1 - waves / 2);
+
+    // Waves: a slow sine swings the level between full and (1 − waves) of full.
+    const wavePeriod = between(rng, WAVE_PERIOD_S);
+    if (waves > 0) {
+      const swing = ctx.createOscillator();
+      swing.frequency.value = 1 / wavePeriod;
+      const depth = ctx.createGain();
+      depth.gain.value = full * waves / 2;
+      swing.connect(depth);
+      depth.connect(level.gain);
+      swing.start();
+      sources.add(swing);
+    }
 
     source.connect(band);
     band.connect(level);

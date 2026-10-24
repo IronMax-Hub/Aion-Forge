@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { audioEngine, ambientLayer, universeKey, discovery, ui, lab, civLayer } from "./audio";
+import { audioEngine, ambientLayer, universeKey, systemColour, planetColour, discovery, ui, lab, civLayer } from "./audio";
 import { AudioControls } from "./ui/AudioControls";
 import { UniverseRenderer } from "./rendering/UniverseRenderer";
 import type { PlanetSight, ViewScale } from "./rendering/UniverseRenderer";
@@ -510,6 +510,7 @@ export default function App() {
     setSelectedSpecies(null);
     setView("system");
     setOrbiting(true);
+    ambientLayer.setContext("planet", planetColour(planet.key, planet.surface?.pressureBar ?? null, planet.surface?.oceanFraction ?? 0));
     // The planet's own star: the system view keeps this callback, so it must not read the selection
     const star = populationRef.current?.stars[planet.hostStarId];
     if (star) {
@@ -569,7 +570,7 @@ export default function App() {
     setSelectedBiosphere(null);
     setView("system");
     ui.panelOpen();
-    ambientLayer.setContext("system");
+    ambientLayer.setContext("system", systemColour(String(star.id), star.temperature, system.planets.length));
 
     rendererRef.current.renderPlanetarySystem(system, star, (planet, moonIndex) => {
       setSelectedPlanet(planet);
@@ -634,6 +635,7 @@ export default function App() {
     setOrbiting(false);
     rendererRef.current?.leavePlanetView();
     ui.back();
+    ambientLayer.setContext("system");
   }
 
   // The selected solid planet's world, for the planet panel's Surface section (Worlds Up Close A10):
@@ -785,7 +787,7 @@ export default function App() {
     setSelectedSpecies(null);
     setView("system");
     ui.back();
-    ambientLayer.setContext("system");
+    ambientLayer.setContext(orbiting ? "planet" : "system");
     civLayer.deactivate();
   };
 
@@ -839,7 +841,7 @@ export default function App() {
     const opening = !showTimeline;
     setShowTimeline((v) => !v);
     if (opening) { ui.panelOpen(); ambientLayer.setContext("timeline"); }
-    else         { ui.panelClose(); ambientLayer.setContext(view === "civilization" ? "civilization" : view === "biosphere" ? "biosphere" : view === "system" ? "system" : "galaxy"); }
+    else         { ui.panelClose(); ambientLayer.setContext(view === "civilization" ? "civilization" : view === "biosphere" ? "biosphere" : view === "system" ? (orbiting ? "planet" : "system") : "galaxy"); }
   };
 
   let statusText = "Ready";

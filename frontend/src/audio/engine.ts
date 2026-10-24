@@ -9,6 +9,8 @@
  * This reflects the emergence philosophy: complexity from simple rules.
  */
 
+import { createRNG } from "../simulation/rng";
+
 export type AudioLayer = "ambient" | "discovery" | "interface" | "civilization";
 
 export interface AudioPreferences {
@@ -28,6 +30,90 @@ const DEFAULT_PREFS: AudioPreferences = {
 };
 
 const PREFS_KEY = "aion-forge-audio-prefs";
+
+// ── Shared output bus ─────────────────────────────────────────────────────────
+//
+// Every layer feeds one chain, so all sounds share a room and a safe ceiling:
+//
+//   layers → bus ─┬──────────────── low cut → glue compressor → makeup → limiter → master
+//                 └→ reverb send → room ┘
+//
+// The low cut removes rumble below what speakers play (it was heard as mud);
+// the limiter lets the makeup gain raise the overall level without clipping
+// when several sounds overlap.
+
+const LOW_CUT_HZ        = 60;    // 12 dB/octave below this
+const REVERB_SEND       = 0.3;   // share of each sound sent into the room
+const ROOM_SECONDS      = 3.2;   // reverb tail length
+const ROOM_DECAY_PER_S  = 2.2;   // tail falls by e^(−this·t)
+const ROOM_SEED         = 0xA0D10;  // fixed: the room sounds the same every session
+const MAKEUP_GAIN       = 2.0;   // ≈ +6 dB before the limiter
+const LIMIT_THRESHOLD_DB = -3;
+
+/** Build the shared chain into `output`; returns the node layers connect to. */
+function buildOutputBus(ctx: AudioContext, output: AudioNode): GainNode {
+  const bus = ctx.createGain();
+
+  const lowCut = ctx.createBiquadFilter();
+  lowCut.type = "highpass";
+  lowCut.frequency.value = LOW_CUT_HZ;
+  lowCut.Q.value = Math.SQRT1_2;
+
+  const send = ctx.createGain();
+  send.gain.value = REVERB_SEND;
+  const room = ctx.createConvolver();
+  room.buffer = roomImpulse(ctx);
+
+  bus.connect(lowCut);
+  bus.connect(send);
+  send.connect(room);
+  room.connect(lowCut);
+
+  const glue = ctx.createDynamicsCompressor();
+  glue.threshold.value = -24;
+  glue.knee.value = 12;
+  glue.ratio.value = 2.5;
+  glue.attack.value = 0.03;
+  glue.release.value = 0.3;
+
+  const makeup = ctx.createGain();
+  makeup.gain.value = MAKEUP_GAIN;
+
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = LIMIT_THRESHOLD_DB;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.1;
+
+  lowCut.connect(glue);
+  glue.connect(makeup);
+  makeup.connect(limiter);
+  limiter.connect(output);
+  return bus;
+}
+
+/**
+ * A synthetic room: decaying noise, separate for left and right so the tail
+ * spreads in stereo, growing darker as it fades the way air absorbs highs.
+ */
+function roomImpulse(ctx: AudioContext): AudioBuffer {
+  const length = Math.floor(ctx.sampleRate * ROOM_SECONDS);
+  const buffer = ctx.createBuffer(2, length, ctx.sampleRate);
+  const rng = createRNG(ROOM_SEED);
+
+  for (let channel = 0; channel < 2; channel++) {
+    const data = buffer.getChannelData(channel);
+    let smoothed = 0;
+    for (let i = 0; i < length; i++) {
+      const t = i / ctx.sampleRate;
+      const brightness = 0.9 * Math.exp(-t / 0.8) + 0.08;  // one-pole lowpass coefficient
+      smoothed += brightness * ((rng() * 2 - 1) - smoothed);
+      data[i] = smoothed * Math.exp(-ROOM_DECAY_PER_S * t);
+    }
+  }
+  return buffer;
+}
 
 // ── Singleton audio engine ────────────────────────────────────────────────────
 
@@ -53,11 +139,11 @@ class AionAudioEngine {
 
     this.masterGain = this.ctx.createGain();
     this.masterGain.connect(this.ctx.destination);
-    this.applyPrefs();
+    const bus = buildOutputBus(this.ctx, this.masterGain);
 
     for (const layer of ["ambient", "discovery", "interface", "civilization"] as AudioLayer[]) {
       const g = this.ctx.createGain();
-      g.connect(this.masterGain);
+      g.connect(bus);
       this.layerGains.set(layer, g);
     }
 

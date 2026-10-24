@@ -90,98 +90,88 @@ const PROFILES: Record<string, AmbientProfile> = {
   },
 };
 
+/** One view's sound: drones and noise sharing a gain, built and retired together. */
+interface Bed {
+  gain:    GainNode;
+  voices:  AmbientVoice[];
+  noise:   AudioBufferSourceNode | null;
+}
+
+const FADE_IN_TAU   = 1.5;  // seconds (time constant) for a new bed to swell in
+const FADE_OUT_TAU  = 1.0;  // seconds (time constant) for an old bed to fade away
+const RETIRE_AFTER  = 6;    // seconds until a fading bed's sources stop (≈ 6 τ: silent)
+const STOP_FADE_TAU = 1.5;  // seconds (time constant) when sound is turned off
+
 class AmbientLayer {
-  private voices:    AmbientVoice[] = [];
-  private noiseNode: AudioBufferSourceNode | null = null;
-  private noiseGain: GainNode | null = null;
-  private masterGain: GainNode | null = null;
+  private bed:          Bed | null = null;
+  private noiseBuffer:  AudioBuffer | null = null;
   private currentContext = "galaxy";
   private running = false;
 
   start(): void {
     if (this.running || !audioEngine.isReady) return;
     this.running = true;
-    const ctx = audioEngine.context!;
-    const layerGain = audioEngine.layerGain("ambient");
-    if (!layerGain) return;
-
-    // Route everything through a layer-level gain
-    this.masterGain = ctx.createGain();
-    this.masterGain.gain.value = 0;
-    this.masterGain.connect(layerGain);
-
-    this.applyProfile(PROFILES[this.currentContext], false);
-
-    // Fade in gently
-    this.masterGain.gain.setTargetAtTime(1, ctx.currentTime, 2.0);
+    this.bed = this.buildBed(PROFILES[this.currentContext]);
   }
 
   stop(): void {
     if (!this.running) return;
     this.running = false;
-    if (this.masterGain && audioEngine.context) {
-      const now = audioEngine.context.currentTime;
-      this.masterGain.gain.setTargetAtTime(0, now, 1.5);
-      setTimeout(() => this.teardown(), 5000);
-    }
+    if (this.bed) this.retire(this.bed, STOP_FADE_TAU);
+    this.bed = null;
   }
 
   setContext(context: string): void {
     if (context === this.currentContext || !this.running) return;
     this.currentContext = context;
-    const profile = PROFILES[context] ?? PROFILES.galaxy;
-    this.crossfadeTo(profile);
+    // Crossfade: the new bed swells in while the old one fades, with no gap between.
+    if (this.bed) this.retire(this.bed, FADE_OUT_TAU);
+    this.bed = this.buildBed(PROFILES[context] ?? PROFILES.galaxy);
   }
 
-  private applyProfile(profile: AmbientProfile, fade: boolean): void {
+  private buildBed(profile: AmbientProfile): Bed | null {
     const ctx = audioEngine.context;
-    if (!ctx || !this.masterGain) return;
+    const layerGain = audioEngine.layerGain("ambient");
+    if (!ctx || !layerGain) return null;
 
-    // Set master gain for this profile
-    const now = ctx.currentTime;
-    if (fade) {
-      this.masterGain.gain.setTargetAtTime(profile.gain, now, 1.5);
-    } else {
-      this.masterGain.gain.value = profile.gain;
-    }
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(layerGain);
+    gain.gain.setTargetAtTime(profile.gain, ctx.currentTime, FADE_IN_TAU);
 
-    // Build drone oscillators
-    this.clearVoices();
-    for (const freq of profile.drones) {
-      const voice = this.buildDrone(ctx, freq, profile.lfoRate, profile.lfoDepth);
-      if (voice) this.voices.push(voice);
-    }
-
-    // Build filtered noise
-    this.buildNoise(ctx, profile.noiseCutoff, profile.noiseGain);
+    const voices = profile.drones.map((freq) =>
+      this.buildDrone(ctx, gain, freq, profile.lfoRate, profile.lfoDepth));
+    const noise = this.buildNoise(ctx, gain, profile.noiseCutoff, profile.noiseGain);
+    return { gain, voices, noise };
   }
 
-  private crossfadeTo(profile: AmbientProfile): void {
+  /** Fade a bed out and stop its sources once it is silent. */
+  private retire(bed: Bed, fadeTau: number): void {
     const ctx = audioEngine.context;
-    if (!ctx || !this.masterGain) return;
-
+    if (!ctx) return;
     const now = ctx.currentTime;
-    // Fade out current
-    this.masterGain.gain.setTargetAtTime(0, now, 0.8);
-
-    setTimeout(() => {
-      this.clearVoices();
-      this.clearNoise();
-      this.applyProfile(profile, true);
-    }, 1200);
+    bed.gain.gain.cancelScheduledValues(now);
+    bed.gain.gain.setTargetAtTime(0, now, fadeTau);
+    const stopAt = now + RETIRE_AFTER * fadeTau;
+    for (const v of bed.voices) {
+      v.osc.stop(stopAt);
+      v.lfo?.stop(stopAt);
+    }
+    bed.noise?.stop(stopAt);
+    const last = bed.noise ?? bed.voices[0]?.osc;
+    if (last) last.onended = () => bed.gain.disconnect();
   }
 
   private buildDrone(
     ctx: AudioContext,
+    output: GainNode,
     baseFreq: number,
     lfoRate: number,
     lfoDepth: number,
-  ): AmbientVoice | null {
-    if (!this.masterGain) return null;
-
+  ): AmbientVoice {
     const gainNode = ctx.createGain();
     gainNode.gain.value = 0.06 + Math.random() * 0.03;
-    gainNode.connect(this.masterGain);
+    gainNode.connect(output);
 
     const osc = ctx.createOscillator();
     osc.type = "sine";
@@ -204,20 +194,14 @@ class AmbientLayer {
     return { osc, gainNode, lfo, lfoGain };
   }
 
-  private buildNoise(ctx: AudioContext, cutoff: number, gain: number): void {
-    if (!this.masterGain) return;
-    this.clearNoise();
-
-    // Generate white noise buffer (4 seconds, looped)
-    const bufferSize = ctx.sampleRate * 4;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-
+  private buildNoise(
+    ctx: AudioContext,
+    output: GainNode,
+    cutoff: number,
+    gain: number,
+  ): AudioBufferSourceNode {
     const source = ctx.createBufferSource();
-    source.buffer = buffer;
+    source.buffer = this.whiteNoise(ctx);
     source.loop = true;
 
     const filter = ctx.createBiquadFilter();
@@ -230,32 +214,22 @@ class AmbientLayer {
 
     source.connect(filter);
     filter.connect(noiseGainNode);
-    noiseGainNode.connect(this.masterGain);
+    noiseGainNode.connect(output);
     source.start();
-
-    this.noiseNode = source;
-    this.noiseGain = noiseGainNode;
+    return source;
   }
 
-  private clearVoices(): void {
-    for (const v of this.voices) {
-      try { v.osc.stop(); v.gainNode.disconnect(); } catch { /* already stopped */ }
-      if (v.lfo) { try { v.lfo.stop(); } catch { /* ignore */ } }
+  /** White noise, 4 seconds, made once and looped by every bed. */
+  private whiteNoise(ctx: AudioContext): AudioBuffer {
+    if (this.noiseBuffer) return this.noiseBuffer;
+    const bufferSize = ctx.sampleRate * 4;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
     }
-    this.voices = [];
-  }
-
-  private clearNoise(): void {
-    try { this.noiseNode?.stop(); this.noiseGain?.disconnect(); } catch { /* ignore */ }
-    this.noiseNode = null;
-    this.noiseGain = null;
-  }
-
-  private teardown(): void {
-    this.clearVoices();
-    this.clearNoise();
-    try { this.masterGain?.disconnect(); } catch { /* ignore */ }
-    this.masterGain = null;
+    this.noiseBuffer = buffer;
+    return buffer;
   }
 }
 

@@ -8,15 +8,25 @@
 import { audioEngine } from "./engine";
 
 // ── Shared synthesis helper ───────────────────────────────────────────────────
+//
+// Notes are placed on the audio clock (`delay` seconds from now), not with
+// timers, so chords and runs land exactly where they are written.
+
+type Layer = Parameters<typeof audioEngine.createOscillator>[0];
+
+interface ToneShape {
+  type?:    OscillatorType;
+  attack?:  number;   // seconds to reach full gain
+  release?: number;   // seconds of fade at the end (default half the duration)
+  delay?:   number;   // seconds from now
+}
 
 function tone(
-  freq:    number,
-  gainVal: number,
+  freq:     number,
+  gainVal:  number,
   duration: number,
-  layer:   Parameters<typeof audioEngine.createOscillator>[0],
-  type:    OscillatorType = "sine",
-  attackTime  = 0.02,
-  releaseTime = duration * 0.5,
+  layer:    Layer,
+  { type = "sine", attack = 0.02, release = duration * 0.5, delay = 0 }: ToneShape = {},
 ): void {
   const ctx = audioEngine.context;
   if (!ctx) return;
@@ -24,28 +34,26 @@ function tone(
   if (!result) return;
 
   const { osc, gain } = result;
-  const now = ctx.currentTime;
+  const start = ctx.currentTime + delay;
 
-  gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(gainVal, now + attackTime);
-  gain.gain.setTargetAtTime(0, now + duration - releaseTime, releaseTime / 3);
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(gainVal, start + attack);
+  gain.gain.setTargetAtTime(0, start + duration - release, release / 3);
 
-  osc.start(now);
-  osc.stop(now + duration + 0.1);
+  osc.start(start);
+  osc.stop(start + duration + 0.1);
+  osc.onended = () => gain.disconnect();
 }
 
 function chord(
   freqs:    number[],
   gainVal:  number,
   duration: number,
-  layer:    Parameters<typeof audioEngine.createOscillator>[0],
+  layer:    Layer,
   stagger   = 0.06,
+  delay     = 0,
 ): void {
-  const ctx = audioEngine.context;
-  if (!ctx) return;
-  freqs.forEach((f, i) => {
-    setTimeout(() => tone(f, gainVal, duration, layer), i * stagger * 1000);
-  });
+  freqs.forEach((f, i) => tone(f, gainVal, duration, layer, { delay: delay + i * stagger }));
 }
 
 // ── Discovery sounds — ENH-104 ────────────────────────────────────────────────
@@ -59,32 +67,32 @@ export const discovery = {
   firstLife(): void {
     // Something stirs — a soft, wondering tone cluster
     chord([196, 261.63, 329.63], 0.07, 3.5, "discovery", 0.12);
-    setTimeout(() => tone(523.25, 0.04, 2.0, "discovery"), 600);
+    tone(523.25, 0.04, 2.0, "discovery", { delay: 0.6 });
   },
 
   ancientBiosphere(): void {
     // Deep, resonant — life has endured
     tone(65.4, 0.08, 4.0, "discovery");
-    setTimeout(() => tone(130.8, 0.05, 3.0, "discovery"), 800);
+    tone(130.8, 0.05, 3.0, "discovery", { delay: 0.8 });
   },
 
   civilizationMilestone(): void {
     // A single clear tone, then harmonic — intelligence observed
     tone(440, 0.05, 1.5, "discovery");
-    setTimeout(() => tone(660, 0.04, 1.8, "discovery"), 400);
+    tone(660, 0.04, 1.8, "discovery", { delay: 0.4 });
   },
 
   historicRecovery(): void {
     // Collapse survived — rising minor resolution
     tone(293.66, 0.06, 2.0, "discovery");
-    setTimeout(() => tone(369.99, 0.05, 2.2, "discovery"), 300);
-    setTimeout(() => tone(440, 0.06, 2.5, "discovery"), 700);
+    tone(369.99, 0.05, 2.2, "discovery", { delay: 0.3 });
+    tone(440, 0.06, 2.5, "discovery", { delay: 0.7 });
   },
 
   extraordinaryExperiment(): void {
     // Something unexpected — a soft dissonance that resolves
     chord([440, 466.16], 0.05, 1.5, "discovery");
-    setTimeout(() => chord([440, 523.25], 0.05, 2.0, "discovery"), 800);
+    chord([440, 523.25], 0.05, 2.0, "discovery", 0.06, 0.8);
   },
 
   remarkableCivilization(): void {
@@ -97,48 +105,48 @@ export const discovery = {
 
 export const ui = {
   click(): void {
-    tone(880, 0.025, 0.12, "interface", "sine", 0.005, 0.08);
+    tone(880, 0.025, 0.12, "interface", { attack: 0.005, release: 0.08 });
   },
 
   panelOpen(): void {
-    tone(660, 0.03, 0.25, "interface", "sine", 0.01, 0.15);
-    setTimeout(() => tone(880, 0.02, 0.2, "interface"), 80);
+    tone(660, 0.03, 0.25, "interface", { attack: 0.01, release: 0.15 });
+    tone(880, 0.02, 0.2, "interface", { delay: 0.08 });
   },
 
   panelClose(): void {
-    tone(880, 0.025, 0.15, "interface", "sine", 0.005, 0.12);
-    setTimeout(() => tone(660, 0.015, 0.2, "interface"), 60);
+    tone(880, 0.025, 0.15, "interface", { attack: 0.005, release: 0.12 });
+    tone(660, 0.015, 0.2, "interface", { delay: 0.06 });
   },
 
   inspect(): void {
-    tone(523.25, 0.025, 0.2, "interface", "sine", 0.008, 0.14);
+    tone(523.25, 0.025, 0.2, "interface", { attack: 0.008, release: 0.14 });
   },
 
   universeLoad(): void {
     // A gentle descent — reality taking shape
     tone(440, 0.04, 0.8, "interface");
-    setTimeout(() => tone(330, 0.035, 0.8, "interface"), 200);
-    setTimeout(() => tone(261.63, 0.04, 1.2, "interface"), 500);
+    tone(330, 0.035, 0.8, "interface", { delay: 0.2 });
+    tone(261.63, 0.04, 1.2, "interface", { delay: 0.5 });
   },
 
   save(): void {
-    tone(523.25, 0.03, 0.3, "interface", "sine", 0.01, 0.2);
-    setTimeout(() => tone(659.25, 0.025, 0.4, "interface"), 150);
+    tone(523.25, 0.03, 0.3, "interface", { attack: 0.01, release: 0.2 });
+    tone(659.25, 0.025, 0.4, "interface", { delay: 0.15 });
   },
 
   restore(): void {
-    tone(392, 0.03, 0.4, "interface", "sine", 0.01, 0.25);
-    setTimeout(() => tone(523.25, 0.03, 0.5, "interface"), 200);
+    tone(392, 0.03, 0.4, "interface", { attack: 0.01, release: 0.25 });
+    tone(523.25, 0.03, 0.5, "interface", { delay: 0.2 });
   },
 
   back(): void {
-    tone(523.25, 0.02, 0.15, "interface", "sine", 0.005, 0.1);
-    setTimeout(() => tone(440, 0.018, 0.15, "interface"), 60);
+    tone(523.25, 0.02, 0.15, "interface", { attack: 0.005, release: 0.1 });
+    tone(440, 0.018, 0.15, "interface", { delay: 0.06 });
   },
 
   baseline(): void {
     tone(349.23, 0.03, 0.5, "interface");
-    setTimeout(() => tone(440, 0.025, 0.5, "interface"), 180);
+    tone(440, 0.025, 0.5, "interface", { delay: 0.18 });
   },
 };
 
@@ -148,7 +156,7 @@ export const lab = {
   sliderMove(normalizedValue: number): void {
     // Pitch reflects where the slider is — subtle mapping of value to sound
     const freq = 220 + normalizedValue * 440;
-    tone(freq, 0.018, 0.08, "interface", "sine", 0.003, 0.06);
+    tone(freq, 0.018, 0.08, "interface", { attack: 0.003, release: 0.06 });
   },
 
   presetApply(): void {
@@ -157,7 +165,7 @@ export const lab = {
 
   compareBegin(): void {
     tone(220, 0.035, 1.0, "interface");
-    setTimeout(() => tone(277.18, 0.03, 0.8, "interface"), 300);
+    tone(277.18, 0.03, 0.8, "interface", { delay: 0.3 });
   },
 
   compareReveal(): void {
@@ -191,12 +199,12 @@ export const timeline = {
   },
 
   replayTick(): void {
-    tone(659.25, 0.012, 0.08, "interface", "sine", 0.003, 0.06);
+    tone(659.25, 0.012, 0.08, "interface", { attack: 0.003, release: 0.06 });
   },
 
   replayStart(): void {
     tone(261.63, 0.03, 0.6, "interface");
-    setTimeout(() => tone(329.63, 0.025, 0.5, "interface"), 200);
+    tone(329.63, 0.025, 0.5, "interface", { delay: 0.2 });
   },
 };
 
@@ -236,9 +244,11 @@ export const civLayer = {
 
   deactivate(): void {
     const ctx = audioEngine.context;
+    if (!ctx) return;
     for (const { osc, gain } of CIV_VOICES.values()) {
-      if (ctx) gain.gain.setTargetAtTime(0, ctx.currentTime, 0.8);
-      setTimeout(() => { try { osc.stop(); gain.disconnect(); } catch { /* ignore */ } }, 2000);
+      gain.gain.setTargetAtTime(0, ctx.currentTime, 0.8);
+      osc.onended = () => gain.disconnect();
+      osc.stop(ctx.currentTime + 4);
     }
     CIV_VOICES.clear();
   },

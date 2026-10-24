@@ -5,7 +5,7 @@ import type { StellarClass } from "../simulation/star";
 import type { AtmosphereType, PlanetType } from "../simulation/planet";
 import type { Biosphere, LifeStage } from "../simulation/biosphere";
 import { TECH_STAGE_LABEL } from "../simulation/civilization";
-import type { SystemLife } from "../simulation/lifeSurvey";
+import type { SystemCivilization, SystemLife } from "../simulation/lifeSurvey";
 import { DEFAULT_CONFIG, type UniverseConfig } from "../simulation/config";
 import { makeUniverseId } from "../simulation/persistence";
 import { SIMULATION_RULES_VERSION } from "../simulation/version";
@@ -316,4 +316,15 @@ export function lifeMarkerLabel(life: SystemLife): string {
   if (life.lifeMoonCount === 0) return planets;
   const moons = `${life.lifeMoonCount} moon${life.lifeMoonCount === 1 ? "" : "s"}`;
   return life.lifePlanetCount === 0 ? `${main} · ${worlds === 1 ? "on a moon" : `on ${moons}`}` : `${planets} · ${moons}`;
+}
+
+// ── Civilization markers ─────────────────────────────────────────────────────
+
+/** Bubble text for a system where civilizations arose: its most notable living one, then any ruins (R8). */
+export function civilizationMarkerLabel(civ: SystemCivilization): string {
+  const ruins = `${civ.ruins} ruin${civ.ruins === 1 ? "" : "s"}`;
+  if (civ.living === 0) return civ.ruins === 1 ? "Ruins" : `Ruins · ${civ.ruins} worlds`;
+  const main = `Civilization · ${TECH_STAGE_LABEL[civ.stage]}`;
+  const living = civ.living > 1 ? `${main} +${civ.living - 1}` : main;
+  return civ.ruins > 0 ? `${living} · ${ruins}` : living;
 }

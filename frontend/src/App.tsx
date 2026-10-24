@@ -48,7 +48,7 @@ import { subjectKey } from "./ui/encyclopedia/subjects";
 import { biosphereEntry, civilizationEntry, galaxyEntry, planetEntry, starEntry } from "./ui/encyclopedia/entries";
 import type { Entry, SubjectRef } from "./ui/encyclopedia/entry";
 import type { UniverseIndex } from "./simulation/universeIndex";
-import { bodyName, moonName, starName, planetLifeLabel, lifeMarkerLabel, PLANET_TYPE_LABEL } from "./ui/format";
+import { bodyName, moonName, starName, planetLifeLabel, lifeMarkerLabel, civilizationMarkerLabel, PLANET_TYPE_LABEL } from "./ui/format";
 import { makeUniverseId, generateUniverseSummary, importUniverseFromFile } from "./simulation/persistence";
 import type { UniverseMeta, DiscoveryItem } from "./simulation/persistence";
 import { makeJournalEntry } from "./simulation/journal";
@@ -69,11 +69,12 @@ function randomSeed(): number {
 
 type View = "galaxy" | "system" | "biosphere" | "civilization";
 
-// Whether life markers are on is a per-browser display preference, not saved data
+// Whether life and civilization markers are on are per-browser display preferences, not saved data
 const LIFE_MARKERS_KEY = "aion-forge-life-markers";
+const CIVILIZATION_MARKERS_KEY = "aion-forge-civilization-markers";
 
-function readLifeMarkersPreference(): boolean {
-  try { return localStorage.getItem(LIFE_MARKERS_KEY) === "on"; } catch { return false; }
+function readMarkersPreference(key: string): boolean {
+  try { return localStorage.getItem(key) === "on"; } catch { return false; }
 }
 
 function storageErrorMessage(err: unknown): string {
@@ -167,7 +168,8 @@ export default function App() {
   const [currentSeed,          setCurrentSeed]          = useState<number>(0);
   const [currentSystem, setCurrentSystem] = useState<PlanetarySystem | null>(null);
   const [viewScale,     setViewScale]     = useState<ViewScale | null>(null);
-  const [showLifeMarkers, setShowLifeMarkers] = useState<boolean>(readLifeMarkersPreference);
+  const [showLifeMarkers, setShowLifeMarkers] = useState<boolean>(() => readMarkersPreference(LIFE_MARKERS_KEY));
+  const [showCivilizationMarkers, setShowCivilizationMarkers] = useState<boolean>(() => readMarkersPreference(CIVILIZATION_MARKERS_KEY));
 
   // Audio — initialize on first user interaction (browser requirement)
   const audioInitRef = useRef(false);
@@ -226,7 +228,7 @@ export default function App() {
       setIsGenerating(false);
       ui.universeLoad();
       ambientLayer.setUniverse(universeKey(s, galaxyCfg.type), "galaxy");
-      // Survey life off the main thread: it feeds the snapshot and the life markers
+      // Survey life off the main thread: it feeds the snapshot and the life and civilization markers
       surveyClient.request(s, config, {
         onProgress: setSurveyProgress,
         onResult: (survey) => {
@@ -238,6 +240,8 @@ export default function App() {
           setSurveyEjected(survey.ejectedPlanets);
           cachedSnapshotRef.current = buildSnapshot(s, config, population.stars.length, survey);
           rendererRef.current?.setLifeMarkers(survey.systems.map(life => ({ starId: life.starId, label: lifeMarkerLabel(life) })));
+          rendererRef.current?.setCivilizationMarkers(survey.civilizations.map(civ => (
+            { starId: civ.starId, label: civilizationMarkerLabel(civ), ruins: civ.living === 0 })));
         },
         onError: (message) => {
           setSurveyProgress(null);
@@ -261,6 +265,11 @@ export default function App() {
     rendererRef.current?.setLifeMarkersVisible(showLifeMarkers);
     try { localStorage.setItem(LIFE_MARKERS_KEY, showLifeMarkers ? "on" : "off"); } catch { /* preference not kept */ }
   }, [showLifeMarkers]);
+
+  useEffect(() => {
+    rendererRef.current?.setCivilizationMarkersVisible(showCivilizationMarkers);
+    try { localStorage.setItem(CIVILIZATION_MARKERS_KEY, showCivilizationMarkers ? "on" : "off"); } catch { /* preference not kept */ }
+  }, [showCivilizationMarkers]);
 
   // Global Escape key: close overlays in priority order, then navigate back
   useEffect(() => {
@@ -956,17 +965,30 @@ export default function App() {
 
         <section className="console-section">
           <h2 className="console-section-label">Overlays</h2>
-          <button
-            type="button"
-            className="switch"
-            role="switch"
-            aria-checked={showLifeMarkers}
-            onClick={() => setShowLifeMarkers(on => !on)}
-            title="Mark every star system that holds life"
-          >
-            <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
-            Life markers
-          </button>
+          <div className="switch-list">
+            <button
+              type="button"
+              className="switch"
+              role="switch"
+              aria-checked={showLifeMarkers}
+              onClick={() => setShowLifeMarkers(on => !on)}
+              title="Mark every star system that holds life"
+            >
+              <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
+              Life markers
+            </button>
+            <button
+              type="button"
+              className="switch switch-civ"
+              role="switch switch-civ"
+              aria-checked={showCivilizationMarkers}
+              onClick={() => setShowCivilizationMarkers(on => !on)}
+              title="Mark every star system where a civilization arose, living or in ruins"
+            >
+              <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
+              Civilization markers
+            </button>
+          </div>
         </section>
 
         <section className="console-section">

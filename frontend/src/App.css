@@ -180,6 +180,14 @@
   outline: none;
 }
 
+/* Civilization markers: gold, and dulled where only ruins remain (R8) */
+.civ-bubble { border-color: rgba(217, 188, 106, 0.6); }
+.civ-bubble::after { background: rgba(217, 188, 106, 0.6); }
+.civ-bubble:hover,
+.civ-bubble:focus-visible { border-color: var(--col-gold); }
+.civ-bubble.ruins { border-color: rgba(138, 127, 98, 0.6); color: var(--col-text-3); }
+.civ-bubble.ruins::after { background: rgba(138, 127, 98, 0.6); }
+
 @keyframes life-bubble-in {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -395,6 +403,13 @@
 }
 
 /* On/off switch */
+.switch-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+
 .switch {
   display: inline-flex;
   align-items: center;
@@ -431,6 +446,8 @@
 
 .switch[aria-checked="true"] .switch-track { background: var(--col-life-dim); border-color: var(--col-life); }
 .switch[aria-checked="true"] .switch-thumb { transform: translateX(12px); background: var(--col-life); }
+.switch-civ[aria-checked="true"] .switch-track { background: var(--col-gold-dim); border-color: var(--col-gold); }
+.switch-civ[aria-checked="true"] .switch-thumb { background: var(--col-gold); }
 .switch:focus-visible .switch-track { outline: 2px solid var(--col-accent); outline-offset: 2px; }
 
 .console-section-head {

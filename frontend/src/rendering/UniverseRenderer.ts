@@ -278,7 +278,23 @@ function makeLifeRingTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(canvas);
 }
 
-// ── Life markers ─────────────────────────────────────────────────────────────
+// A double ring, wider than the life ring so both show on a system that has each.
+// Drawn white: each point's colour tints it, gold for a living civilization, dull for ruins.
+function makeCivilizationRingTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 32;
+  const ctx = canvas.getContext("2d")!;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+  ctx.lineWidth = 2;
+  for (const radius of [13, 9.5]) {
+    ctx.beginPath();
+    ctx.arc(16, 16, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  return new THREE.CanvasTexture(canvas);
+}
+
+// ── Life and civilization markers ────────────────────────────────────────────
 
 /** One star system with life, as the galaxy view should mark it. */
 export interface LifeMarker {
@@ -286,9 +302,27 @@ export interface LifeMarker {
   label: string;   // text for the bubble, e.g. "Complex ecosystems +1"
 }
 
-/** Only this many systems carry a text bubble at once, the ones nearest the camera; the rest keep just the ring. */
+/** One star system where a civilization arose; ruins when none of its civilizations still lives (R8). */
+export interface CivilizationMarker extends LifeMarker {
+  ruins: boolean;
+}
+
+/** The galaxy view's two kinds of marker, each with its own switch. */
+type MarkerKind = "life" | "civilization";
+
+/** A kind of marker on screen: a ring on each marked system, and a bubble that may show above it. */
+interface MarkerLayer {
+  rings:  THREE.Points;
+  labels: THREE.Group;
+}
+
+/** Only this many life systems carry a text bubble at once, the ones nearest the camera; the rest keep just the ring.
+ *  Civilizations are rare enough that every one on screen keeps its bubble. */
 const LABELLED_MARKER_LIMIT = 30;
 const LIFE_RING_SIZE_PX = 13;
+const CIVILIZATION_RING_SIZE_PX = 21;
+const CIVILIZATION_RING_COLOUR = new THREE.Color(0xD9BC6A);   // --col-gold
+const RUINS_RING_COLOUR        = new THREE.Color(0x8A7F62);   // gold, dulled
 // A planet's hover label moves to its left once the planet is this far right (normalized device coordinates)
 const PLANET_LABEL_FLIP_NDC = 0.2;
 // Approximate bubble footprint on screen (10px monospace text plus padding and pointer),
@@ -318,12 +352,12 @@ export class UniverseRenderer {
   private starSprite:   THREE.CanvasTexture  | null = null;   // ENH-512: reuse texture
   private reticleTexture: THREE.CanvasTexture | null = null;
 
-  // Life markers: rings (WebGL points) on every system with life, plus HTML bubbles for the nearest few
+  // Markers: rings (WebGL points) on every marked system, plus HTML bubbles for those that fit
   private labelRenderer: CSS2DRenderer;
   private lifeRingTexture: THREE.CanvasTexture | null = null;
-  private lifeRings:  THREE.Points | null = null;
-  private lifeLabels: THREE.Group  | null = null;
-  private lifeMarkersOn = false;
+  private civilizationRingTexture: THREE.CanvasTexture | null = null;
+  private markerLayers: Record<MarkerKind, MarkerLayer | null> = { life: null, civilization: null };
+  private markersOn:    Record<MarkerKind, boolean> = { life: false, civilization: false };
   private labelsDirty   = true;
   private lastLabelCamera = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion() };
 
@@ -504,7 +538,7 @@ export class UniverseRenderer {
 
     this.clearMesh("starMesh");
     this.clearMesh("highlightMesh");
-    this.clearLifeMarkers();   // they belong to the previous population
+    this.clearMarkers();   // they belong to the previous population
 
     const stars  = population.stars;
     const pos    = new Float32Array(stars.length * 3);
@@ -571,7 +605,7 @@ export class UniverseRenderer {
     if (this.starMesh)      this.starMesh.visible      = false;
     if (this.highlightMesh) this.highlightMesh.visible = false;
     if (this.nebulaGroup)   this.nebulaGroup.visible   = false;
-    this.applyLifeMarkerVisibility();   // bubbles belong to the galaxy view only
+    this.applyMarkerVisibility();   // bubbles belong to the galaxy view only
 
     if (this.systemGroup) {
       this.scene.remove(this.systemGroup);
@@ -781,7 +815,7 @@ export class UniverseRenderer {
     this.planetLabels = new Map();
     this.mode = "galaxy";
     this.lastReportedScale = 0;
-    this.applyLifeMarkerVisibility();
+    this.applyMarkerVisibility();
     if (this.galaxyMesh)    this.galaxyMesh.visible    = true;
     if (this.starMesh)      this.starMesh.visible      = true;
     if (this.highlightMesh) this.highlightMesh.visible = true;
@@ -1138,11 +1172,39 @@ export class UniverseRenderer {
     this.controls.autoRotate = false;
   }
 
-  // ── Life markers ──────────────────────────────────────────────────────────
+  // ── Life and civilization markers ─────────────────────────────────────────
 
-  /** Replace the marked systems. Call after renderStars, with markers for that population. */
+  /** Replace the systems marked with life. Call after renderStars, with markers for that population. */
   setLifeMarkers(markers: LifeMarker[]) {
-    this.clearLifeMarkers();
+    this.lifeRingTexture ??= makeLifeRingTexture();
+    this.setMarkers("life", markers, this.lifeRingTexture, LIFE_RING_SIZE_PX, () => null, "life-bubble");
+  }
+
+  /** Replace the systems marked with civilizations. Call after renderStars, with markers for that population. */
+  setCivilizationMarkers(markers: CivilizationMarker[]) {
+    this.civilizationRingTexture ??= makeCivilizationRingTexture();
+    const ruinsOf = new Map(markers.map(m => [m.starId, m.ruins]));
+    this.setMarkers("civilization", markers, this.civilizationRingTexture, CIVILIZATION_RING_SIZE_PX,
+      starId => (ruinsOf.get(starId) ? RUINS_RING_COLOUR : CIVILIZATION_RING_COLOUR),
+      starId => `life-bubble civ-bubble${ruinsOf.get(starId) ? " ruins" : ""}`);
+  }
+
+  setLifeMarkersVisible(on: boolean) {
+    this.markersOn.life = on;
+    this.applyMarkerVisibility();
+  }
+
+  setCivilizationMarkersVisible(on: boolean) {
+    this.markersOn.civilization = on;
+    this.applyMarkerVisibility();
+  }
+
+  /** Build one kind's rings and bubbles; a ring colour tints that kind's texture, or none leaves it as drawn. */
+  private setMarkers(
+    kind: MarkerKind, markers: LifeMarker[], texture: THREE.CanvasTexture, sizePx: number,
+    ringColour: (starId: number) => THREE.Color | null, bubbleClass: string | ((starId: number) => string),
+  ) {
+    this.clearMarkers(kind);
     const starsById = new Map(this.starData.map(star => [star.id, star]));
     const marked = markers.flatMap(m => {
       const star = starsById.get(m.starId);
@@ -1150,23 +1212,24 @@ export class UniverseRenderer {
     });
     if (marked.length === 0) return;
 
-    const positions = new Float32Array(marked.flatMap(m => m.star.position));
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    this.lifeRingTexture ??= makeLifeRingTexture();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(marked.flatMap(m => m.star.position)), 3));
+    const colours = marked.map(m => ringColour(m.star.id));
+    const tinted = colours.every(c => c !== null);
+    if (tinted) geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(colours.flatMap(c => c!.toArray())), 3));
     const mat = new THREE.PointsMaterial({
-      map: this.lifeRingTexture, size: LIFE_RING_SIZE_PX, sizeAttenuation: false,
+      map: texture, size: sizePx, sizeAttenuation: false, vertexColors: tinted,
       transparent: true, depthWrite: false, toneMapped: false,
     });
-    this.lifeRings = new THREE.Points(geo, mat);
-    this.lifeRings.renderOrder = 5;
-    this.scene.add(this.lifeRings);
+    const rings = new THREE.Points(geo, mat);
+    rings.renderOrder = 5;
+    this.scene.add(rings);
 
-    this.lifeLabels = new THREE.Group();
+    const labels = new THREE.Group();
     for (const { star, label } of marked) {
       const bubble = document.createElement("button");
       bubble.type = "button";
-      bubble.className = "life-bubble";
+      bubble.className = typeof bubbleClass === "string" ? bubbleClass : bubbleClass(star.id);
       bubble.textContent = label;
       bubble.setAttribute("aria-label", `${label}. Select this star system`);
       bubble.addEventListener("click", () => this.selectStar(star));
@@ -1179,47 +1242,49 @@ export class UniverseRenderer {
       object.center.set(0.5, 1);   // bottom-centre of the bubble's pointer sits on the star
       object.position.set(...star.position);
       object.visible = false;
-      this.lifeLabels.add(object);
+      labels.add(object);
     }
-    this.scene.add(this.lifeLabels);
+    this.scene.add(labels);
 
-    this.labelsDirty = true;
-    this.applyLifeMarkerVisibility();
+    this.markerLayers[kind] = { rings, labels };
+    this.applyMarkerVisibility();
   }
 
-  setLifeMarkersVisible(on: boolean) {
-    this.lifeMarkersOn = on;
-    this.labelsDirty = true;
-    this.applyLifeMarkerVisibility();
-  }
-
-  private applyLifeMarkerVisibility() {
-    const show = this.lifeMarkersOn && this.mode === "galaxy";
-    if (this.lifeRings)  this.lifeRings.visible  = show;
-    if (this.lifeLabels) this.lifeLabels.visible = show;
-    this.labelsDirty = true;
-  }
-
-  private clearLifeMarkers() {
-    if (this.lifeRings) {
-      this.scene.remove(this.lifeRings);
-      this.lifeRings.geometry.dispose();
-      (this.lifeRings.material as THREE.Material).dispose();
-      this.lifeRings = null;
+  private applyMarkerVisibility() {
+    for (const kind of ["life", "civilization"] as const) {
+      const layer = this.markerLayers[kind];
+      if (!layer) continue;
+      const show = this.markersOn[kind] && this.mode === "galaxy";
+      layer.rings.visible  = show;
+      layer.labels.visible = show;
     }
-    if (this.lifeLabels) {
-      this.scene.remove(this.lifeLabels);
-      for (const object of this.lifeLabels.children) (object as CSS2DObject).element.remove();
-      this.lifeLabels = null;
+    this.labelsDirty = true;
+  }
+
+  /** Remove one kind of marker, or both. */
+  private clearMarkers(kind?: MarkerKind) {
+    for (const k of kind ? [kind] : (["life", "civilization"] as const)) {
+      const layer = this.markerLayers[k];
+      if (!layer) continue;
+      this.scene.remove(layer.rings);
+      layer.rings.geometry.dispose();
+      (layer.rings.material as THREE.Material).dispose();
+      this.scene.remove(layer.labels);
+      for (const object of layer.labels.children) (object as CSS2DObject).element.remove();
+      this.markerLayers[k] = null;
     }
   }
 
   /**
-   * Give bubbles to the on-screen systems nearest the camera, skipping any that would
-   * overlap a nearer bubble. Recomputed only when the camera moves.
+   * Give bubbles to every on-screen civilization, then to the on-screen life systems nearest
+   * the camera, skipping any bubble that would overlap one already placed. Recomputed only
+   * when the camera moves.
    */
-  private updateLifeLabels() {
-    if (!this.lifeLabels?.visible) return;
+  private updateMarkerLabels() {
+    const layers = (["civilization", "life"] as const)
+      .map(kind => ({ kind, layer: this.markerLayers[kind] }))
+      .filter(({ layer }) => layer?.labels.visible);
+    if (layers.length === 0) return;
     const cam = this.lastLabelCamera;
     if (!this.labelsDirty && cam.position.equals(this.camera.position) && cam.quaternion.equals(this.camera.quaternion)) return;
     cam.position.copy(this.camera.position);
@@ -1230,31 +1295,34 @@ export class UniverseRenderer {
     const projected = new THREE.Vector3();
     const { clientWidth, clientHeight } = this.renderer.domElement;
     type Box = { left: number; right: number; top: number; bottom: number };
-    const onScreen: { object: CSS2DObject; distance: number; box: Box }[] = [];
-    for (const child of this.lifeLabels.children) {
-      const object = child as CSS2DObject;
-      object.visible = false;
-      projected.copy(object.position).project(this.camera);
-      const inView = Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && projected.z >= -1 && projected.z <= 1;
-      if (!inView) continue;
-      const x = (projected.x + 1) / 2 * clientWidth;
-      const y = (1 - projected.y) / 2 * clientHeight;
-      const halfWidth = ((object.element.textContent?.length ?? 0) * BUBBLE_CHAR_WIDTH_PX + BUBBLE_PADDING_PX) / 2;
-      onScreen.push({
-        object,
-        distance: object.position.distanceTo(this.camera.position),
-        box: { left: x - halfWidth, right: x + halfWidth, top: y - BUBBLE_HEIGHT_PX, bottom: y },
-      });
-    }
-    onScreen.sort((a, b) => a.distance - b.distance);
-
     const placed: Box[] = [];
-    for (const { object, box } of onScreen) {
-      if (placed.length >= LABELLED_MARKER_LIMIT) break;
-      const overlaps = placed.some(p => box.left < p.right && box.right > p.left && box.top < p.bottom && box.bottom > p.top);
-      if (overlaps) continue;
-      placed.push(box);
-      object.visible = true;
+    for (const { kind, layer } of layers) {
+      const onScreen: { object: CSS2DObject; distance: number; box: Box }[] = [];
+      for (const child of layer!.labels.children) {
+        const object = child as CSS2DObject;
+        object.visible = false;
+        projected.copy(object.position).project(this.camera);
+        const inView = Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && projected.z >= -1 && projected.z <= 1;
+        if (!inView) continue;
+        const x = (projected.x + 1) / 2 * clientWidth;
+        const y = (1 - projected.y) / 2 * clientHeight;
+        const halfWidth = ((object.element.textContent?.length ?? 0) * BUBBLE_CHAR_WIDTH_PX + BUBBLE_PADDING_PX) / 2;
+        onScreen.push({
+          object,
+          distance: object.position.distanceTo(this.camera.position),
+          box: { left: x - halfWidth, right: x + halfWidth, top: y - BUBBLE_HEIGHT_PX, bottom: y },
+        });
+      }
+      onScreen.sort((a, b) => a.distance - b.distance);
+
+      const limit = kind === "life" ? placed.length + LABELLED_MARKER_LIMIT : Infinity;
+      for (const { object, box } of onScreen) {
+        if (placed.length >= limit) break;
+        const overlaps = placed.some(p => box.left < p.right && box.right > p.left && box.top < p.bottom && box.bottom > p.top);
+        if (overlaps) continue;
+        placed.push(box);
+        object.visible = true;
+      }
     }
   }
 
@@ -1340,7 +1408,7 @@ export class UniverseRenderer {
       } else {
         this.renderer.render(this.scene, this.camera);
       }
-      this.updateLifeLabels();
+      this.updateMarkerLabels();
       this.updatePlanetLabel();
       this.labelRenderer.render(this.scene, this.camera);
     };
@@ -1395,8 +1463,9 @@ export class UniverseRenderer {
     // ENH-512: dispose all resources
     this.starSprite?.dispose();
     this.reticleTexture?.dispose();
-    this.clearLifeMarkers();
+    this.clearMarkers();
     this.lifeRingTexture?.dispose();
+    this.civilizationRingTexture?.dispose();
     this.labelRenderer.domElement.remove();
     this.sky.dispose();
     if (this.nebulaGroup) {

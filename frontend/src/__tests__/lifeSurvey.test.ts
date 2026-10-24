@@ -8,8 +8,9 @@ import type { Star } from "../simulation/star";
 import { generateBiosphere } from "../simulation/biosphere";
 import { makeConfig } from "../simulation/config";
 import { surveyLife, ORGANISM_STAGES } from "../simulation/lifeSurvey";
-import type { SystemLife } from "../simulation/lifeSurvey";
-import { lifeMarkerLabel } from "../ui/format";
+import type { SystemCivilization, SystemLife } from "../simulation/lifeSurvey";
+import { generateCivilization } from "../simulation/civilization";
+import { civilizationMarkerLabel, lifeMarkerLabel } from "../ui/format";
 
 const SEED = 100000;
 const config = makeConfig(SEED);
@@ -47,6 +48,49 @@ describe("life survey", () => {
     const organismPlanets = survey.systems.reduce((n, s) => n + s.lifePlanetCount, 0);
     expect(survey.lifeBearingPlanets).toBeGreaterThanOrEqual(organismPlanets);
     expect(survey.systems.filter(s => s.civilizationStage).length).toBeLessThanOrEqual(survey.civilizationCount);
+  });
+});
+
+describe("civilization survey", () => {
+  // Every civilization around a star, living or in ruins
+  const civsOf = (star: Star) => generatePlanetsFor(star, SEED, config).planets
+    .flatMap(p => [p, ...p.moons.flatMap(m => (m.world ? [m.world] : []))])
+    .filter(body => body.life)
+    .flatMap(body => generateCivilization(generateBiosphere(body, star), body, SEED).civilization ?? []);
+  const civSystems = stars.flatMap(star => {
+    const civs = civsOf(star);
+    return civs.length > 0 ? [{ star, civs }] : [];
+  });
+  const marked = survey;
+
+  it("marks every system where a civilization arose, with its living civilizations and ruins", () => {
+    expect(civSystems.length).toBeGreaterThan(0);
+    expect(marked.civilizations.map(c => ({ starId: c.starId, living: c.living, ruins: c.ruins }))).toEqual(
+      civSystems.map(({ star, civs }) => ({
+        starId: star.id,
+        living: civs.filter(c => c.extinctAgoGyr === null).length,
+        ruins: civs.filter(c => c.extinctAgoGyr !== null).length,
+      })));
+    expect(marked.civilizations.reduce((n, c) => n + c.living + c.ruins, 0)).toBe(marked.civilizationCount);
+  });
+
+  it("marks ruins even where no organisms remain", () => {
+    const withLife = new Set(marked.systems.map(s => s.starId));
+    for (const c of marked.civilizations.filter(c => !withLife.has(c.starId))) expect(c.living).toBe(0);
+  });
+});
+
+describe("civilization marker label", () => {
+  const base: SystemCivilization = { starId: 0, stage: "industrial", living: 1, ruins: 0 };
+  it("names the most notable living civilization, then the others and the ruins", () => {
+    expect(civilizationMarkerLabel(base)).toBe("Civilization · Industrial");
+    expect(civilizationMarkerLabel({ ...base, living: 2 })).toBe("Civilization · Industrial +1");
+    expect(civilizationMarkerLabel({ ...base, ruins: 1 })).toBe("Civilization · Industrial · 1 ruin");
+    expect(civilizationMarkerLabel({ ...base, living: 2, ruins: 3 })).toBe("Civilization · Industrial +1 · 3 ruins");
+  });
+  it("calls a system with no living civilization ruins", () => {
+    expect(civilizationMarkerLabel({ ...base, stage: "collapsed", living: 0, ruins: 1 })).toBe("Ruins");
+    expect(civilizationMarkerLabel({ ...base, stage: "collapsed", living: 0, ruins: 2 })).toBe("Ruins · 2 worlds");
   });
 });
 

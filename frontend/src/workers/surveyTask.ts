@@ -91,6 +91,7 @@ export function mergeSurveys(parts: LifeSurvey[]): LifeSurvey {
     lifeBearingMoons: parts.reduce((sum, p) => sum + p.lifeBearingMoons, 0),
     civilizationCount: parts.reduce((sum, p) => sum + p.civilizationCount, 0),
     systems: parts.flatMap((p) => p.systems),
+    civilizations: parts.flatMap((p) => p.civilizations),
     index: mergeIndices(parts.map((p) => p.index)),
     moonIndex: mergeIndices(parts.map((p) => p.moonIndex)),
   };

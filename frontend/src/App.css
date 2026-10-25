@@ -2436,6 +2436,40 @@ h5.physics-label, h4.physics-label { display: block; margin-bottom: var(--sp-1);
 .system-key li { display: flex; align-items: center; gap: var(--sp-2); }
 .system-key-swatch { display: inline-flex; flex: none; }
 
+/* The black hole close-up's stats readout (BH5): top left of the stage, never catching the pointer */
+.bh-stats {
+  position: absolute;
+  left: var(--sp-4);
+  top: var(--sp-4);
+  z-index: 1;
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: 2px var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--col-surface) 85%, transparent);
+  border: 1px solid var(--col-border-3);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--col-text-1);
+  pointer-events: none;
+}
+.bh-stats dt { color: var(--col-text-3); }
+.bh-stats dd { margin: 0; }
+.bh-stats-level {
+  pointer-events: auto;
+  min-height: 32px;   /* a finger-sized target */
+  padding: 0 var(--sp-3);
+  background: var(--col-deep);
+  border: 1px solid var(--col-border-3);
+  border-radius: 3px;
+  color: var(--col-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
 /* On narrow screens the system view's key keeps only its scale, so it does not cover the view */
 @media (max-width: 767px) {
   .system-key ul, .system-key-title { display: none; }
@@ -2588,20 +2622,30 @@ h5.physics-label, h4.physics-label { display: block; margin-bottom: var(--sp-1);
 
   /* Tool panels take the whole screen below the top bar, rails included,
      instead of floating in the universe view; open drawers wait beneath */
-  .stage:has(> .timeline-panel, > .config-panel, > .compare-panel, > .overlay-panel) { overflow: visible; }
+  .stage:has(> .timeline-panel, > .config-panel, > .compare-panel, > .overlay-panel, .gf-panel, .encyclopedia-panel) { overflow: visible; }
   .stage .timeline-panel,
   .stage .config-panel,
   .stage .compare-panel,
-  .stage .overlay-panel {
+  .stage .overlay-panel,
+  .stage .gf-panel,
+  .stage .encyclopedia-panel {
     top: 0;
     bottom: 0;
     left: calc(-1 * var(--rail-w));
     right: calc(-1 * var(--rail-w));
     width: auto;
+    max-width: none;
     max-height: none;
     transform: none;
     border: none;
     border-radius: 0;
     z-index: 30;
   }
+
+  /* A folded Great Filter or encyclopedia keeps only its title bar across the top */
+  .stage .gf-panel.collapsed,
+  .stage .encyclopedia-panel.collapsed { bottom: auto; }
+
+  /* The physics page covers the whole row below the top bar, rails included */
+  .physics-page { grid-column: 1 / -1; z-index: 30; border-left: none; }
 }

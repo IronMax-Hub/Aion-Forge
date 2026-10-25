@@ -12,7 +12,8 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(KeepAwakePlugin.class);   // the app's own plugin, registered before the bridge starts
+        registerPlugin(KeepAwakePlugin.class);   // the app's own plugins, registered before the bridge starts
+        registerPlugin(ThermalPlugin.class);
         super.onCreate(savedInstanceState);
     }
 

@@ -66,6 +66,11 @@ import { initialDrawerOpen, isCompactScreen, rememberDrawerOpen } from "./ui/lay
 import { App as NativeApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { setKeepAwake } from "./native/keepAwake";
+import { readThermal } from "./native/thermal";
+import type { ThermalReading } from "./native/thermal";
+import { QUALITY_LEVELS, configuredQualityLevel, qualityForAccretion, qualityForThermalStatus } from "./rendering/blackHole/quality";
+import type { BlackHoleQualityLevel } from "./rendering/blackHole/quality";
+import { BlackHoleStatsReadout } from "./ui/BlackHoleStatsReadout";
 import "./App.css";
 
 const surveyClient = createSurveyClient(() =>
@@ -89,6 +94,18 @@ function readMarkersPreference(key: string): boolean {
 function dockSubjectOf(view: View, star: Star | null, planet: Planet | null, blackHole: boolean): string {
   return `${view}|${blackHole ? "black-hole" : star?.id ?? ""}|${planet?.key ?? ""}`;
 }
+
+// How finely the black hole close-up is traced: "high" in the phone build (.env.android), standard elsewhere
+const BLACK_HOLE_QUALITY = configuredQualityLevel(import.meta.env.VITE_BLACK_HOLE_QUALITY);
+// The close-up's stats readout, for measuring heat and frame rate on the phone
+const SHOW_BLACK_HOLE_STATS = import.meta.env.VITE_BLACK_HOLE_STATS === "on";
+/** How often the phone's heat is read while the close-up is open. */
+const THERMAL_POLL_MS = 5000;
+// Speed guard: a level traced fewer than SLOW_FPS times a second for SLOW_SECONDS in a row drops one level,
+// so a level too heavy for the GPU never leaves the close-up stalled. The first seconds (the shader compiling) do not count.
+const SLOW_FPS = 20;
+const SLOW_SECONDS = 3;
+const SPEED_GUARD_WARMUP_SECONDS = 3;
 
 function storageErrorMessage(err: unknown): string {
   return err instanceof api.StorageError ? err.message : "Saving failed";
@@ -254,7 +271,7 @@ export default function App() {
       rendererRef.current?.renderGalaxy(particles);
       const blackHole = centralBlackHoleFor(galaxyCfg);
       setCentralBlackHole(blackHole);
-      rendererRef.current?.setCentralBlackHole(blackHole, s, () => {
+      rendererRef.current?.setCentralBlackHole(blackHole, s, galaxyCfg.type, () => {
         setSelectedStar(null);
         setBlackHoleSelected(true);
         ui.inspect();
@@ -349,7 +366,56 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [closeTopPanel, nearBlackHole, orbiting, view, selectedPlanet]);
 
+  // Heat guard (BH3): while the close-up is open, read the phone's heat; a hot phone traces it less finely.
+  // The chosen level is the build's, or, while measuring, one picked on the stats readout.
+  const [chosenBlackHoleQuality, setChosenBlackHoleQuality] = useState(BLACK_HOLE_QUALITY);
+  const [thermal, setThermal] = useState<ThermalReading | null>(null);
+  useEffect(() => {
+    if (!nearBlackHole) return;
+    let live = true;
+    const check = async () => {
+      const reading = await readThermal();
+      if (live && reading) setThermal(reading);
+    };
+    void check();
+    const timer = setInterval(() => void check(), THERMAL_POLL_MS);
+    return () => { live = false; clearInterval(timer); };
+  }, [nearBlackHole]);
+  // The level traced: the chosen one, lower for a hot flow, and lower again while the phone is hot
+  const accretionMode = centralBlackHole?.accretionMode ?? "thin-disc";
+  const tracedQualityOf = useCallback((chosen: BlackHoleQualityLevel) =>
+    qualityForThermalStatus(qualityForAccretion(chosen, accretionMode), thermal?.status ?? -1), [accretionMode, thermal]);
+  useEffect(() => {
+    rendererRef.current?.setBlackHoleQuality(tracedQualityOf(chosenBlackHoleQuality));
+  }, [chosenBlackHoleQuality, tracedQualityOf]);
+  const readBlackHoleStats = useCallback(() => rendererRef.current?.blackHoleStats() ?? null, []);
+  const [speedGuardNote, setSpeedGuardNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!nearBlackHole) return;
+    let seconds = 0;
+    let slowSeconds = 0;
+    let lastLevel: string | null = null;
+    const timer = setInterval(() => {
+      const stats = rendererRef.current?.blackHoleStats();
+      if (!stats || document.hidden) return;   // a hidden page traces nothing; that is not slowness
+      if (stats.level !== lastLevel) { lastLevel = stats.level; seconds = 0; slowSeconds = 0; }   // a new level warms up afresh
+      seconds++;
+      slowSeconds = seconds > SPEED_GUARD_WARMUP_SECONDS && stats.level !== "standard" && stats.fps < SLOW_FPS ? slowSeconds + 1 : 0;
+      if (slowSeconds < SLOW_SECONDS) return;
+      const lower = QUALITY_LEVELS[QUALITY_LEVELS.indexOf(stats.level) - 1];
+      setChosenBlackHoleQuality(lower);
+      setSpeedGuardNote(`${stats.level} too slow (${stats.fps} fps) → ${lower}`);
+      seconds = 0;
+      slowSeconds = 0;
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [nearBlackHole]);
+
   function approachBlackHole() {
+    // Each visit starts from the build's level: a level the speed guard lowered on one visit does not carry over
+    setChosenBlackHoleQuality(BLACK_HOLE_QUALITY);
+    setSpeedGuardNote(null);
+    rendererRef.current?.setBlackHoleQuality(tracedQualityOf(BLACK_HOLE_QUALITY));
     rendererRef.current?.approachBlackHole();
     setNearBlackHole(true);
   }
@@ -1222,6 +1288,7 @@ export default function App() {
       <main className="stage">
         <canvas ref={canvasRef} className="viewport" />
         {viewScale?.mode === "system" && currentSystem && selectedStar && <SystemKey system={currentSystem} star={selectedStar} scale={viewScale} />}
+        {SHOW_BLACK_HOLE_STATS && nearBlackHole && <BlackHoleStatsReadout readStats={readBlackHoleStats} thermal={thermal} chosen={chosenBlackHoleQuality} onChoose={setChosenBlackHoleQuality} speedGuardNote={speedGuardNote} />}
 
         {showConfigPanel && (
           <RealityConfigPanel

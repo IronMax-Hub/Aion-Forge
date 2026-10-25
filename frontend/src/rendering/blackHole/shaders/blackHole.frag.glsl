@@ -24,7 +24,11 @@
 //   light is mostly radio; it is drawn in warm false colour, as the Event
 //   Horizon Telescope draws Sagittarius A* and M87*.
 // Streaks in the gas come from noise seeded by the galaxy, sheared by the disc's
-// own differential rotation (inner gas orbits faster), slowed for display.
+// own differential rotation (inner gas orbits faster), slowed for display. In a thin
+// disc that shear has wound them into trailing spirals, and rounder clumps make the
+// gas uneven: brighter knots, and thin patches the light behind shows through.
+// The sky behind is the host galaxy's own starlight seen from its centre (galaxyGlow),
+// so lensing bends something at every pixel, not only where a star happens to lie.
 
 precision highp float;
 
@@ -37,12 +41,15 @@ uniform float orbitRate;        // turns of the disc's inner edge per display se
 uniform float thinDisc;         // 1: thin disc; 0: hot flow
 uniform float peakTemperatureK;
 uniform vec2 seed;              // the galaxy's, for the gas's streaks and the sky's stars
+uniform float galaxyKind;       // the host galaxy, whose stars fill the sky: 0 spiral, 1 elliptical, 2 irregular
+uniform mat3 galaxyFrame;       // its axes (columns: longest, middle, pole), at a seeded tilt to the disc's
+uniform float pixelAngle;       // radians per traced pixel, so the faintest stars never shrink below one
 
 varying vec2 vUv;
 
-const int MAX_STEPS = 220;
-const float STEP_SCALE = 0.07;      // step length per r(r − 0.9): finer where paths bend most
-const float MAX_STEP = 1.0;
+// Set per quality level by BlackHoleView (quality.ts): MAX_STEPS, STEP_SCALE (step length
+// per r(r − 0.9): finer where paths bend most), MIN_STEP, MAX_STEP, STREAK_OCTAVES and
+// STAR_SIZE (the stars' width as a share of one that covers a half-resolution pixel).
 const float DISC_INNER = 3.0;       // innermost stable circular orbit
 const float DISC_OUTER = 16.0;      // the disc fades out towards here
 // Beyond this radius light bends so little that the weak-field formula (weakBendTo)
@@ -55,6 +62,30 @@ const float MAX_GAS_SPEED = 0.7;       // as a share of light's
 const float HOT_FLOW_GLOW = 14.0;      // the hot flow's emissivity at one horizon radius, display units
 const float HOT_FLOW_THICKNESS = 0.45; // its height, as a share of radius
 const float HOT_FLOW_OUTER = 12.0;     // it fades out by here, so it does not haze the whole view
+// A step whose glow (before its shift and streaks, which multiply it by at most about 19)
+// is below this adds less than a millionth of full brightness: its costly shift and streak
+// noise are skipped. Most of a ray's steps lie in gas this thin, far from the plane or
+// beyond HOT_FLOW_OUTER, and the light lost is far below one step of the screen's brightness.
+const float HOT_FLOW_NEGLIGIBLE = 5e-8;
+// Thin disc structure: Keplerian shear winds clumps into trailing spirals, φ + k·ln r constant
+// (k = 4: a pitch of about 14°); rounder clumps, about as long round the orbit as across it,
+// vary the gas's opacity and brightness
+const float FILAMENT_WINDING = 4.0;
+const float CLUMP_CELLS_PER_TURN = 20.0;
+const float CLUMP_OPACITY_LOW = 0.35;    // in the thinnest patches the light behind shows through
+const float CLUMP_OPACITY_HIGH = 1.2;
+const float CLUMP_BRIGHT_LOW = 0.6;
+const float CLUMP_BRIGHT_HIGH = 1.35;
+// The host galaxy's starlight, as seen from its centre (linear, before exposure)
+const float SPIRAL_GLOW = 0.03;
+const float SPIRAL_BAND_WIDTH = 0.16;    // sine of the band's half-height above the galaxy's plane
+const float SPIRAL_DUST_WIDTH = 0.035;   // the dark dust lane along its middle
+const float SPIRAL_DUST_DEPTH = 0.7;
+const float ELLIPTICAL_GLOW = 0.016;
+const vec3 ELLIPTICAL_AXES = vec3(1.0, 0.75, 0.55);   // longest, middle, along the pole
+const float IRREGULAR_GLOW = 0.026;
+// The faintest star layer: many stars, each at least this many traced pixels wide (its light kept the same)
+const float FAINT_STAR_MIN_PIXELS = 0.7;
 const float DISC_EXPOSURE = 1.8;
 const float HOT_FLOW_EXPOSURE = 1.6;
 
@@ -80,16 +111,65 @@ float valueNoise(vec2 p) {
              mix(hash12(i + vec2(0, 1)), hash12(i + vec2(1, 1)), u.x), u.y);
 }
 
-// Streaks: noise stretched along the orbit (φ) and fine across it (log r)
+// Value noise that repeats every `period` cells along x (a whole number): laid around
+// a circle, it closes on itself, so the angle's wrap from +π to −π leaves no seam
+float valueNoiseWrapX(vec2 p, float period) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  float x0 = mod(i.x, period);
+  float x1 = mod(i.x + 1.0, period);
+  return mix(mix(hash12(vec2(x0, i.y)), hash12(vec2(x1, i.y)), u.x),
+             mix(hash12(vec2(x0, i.y + 1.0)), hash12(vec2(x1, i.y + 1.0)), u.x), u.y);
+}
+
+// Streaks: noise stretched along the orbit (φ) and fine across it (log r). Each octave
+// doubles the cells around a turn, and the noise repeats after exactly one turn.
+const float STREAK_CELLS_PER_TURN = 6.0;
 float streaks(float r, float phi) {
-  vec2 p = vec2(phi * 3.0 / PI, log(r) * 14.0) + seed * 97.0;
+  vec2 p = vec2(phi * STREAK_CELLS_PER_TURN / (2.0 * PI), log(r) * 14.0) + seed * 97.0;
+  float cellsPerTurn = STREAK_CELLS_PER_TURN;
   float n = 0.0, amp = 0.5;
-  for (int i = 0; i < 4; i++) {
-    n += amp * valueNoise(p);
+  for (int i = 0; i < STREAK_OCTAVES; i++) {
+    n += amp * valueNoiseWrapX(p, cellsPerTurn);
     p = p * vec2(2.0, 2.3) + 7.1;
+    cellsPerTurn *= 2.0;
     amp *= 0.5;
   }
   return n;
+}
+
+// Value noise in three dimensions, for patterns laid over the whole sky
+float valueNoise3(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  vec3 u = f * f * (3.0 - 2.0 * f);
+  float a = mix(hash13(i), hash13(i + vec3(1, 0, 0)), u.x);
+  float b = mix(hash13(i + vec3(0, 1, 0)), hash13(i + vec3(1, 1, 0)), u.x);
+  float c = mix(hash13(i + vec3(0, 0, 1)), hash13(i + vec3(1, 0, 1)), u.x);
+  float d = mix(hash13(i + vec3(0, 1, 1)), hash13(i + vec3(1, 1, 1)), u.x);
+  return mix(mix(a, b, u.y), mix(c, d, u.y), u.z);
+}
+
+// Clouds over the sky, in [0, 1]: star clouds and dust in the host galaxy
+float skyClouds(vec3 dir) {
+  vec3 p = dir * 4.0 + vec3(seed * 53.0, seed.x * 29.0);
+  float n = 0.0, amp = 0.5;
+  for (int i = 0; i < 3; i++) {
+    n += amp * valueNoise3(p);
+    p = p * 2.03 + 5.3;
+    amp *= 0.5;
+  }
+  return n / 0.875;
+}
+
+// Clumps in a thin disc, in [0, 1]: two octaves of round cells, wound like the filaments
+float clumps(float r, float phi) {
+  float cellsPerRadian = CLUMP_CELLS_PER_TURN / (2.0 * PI);
+  vec2 p = vec2((phi + FILAMENT_WINDING * log(r)) * cellsPerRadian, log(r) * cellsPerRadian) + seed.yx * 61.0;
+  float n = 0.65 * valueNoiseWrapX(p, CLUMP_CELLS_PER_TURN)
+          + 0.35 * valueNoiseWrapX(p * 2.0 + 3.7, 2.0 * CLUMP_CELLS_PER_TURN);
+  return smoothstep(0.25, 0.75, n);
 }
 
 // ── Light ────────────────────────────────────────────────────────────────────
@@ -144,20 +224,48 @@ vec3 bendToward(vec3 pos, vec3 dir, float angle) {
   return normalize(dir * cos(angle) - normalize(offset) * sin(angle));
 }
 
-// The sky: a galactic core thick with stars, from the galaxy's seed
+// The host galaxy's own starlight, seen from its centre, where the black hole sits
+vec3 galaxyGlow(vec3 dir) {
+  vec3 local = vec3(dot(dir, galaxyFrame[0]), dot(dir, galaxyFrame[1]), dot(dir, galaxyFrame[2]));
+  float clouds = skyClouds(dir);
+  if (galaxyKind < 0.5) {
+    // Spiral: its disc, seen from inside, is a band round the whole sky, split by a dust lane
+    float h = local.z;
+    float band = exp(-h * h / (SPIRAL_BAND_WIDTH * SPIRAL_BAND_WIDTH));
+    float dust = 1.0 - SPIRAL_DUST_DEPTH * exp(-h * h / (SPIRAL_DUST_WIDTH * SPIRAL_DUST_WIDTH)) * smoothstep(0.3, 0.7, clouds);
+    return blackbody(5600.0) * SPIRAL_GLOW * band * dust * (0.6 + 0.8 * clouds);
+  }
+  if (galaxyKind < 1.5) {
+    // Elliptical: a smooth glow, deepest (so brightest) along its longest axis
+    float depth = inversesqrt(dot(local / ELLIPTICAL_AXES, local / ELLIPTICAL_AXES));
+    return blackbody(4300.0) * ELLIPTICAL_GLOW * depth * depth * depth * (0.85 + 0.3 * clouds);
+  }
+  // Irregular: patchy clouds of young stars
+  return blackbody(7500.0) * IRREGULAR_GLOW * (0.15 + smoothstep(0.45, 0.8, clouds));
+}
+
+// The sky: the host galaxy's glow and three layers of stars, from the galaxy's seed
 vec3 sky(vec3 dir) {
-  vec3 colour = vec3(0.0016, 0.0012, 0.0009) * (0.6 + 0.4 * valueNoise(dir.xz * 3.0 + seed));
-  for (int layer = 0; layer < 2; layer++) {
-    float density = layer == 0 ? 90.0 : 260.0;
+  vec3 colour = vec3(0.0016, 0.0012, 0.0009) * (0.6 + 0.4 * valueNoise(dir.xz * 3.0 + seed)) + galaxyGlow(dir);
+  for (int layer = 0; layer < 3; layer++) {
+    // Bright, middle and faint stars: the faint layer is the commonest
+    float density = layer == 0 ? 90.0 : (layer == 1 ? 260.0 : 200.0);
+    float threshold = layer == 2 ? 0.6 : 0.88;
     vec3 p = dir * density;
     vec3 cell = floor(p);
     float h = hash13(cell + seed.x * 131.0 + float(layer) * 17.0);
-    if (h > 0.88) {
+    if (h > threshold) {
       vec3 star = cell + 0.5 + (vec3(hash13(cell + 1.3), hash13(cell + 2.7), hash13(cell + 4.1)) - 0.5) * 0.6;
       float d = length(p - star);
-      // Wide enough to cover a pixel of the half-resolution trace, so no star breaks into dots
-      float size = layer == 0 ? 0.2 : 0.3;
-      float brightness = (h - 0.88) / 0.12 * (layer == 0 ? 0.5 : 0.18);
+      // At standard, wide enough to cover a pixel of the half-resolution trace, so no star breaks into dots
+      float baseSize = layer == 0 ? 0.2 * STAR_SIZE : (layer == 1 ? 0.3 * STAR_SIZE : 0.25);
+      float brightness = (h - threshold) / (1.0 - threshold) * (layer == 0 ? 0.5 : (layer == 1 ? 0.18 : 0.06));
+      float size = baseSize;
+      if (layer == 2) {
+        // The faint stars never shrink below a pixel, which would make them flicker; their light stays the same
+        size = clamp(FAINT_STAR_MIN_PIXELS * pixelAngle * density, baseSize, 0.45);
+        brightness *= (baseSize * baseSize) / (size * size);
+      }
       vec3 tint = blackbody(3000.0 + 9000.0 * hash13(cell + 9.9));
       colour += tint * brightness * exp(-d * d / (size * size));
     }
@@ -204,7 +312,7 @@ void main() {
       if (covered > 0.98) running = false;
 
       // Smaller steps near the hole, where paths bend most
-      float dt = clamp(STEP_SCALE * r * (r - 0.9), 0.015, MAX_STEP);
+      float dt = clamp(STEP_SCALE * r * (r - 0.9), MIN_STEP, MAX_STEP);
       // Velocity Verlet: second order, so photon-sphere orbits stay put
       float r2 = r * r;
       vec3 acc = -1.5 * h2 * pos / (r2 * r2 * r);
@@ -224,12 +332,14 @@ void main() {
             if (rp > DISC_INNER && rp < DISC_OUTER * 1.3) {
               float g = shiftFactor(p, rp, -normalize(nextVel));
               float tShare = discTemperatureShare(rp);
-              float n = streaks(rp, rotatedPhi(p, rp));
+              float phi = rotatedPhi(p, rp);
+              float n = streaks(rp, phi + FILAMENT_WINDING * log(rp));   // wound into trailing spirals
+              float clump = clumps(rp, phi);
               float outerFade = 1.0 - smoothstep(DISC_OUTER * 0.45, DISC_OUTER * 1.3, rp);
               float innerFade = smoothstep(DISC_INNER, DISC_INNER * 1.08, rp);
-              float opacity = clamp((0.55 + 0.8 * n) * outerFade * innerFade, 0.0, 1.0);
+              float opacity = clamp((0.55 + 0.8 * n) * mix(CLUMP_OPACITY_LOW, CLUMP_OPACITY_HIGH, clump) * outerFade * innerFade, 0.0, 1.0);
               // brightness ∝ (g·T)⁴, as a share of the disc's peak
-              float brightness = pow(g * tShare, 4.0) * (0.55 + 0.9 * n);
+              float brightness = pow(g * tShare, 4.0) * (0.55 + 0.9 * n) * mix(CLUMP_BRIGHT_LOW, CLUMP_BRIGHT_HIGH, clump);
               vec3 emitted = blackbody(g * tShare * peakTemperatureK) * brightness;
               light += (1.0 - covered) * opacity * emitted;
               covered += (1.0 - covered) * opacity;
@@ -243,9 +353,12 @@ void main() {
           vec3 pm = 0.5 * (pos + nextPos);
           float height = pm.y / (HOT_FLOW_THICKNESS * rm);
           float density = exp(-height * height) / (rm * rm * rm * sqrt(rm)) * smoothstep(1.05, 1.6, rm) * (1.0 - smoothstep(HOT_FLOW_OUTER * 0.4, HOT_FLOW_OUTER, rm));
-          float g = shiftFactor(pm, max(rm, 1.05), -normalize(vel));
-          float n = 0.6 + 0.8 * streaks(rm, rotatedPhi(pm, rm));
-          light += (1.0 - covered) * HOT_FLOW_GLOW * density * g * g * g * n * dt * vec3(1.0, 0.42, 0.1);
+          float glow = HOT_FLOW_GLOW * density * dt;
+          if (glow > HOT_FLOW_NEGLIGIBLE) {
+            float g = shiftFactor(pm, max(rm, 1.05), -normalize(vel));
+            float n = 0.6 + 0.8 * streaks(rm, rotatedPhi(pm, rm));
+            light += (1.0 - covered) * glow * g * g * g * n * vec3(1.0, 0.42, 0.1);
+          }
         }
 
         pos = nextPos;

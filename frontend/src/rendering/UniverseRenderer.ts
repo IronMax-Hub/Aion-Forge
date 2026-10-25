@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import type { GalaxyParticles } from "../simulation/galaxy";
+import type { GalaxyParticles, GalaxyType } from "../simulation/galaxy";
 import type { Star, StellarPopulation } from "../simulation/star";
 import { companionAsStar, stellarRadiusAU } from "../simulation/star";
 import { pairLight } from "../simulation/binary";
@@ -15,6 +15,8 @@ import type { Biosphere } from "../simulation/biosphere";
 import type { Civilization } from "../simulation/civilization";
 import type { CentralBlackHole } from "../simulation/blackHole";
 import { BlackHoleView, BLACK_HOLE_DISTANCE, START_ELEVATION_DEG } from "./blackHole/BlackHoleView";
+import type { BlackHoleStats } from "./blackHole/BlackHoleView";
+import type { BlackHoleQualityLevel } from "./blackHole/quality";
 import { SkyBackground } from "./background";
 import {
   barycentreMarker, circumbinaryOrbitLine, companionStartAngle, disposeSystemGroup, distantStarMarker, FASTEST_PAIR_ORBIT_SECONDS,
@@ -204,13 +206,17 @@ export interface ViewScale {
   kmPerUnit?: number;
 }
 
-// Orbit-control limits outside the planet view, and the system view's auto-rotation
+// Orbit-control limits outside the planet view
 const DEFAULT_DISTANCE = { min: 0.01, max: 2000 };
-const SYSTEM_AUTO_ROTATE_SPEED = 0.4;
-const PLANET_AUTO_ROTATE_SPEED = 0.25;
+// The views' slow turns, in turns per minute (OrbitControls' autoRotateSpeed, given each frame's
+// duration). They match what the views did on the owner's phone at 120 frames a second, when
+// the turn was counted per frame and so ran many times slower on a slow desktop GPU.
+const GALAXY_AUTO_ROTATE_SPEED = 0.24;
+const SYSTEM_AUTO_ROTATE_SPEED = 0.8;
+const PLANET_AUTO_ROTATE_SPEED = 0.5;
 // The approach glide ends this many planet-marker radii from the marker
 const APPROACH_END_DISTANCE = 6;
-// The planets' clock moves at most this much a frame, so a hidden tab does not make them jump
+// The planets' clock and the views' turns move at most this much a frame, so a hidden tab does not make them jump
 const MAX_ORBIT_STEP_MS = 100;
 // A focused planet is framed this many of its radii away, and the camera may come no closer than the second
 // (there the planet fills about half the view, and its 256-texel bake is still sharp)
@@ -358,6 +364,8 @@ export class UniverseRenderer {
   private galaxyMesh:      THREE.Points | null = null;
   private blackHole:       CentralBlackHole | null = null;
   private blackHoleSeed = 0;
+  private blackHoleGalaxyType: GalaxyType = "spiral";
+  private blackHoleQuality: BlackHoleQualityLevel = "standard";
   private blackHoleView:   BlackHoleView | null = null;
   private galaxyCameraPose: { position: THREE.Vector3; target: THREE.Vector3 } | null = null;
   private onBlackHoleSelected: (() => void) | null = null;
@@ -451,7 +459,7 @@ export class UniverseRenderer {
     this.controls.minDistance     = 0.01;
     this.controls.maxDistance     = 2000;
     this.controls.autoRotate      = true;
-    this.controls.autoRotateSpeed = 0.12;
+    this.controls.autoRotateSpeed = GALAXY_AUTO_ROTATE_SPEED;
 
     this.starSprite = makeStarSprite();   // ENH-512: create once, reuse
 
@@ -1207,11 +1215,12 @@ export class UniverseRenderer {
   // ── Central black hole ────────────────────────────────────────────────────
 
   /** The galaxy's central black hole, or none; a click on the galaxy's centre selects it and calls onSelected. */
-  setCentralBlackHole(blackHole: CentralBlackHole | null, galaxySeed: number, onSelected: () => void) {
+  setCentralBlackHole(blackHole: CentralBlackHole | null, galaxySeed: number, galaxyType: GalaxyType, onSelected: () => void) {
     this.leaveBlackHole();
     this.onBlackHoleSelected = onSelected;
     this.blackHole = blackHole;
     this.blackHoleSeed = galaxySeed;
+    this.blackHoleGalaxyType = galaxyType;
   }
 
   /** Go from the galaxy view to the close-up of its central black hole. */
@@ -1219,7 +1228,7 @@ export class UniverseRenderer {
     if (this.mode !== "galaxy" || !this.blackHole) return;
     this.galaxyCameraPose = { position: this.camera.position.clone(), target: this.controls.target.clone() };
     this.tween = null;
-    this.blackHoleView = new BlackHoleView(this.blackHole, this.blackHoleSeed, !prefersReducedMotion(), performance.now());
+    this.blackHoleView = new BlackHoleView(this.blackHole, this.blackHoleSeed, this.blackHoleGalaxyType, !prefersReducedMotion(), performance.now(), this.blackHoleQuality);
     this.mode = "blackHole";
     this.lastReportedScale = 0;
     this.applyMarkerVisibility();
@@ -1230,6 +1239,17 @@ export class UniverseRenderer {
     this.controls.minDistance = BLACK_HOLE_DISTANCE.min;
     this.controls.maxDistance = BLACK_HOLE_DISTANCE.max;
     this.controls.autoRotate = false;
+  }
+
+  /** How finely the close-up is traced (blackHole/quality.ts), now and from the next approach. */
+  setBlackHoleQuality(level: BlackHoleQualityLevel) {
+    this.blackHoleQuality = level;
+    this.blackHoleView?.setQuality(level);
+  }
+
+  /** What the close-up is doing, or null outside it. */
+  blackHoleStats(): BlackHoleStats | null {
+    return this.blackHoleView?.stats ?? null;
   }
 
   /** Back from the black hole's close-up to the galaxy view, where it was left; nothing outside the close-up. */
@@ -1472,12 +1492,14 @@ export class UniverseRenderer {
     const tick = () => {
       this.animFrameId = requestAnimationFrame(tick);
       const now = performance.now();
-      // Planets go round while the system view is shown and the camera is not gliding (never under reduced motion);
+      // The frame's duration, for the planets' orbits and the views' slow turns, which go by time, not frames;
       // a long gap (a hidden tab) counts as one ordinary frame
-      if (this.mode === "system" && this.orbitsMove && !this.tween?.camera) {
-        this.systemOrbits.advance(Math.min(now - this.lastFrameMs, MAX_ORBIT_STEP_MS) / 1000);
-      }
+      const frameSeconds = Math.min(now - this.lastFrameMs, MAX_ORBIT_STEP_MS) / 1000;
       this.lastFrameMs = now;
+      // Planets go round while the system view is shown and the camera is not gliding (never under reduced motion)
+      if (this.mode === "system" && this.orbitsMove && !this.tween?.camera) {
+        this.systemOrbits.advance(frameSeconds);
+      }
       this.followFocusedPlanet();
       if (this.pendingBake) {
         this.pendingBake.step(this.renderer);
@@ -1490,7 +1512,7 @@ export class UniverseRenderer {
         this.fadeMoonOrbits();
       }
       this.stepTween();
-      this.controls.update();
+      this.controls.update(frameSeconds);
 
       this.reportViewScale();
 

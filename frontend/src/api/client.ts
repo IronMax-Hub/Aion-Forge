@@ -7,6 +7,13 @@ import type { JournalEntry } from "../simulation/journal";
 
 export class StorageError extends Error {}
 
+/**
+ * Whether this build saves anything. The phone app (vite build --mode android,
+ * .env.android) has no backend to reach, so saving is off there: no calls are
+ * made and the interface hides everything that would save (Documents/Mobile-APK.md, M1).
+ */
+export const STORAGE_ENABLED = import.meta.env.VITE_STORAGE !== "off";
+
 const UNREACHABLE = "cannot reach the Aion Forge API — is the backend running?";
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {

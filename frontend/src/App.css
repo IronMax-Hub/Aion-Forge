@@ -9,8 +9,13 @@
   width: 100vw;
   height: 100vh;
   display: grid;
-  grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--dock-w);
+  /* The side columns narrow to a rail when their drawer is hidden (see Drawers below) */
+  --sidebar-col: var(--sidebar-w);
+  --dock-col: var(--dock-w);
+  grid-template-columns: var(--sidebar-col) minmax(0, 1fr) var(--dock-col);
   grid-template-rows: var(--topbar-h) minmax(0, 1fr) var(--statusbar-h);
+  position: relative;
+  padding: 0 var(--inset-right) 0 var(--inset-left);
   grid-template-areas:
     "top     top   top"
     "sidebar stage dock"
@@ -2472,3 +2477,131 @@ h5.physics-label, h4.physics-label { display: block; margin-bottom: var(--sp-1);
 .star-search-name { font-family: var(--font-mono); }
 .star-search-kind { color: var(--col-text-3); }
 .star-search-notes { margin-left: auto; font-size: var(--fs-xs); color: var(--col-life); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Drawers (M2): the sidebar and dock hide down to a rail
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.app.sidebar-closed { --sidebar-col: var(--rail-w); }
+.app.dock-closed    { --dock-col: var(--rail-w); }
+
+.sidebar-closed .sidebar,
+.dock-closed .dock { overflow: hidden; }
+
+.drawer-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-6);
+  background: var(--col-surface);
+  border-bottom: 1px solid var(--col-border-1);
+}
+
+.dock .drawer-head { flex-direction: row-reverse; padding: var(--sp-3) var(--sp-6) var(--sp-3) var(--sp-4); }
+
+.drawer-title {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--col-text-3);
+}
+
+.drawer-rail {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-5) 0;
+  background: none;
+  border: none;
+  color: var(--col-text-3);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.drawer-rail:hover { color: var(--col-text-1); background: var(--col-hover); }
+.drawer-rail:focus-visible { outline: 2px solid var(--col-accent); outline-offset: -2px; }
+.drawer-rail-arrow { font-size: var(--fs-md); }
+.drawer-rail-label { writing-mode: vertical-rl; }
+.drawer-rail-left .drawer-rail-label { transform: rotate(180deg); }
+
+/* ── Phone held sideways (after the responsive widths above, which it overrides): a touch screen too short for the desktop grid.
+      Must match COMPACT_QUERY in ui/layout.ts. The universe gets the whole
+      width between the two rails; an open drawer slides over it. ── */
+@media (pointer: coarse) and (max-height: 500px) {
+  :root {
+    --topbar-h:  44px;
+    --rail-w:    44px;         /* a finger-sized target */
+    --sidebar-w: 280px;        /* drawers slide over the view, so they can be wide */
+    --dock-w:    340px;
+  }
+
+  .app {
+    --sidebar-col: var(--rail-w);
+    --dock-col: var(--rail-w);
+    grid-template-rows: var(--topbar-h) minmax(0, 1fr) 0;
+  }
+
+  /* An absolutely placed grid item is positioned within its own grid area,
+     so each open drawer starts at its rail and reaches over the stage */
+  .app:not(.sidebar-closed) .sidebar,
+  .app:not(.dock-closed) .dock {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 20;
+    box-shadow: var(--shadow-panel);
+  }
+  .app:not(.sidebar-closed) .sidebar { left: 0;  width: var(--sidebar-w); }
+  .app:not(.dock-closed) .dock       { right: 0; width: var(--dock-w); }
+
+  .topbar-brand { display: none; }
+  .topbar { gap: var(--sp-5); }
+
+  /* The status line floats along the bottom of the universe view */
+  .statusbar {
+    grid-area: stage;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--statusbar-h);
+    padding-bottom: var(--sp-2);   /* off the curved bottom edge */
+    background: linear-gradient(transparent, rgba(7, 8, 10, 0.75));
+    border-top: none;
+    z-index: 5;
+  }
+
+  /* Finger-sized controls */
+  .btn { min-height: 36px; }
+  .inspector-btn { width: 40px; height: 40px; }
+  .drawer-head { padding-top: var(--sp-1); padding-bottom: var(--sp-1); }
+
+  /* Tool panels take the whole screen below the top bar, rails included,
+     instead of floating in the universe view; open drawers wait beneath */
+  .stage:has(> .timeline-panel, > .config-panel, > .compare-panel, > .overlay-panel) { overflow: visible; }
+  .stage .timeline-panel,
+  .stage .config-panel,
+  .stage .compare-panel,
+  .stage .overlay-panel {
+    top: 0;
+    bottom: 0;
+    left: calc(-1 * var(--rail-w));
+    right: calc(-1 * var(--rail-w));
+    width: auto;
+    max-height: none;
+    transform: none;
+    border: none;
+    border-radius: 0;
+    z-index: 30;
+  }
+}

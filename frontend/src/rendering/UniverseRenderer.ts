@@ -372,6 +372,7 @@ export class UniverseRenderer {
 
   // Markers: rings (WebGL points) on every marked system, plus HTML bubbles for those that fit
   private labelRenderer: CSS2DRenderer;
+  private resizeObserver: ResizeObserver;
   private lifeRingTexture: THREE.CanvasTexture | null = null;
   private civilizationRingTexture: THREE.CanvasTexture | null = null;
   private markerLayers: Record<MarkerKind, MarkerLayer | null> = { life: null, civilization: null };
@@ -432,7 +433,8 @@ export class UniverseRenderer {
     // ENH-511: ACES filmic tone mapping for natural brightness rolloff
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    // false: leave the canvas's CSS size alone, so it keeps following its container
+    this.renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
     this.renderer.setClearColor(0x050608);
     this.renderer.toneMapping         = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.9;
@@ -468,7 +470,9 @@ export class UniverseRenderer {
     canvas.addEventListener("pointerdown", this.onPointerDown);
     canvas.addEventListener("pointermove", this.onPointerMove);
     canvas.addEventListener("pointerleave", this.onPointerLeave);
-    window.addEventListener("resize", this.onResize);
+    // The canvas resizes with the window and when a drawer beside it opens or hides
+    this.resizeObserver = new ResizeObserver(this.onResize);
+    this.resizeObserver.observe(canvas);
   }
 
   // ── ENH-507: Nebula sprite accents seeded by galaxy ──────────────────────
@@ -1532,6 +1536,7 @@ export class UniverseRenderer {
 
   private onResize = () => {
     const canvas = this.renderer.domElement;
+    if (canvas.clientWidth === 0 || canvas.clientHeight === 0) return;   // hidden: keep the last size
     this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
@@ -1551,7 +1556,7 @@ export class UniverseRenderer {
     this.closePlanetView();
     this.globeTextures.clear();
     this.systemGlobes.clear();
-    window.removeEventListener("resize", this.onResize);
+    this.resizeObserver.disconnect();
 
     // ENH-512: dispose all resources
     this.starSprite?.dispose();

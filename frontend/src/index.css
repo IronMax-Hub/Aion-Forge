@@ -98,6 +98,12 @@
   --statusbar-h:  28px;
   --sidebar-w:    280px;
   --dock-w:       320px;
+  --rail-w:       32px;   /* a hidden sidebar or dock (M2) */
+
+  /* Space kept clear of a phone's camera cutout. Capacitor sets the
+     --safe-area-inset-* variables in the phone app; browsers use env(). */
+  --inset-left:  var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  --inset-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
 
   /* Panel widths */
   --panel-sm:       250px;

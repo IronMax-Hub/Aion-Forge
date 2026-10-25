@@ -9,15 +9,22 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "stats": "node stats/run.mjs"
+    "stats": "node stats/run.mjs",
+    "android": "tsc -b && vite build --mode android && cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3",
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/ibm-plex-sans": "5.3.0",
     "@types/three": "^0.184.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "three": "^0.184.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",

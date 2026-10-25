@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app's darkest colour (the col-void token in src/index.css), shown before the page paints -->
+    <color name="aion_void">#07080A</color>
+</resources>

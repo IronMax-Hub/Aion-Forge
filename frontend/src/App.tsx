@@ -61,6 +61,11 @@ import { importLocalDataOnce } from "./api/importLocalData";
 import { createSurveyClient } from "./workers/surveyClient";
 import { createSurveyPool, surveyPoolSize } from "./workers/surveyPool";
 import SurveyWorker from "./workers/survey.worker?worker";
+import { DrawerHead, DrawerRail } from "./ui/Drawer";
+import { initialDrawerOpen, isCompactScreen, rememberDrawerOpen } from "./ui/layout";
+import { App as NativeApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+import { setKeepAwake } from "./native/keepAwake";
 import "./App.css";
 
 const surveyClient = createSurveyClient(() =>
@@ -78,6 +83,11 @@ const CIVILIZATION_MARKERS_KEY = "aion-forge-civilization-markers";
 
 function readMarkersPreference(key: string): boolean {
   try { return localStorage.getItem(key) === "on"; } catch { return false; }
+}
+
+/** What the dock is showing: it opens by itself whenever this changes. */
+function dockSubjectOf(view: View, star: Star | null, planet: Planet | null, blackHole: boolean): string {
+  return `${view}|${blackHole ? "black-hole" : star?.id ?? ""}|${planet?.key ?? ""}`;
 }
 
 function storageErrorMessage(err: unknown): string {
@@ -134,6 +144,11 @@ export default function App() {
   const [starCount, setStarCount]   = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [surveyProgress, setSurveyProgress] = useState<number | null>(null);   // null when no survey is running
+  // Seconds the running survey has taken, shown beside its progress: on a phone
+  // the first round of chunks can take a minute before progress moves (M5)
+  const [surveySeconds, setSurveySeconds] = useState(0);
+  const surveyStartRef = useRef(0);
+  const surveying = surveyProgress !== null;
   const [surveyError, setSurveyError] = useState<string | null>(null);
   // Snapshots are built from the life survey, so their buttons wait for it
   const snapshotPending = isGenerating || surveyProgress !== null;
@@ -176,6 +191,17 @@ export default function App() {
   const [viewScale,     setViewScale]     = useState<ViewScale | null>(null);
   const [showLifeMarkers, setShowLifeMarkers] = useState<boolean>(() => readMarkersPreference(LIFE_MARKERS_KEY));
   const [showCivilizationMarkers, setShowCivilizationMarkers] = useState<boolean>(() => readMarkersPreference(CIVILIZATION_MARKERS_KEY));
+
+  // Drawers (M2): the sidebar and the dock each hide down to a rail. A hidden
+  // dock stays hidden only while the same thing is selected; selecting something
+  // else opens it, so a selection is never made out of sight.
+  const [sidebarOpen, setSidebarOpen] = useState(() => initialDrawerOpen("sidebar"));
+  const dockSubject = dockSubjectOf(view, selectedStar, selectedPlanet, blackHoleSelected);
+  const [dockHiddenOn, setDockHiddenOn] = useState<string | null>(
+    () => initialDrawerOpen("dock") ? null : dockSubjectOf("galaxy", null, null, false));
+  const dockOpen = dockHiddenOn !== dockSubject;
+  const showSidebar = (open: boolean) => { setSidebarOpen(open); rememberDrawerOpen("sidebar", open); };
+  const showDock    = (open: boolean) => { setDockHiddenOn(open ? null : dockSubject); rememberDrawerOpen("dock", open); };
 
   // Audio — initialize on first user interaction (browser requirement)
   const audioInitRef = useRef(false);
@@ -245,6 +271,8 @@ export default function App() {
       ui.universeLoad();
       ambientLayer.setUniverse(universeKey(s, galaxyCfg.type), "galaxy");
       // Survey life off the main thread: it feeds the snapshot and the life and civilization markers
+      surveyStartRef.current = performance.now();
+      setSurveySeconds(0);
       surveyClient.request(s, config, {
         onProgress: setSurveyProgress,
         onResult: (survey) => {
@@ -277,6 +305,14 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // While a survey runs: count its seconds, and keep the phone's screen on (M5)
+  useEffect(() => {
+    setKeepAwake(surveying);
+    if (!surveying) return;
+    const timer = setInterval(() => setSurveySeconds(Math.round((performance.now() - surveyStartRef.current) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [surveying]);
+
   useEffect(() => {
     rendererRef.current?.setLifeMarkersVisible(showLifeMarkers);
     try { localStorage.setItem(LIFE_MARKERS_KEY, showLifeMarkers ? "on" : "off"); } catch { /* preference not kept */ }
@@ -287,25 +323,31 @@ export default function App() {
     try { localStorage.setItem(CIVILIZATION_MARKERS_KEY, showCivilizationMarkers ? "on" : "off"); } catch { /* preference not kept */ }
   }, [showCivilizationMarkers]);
 
+  /** Closes the topmost tool panel, if one is open. Shared by Escape and the phone's back gesture. */
+  const closeTopPanel = useCallback((): boolean => {
+    if (showPhysics)      { setShowPhysics(false);      return true; }
+    if (encyclopediaSubject) { setEncyclopediaSubject(null); return true; }
+    if (showGreatFilter)  { setShowGreatFilter(false);  return true; }
+    if (showGallery)      { setShowGallery(false);      return true; }
+    if (showConfigPanel)  { setShowConfigPanel(false);  return true; }
+    if (showHistoryPanel) { setShowHistoryPanel(false); return true; }
+    if (showTimeline)     { setShowTimeline(false);     return true; }
+    if (comparison)       { setComparison(null);        return true; }
+    return false;
+  }, [showPhysics, encyclopediaSubject, showGreatFilter, showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison]);
+
   // Global Escape key: close overlays in priority order, then navigate back
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (showPhysics)      { setShowPhysics(false);      return; }
-      if (encyclopediaSubject) { setEncyclopediaSubject(null); return; }
-      if (showGreatFilter)  { setShowGreatFilter(false);  return; }
-      if (showGallery)      { setShowGallery(false);      return; }
-      if (showConfigPanel)  { setShowConfigPanel(false);  return; }
-      if (showHistoryPanel) { setShowHistoryPanel(false); return; }
-      if (showTimeline)     { setShowTimeline(false);     return; }
-      if (comparison)       { setComparison(null);        return; }
+      if (closeTopPanel()) return;
       if (nearBlackHole)    { leaveBlackHole();           return; }   // up one level: back to the galaxy
       if (orbiting && view === "system") { leaveOrbit(); return; }   // up one level: back to the system
       if (view === "system" && selectedPlanet) { setSelectedPlanet(null); return; }   // off the planet, to the whole system
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [showPhysics, encyclopediaSubject, showGreatFilter, showGallery, showConfigPanel, showHistoryPanel, showTimeline, comparison, nearBlackHole, orbiting, view, selectedPlanet]);
+  }, [closeTopPanel, nearBlackHole, orbiting, view, selectedPlanet]);
 
   function approachBlackHole() {
     rendererRef.current?.approachBlackHole();
@@ -377,6 +419,7 @@ export default function App() {
 
   // Load saved data once, after importing any data this browser saved before the database existed
   useEffect(() => {
+    if (!api.STORAGE_ENABLED) return;
     let cancelled = false;
     importLocalDataOnce()
       .then(() => Promise.all([api.fetchUniverses(), api.fetchDiscoveries(), api.fetchExperiments(), api.fetchBookmarks()]))
@@ -840,6 +883,40 @@ export default function App() {
     setSelectedSpecies(null);
   };
 
+  /**
+   * The phone's back gesture (M4): one step back, from the top. Closes the tree
+   * of life or a tool panel, then an open Universe drawer, then walks back up
+   * out of the black hole's close-up, civilization → biosphere → planet (out of
+   * orbit) → system → galaxy → no selection.
+   * Returns false when there is nothing left to go back from.
+   */
+  const stepBack = (): boolean => {
+    if (treeShown)                               { setTreeOpen(false);         return true; }
+    if (closeTopPanel())                                                        return true;
+    if (sidebarOpen && isCompactScreen())        { showSidebar(false);         return true; }
+    if (nearBlackHole)                           { leaveBlackHole();           return true; }
+    if (view === "civilization")                 { handleBackToBiosphere();    return true; }
+    if (view === "biosphere")                    { handleBackToPlanet();       return true; }
+    if (orbiting)                                { leaveOrbit();               return true; }
+    if (view === "system" && selectedPlanet)     { handleBackToStar();         return true; }
+    if (view === "system")                       { handleExitSystem();         return true; }
+    if (blackHoleSelected)                       { setBlackHoleSelected(false); return true; }
+    if (selectedStar)                            { setSelectedStar(null);      return true; }
+    return false;
+  };
+
+  // In the phone app, back steps back; with nothing left, it leaves the app.
+  // The listener is added once and always calls the latest stepBack.
+  const stepBackRef = useRef(stepBack);
+  useEffect(() => { stepBackRef.current = stepBack; });
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listener = NativeApp.addListener("backButton", () => {
+      if (!stepBackRef.current()) void NativeApp.exitApp();
+    });
+    return () => { void listener.then((handle) => handle.remove()); };
+  }, []);
+
   const isDefaultConfig = Object.keys(DEFAULT_CONFIG).every(
     (k) => Math.abs((universeConfig[k as keyof typeof DEFAULT_CONFIG] as number) - DEFAULT_CONFIG[k as keyof typeof DEFAULT_CONFIG]) < 0.005
   );
@@ -878,7 +955,7 @@ export default function App() {
 
   let statusText = "Ready";
   if (isGenerating)                                                          statusText = "Generating…";
-  else if (surveyProgress !== null)                                         statusText = `Surveying life… ${Math.round(surveyProgress * 100)}%`;
+  else if (surveyProgress !== null)                                         statusText = `Surveying life… ${Math.round(surveyProgress * 100)}% · ${surveySeconds} s`;
   else if (nearBlackHole)                                                    statusText = "Drag to circle the black hole; scroll to come closer";
   else if (view === "galaxy" && !selectedStar)                              statusText = "Select a star to inspect it";
   else if (view === "galaxy" && selectedStar)                               statusText = "Open the system to see its planets";
@@ -905,7 +982,7 @@ export default function App() {
   };
 
   return (
-    <div className="app">
+    <div className={`app${sidebarOpen ? "" : " sidebar-closed"}${dockOpen ? "" : " dock-closed"}`}>
 
       {/* ── Top bar: identity, location, seed ── */}
       <header className="topbar">
@@ -983,157 +1060,162 @@ export default function App() {
 
       {/* ── Left sidebar: the universe as a whole ── */}
       <aside className="sidebar" aria-label="Universe">
-        <section className="console-section">
-          <h2 className="console-section-label">Universe</h2>
-          <dl className="kv">
-            <dt>Morphology</dt><dd className="kv-text">{universeId ? galaxyType : "—"}</dd>
-            <dt>Stars</dt><dd>{universeId ? starCount.toLocaleString() : "—"}</dd>
-            <dt>Particles</dt><dd>{GALAXY_PARTICLE_COUNT.toLocaleString()}</dd>
-            <dt>Black hole</dt><dd>{universeId ? (centralBlackHole ? formatSolarMasses(centralBlackHole.massSolar) : "None") : "—"}</dd>
-          </dl>
-        </section>
-
-        <section className="console-section">
-          <h2 className="console-section-label">Find a star</h2>
-          <StarSearchBox stars={populationRef.current?.stars ?? []} facts={starFacts} onPick={handleFindStar} />
-        </section>
-
-        <section className="console-section">
-          <h2 className="console-section-label">Overlays</h2>
-          <div className="switch-list">
-            <button
-              type="button"
-              className="switch"
-              role="switch"
-              aria-checked={showLifeMarkers}
-              onClick={() => setShowLifeMarkers(on => !on)}
-              title="Mark every star system that holds life"
-            >
-              <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
-              Life markers
-            </button>
-            <button
-              type="button"
-              className="switch switch-civ"
-              role="switch switch-civ"
-              aria-checked={showCivilizationMarkers}
-              onClick={() => setShowCivilizationMarkers(on => !on)}
-              title="Mark every star system where a civilization arose, living or in ruins"
-            >
-              <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
-              Civilization markers
-            </button>
-          </div>
-        </section>
-
-        <section className="console-section">
-          <div className="console-section-head">
-            <h2 className="console-section-label">Physical parameters</h2>
-            <span className={`console-section-note${isDefaultConfig ? "" : " modified"}`}>{isDefaultConfig ? "Default" : "Modified"}</span>
-          </div>
-          <dl className="kv">
-            {(Object.keys(CONFIG_LABELS) as (keyof typeof CONFIG_LABELS)[]).map((key) => (
-              <div className="kv-row" key={key}>
-                <dt>{CONFIG_LABELS[key]}</dt><dd>{universeConfig[key].toFixed(2)}×</dd>
-              </div>
-            ))}
-          </dl>
-          <div className="controls">
-            <button className="btn" onClick={toggleConfigPanel} aria-pressed={showConfigPanel}>
-              {showConfigPanel ? "Close parameters" : "Edit parameters…"}
-            </button>
-          </div>
-        </section>
-
-        <section className="console-section">
-          <h2 className="console-section-label">Comparison</h2>
-          <div className="controls">
-            {baselineSnapshot ? (
-              <>
-                <button className="btn primary" onClick={handleCompare} disabled={snapshotPending}>Compare with baseline</button>
-                <span className="hint" style={{ alignSelf: "center" }}>baseline set</span>
-              </>
-            ) : (
-              <button className="btn" onClick={handleSetBaseline} disabled={snapshotPending} title="Use this universe as the baseline for comparison">
-                Set as baseline
-              </button>
-            )}
-            <button className="btn" onClick={toggleHistoryPanel} aria-pressed={showHistoryPanel}>
-              {showHistoryPanel ? "Close log" : "Experiment log"}
-            </button>
-          </div>
-        </section>
-
-        <section className="console-section">
-          <h2 className="console-section-label">Saved universes</h2>
-          <div className="controls">
-            <button className="btn primary" onClick={handleSaveToGallery} disabled={snapshotPending} title="Save this universe to the library">
-              Save universe
-            </button>
-            <button className="btn" onClick={toggleGallery} aria-pressed={showGallery}>
-              {showGallery ? "Close library" : `Library (${gallery.length})`}
-            </button>
-          </div>
-          <label className="import-zone">
-            Import universe file…
-            <input type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
-          </label>
-        </section>
-
-        <section className="console-section">
-          <h2 className="console-section-label">Encyclopedia</h2>
-          <div className="controls">
-            <button
-              className="btn"
-              onClick={() => { initAudio(); setFrontOverlay("encyclopedia"); setEncyclopediaSubject((open) => (open?.kind === "galaxy" ? null : { kind: "galaxy" })); }}
-              aria-pressed={encyclopediaSubject?.kind === "galaxy"}
-              disabled={!universeId}
-            >
-              Galaxy entry
-            </button>
-          </div>
-        </section>
-
-        <section className="console-section">
-          <h2 className="console-section-label">Physics</h2>
-          <div className="controls">
-            <button
-              className="btn"
-              onClick={() => { initAudio(); setShowPhysics((v) => !v); }}
-              aria-pressed={showPhysics}
-              disabled={!universeId}
-              title="Every rule this universe runs on, and what it did here"
-            >
-              {showPhysics ? "Close physics" : "Physics rules"}
-            </button>
-          </div>
-        </section>
-
-        <section className="console-section">
-          <h2 className="console-section-label">Great Filter</h2>
-          <div className="controls">
-            <button
-              className="btn"
-              onClick={() => { initAudio(); setFrontOverlay("filter"); setShowGreatFilter((v) => !v); }}
-              aria-pressed={showGreatFilter}
-              disabled={!universeId}
-              title="Count the worlds that pass each step from a solid surface to a lasting civilization"
-            >
-              {showGreatFilter ? "Close filter" : "Great Filter"}
-            </button>
-          </div>
-        </section>
-
-        {universeTimeline && (
+        {!sidebarOpen && <DrawerRail title="Universe" side="left" onShow={() => showSidebar(true)} />}
+        <div className="drawer-body" hidden={!sidebarOpen}>
+          <DrawerHead title="Universe" side="left" onHide={() => showSidebar(false)} />
           <section className="console-section">
-            <h2 className="console-section-label">History</h2>
-            <div className="controls">
-              <button className="btn timeline-open-btn" onClick={toggleTimeline} aria-pressed={showTimeline}>
-                {showTimeline ? "Close timeline" : "Timeline"}
+            <dl className="kv">
+              <dt>Morphology</dt><dd className="kv-text">{universeId ? galaxyType : "—"}</dd>
+              <dt>Stars</dt><dd>{universeId ? starCount.toLocaleString() : "—"}</dd>
+              <dt>Particles</dt><dd>{GALAXY_PARTICLE_COUNT.toLocaleString()}</dd>
+              <dt>Black hole</dt><dd>{universeId ? (centralBlackHole ? formatSolarMasses(centralBlackHole.massSolar) : "None") : "—"}</dd>
+            </dl>
+          </section>
+
+          <section className="console-section">
+            <h2 className="console-section-label">Find a star</h2>
+            <StarSearchBox stars={populationRef.current?.stars ?? []} facts={starFacts} onPick={handleFindStar} />
+          </section>
+
+          <section className="console-section">
+            <h2 className="console-section-label">Overlays</h2>
+            <div className="switch-list">
+              <button
+                type="button"
+                className="switch"
+                role="switch"
+                aria-checked={showLifeMarkers}
+                onClick={() => setShowLifeMarkers(on => !on)}
+                title="Mark every star system that holds life"
+              >
+                <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
+                Life markers
+              </button>
+              <button
+                type="button"
+                className="switch switch-civ"
+                role="switch switch-civ"
+                aria-checked={showCivilizationMarkers}
+                onClick={() => setShowCivilizationMarkers(on => !on)}
+                title="Mark every star system where a civilization arose, living or in ruins"
+              >
+                <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
+                Civilization markers
               </button>
             </div>
           </section>
-        )}
+
+          <section className="console-section">
+            <div className="console-section-head">
+              <h2 className="console-section-label">Physical parameters</h2>
+              <span className={`console-section-note${isDefaultConfig ? "" : " modified"}`}>{isDefaultConfig ? "Default" : "Modified"}</span>
+            </div>
+            <dl className="kv">
+              {(Object.keys(CONFIG_LABELS) as (keyof typeof CONFIG_LABELS)[]).map((key) => (
+                <div className="kv-row" key={key}>
+                  <dt>{CONFIG_LABELS[key]}</dt><dd>{universeConfig[key].toFixed(2)}×</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="controls">
+              <button className="btn" onClick={toggleConfigPanel} aria-pressed={showConfigPanel}>
+                {showConfigPanel ? "Close parameters" : "Edit parameters…"}
+              </button>
+            </div>
+          </section>
+
+          <section className="console-section">
+            <h2 className="console-section-label">Comparison</h2>
+            <div className="controls">
+              {baselineSnapshot ? (
+                <>
+                  <button className="btn primary" onClick={handleCompare} disabled={snapshotPending}>Compare with baseline</button>
+                  <span className="hint" style={{ alignSelf: "center" }}>baseline set</span>
+                </>
+              ) : (
+                <button className="btn" onClick={handleSetBaseline} disabled={snapshotPending} title="Use this universe as the baseline for comparison">
+                  Set as baseline
+                </button>
+              )}
+              {api.STORAGE_ENABLED && (
+                <button className="btn" onClick={toggleHistoryPanel} aria-pressed={showHistoryPanel}>
+                  {showHistoryPanel ? "Close log" : "Experiment log"}
+                </button>
+              )}
+            </div>
+          </section>
+
+          {api.STORAGE_ENABLED && <section className="console-section">
+            <h2 className="console-section-label">Saved universes</h2>
+            <div className="controls">
+              <button className="btn primary" onClick={handleSaveToGallery} disabled={snapshotPending} title="Save this universe to the library">
+                Save universe
+              </button>
+              <button className="btn" onClick={toggleGallery} aria-pressed={showGallery}>
+                {showGallery ? "Close library" : `Library (${gallery.length})`}
+              </button>
+            </div>
+            <label className="import-zone">
+              Import universe file…
+              <input type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
+            </label>
+          </section>}
+
+          <section className="console-section">
+            <h2 className="console-section-label">Encyclopedia</h2>
+            <div className="controls">
+              <button
+                className="btn"
+                onClick={() => { initAudio(); setFrontOverlay("encyclopedia"); setEncyclopediaSubject((open) => (open?.kind === "galaxy" ? null : { kind: "galaxy" })); }}
+                aria-pressed={encyclopediaSubject?.kind === "galaxy"}
+                disabled={!universeId}
+              >
+                Galaxy entry
+              </button>
+            </div>
+          </section>
+
+          <section className="console-section">
+            <h2 className="console-section-label">Physics</h2>
+            <div className="controls">
+              <button
+                className="btn"
+                onClick={() => { initAudio(); setShowPhysics((v) => !v); }}
+                aria-pressed={showPhysics}
+                disabled={!universeId}
+                title="Every rule this universe runs on, and what it did here"
+              >
+                {showPhysics ? "Close physics" : "Physics rules"}
+              </button>
+            </div>
+          </section>
+
+          <section className="console-section">
+            <h2 className="console-section-label">Great Filter</h2>
+            <div className="controls">
+              <button
+                className="btn"
+                onClick={() => { initAudio(); setFrontOverlay("filter"); setShowGreatFilter((v) => !v); }}
+                aria-pressed={showGreatFilter}
+                disabled={!universeId}
+                title="Count the worlds that pass each step from a solid surface to a lasting civilization"
+              >
+                {showGreatFilter ? "Close filter" : "Great Filter"}
+              </button>
+            </div>
+          </section>
+
+          {universeTimeline && (
+            <section className="console-section">
+              <h2 className="console-section-label">History</h2>
+              <div className="controls">
+                <button className="btn timeline-open-btn" onClick={toggleTimeline} aria-pressed={showTimeline}>
+                  {showTimeline ? "Close timeline" : "Timeline"}
+                </button>
+              </div>
+            </section>
+          )}
+        </div>
       </aside>
 
       {/* ── Stage: the rendered universe, with tool panels floating over it ── */}
@@ -1173,7 +1255,7 @@ export default function App() {
         {comparison && (
           <ComparisonPanel
             comparison={comparison}
-            onSave={handleSaveExperiment}
+            onSave={api.STORAGE_ENABLED ? handleSaveExperiment : undefined}
             onClose={() => setComparison(null)}
           />
         )}
@@ -1228,85 +1310,89 @@ export default function App() {
 
       {/* ── Right dock: whatever is selected ── */}
       <aside className="dock" aria-label="Selection">
-        {view === "galaxy" && blackHoleSelected && centralBlackHole ? (
-          <BlackHolePanel
-            blackHole={centralBlackHole}
-            near={nearBlackHole}
-            onApproach={approachBlackHole}
-            onLeave={leaveBlackHole}
-            onClose={() => { leaveBlackHole(); setBlackHoleSelected(false); }}
-          />
-        ) : view === "galaxy" && selectedStar ? (
-          <StarPanel
-            key={`${currentSeed}-${selectedStar.id}`}
-            star={selectedStar}
-            galaxySeed={currentSeed}
-            onClose={() => setSelectedStar(null)}
-            onExplore={handleExploreSystem}
-            onSaveDiscovery={handleSaveDiscovery}
-            bookmarked={isSelectedStarBookmarked}
-            onToggleBookmark={handleToggleBookmark}
-            entryView={entryViewOf({ kind: "star", starId: selectedStar.id })}
-          />
-        ) : view === "system" && selectedPlanet && selectedStar && !selectedBiosphere ? (
-          <PlanetPanel
-            planet={selectedPlanet}
-            star={selectedStar}
-            galaxySeed={currentSeed}
-            civilization={selectedPlanetCivilization}
-            discoveries={discoveries}
-            onSaveDiscovery={handleSaveDiscovery}
-            world={selectedWorld}
-            physics={selectedPhysics}
-            orbiting={orbiting}
-            onClose={handleExitSystem}
-            onBack={orbiting ? leaveOrbit : handleBackToStar}
-            onApproach={handleApproach}
-            onLeaveOrbit={leaveOrbit}
-            onScanBiosphere={handleScanBiosphere}
-            entryView={entryViewOf(subjectOf(selectedPlanet, "planet"))}
-            selectedMoonIndex={smallMoonIndex}
-            onSelectSmallMoon={(moonIndex) => setSelectedSmallMoon(moonIndex === null ? null : { planetKey: selectedPlanet.key, moonIndex })}
-            onSelectMoon={(moon) => {
-              setSelectedPlanet(moon);
-              setSelectedBiosphere(null);
-              ui.inspect();
-            }}
-          />
-        ) : view === "biosphere" && selectedBiosphere ? (
-          <BiospherePanel
-            key={selectedPlanet?.key}
-            biosphere={selectedBiosphere}
-            hasMind={selectedPlanet?.life?.phylogeny.mind != null}
-            specimens={selectedFieldGuide?.specimens ?? null}
-            selectedLineageId={currentLifeView?.lineageId ?? null}
-            onSelectLineage={selectLineage}
-            onOpenTree={() => setTreeOpen(true)}
-            onBack={handleBackToPlanet}
-            onClose={handleExitSystem}
-            onScanCivilization={handleScanCivilization}
-            entryView={selectedPlanet && entryViewOf(subjectOf(selectedPlanet, "biosphere"))}
-          />
-        ) : view === "civilization" && selectedCivilization && selectedSpecies ? (
-          <CivilizationPanel
-            civilization={selectedCivilization}
-            species={selectedSpecies}
-            onBack={handleBackToBiosphere}
-            onClose={handleExitSystem}
-            entryView={selectedPlanet && entryViewOf(subjectOf(selectedPlanet, "civilization"))}
-          />
-        ) : view === "system" && currentSystem && selectedStar ? (
-          <SystemPanel
-            system={currentSystem}
-            star={selectedStar}
-            onSelectPlanet={handleSelectPlanetFromTable}
-          />
-        ) : (
-          <div className="dock-empty">
-            <p className="dock-empty-title">Nothing selected</p>
-            <p className="dock-empty-body">Click a star in the galaxy to inspect it.</p>
-          </div>
-        )}
+        {!dockOpen && <DrawerRail title="Selection" side="right" onShow={() => showDock(true)} />}
+        <div className="drawer-body" hidden={!dockOpen}>
+          <DrawerHead title="Selection" side="right" onHide={() => showDock(false)} />
+          {view === "galaxy" && blackHoleSelected && centralBlackHole ? (
+            <BlackHolePanel
+              blackHole={centralBlackHole}
+              near={nearBlackHole}
+              onApproach={approachBlackHole}
+              onLeave={leaveBlackHole}
+              onClose={() => { leaveBlackHole(); setBlackHoleSelected(false); }}
+            />
+          ) : view === "galaxy" && selectedStar ? (
+            <StarPanel
+              key={`${currentSeed}-${selectedStar.id}`}
+              star={selectedStar}
+              galaxySeed={currentSeed}
+              onClose={() => setSelectedStar(null)}
+              onExplore={handleExploreSystem}
+              onSaveDiscovery={api.STORAGE_ENABLED ? handleSaveDiscovery : undefined}
+              bookmarked={isSelectedStarBookmarked}
+              onToggleBookmark={api.STORAGE_ENABLED ? handleToggleBookmark : undefined}
+              entryView={entryViewOf({ kind: "star", starId: selectedStar.id })}
+            />
+          ) : view === "system" && selectedPlanet && selectedStar && !selectedBiosphere ? (
+            <PlanetPanel
+              planet={selectedPlanet}
+              star={selectedStar}
+              galaxySeed={currentSeed}
+              civilization={selectedPlanetCivilization}
+              discoveries={discoveries}
+              onSaveDiscovery={api.STORAGE_ENABLED ? handleSaveDiscovery : undefined}
+              world={selectedWorld}
+              physics={selectedPhysics}
+              orbiting={orbiting}
+              onClose={handleExitSystem}
+              onBack={orbiting ? leaveOrbit : handleBackToStar}
+              onApproach={handleApproach}
+              onLeaveOrbit={leaveOrbit}
+              onScanBiosphere={handleScanBiosphere}
+              entryView={entryViewOf(subjectOf(selectedPlanet, "planet"))}
+              selectedMoonIndex={smallMoonIndex}
+              onSelectSmallMoon={(moonIndex) => setSelectedSmallMoon(moonIndex === null ? null : { planetKey: selectedPlanet.key, moonIndex })}
+              onSelectMoon={(moon) => {
+                setSelectedPlanet(moon);
+                setSelectedBiosphere(null);
+                ui.inspect();
+              }}
+            />
+          ) : view === "biosphere" && selectedBiosphere ? (
+            <BiospherePanel
+              key={selectedPlanet?.key}
+              biosphere={selectedBiosphere}
+              hasMind={selectedPlanet?.life?.phylogeny.mind != null}
+              specimens={selectedFieldGuide?.specimens ?? null}
+              selectedLineageId={currentLifeView?.lineageId ?? null}
+              onSelectLineage={selectLineage}
+              onOpenTree={() => setTreeOpen(true)}
+              onBack={handleBackToPlanet}
+              onClose={handleExitSystem}
+              onScanCivilization={handleScanCivilization}
+              entryView={selectedPlanet && entryViewOf(subjectOf(selectedPlanet, "biosphere"))}
+            />
+          ) : view === "civilization" && selectedCivilization && selectedSpecies ? (
+            <CivilizationPanel
+              civilization={selectedCivilization}
+              species={selectedSpecies}
+              onBack={handleBackToBiosphere}
+              onClose={handleExitSystem}
+              entryView={selectedPlanet && entryViewOf(subjectOf(selectedPlanet, "civilization"))}
+            />
+          ) : view === "system" && currentSystem && selectedStar ? (
+            <SystemPanel
+              system={currentSystem}
+              star={selectedStar}
+              onSelectPlanet={handleSelectPlanetFromTable}
+            />
+          ) : (
+            <div className="dock-empty">
+              <p className="dock-empty-title">Nothing selected</p>
+              <p className="dock-empty-body">Click a star in the galaxy to inspect it.</p>
+            </div>
+          )}
+        </div>
       </aside>
 
       {showPhysics && physicsContext && (

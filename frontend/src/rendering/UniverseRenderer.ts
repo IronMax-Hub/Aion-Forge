@@ -9,6 +9,8 @@ import { starDisplayColour, starDisplayThreeColour, starLightThreeColour } from 
 import { moonKey } from "../simulation/bodyKey";
 import { formatSig, spectralType, STELLAR_CLASS_NAME } from "../ui/format";
 import type { Planet, PlanetarySystem, SolidWorld } from "../simulation/planet";
+import { effectiveOrbitAU } from "../simulation/planetBasics";
+import type { UniverseConfig } from "../simulation/config";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { PLANET_COLORS } from "../simulation/planet";
 import type { Biosphere } from "../simulation/biosphere";
@@ -24,7 +26,7 @@ import {
   secondsPerOrbit, SYSTEM_STARLIGHT_INTENSITY, systemLights, SystemOrbits,
 } from "./systemView";
 import type { KeplerPath } from "./systemView";
-import { HOST_STAR_RADIUS, hostStarRadius, SYSTEM_UNITS_PER_AU, systemLayout } from "./systemLayout";
+import { drawnOrbit, HOST_STAR_RADIUS, hostStarRadius, SYSTEM_UNITS_PER_AU, systemLayout } from "./systemLayout";
 import type { PlanetLayout } from "./systemLayout";
 import { SystemGlobes } from "./systemGlobes";
 import { PlanetView, ORBIT_DISTANCE, starlightIntensity } from "./planet/PlanetView";
@@ -615,6 +617,7 @@ export class UniverseRenderer {
   renderPlanetarySystem(
     system: PlanetarySystem,
     hostStar: Star,
+    config: UniverseConfig,
     onPlanetSelected: (planet: Planet | null, smallMoonIndex?: number) => void,
     sight: SystemSight = {},
   ) {
@@ -648,7 +651,9 @@ export class UniverseRenderer {
     // A bright star forms its planets farther out (planet.ts): its system is drawn
     // at a larger scale, camera, markers and zoom limit alike, by how far out its
     // innermost planet lies, so it looks like any other system, only bigger.
-    const innermostAU = system.planets.length > 0 ? Math.min(...system.planets.map((p) => p.orbitalRadius)) : 0;
+    // Orbits are drawn at the distance the physics uses, which gravity moves (effectiveOrbitAU).
+    const orbitAU = (planet: Planet) => effectiveOrbitAU(planet.orbitalRadius, config);
+    const innermostAU = system.planets.length > 0 ? Math.min(...system.planets.map(orbitAU)) : 0;
     const scale = Math.max(1, innermostAU / USUAL_INNER_ORBIT_AU);
 
     // The star's true colour lights its planets; it is drawn in its display colour (starColour.ts)
@@ -662,11 +667,13 @@ export class UniverseRenderer {
     this.systemOrbits = new SystemOrbits();
     // Host star, as light (systemView.ts), and the starlight the planets are lit by; in a binary, its
     // companion too (BS4), and the group the primary's own planets ride in
-    const ownPlanetsParent = this.addStars(group, hostStar, system, starCol, scale, maxDistance);
+    // The host star's drawn size, inside its innermost planet's orbit as drawn (a hot Jupiter's too)
+    const starRadius = hostStarRadius(system.planets, scale, config);
+    const ownPlanetsParent = this.addStars(group, hostStar, system, orbitAU, starCol, scale, starRadius, maxDistance);
     // Each planet's and moons' drawn sizes, fitted so no body reaches the star or a neighbour (systemLayout.ts)
-    const layouts = systemLayout(system.planets, scale);
+    const layouts = systemLayout(system.planets, scale, config);
     for (const planet of system.planets) {
-      const orbitR = planet.orbitalRadius * SYSTEM_UNITS_PER_AU;
+      const orbitR = drawnOrbit(planet, config);
       const parent = planet.orbitsBothStars ? group : ownPlanetsParent;
       const orbit = planet.orbitsBothStars ? circumbinaryOrbitLine(orbitR) : orbitLine(orbitR);
       parent.add(orbit);
@@ -741,12 +748,13 @@ export class UniverseRenderer {
    * enough apart to see both stars.
    */
   private addStars(
-    group: THREE.Group, hostStar: Star, system: PlanetarySystem, starCol: THREE.Color, scale: number, maxDistance: number,
+    group: THREE.Group, hostStar: Star, system: PlanetarySystem, orbitAU: (planet: Planet) => number,
+    starCol: THREE.Color, scale: number, starRadius: number, maxDistance: number,
   ): THREE.Object3D {
     const companion = hostStar.companion;
     const companionStar = companionAsStar(hostStar);
     if (!companion || !companionStar) {
-      group.add(hostStarObject(starDisplayThreeColour(hostStar.temperature), hostStarRadius(system.planets, scale)), ...systemLights(starCol));
+      group.add(hostStarObject(starDisplayThreeColour(hostStar.temperature), starRadius), ...systemLights(starCol));
       return group;
     }
     const companionCol = starLightThreeColour(companion.temperature);
@@ -760,13 +768,13 @@ export class UniverseRenderer {
     const e = companion.eccentricity;
     const trueA = companion.separationAU * SYSTEM_UNITS_PER_AU;
     const mu = companion.mass / (hostStar.mass + companion.mass);
-    const innermostAU = system.planets.length > 0 ? Math.min(...system.planets.map((p) => p.orbitalRadius)) : companion.separationAU;
+    const innermostAU = system.planets.length > 0 ? Math.min(...system.planets.map(orbitAU)) : companion.separationAU;
     const seconds = Math.max(FASTEST_PAIR_ORBIT_SECONDS, secondsPerOrbit(companion.separationAU, innermostAU));
     const aroundBoth = system.planets.filter((p) => p.orbitsBothStars);
 
     if (aroundBoth.length === 0) {
       // A companion round the primary: their relative orbit, with the centre of mass on the line between them
-      const radius = hostStarRadius(system.planets, scale);
+      const radius = starRadius;
       group.add(hostStarObject(drawnCol, radius), ...systemLights(starCol));
       const closest = 3 * radius * (1 + companionSize);
       const a = Math.min(maxDistance / 2 / (1 + e), Math.max(trueA, closest / (1 - e)));
@@ -783,7 +791,7 @@ export class UniverseRenderer {
     }
 
     // A close pair round its centre of mass, inside the innermost planet that orbits both
-    const innermostBothAU = Math.min(...aroundBoth.map((p) => p.orbitalRadius));
+    const innermostBothAU = Math.min(...aroundBoth.map(orbitAU));
     const ownPlanets = system.planets.length > aroundBoth.length;
     const radius = Math.min(HOST_STAR_RADIUS * scale, (innermostBothAU * SYSTEM_UNITS_PER_AU) / 10);
     const roomy = ownPlanets ? trueA : Math.max(trueA, (3 * radius * (1 + companionSize)) / (1 - e));

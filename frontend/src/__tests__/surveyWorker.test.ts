@@ -3,7 +3,7 @@ import { mergeSurveys, runSurveyChunk, STARS_PER_CHUNK } from "../workers/survey
 import type { ChunkMessage, ChunkRequest, SurveyMessage, SurveyRequest } from "../workers/surveyTask";
 import { createSurveyClient, surveyCacheKey } from "../workers/surveyClient";
 import type { SurveyWorkerLike } from "../workers/surveyClient";
-import { createSurveyPool, surveyPoolSize } from "../workers/surveyPool";
+import { createSurveyPool, MAX_SURVEY_WORKERS, surveyPoolSize } from "../workers/surveyPool";
 import type { ChunkWorkerLike } from "../workers/surveyPool";
 import { makeConfig, PRESETS } from "../simulation/config";
 import { buildGalaxyConfig } from "../simulation/galaxy";
@@ -26,18 +26,28 @@ const CHUNKS = STAR_COUNT / STARS_PER_CHUNK;
  */
 function fakeChunkWorkers(answer: (request: ChunkRequest) => ChunkMessage) {
   const held: { worker: ChunkWorkerLike; request: ChunkRequest }[] = [];
+  const terminated: ChunkWorkerLike[] = [];
   let created = 0;
   return {
     held,
+    terminated,
     created: () => created,
     create(): ChunkWorkerLike {
       created++;
       const worker: ChunkWorkerLike = {
         onmessage: null,
+        onerror: null,
+        onmessageerror: null,
         // structuredClone is what postMessage does to every message
         postMessage(request) { held.push({ worker, request: structuredClone(request) }); },
+        terminate() { terminated.push(worker); },
       };
       return worker;
+    },
+    /** The worker holding the request at `index` dies before replying, as a worker that runs out of memory does. */
+    crash(index: number, message = "out of memory") {
+      const [{ worker }] = held.splice(index, 1);
+      worker.onerror!({ message } as ErrorEvent);
     },
     /** Runs the held request at `index` (default: the newest) and delivers its reply. */
     run(index = held.length - 1) {
@@ -136,15 +146,44 @@ describe("survey pool", () => {
     expect(results[0].kind === "result" && results[0].survey.totalPlanets).toBe(STAR_COUNT);
   });
 
-  it("serves requests in the order they arrive", () => {
+  it("serves the newest request first, and still finishes the older ones", () => {
     const workers = fakeChunkWorkers(canned);
     const pool = createSurveyPool(workers.create, 2);
     const results: number[] = [];
     pool.onmessage = ({ data }) => { if (data.kind === "result") results.push(data.generation); };
     pool.postMessage({ generation: 1, seed: 42, config: makeConfig(42) });
     pool.postMessage({ generation: 2, seed: 43, config: makeConfig(43) });
+    pool.postMessage({ generation: 3, seed: 44, config: makeConfig(44) });
     while (workers.held.length > 0) workers.run(0);
-    expect(results).toEqual([1, 2]);
+    // The first request's first two chunks were already out; every chunk after them went to the newest request
+    expect(results).toEqual([3, 2, 1]);
+  });
+
+  it("fails the request a dying worker held, replaces the worker, and goes on with the other requests", () => {
+    const workers = fakeChunkWorkers(canned);
+    const pool = createSurveyPool(workers.create, 2);
+    const seen: SurveyMessage[] = [];
+    pool.onmessage = ({ data }) => { if (data.kind !== "progress") seen.push(data); };
+    pool.postMessage({ generation: 1, seed: 42, config: makeConfig(42) });
+    pool.postMessage({ generation: 2, seed: 43, config: makeConfig(43) });
+    workers.crash(0);                       // held a chunk of request 1
+    expect(workers.terminated).toHaveLength(1);
+    while (workers.held.length > 0) workers.run(0);
+    expect(seen.map((m) => [m.kind, m.generation])).toEqual([["error", 1], ["result", 2]]);
+    expect(seen[0].kind === "error" && seen[0].message).toBe("A survey worker stopped: out of memory");
+    expect(workers.created()).toBe(3);      // two, then one in place of the lost one
+  });
+
+  it("fails a request whose chunk reply cannot be read", () => {
+    const workers = fakeChunkWorkers(canned);
+    const pool = createSurveyPool(workers.create, 1);
+    const seen: SurveyMessage[] = [];
+    pool.onmessage = ({ data }) => { if (data.kind !== "progress") seen.push(data); };
+    pool.postMessage({ generation: 1, seed: 42, config: makeConfig(42) });
+    const [{ worker }] = workers.held.splice(0, 1);
+    worker.onmessageerror!({} as MessageEvent);
+    expect(seen).toEqual([{ kind: "error", generation: 1, message: "A survey worker stopped: a reply could not be read" }]);
+    expect(workers.held).toHaveLength(0);   // nothing left to do, so no replacement yet
   });
 
   it("posts a request's first failure once, drops its other chunks, and goes on to the next request", () => {
@@ -176,8 +215,9 @@ describe("survey pool", () => {
     });
   });
 
-  it("uses one worker per core, less one for the interface", () => {
+  it("uses one worker per core, less one for the interface, and never more than MAX_SURVEY_WORKERS", () => {
     expect(surveyPoolSize(8)).toBe(7);
+    expect(surveyPoolSize(64)).toBe(MAX_SURVEY_WORKERS);
     expect(surveyPoolSize(1)).toBe(1);
     expect(surveyPoolSize(undefined)).toBe(1);
   });

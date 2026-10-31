@@ -9,12 +9,18 @@
 // the Newtonian-looking form of the Schwarzschild orbit equation u'' + u = (3/2) u².
 // A ray that falls inside the horizon is black (the shadow); one that escapes
 // shows the sky in the direction it leaves, so the stars behind are lensed.
+// The camera is a static observer, hovering at its distance: the angles on its
+// screen are angles in its own frame, where radial lengths are stretched by
+// 1/√(1 − 1/r). A pixel at angle ψ from the radial direction starts its ray at
+// the coordinate angle α with tan α = tan ψ / √(1 − 1/r) (cameraRay).
 //
 // What it sees, from the simulation (blackHole.ts):
 // - Thin disc: each crossing of the disc plane between its inner edge and its
 //   outer fade adds the disc's light there, so the disc's far side shows above
 //   and below the shadow and thin rings of higher images hug it. The gas's
-//   temperature follows Shakura–Sunyaev, peaking at peakTemperatureK. Its light
+//   temperature follows Shakura–Sunyaev, peaking at peakTemperatureK: the
+//   Newtonian profile, a deliberate approximation that leaves out the
+//   relativistic (Novikov–Thorne) correction, which cools the innermost gas. Its light
 //   is shifted by g, the product of gravitational redshift and the Doppler shift
 //   of gas in Keplerian orbit: the observed colour is a blackbody at g·T and its
 //   brightness scales as g⁴, so the side coming towards the camera is brighter
@@ -174,7 +180,9 @@ float clumps(float r, float phi) {
 
 // ── Light ────────────────────────────────────────────────────────────────────
 
-// Approximate sRGB-primaries colour of a blackbody, normalised to its brightest channel
+// Approximate sRGB-primaries colour of a blackbody, normalised to its brightest channel.
+// Clamped to 1000–40,000 K, deliberately: above 40,000 K a blackbody's visible colour barely
+// changes (it tends to a fixed blue-white), so hotter gas differs only in brightness.
 vec3 blackbody(float kelvin) {
   float t = clamp(kelvin, 1000.0, 40000.0) / 100.0;
   // Both sides of each choice are kept finite: some GPUs evaluate both, and a NaN from
@@ -195,12 +203,17 @@ float discTemperatureShare(float r) {
   return pow(max(f, 0.0) / F_PEAK, 0.25);
 }
 
-// The shift g of light from gas in circular orbit at radius r, leaving in direction `towardCamera`
+// The shift g of light from gas in circular orbit at radius r, leaving in the coordinate
+// direction `towardCamera`. The gas's speed is a static observer's measure there, so the
+// light's angle to the orbit is taken in that observer's frame too: the direction's radial
+// part is stretched by 1/√(1 − 1/r), as the camera's is shrunk (cameraRay).
 float shiftFactor(vec3 p, float r, vec3 towardCamera) {
+  vec3 outward = normalize(p);
+  vec3 localDir = normalize(towardCamera + (inversesqrt(1.0 - 1.0 / r) - 1.0) * dot(towardCamera, outward) * outward);
   vec3 orbitDir = normalize(vec3(-p.z, 0.0, p.x) + vec3(1e-6, 0.0, 0.0));   // the gas orbits anticlockwise seen from +y
   // its speed, to a static observer there; inside the last stable orbit gas plunges, held here below light's
   float beta = min(sqrt(0.5 / (r - 1.0)), MAX_GAS_SPEED);
-  float doppler = sqrt(1.0 - beta * beta) / (1.0 - beta * dot(orbitDir, towardCamera));
+  float doppler = sqrt(1.0 - beta * beta) / (1.0 - beta * dot(orbitDir, localDir));
   return sqrt(1.0 - 1.0 / r) * doppler;                    // with gravity's redshift
 }
 
@@ -273,9 +286,18 @@ vec3 sky(vec3 dir) {
   return colour;
 }
 
+// A camera ray's coordinate direction, for a pixel looking along `screenDir` in the camera's
+// own (static observer's) frame: its radial part shrinks by √(1 − 1/r), so tan α = tan ψ / √(1 − 1/r)
+vec3 cameraRay(vec3 cameraPos, vec3 screenDir) {
+  vec3 outward = normalize(cameraPos);
+  float radial = dot(screenDir, outward);
+  return normalize(screenDir + (sqrt(1.0 - 1.0 / length(cameraPos)) - 1.0) * radial * outward);
+}
+
 void main() {
   vec2 ndc = vUv * 2.0 - 1.0;
-  vec3 dir = normalize(cameraBasis * vec3(ndc.x * tanHalfFov * aspect, ndc.y * tanHalfFov, -1.0));
+  vec3 screenDir = normalize(cameraBasis * vec3(ndc.x * tanHalfFov * aspect, ndc.y * tanHalfFov, -1.0));
+  vec3 dir = cameraRay(cameraPosition_, screenDir);
   vec3 pos = cameraPosition_;
   vec3 vel = dir;
   float exposure = thinDisc > 0.5 ? DISC_EXPOSURE : HOT_FLOW_EXPOSURE;

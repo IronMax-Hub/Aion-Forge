@@ -4,7 +4,7 @@
 export interface UniverseConfig {
   seed: number;
 
-  // Influences galaxy shape density and stellar mass distribution
+  // Moves every planet's orbit in by √gravity (planetBasics.ts, effectiveOrbitAU); nothing else reads it
   gravityStrength: number;
 
   // Influences galaxy scale and particle spread

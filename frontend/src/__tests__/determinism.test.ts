@@ -281,6 +281,14 @@ describe("Serialization", () => {
     expect(deserializeUniverse(legacy)).toMatchObject({ seed: 7, name: "Old save", rulesVersion: 1 });
   });
 
+  it("round-trips seed 0, and refuses seeds that are negative, fractional or wider than 32 bits", () => {
+    const meta = { snapshotId: makeUniverseId(0), seed: 0, name: "Zero", rulesVersion: 18 };
+    expect(deserializeUniverse(JSON.stringify({ version: 2, meta }))).toEqual(meta);
+    for (const seed of [-1, 1.5, 2 ** 32, "7"]) {
+      expect(deserializeUniverse(JSON.stringify({ version: 2, meta: { ...meta, seed } }))).toBeNull();
+    }
+  });
+
   it("returns null for malformed JSON, unknown formats, and format 2 without a rules version", () => {
     expect(deserializeUniverse("not json")).toBeNull();
     expect(deserializeUniverse('{"version":1}')).toBeNull();

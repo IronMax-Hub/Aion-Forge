@@ -589,6 +589,12 @@ export const RARE_STAR = { massAbove: 40, oldShareAbove: 0.9, oldDwarfMassBelow:
 
 /** Age of every universe, in billion years; no star is older. */
 export const UNIVERSE_AGE_GYR = 13.7;
+// Stars form at a constant rate from the universe's start to today (A2.2): a
+// star's age is drawn uniformly over the universe's age, whatever its lifespan.
+// A star older than its lifespan has ended: a white dwarf, neutron star or
+// black hole. Real galaxies' rates rose and fell (spirals steadily, ellipticals
+// mostly early); a constant rate is the simplest history that makes old stars
+// dead (owner decision: constant rate to start).
 
 // ── Metallicity (MZ2) ─────────────────────────────────────────────────────────
 //
@@ -643,7 +649,9 @@ export function generateStarsFor(
     const mass = kroupaMass(pow(rng(), config.stellarIgnitionThreshold));
     // entropyRate > 1 = faster decay = shorter lifespans
     const lifespan = calcLifespan(mass) / config.entropyRate;
-    const age = rng() * Math.min(lifespan, universeAgeBY);
+    // Formed at a constant rate over the galaxy's history (A2.2): a star older than its
+    // lifespan is a remnant today, so heavy stars are mostly remnants, as observed
+    const age = rng() * universeAgeBY;
     const cls = classify(mass, age, lifespan);
     const isRare =
       mass > RARE_STAR.massAbove ||

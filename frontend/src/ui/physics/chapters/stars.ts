@@ -88,12 +88,12 @@ export const stars: Chapter = {
     {
       id: "star-age",
       title: "Ages",
-      statement: "Each star formed at a random moment within its lifespan or the universe's age, whichever is shorter, so every star in the galaxy is alive or a remnant today.",
-      rule: `age = draw × min(lifespan, ${UNIVERSE_AGE_GYR} Gyr)`,
+      statement: "Stars form at a constant rate from the universe's start to today, so each star's age is a random moment in the universe's history, whatever its lifespan. A star older than its lifespan has ended: heavy stars are mostly white dwarfs, neutron stars and black holes by now, while red dwarfs all still shine.",
+      rule: `age = draw × ${UNIVERSE_AGE_GYR} Gyr; a star past ${REMNANT_FRACTION} of its lifespan is a remnant`,
       constants: [{ name: "Age of the universe", value: exact(UNIVERSE_AGE_GYR, "Gyr"), meaning: "No star is older" }],
-      why: "Star formation spread over cosmic time; the draw stands in for a constant birth rate.",
-      limits: ["A constant birth rate: the early universe's burst of star formation is not modelled.", "No star has already died and gone: remnants appear only in the last 5% of a life."],
-      laws: [{ law: "entropyRate", how: "Shorter lifespans cap ages lower" }],
+      why: "A constant star-formation rate is the simplest history that leaves the old, heavy stars dead, as observed: white dwarfs are several per cent of the stars near the Sun.",
+      limits: ["A constant birth rate: real galaxies formed stars faster early on (ellipticals almost only then), which is not modelled.", "A remnant keeps its progenitor's mass in the model."],
+      laws: [{ law: "entropyRate", how: "Shorter lifespans: more stars have ended" }],
       code: "simulation/star.ts · generateStarsFor",
       effect: (ctx) => [said(
         `The median star is ${formatGyr(median(ctx.stars.map((s) => s.age)))} old; ${formatInt(ctx.stars.filter((s) => s.age > 10).length)} are older than 10 Gyr.`,

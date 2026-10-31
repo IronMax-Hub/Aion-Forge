@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeConfig } from "../simulation/config";
 import { buildGalaxyConfig } from "../simulation/galaxy";
-import { generateStarsFor, KROUPA_IMF, kroupaMass } from "../simulation/star";
+import { generateStarsFor, KROUPA_IMF, kroupaMass, LIFESPAN, REMNANT_FRACTION, UNIVERSE_AGE_GYR } from "../simulation/star";
 import type { Star } from "../simulation/star";
 
 // The stellar population against measured astronomy (Phase 3, A2).
@@ -50,5 +50,38 @@ describe("star masses (A2.1, A2.3)", () => {
       for (const s of stars) counts.set(s.mass, (counts.get(s.mass) ?? 0) + 1);
       expect(Math.max(...counts.values())).toBeLessThan(0.01 * stars.length);
     }
+  });
+});
+
+describe("star formation through time (A2.2)", () => {
+  const stars = SEEDS.flatMap((seed) => starsOf(seed));
+  const remnant = (s: Star) => ["white-dwarf", "neutron-star", "black-hole"].includes(s.classification);
+
+  it("forms stars at a constant rate: ages spread evenly over the universe's age, whatever the lifespan", () => {
+    const meanAge = stars.reduce((sum, s) => sum + s.age, 0) / stars.length;
+    expect(meanAge / UNIVERSE_AGE_GYR).toBeCloseTo(0.5, 1);
+    expect(Math.max(...stars.map((s) => s.age))).toBeLessThanOrEqual(UNIVERSE_AGE_GYR);
+  });
+
+  it("has the remnants a constant rate makes: a star of lifespan L has ended with chance 1 − 0.95·L / T", () => {
+    // Expected share, averaged over the IMF on a fine grid of draws
+    const n = 20000;
+    let expected = 0;
+    for (let i = 0; i < n; i++) {
+      const lifespan = Math.max(LIFESPAN.minGyr, LIFESPAN.solarGyr / kroupaMass((i + 0.5) / n) ** LIFESPAN.massExponent);
+      expected += Math.max(0, 1 - (REMNANT_FRACTION * lifespan) / UNIVERSE_AGE_GYR) / n;
+    }
+    const observed = stars.filter(remnant).length / stars.length;
+    const sigma = Math.sqrt((expected * (1 - expected)) / stars.length);
+    expect(Math.abs(observed - expected)).toBeLessThan(4 * sigma);
+    // Near the Sun, white dwarfs are several per cent of stars
+    expect(observed).toBeGreaterThan(0.04);
+    expect(observed).toBeLessThan(0.12);
+  });
+
+  it("leaves heavy stars mostly dead, as only the young ones still shine", () => {
+    const heavy = stars.filter((s) => s.mass > 8);
+    expect(heavy.length).toBeGreaterThan(20);
+    expect(heavy.filter(remnant).length / heavy.length).toBeGreaterThan(0.9);
   });
 });

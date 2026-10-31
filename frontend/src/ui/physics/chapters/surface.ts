@@ -38,6 +38,7 @@ export const geography: Chapter = {
   cards: [
     {
       id: "plates-relief",
+      confidence: "illustrative",
       title: "Plates, continents and relief",
       statement: "A solid planet's surface is cut into plates; each is continental (high) or oceanic (low), more often continental on planets active when young. Colliding plates raise mountains, separating ones open rifts. Everything is scaled by gravity, so small worlds have taller relief.",
       rule: `${PLATES.min}–${PLATES.min + PLATES.extra} plates; continental with chance ${CONTINENTAL_SHARE} × τ(0); base ${CONTINENTAL_BASE_KM} km or ${OCEANIC_BASE_KM} km, uplift up to ${UPLIFT_KM} km, rift ${RIFT_KM} km; all ÷ g`,
@@ -56,6 +57,7 @@ export const geography: Chapter = {
     },
     {
       id: "ocean-depth",
+      confidence: "approximate",
       title: "Ocean depth, and why super-Earths drown",
       statement: "A planet's water spreads into a global layer whose depth grows with its water and its gravity. Oceans fill the lowest ground first, up to a sea level that holds exactly that volume.",
       rule: `layer depth = W × ${formatSig(WATER_KM_PER_UNIT)} km × g`,
@@ -83,6 +85,7 @@ export const climate: Chapter = {
   cards: [
     {
       id: "energy-balance",
+      confidence: "approximate",
       title: "Starlight and albedo",
       statement: "A planet is as warm as the starlight it absorbs, plus the heat from its interior, allow; ocean, land and ice reflect different shares. Ice reflects most, so more ice cools a world and makes more ice.",
       rule: `T_eq = ${EQUILIBRIUM_K_AT_1_AU} K × (L / a²)^¼ × (1 − albedo)^¼; T_eff⁴ = T_eq⁴ + T_int⁴ (the interior's heat, IH1)`,
@@ -104,6 +107,7 @@ export const climate: Chapter = {
     },
     {
       id: "greenhouse",
+      confidence: "approximate",
       title: "The greenhouse",
       statement: "Air warms a planet in proportion to the energy it holds: more pressure, more CO₂ and methane warm it more, and water vapour multiplies the warming on wet worlds. Earth gets 33 K; the same air on a world far from its star warms it far less.",
       rule: `T_mean = T_eff × (1 + G / ${GREENHOUSE_REFERENCE_K} K); G = (${GREENHOUSE_BASE_K} K × √P + ${GREENHOUSE_PER_CO2_DOUBLING_K} K × log₂(min(CO₂, ${MAX_GREENHOUSE_CO2_BAR}) / ${CO2_REFERENCE_BAR}) + ${GREENHOUSE_PER_SQRT_CH4_K} K × √CH₄) / (1 − ${VAPOUR_FEEDBACK} × wetness)`,
@@ -114,7 +118,10 @@ export const climate: Chapter = {
         { name: "Reference", value: exact(GREENHOUSE_REFERENCE_K, "K"), meaning: "Earth's equilibrium temperature: G is the warming there, scaled with T_eff elsewhere (IH2)" },
       ],
       why: "Greenhouse gases absorb the heat a surface radiates; a grey atmosphere's surface temperature is proportional to its effective temperature. Warmer air holds more water vapour, itself a greenhouse gas.",
-      limits: ["The vapour reads the water inventory, not the temperature, so a frozen wet world keeps its vapour warming. Reading it from the mean temperature (decision 39) made Earth-like worlds cycle between snowballs and moist greenhouses; deferred."],
+      limits: [
+        "The vapour reads the water inventory, not the temperature, so a frozen wet world keeps its vapour warming. Reading it from the mean temperature (decision 39) made Earth-like worlds cycle between snowballs and moist greenhouses; deferred.",
+        "Where it holds: the grey greenhouse is calibrated on Earth (1 bar, a 255 K effective temperature) and is best for air of a few bar and surfaces of about 200 to 400 K; beyond that it is an extrapolation. Thick CO₂ air is too cool: an Earth twin at Venus's orbit reaches 528 K under 112 bar, where Venus has 737 K under 92 bar.",
+      ],
       laws: [],
       code: "simulation/climate.ts · greenhouseK, surfaceMeanK",
       needsIndex: true,
@@ -127,6 +134,7 @@ export const climate: Chapter = {
     },
     {
       id: "heat-transport",
+      confidence: "approximate",
       title: "Heat spreading round the planet",
       statement: "Thin air leaves sharp contrasts between lit and dark regions; thick air evens them out. A locked planet's night side is the extreme case.",
       rule: `contrast = ${CONTRAST_MAX_K} K × ${REDISTRIBUTION_HALF_BAR} / (P + ${REDISTRIBUTION_HALF_BAR}) × T_eq⁴ / T_eff⁴; no place colder than the interior's own temperature`,
@@ -139,8 +147,9 @@ export const climate: Chapter = {
     },
     {
       id: "ice",
+      confidence: "approximate",
       title: "Ice, and worlds that freeze over",
-      statement: `Below ${FREEZING_K} K water turns to ice. Each step starts from the last step's ice, so a planet can freeze over and stay frozen until volcanic CO₂ builds up enough to thaw it.`,
+      statement: `Below ${FREEZING_K} K water turns to ice; below water's triple point it is ice below ${WATER_TRIPLE_POINT.K} K and vapour above, never liquid. Each step starts from the last step's ice, so a planet can freeze over and stay frozen until volcanic CO₂ builds up enough to thaw it.`,
       constants: [
         { name: "Freezing", value: exact(FREEZING_K, "K"), meaning: "Sea ice and snow form below this" },
         { name: "Frozen over", value: `≥ ${formatPercent(FROZEN_ICE_SHARE)} ice`, meaning: "" },
@@ -158,6 +167,7 @@ export const climate: Chapter = {
     },
     {
       id: "boiling",
+      confidence: "approximate",
       title: "Boiling oceans",
       statement: "A world's oceans turn to steam at once when it absorbs more than moist air can radiate, the runaway limit, or when it passes the boiling point set by the total air pressure. The steam heats the surface until it can shed the excess: about 1,600 K, where light starts to escape through water vapour's 4 µm window, and hotter on worlds absorbing far more. The steam's weight and heat hold the runaway until the water escapes. Below water's triple point there is no liquid at all: water is ice, or vapour.",
       rule: `steam when σT_eff⁴ > ${RUNAWAY_LIMIT_W_PER_M2} W/m² (T_eff > ${formatSig(RUNAWAY_EFFECTIVE_K, 4)} K) or T_mean ≥ boiling point; under steam, σT_eff⁴ = ${RUNAWAY_LIMIT_W_PER_M2} + ε·σ(T⁴ − ${formatInt(STEAM_WINDOW_K)}⁴); boiling point by Clausius–Clapeyron (L/R = ${formatInt(WATER_LATENT_OVER_R_BELOW_1_ATM_K)} K below 1 atm, through the triple point), capped at water's critical point (${WATER_CRITICAL_K} K)`,
@@ -188,6 +198,7 @@ export const history: Chapter = {
   cards: [
     {
       id: "steps",
+      confidence: "approximate",
       title: "Steps through time",
       statement: `A world's history runs in steps of ${formatInt(STEP_GYR * 1000)} Myr, from ${FORMATION_DELAY_GYR} Gyr after its star formed to today. A step in which the world freezes over or thaws is taken again in ${formatInt(SUBSTEP_GYR * 1000)} Myr sub-steps, for its carbon and climate.`,
       constants: [
@@ -208,6 +219,7 @@ export const history: Chapter = {
     },
     {
       id: "carbon-cycle",
+      confidence: "approximate",
       title: "The carbon cycle: a thermostat",
       statement: "Volcanoes add CO₂; rain weathering rock removes it, faster when warmer. Each step finds the CO₂ at which the two balance, so a cooling world gains CO₂ and warms again. The sea floor weathers too, more weakly, so a landless world has a weaker thermostat.",
       rule: `outgassing ${OUTGASSING_BAR_PER_GYR} bar/Gyr × τ × g (× ${VOLCANIC_PULSE_OUTGASSING} in a pulse); weathering ∝ g × (land × wetness + ${SEAFLOOR_WEATHERING_SHARE} × ocean) × √(CO₂ / CO₂_ref) × e^((T − ${WEATHERING_REFERENCE_K}) / ${WEATHERING_WARMING_SCALE_K})`,
@@ -235,6 +247,7 @@ export const history: Chapter = {
     },
     {
       id: "water-loss",
+      confidence: "approximate",
       title: "Losing water to space",
       statement: "When a world is warm enough for water vapour to reach its upper air, starlight's ultraviolet splits it and the hydrogen escapes. The amount lost follows the ultraviolet dose and weak gravity, not how much water there is, so a water-rich world keeps its ocean longer. Thin air cold-traps vapour less, so its threshold is lower.",
       rule: `ΔW = min(W, ${formatSig(WATER_LOST_PER_DOSE)} × ΔX × (R / R⊕) × (${EARTH_ESCAPE_VELOCITY_KMS} km/s / v_esc)⁴ × min(1, (T − T_moist) / ${MOIST_RAMP_K} K)); T_moist = ${MOIST_THRESHOLD.atOneBarK} K at 1 bar, ${MOIST_THRESHOLD.perDecadeK} K lower per tenfold less background air, at least ${MOIST_THRESHOLD.lowestK} K`,
@@ -252,6 +265,7 @@ export const history: Chapter = {
     },
     {
       id: "escape",
+      confidence: "approximate",
       title: "Air lost to space",
       statement: "A young star's extreme ultraviolet heats a world's upper air; a world whose gravity is weak for the dose it receives loses its air. Worlds well inside the line keep almost all of it; those near it are stripped quickly. Escape takes every gas alike, and once a world is past the line, whatever its volcanoes add is lost too.",
       rule: `X = ∫ L_XUV / a² dt in Earth doses; X_crit = ${ESCAPE_K} × (v_esc / ${EARTH_ESCAPE_VELOCITY_KMS} km/s)⁴; air kept r = max(0, 1 − (X / X_crit)²)`,
@@ -274,6 +288,7 @@ export const history: Chapter = {
     },
     {
       id: "oxygen",
+      confidence: "speculative",
       title: "Oxygen in the air",
       statement: "Oxygen comes from water split in the upper air and, once life uses light, from life. Volcanic gases and unoxidised crust remove it. When it passes 1% of Earth's, the air counts as oxidised; ozone then forms.",
       rule: `photolysis ${PHOTOLYSIS_O2_BAR_PER_WATER} bar per unit W lost; sinks ${VOLCANIC_O2_SINK_BAR_PER_GYR} bar/Gyr × τ and ${CRUST_O2_SINK_BAR_PER_GYR} bar/Gyr until ${CRUST_O2_CAPACITY_BAR} bar of crust is oxidised; ozone = min(1, √(O₂ / ${O2_REFERENCE_BAR}))`,
@@ -292,6 +307,7 @@ export const history: Chapter = {
     },
     {
       id: "methane",
+      confidence: "speculative",
       title: "Methane",
       statement: "Methane comes from life that lives on chemical energy, and is destroyed faster in oxygen-rich air.",
       rule: `destroyed at ${CH4_DESTRUCTION_PER_GYR} per Gyr × (1 + O₂ / ${O2_REFERENCE_BAR} bar); made ∝ chemical-energy biomass × its anaerobic share × g`,
@@ -305,6 +321,7 @@ export const history: Chapter = {
     },
     {
       id: "impacts-volcanism",
+      confidence: "speculative",
       title: "Impacts and volcanic pulses",
       statement: "Asteroids strike often just after formation and rarely later; volcanic pulses come with inner activity. Both are catastrophes for life.",
       rule: `impacts ${IMPACT_EARLY_PER_GYR} per Gyr fading over ${IMPACT_EARLY_TIMESCALE_GYR} Gyr to ${IMPACT_BACKGROUND_PER_GYR} per Gyr; pulses ${VOLCANIC_PULSE_PER_GYR} per Gyr × τ`,
@@ -322,6 +339,7 @@ export const history: Chapter = {
     },
     {
       id: "liquid-water",
+      confidence: "approximate",
       title: "Liquid water, ever",
       statement: "Liquid water, open or under ice, at any step of a world's history or today: the condition for life to begin. Under ice, water stays liquid only below a shell thick enough to carry the interior's heat up to the cold surface; shallower water freezes solid to the floor, and life in it dies.",
       rule: `shell d = (${ICE_CONDUCTIVITY_W_PER_M} W/m / q) × ln(${ICE_SHELL_BASE_K} K / T_surface); liquid under a frozen band = its water deeper than d`,
@@ -340,6 +358,6 @@ export const history: Chapter = {
       },
     },
   ],
-  missing: ["Thick air does not last longer than thin under the same dose (decision 38).", "No heat from inside in the energy balance (step 5a)."],
+  missing: ["Thick air does not last longer than thin under the same dose (decision 38)."],
 };
 

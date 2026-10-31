@@ -23,6 +23,7 @@ export const seeing: Chapter = {
   cards: [
     {
       id: "composition",
+      confidence: "approximate",
       title: "What the air is made of",
       statement: "Today's air comes from the world's history: nitrogen as the background, its CO₂, oxygen and methane, ozone from its oxygen, water vapour from its oceans and temperature. Living things add nitrous oxide; industry adds CO₂ and NO₂; information-age civilizations add CFCs. Giants hold hydrogen and helium with methane, ammonia and water.",
       constants: [
@@ -44,6 +45,7 @@ export const seeing: Chapter = {
     },
     {
       id: "spectrum",
+      confidence: "established",
       title: "The transit spectrum",
       statement: "When a planet crosses its star, a thin ring of its air is backlit. Each gas absorbs at its own wavelengths, so the planet looks slightly larger in those colours.",
       rule: `${SPECTRUM_BINS} bins from ${SPECTRUM_MIN_UM} to ${SPECTRUM_MAX_UM} µm; ${BANDS.length} absorption bands; the air's height from its temperature, gravity and molecular mass`,
@@ -59,6 +61,7 @@ export const seeing: Chapter = {
     },
     {
       id: "observation",
+      confidence: "approximate",
       title: "Noise, and how many transits",
       statement: "Each transit gathers a limited number of photons, so a spectrum is noisy; noise falls as more transits are added, and is worse for faint stars.",
       constants: [
@@ -73,6 +76,7 @@ export const seeing: Chapter = {
     },
     {
       id: "detection",
+      confidence: "approximate",
       title: "Detection and verdict",
       statement: `A gas counts as detected when the data need it at ${DETECTION_SIGMA}σ or more. The verdict weighs what was found: technosignature, strong or possible biosignature, atmosphere only, or nothing.`,
       constants: [{ name: "Detection threshold", value: `${exact(DETECTION_SIGMA)}σ`, meaning: "" }],
@@ -93,6 +97,7 @@ export const measures: Chapter = {
   cards: [
     {
       id: "habitability",
+      confidence: "illustrative",
       title: "Habitability score",
       statement: "How much of a planet can hold liquid water today, weighed by a gravity window, its air and its resources. Giants and lava worlds score 0.",
       rule: `min(1, habitable area / ${FULL_HABITABLE_AREA}) × gravity factor (full in ${GRAVITY_WINDOW.min}–${GRAVITY_WINDOW.max} g) × air factor × (1 − ${RESOURCE_WEIGHT} + ${RESOURCE_WEIGHT} × resources)`,
@@ -105,6 +110,7 @@ export const measures: Chapter = {
     },
     {
       id: "rarity",
+      confidence: "illustrative",
       title: "Rare worlds",
       statement: "A planet is marked rare when it is a temperate ocean world, a small lava world, or a temperate rocky world under moderate air.",
       rule: `ocean ${RARE_PLANET.oceanK.above}–${RARE_PLANET.oceanK.below} K; lava below ${RARE_PLANET.lavaMassBelow} M⊕; rocky ${RARE_PLANET.rockyK.above}–${RARE_PLANET.rockyK.below} K with moderate air`,
@@ -118,13 +124,14 @@ export const measures: Chapter = {
     },
     {
       id: "great-filter",
+      confidence: "speculative",
       title: "The Great Filter",
       statement: `Twelve gates from a solid surface to a lasting civilization; each world passes as many as it can in a row. The filter is the gate that lets the smallest share through, among those at least ${FILTER_MIN_ARRIVING} worlds reach.`,
       rule: GATES.map((g, i) => `${i + 1}. ${g.label}`).join("; "),
       constants: [],
       why: "Hanson's question, counted rather than argued.",
       source: "Hanson 1998",
-      limits: ["Shares, not causes. Fire and civilization stages are read from today (until DT1)."],
+      limits: ["Shares, not causes. Fire and civilization stages are read from today (until DT1).", "Its later gates come from the speculative life and minds models, so where the filter falls shows what those assumptions produce, not where a real filter lies."],
       laws: [],
       code: "simulation/greatFilter.ts",
       needsIndex: true,

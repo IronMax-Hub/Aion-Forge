@@ -2403,6 +2403,14 @@ h5.physics-label, h4.physics-label { display: block; margin-bottom: var(--sp-1);
 .physics-limits { margin: 0; padding-left: var(--sp-6); color: var(--col-text-4); font-style: italic; }
 .physics-code { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--col-text-5); }
 
+/* Confidence tiers (Phase 4): a small outlined tag beside each card's title */
+.physics-tier { display: inline-block; vertical-align: middle; margin-left: var(--sp-2); padding: 1px var(--sp-2); border: 1px solid currentColor; border-radius: var(--radius-sm); font-size: var(--fs-2xs); font-weight: 600; letter-spacing: var(--ls-wide); text-transform: uppercase; }
+.physics-law dt .physics-tier { margin-left: 0; }
+.physics-tier.established { color: var(--col-blue); }
+.physics-tier.approximate { color: var(--col-text-3); }
+.physics-tier.speculative { color: var(--col-purple); }
+.physics-tier.illustrative { color: var(--col-gold); }
+
 .physics-laws { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--sp-4); }
 .physics-law { background: var(--col-surface); border: 1px solid var(--col-border-1); border-radius: var(--radius-md); padding: var(--sp-4) var(--sp-5); }
 .physics-law dt { display: flex; justify-content: space-between; font-weight: 600; color: var(--col-text-1); font-size: var(--fs-sm); margin-bottom: var(--sp-2); }

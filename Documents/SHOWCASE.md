@@ -18,21 +18,21 @@ The universe described will appear exactly as recorded.
 
 This is determinism at work.
 
-Figures below are for the default parameters under simulation rules v17 (planets read from their climate histories, their air classed by the pressure it has today, their orbits formed beyond their star's heat, their sizes from a measured mass–radius relation, their life evolved inside those histories, their biospheres read from what evolved, and their civilizations begun by minds that evolved there: animals that think as far as they can see, breathing what dissolves if they live in water, with fire only for a mind on land). Rules change between versions, so a seed's numbers are only exact for the version they were counted under. "Worlds with organisms" counts planets with microbial or more advanced life.
+Figures below are for the default parameters under simulation rules v19. Planets are read from their climate histories, and their life, minds and civilizations evolve inside those histories. v19 brought the model in line with measured astronomy: three-quarters of stars are red dwarfs (the Kroupa initial mass function), stars form throughout the universe's life so the old heavy ones are now remnants, oceans boil past the runaway greenhouse limit, and planets above 1.75 Earth radii keep gas envelopes with no surface. Red dwarfs' planets get life easily, but under dim red light it rarely makes enough oxygen for large bodies, so minds are now rare: none to four per universe, against up to fourteen under v17.
+
+Rules change between versions, so a seed's numbers are only exact for the version they were counted under. "Worlds with organisms" counts planets with microbial or more advanced life today; moon worlds are counted apart. Life, minds and civilizations come from speculative models (the Physics page says which rules are which): these universes show what those assumptions produce, not predictions about the real one.
 
 ---
 
-## The Abundant Universe
+## The Lone Ruin
 
 **Seed:** `271828`
 **Galaxy Type:** Elliptical
-**Character:** 1,720 worlds with organisms, the most of any seed here. 4 civilizations, all of them ruins.
+**Character:** 1,667 worlds with organisms and 658 moon worlds. 1 civilization, in ruins.
 
-An elliptical galaxy with unusually favorable conditions for life emergence.
+Under v17 this was the most abundant universe recorded here, with four civilizations, all of them ruins. Under v19 its life is ordinary and one mind arose, around `Star 0237`. Its species built a civilization and died out.
 
-The density of matter and favorable stellar distribution conspired to seed biology across more worlds than any other universe recorded here.
-
-Yet minds were rare, and every species that built a civilization has died out. Abundant life does not make abundant minds.
+Life on more than 1,600 worlds, and nobody left to see it.
 
 ---
 
@@ -40,15 +40,13 @@ Yet minds were rare, and every species that built a civilization has died out. A
 
 **Seed:** `100000`
 **Galaxy Type:** Spiral
-**Character:** 1,461 worlds with organisms. 10 civilizations, most of them ruins; 1 system hosts one that got past farming.
+**Character:** 1,659 worlds with organisms and 438 moon worlds. 1 civilization, in ruins.
 
-A balanced, archetypal spiral universe.
+A balanced, archetypal spiral universe, and the default seed the tests and reports measure.
 
-Stars distributed across well-defined arms, biospheres taking hold across a wide range of stellar types.
+Stars are distributed across well-defined arms, and biospheres take hold across a wide range of stellar types. Its Great Filter shows where minds became rare under v19: life began on 2,333 worlds and 396 learned to use starlight, but on only 35 did its oxygen fill the air. Without oxygen, bodies stay small.
 
-Its civilizations rose independently, unaware of each other. Most of its minds are small animals of the sea, and fire does not burn under water, so they never got past farming. One species did: on `0069 d` a land animal of a few grams built a civilization that reached global communication networks.
-
-A good universe for understanding Aion Forge's normal range.
+One mind arose, around `Star 1660`, and its civilization is now a ruin. Under v17 this universe had ten civilizations. A good universe for understanding Aion Forge's normal range.
 
 ---
 
@@ -56,9 +54,9 @@ A good universe for understanding Aion Forge's normal range.
 
 **Seed:** `3141592`
 **Galaxy Type:** Spiral
-**Character:** 1,467 worlds with organisms. 2 civilizations; 1 system hosts one that got past farming.
+**Character:** 1,704 worlds with organisms and 548 moon worlds. 3 civilizations: one industrial, one agricultural, one in ruins.
 
-A close cousin of seed `100000` in its life (1,467 worlds with organisms against 1,461), but with different stars, different worlds, different stories: here only two minds arose.
+A close cousin of seed `100000` in its life (1,704 worlds with organisms against 1,659), but with different stars, different worlds, different stories: here three minds arose. One civilization, around `Star 1065`, reached industry; another, around `Star 1176`, still farms; the third, around `Star 0453`, is a ruin.
 
 Two universes with nearly the same amount of life but entirely different histories.
 
@@ -70,13 +68,13 @@ A demonstration of why seeds matter.
 
 **Seed:** `404040`
 **Galaxy Type:** Elliptical
-**Character:** 1,621 worlds with organisms. 12 civilizations; 1 system hosts one that reached the space age, the only one among these seeds.
+**Character:** 1,724 worlds with organisms and 710 moon worlds, the most planets with organisms of any seed here. 4 civilizations, also the most: one in the information age, one industrial, two in ruins.
 
 Elliptical galaxies are thought to be less favorable for life — less disk structure, more chaotic stellar distributions.
 
 This universe proves that assumption wrong.
 
-More worlds with organisms arose here than in either spiral above.
+More worlds with organisms arose here than in either spiral above, and more minds. Around `Star 1355` lives the most advanced civilization among these seeds, in the information age; around `Star 0144`, another has reached industry.
 
 Emergence does not require perfect conditions.
 
@@ -86,25 +84,25 @@ Emergence does not require perfect conditions.
 
 **Seed:** `137035`
 **Galaxy Type:** Irregular
-**Character:** 995 worlds with organisms, the fewest of any seed here. No civilizations.
+**Character:** 1,417 worlds with organisms and 131 moon worlds, the fewest of any seed here. No civilizations.
 
 Irregular galaxies are the rarest galaxy type and the most chaotic.
 
-Under earlier rules it held more life than the classic spiral. Now it holds the least of any seed here, and no mind has arisen in it.
+Under earlier rules it held more life than the classic spiral. Now it holds the least of any seed here, its galaxy is the smallest (5,883 planets), and no mind has arisen in it.
 
 This universe invites the question: does chaos create opportunity, or spend it?
 
 ---
 
-## The Former Sparse Witness
+## The Silent Witness
 
 **Seed:** `161803`
 **Galaxy Type:** Elliptical
-**Character:** 1,580 worlds with organisms. 14 civilizations, the most of any seed here; 2 systems host one that got past farming, also the most.
+**Character:** 1,640 worlds with organisms and 796 moon worlds, the most moon worlds of any seed here. No civilizations.
 
-Under the first rules this was the quiet universe, kept here for contrast. Once planets were read from their climate histories (rules v3) it became as rich as any other.
+Under the first rules this was the quiet universe, kept here for contrast. Once planets were read from their climate histories (rules v3) it became as rich as any other, and under v17 it had fourteen civilizations, the most of any seed here. Under v19 it has none: life everywhere, and no mind anywhere.
 
-With 2,000 stars, default parameters give these seeds between about 1,000 and 1,700 worlds with organisms. Since rules v7 life begins on most watery worlds early, so a quieter universe comes from the laws that shape what life becomes: the **Fragile Life** preset leaves life on about a tenth of solid planets and no minds. A civilization needs a mind to evolve, and the Intelligence law sets how much thought that takes: at 0.3 seed `100000` has no civilizations, at 1.5 it has 24.
+With 2,000 stars, default parameters give these seeds between about 1,400 and 1,750 worlds with organisms. Since rules v7 life begins on most watery worlds early, so a quieter universe comes from the laws that shape what life becomes: the **Fragile Life** preset leaves life on 276 of seed `100000`'s planets and no minds. A civilization needs a mind to evolve, and the Intelligence law sets how much thought that takes: at 0.3 seed `100000` has no civilizations, at 1.5 it has 3.
 
 Some universes age without any biology to witness them.
 
@@ -118,13 +116,15 @@ These seeds become particularly interesting when laws are modified.
 
 ### Seed `13579` with Emergence Sensitivity 2.0
 
-Under the first rules, life overwhelmed the galaxy. Since rules v7 life already begins on almost every world with liquid water within a few hundred million years, so doubling the setting changes little: 753 systems with organisms become 776.
+Under the first rules, life overwhelmed the galaxy. Since rules v7 life already begins on almost every world with liquid water within a few hundred million years, so doubling the setting changes little: 1,077 systems with organisms become 1,085.
+
+Its minds do change: 4 civilizations become 1. Life starting at different moments sends each world's evolution down a different path, and minds are rare enough under v19 that chance decides where they appear.
 
 What life becomes is now decided inside each planet's history. Adjust the slider under **Edit parameters…** and see how little it moves, then try the laws that shape stars and minds instead.
 
 ### Seed `9999` with Intelligence Modifier 0.1
 
-Life spreads across 1,497 worlds, but no mind emerges on any of them.
+Life spreads across 1,829 worlds, but no mind emerges on any of them.
 
 Biospheres flourish in silence.
 
@@ -132,7 +132,7 @@ Biospheres flourish in silence.
 
 Stars age rapidly.
 
-Civilizations race against dying suns.
+Civilizations race against dying suns. One makes it: around `Star 0793` a species has reached industry.
 
 ---
 

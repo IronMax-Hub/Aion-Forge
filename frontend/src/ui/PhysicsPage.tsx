@@ -5,7 +5,8 @@
 //
 // How: a page over the stage and the dock (the sidebar stays usable). A
 // table of contents on the left; the laboratory's laws, with the rules each
-// reaches; then the catalogue's chapters as cards (ui/physics/). Each card's
+// reaches; how far each kind of rule can be trusted; then the catalogue's
+// chapters as cards (ui/physics/), each marked with its confidence tier. Each card's
 // effect is computed from the universe on screen when it is shown; cards
 // that need the universe index wait for the life survey.
 //
@@ -15,8 +16,8 @@ import { useMemo } from "react";
 import { CONFIG_LABELS, DEFAULT_CONFIG } from "../simulation/config";
 import { makeUniverseId } from "../simulation/persistence";
 import { SIMULATION_RULES_VERSION } from "../simulation/version";
-import type { LawKey, PhysicsContext, RuleCard } from "./physics/catalogue";
-import { LAW_DOES } from "./physics/catalogue";
+import type { Confidence, LawKey, PhysicsContext, RuleCard } from "./physics/catalogue";
+import { CONFIDENCE, LAW_DOES } from "./physics/catalogue";
 import { CHAPTERS } from "./physics/chapters";
 
 interface Props {
@@ -25,6 +26,7 @@ interface Props {
 }
 
 const LAWS = Object.keys(DEFAULT_CONFIG) as LawKey[];
+const TIERS = Object.keys(CONFIDENCE) as Confidence[];
 
 /** What a card did to this universe; a card that cannot be measured says why. */
 function Effect({ card, ctx }: { card: RuleCard; ctx: PhysicsContext }) {
@@ -43,7 +45,9 @@ function Effect({ card, ctx }: { card: RuleCard; ctx: PhysicsContext }) {
 function Card({ card, ctx }: { card: RuleCard; ctx: PhysicsContext }) {
   return (
     <article className="physics-card" id={`rule-${card.id}`} aria-labelledby={`rule-${card.id}-title`}>
-      <h4 className="physics-card-title" id={`rule-${card.id}-title`}>{card.title}</h4>
+      <h4 className="physics-card-title" id={`rule-${card.id}-title`}>
+        {card.title} <span className={`physics-tier ${card.confidence}`}>{CONFIDENCE[card.confidence].label}</span>
+      </h4>
       <p className="physics-statement">{card.statement}</p>
       {card.rule && (
         <details className="physics-rule">
@@ -78,6 +82,8 @@ export function PhysicsPage({ ctx, onClose }: Props) {
   // Which cards each law reaches, from the cards themselves
   const reached = useMemo(() => new Map(LAWS.map((law) => [law,
     CHAPTERS.flatMap((ch) => ch.cards.filter((c) => c.laws.some((l) => l.law === law)))])), []);
+  const tierCounts = useMemo(() => new Map(TIERS.map((tier) => [tier,
+    CHAPTERS.reduce((n, ch) => n + ch.cards.filter((c) => c.confidence === tier).length, 0)])), []);
 
   return (
     <section className="physics-page" aria-label="Physics">
@@ -92,6 +98,7 @@ export function PhysicsPage({ ctx, onClose }: Props) {
       <div className="physics-layout">
         <nav className="physics-toc" aria-label="Chapters">
           <a href="#physics-laws">The laboratory's laws</a>
+          <a href="#physics-confidence">How sure each rule is</a>
           {CHAPTERS.map((ch, i) => (
             <div key={ch.id}>
               <a href={`#chapter-${ch.id}`} className="physics-toc-chapter">{i + 1}. {ch.title}</a>
@@ -114,6 +121,19 @@ export function PhysicsPage({ ctx, onClose }: Props) {
                       <span key={c.id}>{i > 0 && ", "}<a href={`#rule-${c.id}`}>{c.title}</a></span>
                     ))}.</>}
                   </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section id="physics-confidence" className="physics-chapter" aria-labelledby="physics-confidence-title">
+            <h3 id="physics-confidence-title" className="physics-chapter-title">How sure each rule is</h3>
+            <p className="physics-muted">Every card is marked with one of four tiers. A correct equation can still be applied outside its range, so each card also lists its limits.</p>
+            <dl className="physics-laws">
+              {TIERS.map((tier) => (
+                <div key={tier} className="physics-law">
+                  <dt><span className={`physics-tier ${tier}`}>{CONFIDENCE[tier].label}</span> {tierCounts.get(tier) ?? 0} rules</dt>
+                  <dd>{CONFIDENCE[tier].meaning}</dd>
                 </div>
               ))}
             </dl>

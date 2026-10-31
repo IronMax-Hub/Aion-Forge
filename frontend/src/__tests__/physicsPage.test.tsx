@@ -7,7 +7,7 @@ import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import { surveyLife } from "../simulation/lifeSurvey";
 import type { LawKey, PhysicsContext } from "../ui/physics/catalogue";
 import type { UniverseIndex } from "../simulation/universeIndex";
-import { LAW_DOES } from "../ui/physics/catalogue";
+import { CONFIDENCE, LAW_DOES } from "../ui/physics/catalogue";
 import { CHAPTERS } from "../ui/physics/chapters";
 import { PhysicsPage } from "../ui/PhysicsPage";
 
@@ -92,9 +92,24 @@ describe("the Physics page's catalogue", () => {
     for (const card of cards) for (const l of card.laws) expect(l.how.length, card.id).toBeGreaterThan(5);
   });
 
+  it("marks every card with a confidence tier, and every life, mind and civilization card as speculative (Phase 4)", () => {
+    for (const card of cards) expect(Object.keys(CONFIDENCE), card.id).toContain(card.confidence);
+    for (const ch of CHAPTERS.filter((c) => c.id === "life" || c.id === "minds")) {
+      for (const card of ch.cards) expect(card.confidence, card.id).toBe("speculative");
+    }
+    expect(cards.find((c) => c.id === "great-filter")!.confidence).toBe("speculative");
+    // The abiogenesis rate is named as an assumption, with the law that scales it
+    const origin = cards.find((c) => c.id === "origin")!;
+    expect(origin.why).toMatch(/assumption/i);
+    expect(origin.laws.map((l) => l.law)).toContain("emergenceSensitivity");
+  });
+
   it("renders the whole page", () => {
     const html = renderToStaticMarkup(<PhysicsPage ctx={contexts[0]} onClose={() => {}} />);
     expect(html.match(/class="physics-card"/g)?.length).toBe(cards.length);
+    // Each card's tier beside its title, and each tier explained once
+    for (const tier of Object.keys(CONFIDENCE)) expect(html).toContain(`physics-tier ${tier}`);
+    expect(html.match(/physics-tier /g)?.length).toBe(cards.length + Object.keys(CONFIDENCE).length);
     expect(html).not.toMatch(/NaN|undefined/);
     // Every table-of-contents link lands on a card or chapter
     for (const [, target] of html.matchAll(/href="#([^"]+)"/g)) expect(html).toContain(`id="${target}"`);

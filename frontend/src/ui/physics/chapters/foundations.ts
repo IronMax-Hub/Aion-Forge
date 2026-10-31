@@ -14,6 +14,7 @@ export const foundations: Chapter = {
   cards: [
     {
       id: "seed-streams",
+      confidence: "established",
       title: "One seed, separate random streams",
       statement: "Every chance event draws from a stream derived from the universe seed. Each subsystem has its own stream, named by a salt, so adding draws to one never shifts another.",
       rule: "stream = Mulberry32(seed ⊕ salt), or Mulberry32(mixSeed(seed, star, planet, salt)) per body",
@@ -26,6 +27,7 @@ export const foundations: Chapter = {
     },
     {
       id: "detmath",
+      confidence: "established",
       title: "Deterministic mathematics",
       statement: "exp, log, pow, sin and cos in outcome-deciding code come from the project's own functions, which use only exactly specified arithmetic and so give bit-identical results in every browser. The browser's own may round differently.",
       constants: [],
@@ -41,6 +43,7 @@ export const foundations: Chapter = {
     },
     {
       id: "rules-version",
+      confidence: "established",
       title: "Rules versions",
       statement: "When a rule changes what a seed produces, the rules version rises, so numbers measured under older rules are recognised and can be recounted.",
       constants: [{ name: "Current rules version", value: `v${SIMULATION_RULES_VERSION}`, meaning: "Every citation names it" }],
@@ -52,6 +55,7 @@ export const foundations: Chapter = {
     },
     {
       id: "survey-index",
+      confidence: "established",
       title: "The life survey and the universe index",
       statement: "After the galaxy appears, every star's planets, their histories, life and civilizations are made once, in background workers, and every world's facts are kept in one table.",
       constants: [],

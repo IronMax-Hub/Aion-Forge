@@ -854,6 +854,12 @@ exports[`reference entries > a world of ruins 2`] = `
   "limits": [
     {
       "sources": [
+        "physics.confidence",
+      ],
+      "text": "A speculative model: minds and civilizations show what its assumptions produce, not a prediction about the real universe.",
+    },
+    {
+      "sources": [
         "civilization.species",
       ],
       "text": "Curiosity, cooperation and resilience were drawn by chance: no evolved trait supplies them yet.",
@@ -1641,6 +1647,12 @@ exports[`reference entries > an ocean world with complex life 2`] = `
   "limits": [
     {
       "sources": [
+        "physics.confidence",
+      ],
+      "text": "A speculative model: how often life begins and what it becomes are assumptions, since Earth's is the only biosphere known.",
+    },
+    {
+      "sources": [
         "engine.LINEAGE_CAP",
       ],
       "text": "The record keeps at most 32 living lineages at once.",
@@ -1780,7 +1792,7 @@ exports[`reference entries > the galaxy 1`] = `
       "sources": [
         "star",
       ],
-      "text": "Stars that died before today are not in the galaxy.",
+      "text": "Stars that have ended are kept as remnants; the galaxy's past light is not modelled.",
     },
   ],
   "notable": [],

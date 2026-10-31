@@ -14,9 +14,11 @@ import { civilizationMarkerLabel, lifeMarkerLabel } from "../ui/format";
 
 const SEED = 100000;
 const config = makeConfig(SEED);
-const stars = generateStarsFor(
+const allStars = generateStarsFor(
   { type: pickGalaxyType(createRNG(SEED)), particleCount: 500, seed: SEED, scale: 120 }, 13.7, config,
-).stars.slice(0, 300);   // a sample: the survey reads each star the same way
+).stars;
+// The first 300, and star 1660, the one with a civilization under rules v19
+const stars = [...allStars.slice(0, 300), allStars[1660]];   // a sample: the survey reads each star the same way
 const survey = surveyLife(stars, SEED, config);
 
 describe("life survey", () => {

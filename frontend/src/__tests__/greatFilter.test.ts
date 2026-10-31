@@ -56,7 +56,7 @@ const indexOf100000 = () => (fullIndex ??= surveyLife(seedStars, SEED, makeConfi
 describe("the Great Filter funnel", () => {
   it("counts seed 100000's funnel, and never rises", () => {
     const funnel = funnelOf(indexOf100000());
-    expect(funnel.worlds).toBe(6766);
+    expect(funnel.worlds).toBe(7320);
     // The plan's table is rules v10 (8,537 planets; 7,134, 4,730, 4,167, 1,706, 334, 271, 86, 37, 22, 13, 3, 3).
     // Rules v11: AE1's activity curve, then AE2's escape, water loss, one atmosphere draw and past giants
     // (109 planets engulfed by the giants today's white dwarfs once were)
@@ -77,14 +77,18 @@ describe("the Great Filter funnel", () => {
     // and a species ends when its consumer line does (…, 119, 24, 11, 5, 4, 0, 0). Rules v17: a consumer gains
     // from thinking as far as it sees, water life breathes dissolved oxygen, and only a mind on land has fire
     // (5,911, 2,760, 2,120, 395, 152, 116, 10, 3, 3, 3, 0, 0 of 6,893 planets). Rules v18 (RP1): 127 planets
-    // thrown out by a neighbour too close to share their orbits
-    expect(funnel.steps.map((s) => s.passed)).toEqual([5806, 2690, 2062, 388, 151, 115, 10, 3, 3, 3, 0, 0]);
+    // thrown out by a neighbour too close to share their orbits (5,806, 2,690, 2,062, 388, 151, 115, 10, 3, 3,
+    // 3, 0, 0 of 6,766). Rules v19, the audit's corrections (Documents/Phase-3-v18-to-v19.md): the runaway
+    // limit, the Kroupa IMF with most stars red dwarfs, sub-Neptunes and orbits scaled with the star. Life is
+    // commoner, oxygen and minds far rarer
+    expect(funnel.steps.map((s) => s.passed)).toEqual([5259, 3037, 2459, 541, 35, 26, 1, 0, 0, 0, 0, 0]);
     for (let g = 1; g < funnel.steps.length; g++) {
       expect(funnel.steps[g].arrived).toBe(funnel.steps[g - 1].passed);
       expect(funnel.steps[g].passed).toBeLessThanOrEqual(funnel.steps[g].arrived);
     }
-    // The steepest gate that at least ten worlds reach: from v17, a multicellular body to a mind (10 of 116,
-    // about 9%); v13–v16, life to light-using life (about 13%); before it, light-using life to an oxygenated sky
+    // The steepest gate that at least ten worlds reach: from v17, a multicellular body to a mind (v19: 1 of 26,
+    // about 4%; v17–v18: 10 of 116, about 9%); v13–v16, life to light-using life (about 13%); before it,
+    // light-using life to an oxygenated sky
     expect(funnel.filter).toBe("mind");
   });
 
@@ -134,7 +138,7 @@ describe("where worlds stop", () => {
   it("counts which of fire's conditions fail where minds have no fire, a mind in water among them (rules v17)", () => {
     const index = indexOf100000();
     const fire = breakdown(index, seedStars, "fire");
-    expect(fire.stopped).toBe(10 - 3);
+    expect(fire.stopped).toBe(1 - 0);   // rules v19: one mind, without fire (v18: 10 − 3)
     // Every stopped world fails at least one condition, and none fails more than the stopped count
     const { noLand, thinAir, lowOxygen, inWater } = fire.fire!;
     expect(noLand + thinAir + lowOxygen + inWater).toBeGreaterThanOrEqual(fire.stopped);

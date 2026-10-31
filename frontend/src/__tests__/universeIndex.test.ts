@@ -17,7 +17,9 @@ import type { IndexRow, UniverseIndex } from "../simulation/universeIndex";
 const SEED = 100000;
 const config = makeConfig(SEED);
 // A sample: the survey reads every star the same way
-const stars = generateStarsFor(buildGalaxyConfig(SEED, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 100);
+const allStars = generateStarsFor(buildGalaxyConfig(SEED, config), UNIVERSE_AGE_GYR, config).stars;
+// The first hundred, and the first two whose life oxygenates its air (rules v19: rare around red dwarfs)
+const stars = [...allStars.slice(0, 100), allStars[101], allStars[156]];
 const survey = surveyLife(stars, SEED, config);
 const { index } = survey;
 

@@ -16,7 +16,9 @@ import { derivePhysics, atmosphereClassOf } from "../simulation/planetPhysics";
 const seed = 100000;
 const config = makeConfig(seed);
 // 510 stars: from rules v17 the first civilization without fire is star 507's (a mind in deep water)
-const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 510);
+const allStars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
+// The first 510, and star 1660, whose mind has no fire (rules v19: seed 100000's only civilization)
+const stars = [...allStars.slice(0, 510), allStars[1660]];
 const all: { star: Star; planet: Planet }[] = stars.flatMap((star) =>
   generatePlanetsFor(star, seed, config).planets.map((planet) => ({ star, planet })));
 const solid = all.filter(({ planet }) => hasSolidSurface(planet));
@@ -91,7 +93,8 @@ describe("habitability", () => {
   });
 
   it("fades below 0.4 g; with the Chen & Kipping radii no solid planet reaches the 2.5 g upper edge", () => {
-    const light = solid.filter(({ planet }) => planet.surface!.surfaceGravity < 0.4 && planet.surface!.habitableFraction >= 0.5);
+    // Any light world with some liquid water: under rules v19 none below 0.4 g in this sample has half its surface habitable
+    const light = solid.filter(({ planet }) => planet.surface!.surfaceGravity < 0.4 && planet.surface!.habitableFraction > 0);
     expect(light.length).toBeGreaterThan(0);
     // Full credit at 0.4 g, none at 0.2 g
     for (const { planet } of light) expect(planet.habitabilityScore).toBeLessThanOrEqual(Math.max(0, (planet.surface!.surfaceGravity - 0.2) / 0.2) + 1e-12);

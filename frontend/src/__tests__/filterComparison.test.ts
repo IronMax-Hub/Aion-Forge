@@ -8,9 +8,11 @@ import { buildSnapshot, compareUniverses, makeExperimentRecord } from "../simula
 import { GATES } from "../simulation/greatFilter";
 
 const SEED = 100000;
-// A sample of the universe under each set of laws
+// A sample of the universe under each set of laws: the first 300 stars, and star 1660, where seed 100000's
+// only mind arises under rules v19
 function snapshot(config: UniverseConfig) {
-  const stars = generateStarsFor(buildGalaxyConfig(SEED, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 300);
+  const all = generateStarsFor(buildGalaxyConfig(SEED, config), UNIVERSE_AGE_GYR, config).stars;
+  const stars = [...all.slice(0, 300), all[1660]];
   return buildSnapshot(SEED, config, stars.length, surveyLife(stars, SEED, config));
 }
 

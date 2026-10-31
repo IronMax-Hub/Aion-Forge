@@ -1,4 +1,5 @@
 import type { UniverseConfig } from "./config";
+import { isSeed } from "./rng";
 
 // ── Universe ID (AF-134) ──────────────────────────────────────────────────────
 // Deterministic from seed: AF-U-XXXX-XXXX
@@ -73,7 +74,8 @@ export function serializeUniverse(meta: UniverseMeta): string {
 export function deserializeUniverse(raw: string): UniverseMeta | null {
   try {
     const parsed = JSON.parse(raw) as { version?: unknown; meta?: Partial<UniverseMeta> };
-    if (!parsed.meta?.seed) return null;
+    // Seed 0 is a universe like any other: test the value, not its truthiness (AF-017)
+    if (!isSeed(parsed.meta?.seed)) return null;
     if (parsed.version === 1) return { ...parsed.meta, rulesVersion: 1 } as UniverseMeta;
     if (parsed.version === 2 && typeof parsed.meta.rulesVersion === "number") return parsed.meta as UniverseMeta;
     return null;

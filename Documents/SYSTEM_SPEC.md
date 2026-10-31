@@ -443,7 +443,7 @@ Examples:
 
 * Compact
 * Distributed
-* Resonant
+* Near 2:1 (once called resonant: spacing near the 2:1 period ratio, without a check that the planets are locked in resonance)
 * Chaotic
 
 ---

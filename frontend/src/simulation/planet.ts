@@ -131,23 +131,27 @@ export interface PlanetarySystem {
 
 // ── Orbital architecture (AF-038 + AF-039 + AF-040) ──────────────────────────
 
-type OrbitalArch = "compact" | "distributed" | "resonant" | "chaotic";
+// "Near 2:1" was once called resonant. Orbits 1.5–1.7× apart have period ratios
+// of about 1.8–2.2, near the 2:1 resonance, but nothing checks that the planets
+// are locked in it (the resonant angle librating), so the name claims only the
+// spacing (SYS-006).
+export type OrbitalArch = "compact" | "distributed" | "nearTwoToOne" | "chaotic";
 
-/** A system's architecture from one draw: compact, distributed and resonant below these bounds, otherwise chaotic. */
-export const ARCHITECTURE_ROLL = { compactBelow: 0.35, distributedBelow: 0.65, resonantBelow: 0.82 } as const;
+/** A system's architecture from one draw: compact, distributed and near 2:1 below these bounds, otherwise chaotic. */
+export const ARCHITECTURE_ROLL = { compactBelow: 0.35, distributedBelow: 0.65, nearTwoToOneBelow: 0.82 } as const;
 /** The innermost orbit, AU (base + draw · spread), and each next orbit's ratio to the one before, by architecture. */
 export const FIRST_ORBIT_AU = { base: 0.1, spread: 0.3 } as const;
 export const ORBIT_SPACING: Record<OrbitalArch, { base: number; spread: number }> = {
   compact:     { base: 1.3, spread: 0.3 },
   distributed: { base: 1.6, spread: 0.8 },
-  resonant:    { base: 1.5, spread: 0.2 },   // ~1.5–1.7× with low scatter
+  nearTwoToOne: { base: 1.5, spread: 0.2 },  // ~1.5–1.7× with low scatter: period ratios ~1.8–2.2
   chaotic:     { base: 1.1, spread: 2.0 },
 };
 
 function pickArchitecture(r: number): OrbitalArch {
   if (r < ARCHITECTURE_ROLL.compactBelow) return "compact";
   if (r < ARCHITECTURE_ROLL.distributedBelow) return "distributed";
-  if (r < ARCHITECTURE_ROLL.resonantBelow) return "resonant";
+  if (r < ARCHITECTURE_ROLL.nearTwoToOneBelow) return "nearTwoToOne";
   return "chaotic";
 }
 

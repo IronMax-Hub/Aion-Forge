@@ -29,6 +29,7 @@ export const galaxy: Chapter = {
   cards: [
     {
       id: "galaxy-type",
+      confidence: "illustrative",
       title: "Its shape",
       statement: "The seed's first draw picks the galaxy's type: spiral, elliptical or irregular.",
       rule: `draw < ${GALAXY_TYPE_ROLL.spiralBelow} → spiral; < ${GALAXY_TYPE_ROLL.ellipticalBelow} → elliptical; otherwise irregular`,
@@ -45,6 +46,7 @@ export const galaxy: Chapter = {
     },
     {
       id: "galaxy-size",
+      confidence: "illustrative",
       title: "Its size",
       statement: "The galaxy's radius is a fixed scale times the expansion rate. The display shows the default as about 50,000 light-years.",
       rule: "radius = GALAXY_SCALE × expansion rate (scene units)",
@@ -66,6 +68,7 @@ export const galaxy: Chapter = {
     },
     {
       id: "central-black-hole",
+      confidence: "approximate",
       title: "Its central black hole",
       statement: "Most galaxies hold a massive black hole at their centre. Its mass is drawn once per galaxy, about a typical value for the galaxy's type; dwarf irregulars often have none.",
       rule: "has one with chance CENTRAL_BLACK_HOLE[type].chance; log₁₀ mass ~ normal(mean, spread); supermassive from SUPERMASSIVE_FROM_SOLAR M☉",
@@ -95,6 +98,7 @@ export const galaxy: Chapter = {
     },
     {
       id: "enrichment",
+      confidence: "approximate",
       title: "The gas grows richer in metals",
       statement: "Every generation of stars returns heavier elements to the gas the next forms from. The gas approaches the type's yield, fastest near the centre, where stars form fastest. Each star keeps the metallicity of the gas where and when it formed.",
       rule: "Z(R, t) = Z_floor + y · (1 − e^(−t / τ)), τ = τ_core · e^(R / R_τ); a star's [Fe/H] = log10 Z(R★, its birth) + a normal scatter",
@@ -127,6 +131,7 @@ export const galaxy: Chapter = {
     },
     {
       id: "star-count",
+      confidence: "illustrative",
       title: "How many stars, and the age of the universe",
       statement: "Every universe holds the same number of stars, each formed at some moment in the universe's past.",
       constants: [

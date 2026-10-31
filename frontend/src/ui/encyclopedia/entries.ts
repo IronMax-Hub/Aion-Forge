@@ -115,6 +115,10 @@ function rowOf(index: UniverseIndex, starId: number, planetIndex: number): numbe
 
 // ── Shared pieces ────────────────────────────────────────────────────────────
 
+// Life, minds and civilizations are speculative models (Phase 4): their entries say so first
+const SPECULATIVE_LIFE = "A speculative model: how often life begins and what it becomes are assumptions, since Earth's is the only biosphere known.";
+const SPECULATIVE_MINDS = "A speculative model: minds and civilizations show what its assumptions produce, not a prediction about the real universe.";
+
 function sentence(text: string, sources: string[], link?: SubjectRef): Sentence {
   return link ? { text, sources, link } : { text, sources };
 }
@@ -620,7 +624,10 @@ export function biosphereEntry(planet: Planet, star: Star, world: SolidWorld | n
     chronicle,
     notable,
     seeAlso,
-    limits: [sentence(`The record keeps at most ${LINEAGE_CAP} living lineages at once.`, ["engine.LINEAGE_CAP"])],
+    limits: [
+      sentence(SPECULATIVE_LIFE, ["physics.confidence"]),
+      sentence(`The record keeps at most ${LINEAGE_CAP} living lineages at once.`, ["engine.LINEAGE_CAP"]),
+    ],
   };
 }
 
@@ -644,6 +651,7 @@ export function civilizationEntry(planet: Planet, star: Star, world: SolidWorld 
     citation: citation(ctx.config, designation),
     seeAlso: [planetRef(planet), planetRef(planet, "biosphere")],
     limits: [
+      sentence(SPECULATIVE_MINDS, ["physics.confidence"]),
       sentence("Curiosity, cooperation and resilience were drawn by chance: no evolved trait supplies them yet.", ["civilization.species"]),
       sentence("Its milestone dates are placed by formula, not lived.", ["civilization.milestones"]),
     ],
@@ -778,6 +786,6 @@ export function galaxyEntry(galaxy: GalaxyConfig, ctx: EntryContext): Entry {
     chronicle: oldest ? [event(oldest.age, "Its oldest surviving star formed.", ["star.age"])] : [],
     notable: [],
     seeAlso,
-    limits: [sentence("Stars that died before today are not in the galaxy.", ["star"])],
+    limits: [sentence("Stars that have ended are kept as remnants; the galaxy's past light is not modelled.", ["star"])],
   };
 }

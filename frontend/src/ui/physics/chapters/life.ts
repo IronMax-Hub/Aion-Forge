@@ -34,16 +34,17 @@ const mindRows = (ix: UniverseIndex) => rowsWhere(ix, (i) => has(ix.mindGyr[i]))
 export const life: Chapter = {
   id: "life",
   title: "Life",
-  intro: "Life is not rolled: it begins by chance on liquid water, then lineages branch, compete and die out under their own world's history.",
+  intro: "Life is not rolled: it begins by chance on liquid water, then lineages branch, compete and die out under their own world's history. Everything in this chapter is a speculative model. Earth is the only example of life known, so how often it begins and what it becomes are assumptions to experiment with, not predictions about the real universe. A habitable world (the climate chapters) is not a living one.",
   cards: [
     {
       id: "origin",
+      confidence: "speculative",
       title: "How life begins",
       statement: "At each step, a world with liquid water has a chance of life beginning, in proportion to how much of its surface is liquid water. Once begun, it never begins again, even if it dies out.",
       rule: `chance per step = ${ORIGIN_PER_GYR_PER_WATER_AREA} per Gyr × liquid-water share × emergence sensitivity × step`,
       constants: [{ name: "Origin rate", value: `${exact(ORIGIN_PER_GYR_PER_WATER_AREA)} per Gyr`, meaning: "Per unit of liquid-water area" }],
-      why: "Anchored on Earth (owner decision): a 70%-ocean world gets life within 0.5 Gyr of its oceans in 4 cases out of 5, as Earth's early life suggests.",
-      limits: ["When life began is a chance event; nothing in the conditions predicts its date.", "The rate saturates: most wet worlds get life whatever the sensitivity, unless it is set very low."],
+      why: "An assumption, anchored on Earth (owner decision): a 70%-ocean world gets life within 0.5 Gyr of its oceans in 4 cases out of 5, as Earth's early life suggests. One early start does not measure the rate: life could be far rarer, and Earth's early start a matter of luck.",
+      limits: ["The origin rate is an assumption, not a measurement. Emergence Sensitivity in the laboratory scales it: 0.01 (the Fragile Life preset) leaves life on a small share of wet worlds.", "When life began is a chance event; nothing in the conditions predicts its date.", "The rate saturates: most wet worlds get life whatever the sensitivity, unless it is set very low."],
       laws: [{ law: "emergenceSensitivity", how: "Multiplies the chance" }],
       code: "simulation/worldHistory.ts · ORIGIN_PER_GYR_PER_WATER_AREA",
       needsIndex: true,
@@ -58,6 +59,7 @@ export const life: Chapter = {
     },
     {
       id: "environment",
+      confidence: "speculative",
       title: "What life meets: light, ultraviolet, flares",
       statement: "Producers live on starlight (sunlit water and land) or chemical energy (deep water, from volcanism). Thick air dims the light; harmful ultraviolet reaches the surface unless air and ozone stop it; red dwarfs add flares.",
       rule: `light × e^(−k·P), k from Venus (${VENUS_PRESSURE_BAR} bar lets ${formatPercent(VENUS_SURFACE_TRANSMISSION)} through); UV = the star's ${UV_BAND_NM.from}–${UV_BAND_NM.to} nm share + flares below ${formatInt(FLARING_BELOW_K)} K × ${FLARE_UV_AT_FULL_ACTIVITY} × activity, × (1 − ozone)`,
@@ -81,6 +83,7 @@ export const life: Chapter = {
     },
     {
       id: "genome",
+      confidence: "speculative",
       title: "What a lineage carries",
       statement: "Each lineage is a population sharing six traits: energy source, habitat, body mass, the temperature it does best at, how much information it processes, and, for light users, the colour of light it absorbs.",
       constants: [
@@ -102,6 +105,7 @@ export const life: Chapter = {
     },
     {
       id: "engine",
+      confidence: "speculative",
       title: "Evolution: branching, drift, competition",
       statement: "Lineages split into new ones, drift a little each step, and keep a change unless it costs them. They share the energy of their niche by how well they do, and thinking helps a consumer only as far as it can see; consumers eat the level below, if no heavier than themselves. A lineage with no surplus dies out.",
       rule: `speciation ${SPECIATION_PER_GYR} per Gyr (faster after extinctions); costs: maintenance ${COST.maintenance}, information ${COST.information} × info², heat ${COST.thermal}, land support ${COST.support} × g × M^(7/12), UV ${COST.uv}; consumers draw ${formatPercent(TROPHIC_EFFICIENCY)} of the level below; aerobic life gets ${AEROBIC_YIELD}× the energy`,
@@ -129,6 +133,7 @@ export const life: Chapter = {
     },
     {
       id: "catastrophes",
+      confidence: "speculative",
       title: "Catastrophes and extinctions",
       statement: "Impacts, volcanic pulses and sudden climate changes kill lineages, large bodies and high predators more often. Life on a world can die out entirely.",
       constants: [
@@ -153,6 +158,7 @@ export const life: Chapter = {
     },
     {
       id: "life-chemistry",
+      confidence: "speculative",
       title: "Life changes its air",
       statement: "Light users make oxygen and life respires it; life living on chemical energy makes methane in oxygen-poor water. The balance is solved each step.",
       rule: `O₂ made ${O2_PRODUCTION_BAR_PER_GYR} bar/Gyr per unit of light-user biomass × g; respired ${O2_RESPIRATION_PER_GYR} per Gyr × O₂ × biomass; CH₄ made ${CH4_PRODUCTION_BAR_PER_GYR} bar/Gyr per unit of chemical-user biomass × anaerobic share × g`,
@@ -171,6 +177,7 @@ export const life: Chapter = {
     },
     {
       id: "stages",
+      confidence: "speculative",
       title: "How far life has gone",
       statement: "A biosphere's stage is read from its living lineages: microbial below a microgram, multicellular above, complex above a gram with three food-chain levels, dominant when complex life's biomass covers the planet.",
       constants: [
@@ -192,16 +199,17 @@ export const life: Chapter = {
       },
     },
   ],
-  missing: ["No life on giants, moons or rogue planets; no panspermia between worlds."],
+  missing: ["No life on giants or rogue planets; no panspermia between worlds."],
 };
 
 export const minds: Chapter = {
   id: "minds",
   title: "Minds and civilizations",
-  intro: "A mind is a lineage that evolved, not a roll; a civilization's course is then computed from its species and its world.",
+  intro: "A mind is a lineage that evolved, not a roll; a civilization's course is then computed from its species and its world. Like life, this chapter is a speculative model: its counts of minds and civilizations show what these assumptions produce, not how many exist in the real universe.",
   cards: [
     {
       id: "mind",
+      confidence: "speculative",
       title: "When a mind appears",
       statement: "The first living lineage that eats other life, is heavier than a gram, and whose information processing reaches a threshold becomes a mind. Its species is that lineage and its descendants that still eat other life.",
       rule: `consumer, info ≥ 1 − ${1 - MIND_BASE_THRESHOLD} × intelligence, body > 10^${MIND_MIN_LOG10_KG} kg`,
@@ -226,6 +234,7 @@ export const minds: Chapter = {
     },
     {
       id: "species",
+      confidence: "speculative",
       title: "A species' character",
       statement: "Intelligence, aggression and adaptability come from the mind's lineage (its information processing, how many of its ancestors ate others, and the range of temperatures they lived in). Curiosity, cooperation and resilience are drawn by chance.",
       constants: [],
@@ -237,6 +246,7 @@ export const minds: Chapter = {
     },
     {
       id: "technology",
+      confidence: "speculative",
       title: "Technology, collapse and ruins",
       statement: "A civilization's technology grows with curiosity and cooperation and is slowed by aggression; it can collapse and recover. If its species dies out, only ruins remain.",
       rule: `stages by tech level: agricultural from ${TECH_STAGE_FROM.agricultural}, industrial ${TECH_STAGE_FROM.industrial}, information ${TECH_STAGE_FROM.information}, space age ${TECH_STAGE_FROM["space-age"]}`,
@@ -258,6 +268,7 @@ export const minds: Chapter = {
     },
     {
       id: "fire",
+      confidence: "speculative",
       title: "Fire",
       statement: "Industry needs open fire, and fire needs a mind that lives on land, exposed land, air thick enough to burn in, and enough oxygen. A mind without them can farm but goes no further.",
       constants: [

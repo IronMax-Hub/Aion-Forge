@@ -5,6 +5,7 @@ import {
   FIRST_ORBIT_AU, HOT_JUPITER, ICE_GIANT_MAX_K, ORBIT_MASS_EXPONENT, ICE_WORLD_MIN_ICE, LAVA_MIN_K, METALLICITY_MASS_EXPONENT, OCEAN_WORLD_MIN_OCEAN, ORBIT_SPACING,
   PLANET_COUNT,
 } from "../../../simulation/planet";
+import type { OrbitalArch } from "../../../simulation/planet";
 import { ENVELOPE_FROM_EARTH_RADII, GIANT_PLANET_MASS, MASS_RADIUS, PLANET_MASS_DRAW } from "../../../simulation/planetBasics";
 import {
   EARTH_ESCAPE_VELOCITY_KMS, INTERIOR_COOLING_GYR, ROTATION_HOURS, SNOW_LINE_AU_PER_SQRT_L, SURFACE_PRESSURE_BAR,
@@ -29,6 +30,8 @@ const solidRows = (ix: UniverseIndex) => rowsWhere(ix, (i) => !Number.isNaN(ix.o
 const gravityOf = (ix: UniverseIndex, i: number) => ix.massEarths[i] / (ix.radiusEarths[i] * ix.radiusEarths[i]);
 /** Saturn's mass, M⊕: "heavier than Saturn" in the plan's words. */
 const SATURN_MASS = 95;
+// Each architecture's name on the page: "near 2:1" claims only the spacing, not a resonance (SYS-006)
+const ARCHITECTURE_LABEL: Record<OrbitalArch, string> = { compact: "Compact", distributed: "Distributed", nearTwoToOne: "Near 2:1", chaotic: "Chaotic" };
 
 export const systems: Chapter = {
   id: "systems",
@@ -37,6 +40,7 @@ export const systems: Chapter = {
   cards: [
     {
       id: "planet-count",
+      confidence: "illustrative",
       title: "How many planets",
       statement: "One star in ten is barren and some have one or two planets; the rest have a base number plus up to four more. Heavier, short-lived stars get fewer. Neutron stars and black holes get none.",
       rule: `draw < ${PLANET_COUNT.barrenBelow}: none; < ${PLANET_COUNT.sparseBelow}: ${PLANET_COUNT.sparse.min}–${PLANET_COUNT.sparse.min + PLANET_COUNT.sparse.range - 1}; else base + 0–${PLANET_COUNT.extraRange - 1}, base ${PLANET_COUNT.base.counts.join(" / ")} below ${PLANET_COUNT.base.belowMass.join(" / ")} M☉ / above`,
@@ -54,19 +58,20 @@ export const systems: Chapter = {
     },
     {
       id: "orbits",
+      confidence: "approximate",
       title: "Where planets orbit",
       statement: "A system's orbits are drawn as a Sun's would be and set at the same periods around the star's own mass, so a red dwarf's planets lie closer in. The innermost forms beyond the young star's dust-sublimation line, where dust would be too hot to survive; each next orbit is a fixed-ish ratio further out, set by the system's architecture. Now and then a giant migrates inward to a few-day orbit, a hot Jupiter, clearing the planets inside its path.",
       rule: `first orbit (${FIRST_ORBIT_AU.base}–${FIRST_ORBIT_AU.base + FIRST_ORBIT_AU.spread} AU) × M^${formatSig(ORBIT_MASS_EXPONENT, 2)}, moved out as a whole to at least (${EQUILIBRIUM_K_AT_1_AU} / ${DUST_SUBLIMATION_K} K)² × √L(birth) AU; next = previous × ratio`,
       constants: [
         { name: "Dust sublimation", value: exact(DUST_SUBLIMATION_K, "K"), meaning: "Planets form outside this temperature" },
         { name: "Hot Jupiters", value: `${formatPercent(HOT_JUPITER.chance)} of systems with a giant of ${HOT_JUPITER.minMass} M⊕ or more`, meaning: `Its innermost giant migrates to a ${HOT_JUPITER.periodDays.min}–${HOT_JUPITER.periodDays.max} day orbit: about 1.2% of Sun-like stars (Wright et al. 2012)` },
-        ...(Object.entries(ORBIT_SPACING) as [string, { base: number; spread: number }][]).map(([arch, s]) => ({
-          name: `${arch[0].toUpperCase()}${arch.slice(1)} spacing`, value: `× ${s.base}–${formatSig(s.base + s.spread)}`, meaning: "Ratio of each orbit to the one before",
+        ...(Object.entries(ORBIT_SPACING) as [OrbitalArch, { base: number; spread: number }][]).map(([arch, s]) => ({
+          name: `${ARCHITECTURE_LABEL[arch]} spacing`, value: `× ${s.base}–${formatSig(s.base + s.spread)}`, meaning: "Ratio of each orbit to the one before",
         })),
-        { name: "Architecture shares", value: `${formatPercent(ARCHITECTURE_ROLL.compactBelow)} / ${formatPercent(ARCHITECTURE_ROLL.distributedBelow - ARCHITECTURE_ROLL.compactBelow)} / ${formatPercent(ARCHITECTURE_ROLL.resonantBelow - ARCHITECTURE_ROLL.distributedBelow)} / ${formatPercent(1 - ARCHITECTURE_ROLL.resonantBelow)}`, meaning: "Compact / distributed / resonant / chaotic" },
+        { name: "Architecture shares", value: `${formatPercent(ARCHITECTURE_ROLL.compactBelow)} / ${formatPercent(ARCHITECTURE_ROLL.distributedBelow - ARCHITECTURE_ROLL.compactBelow)} / ${formatPercent(ARCHITECTURE_ROLL.nearTwoToOneBelow - ARCHITECTURE_ROLL.distributedBelow)} / ${formatPercent(1 - ARCHITECTURE_ROLL.nearTwoToOneBelow)}`, meaning: "Compact / distributed / near 2:1 / chaotic" },
       ],
       why: "Planets form in the disk of dust and gas around a young star, where solids can exist; a brighter star pushes that edge out, so its planets form farther away at similar temperatures.",
-      limits: ["Orbits are circular; the only migration is a hot Jupiter's, and it does not depend on the star's metallicity, as hot Jupiters' frequency does."],
+      limits: ["Orbits are circular; the only migration is a hot Jupiter's, and it does not depend on the star's metallicity, as hot Jupiters' frequency does.", "Near 2:1 systems have period ratios of about 1.8–2.2, but nothing checks that their planets are locked in resonance, so they are not called resonant."],
       laws: [{ law: "gravityStrength", how: "Divides every orbit by √gravity (the effective orbit the climate feels)" }],
       code: "simulation/planet.ts · dustSublimationAU, generateOrbits",
       needsIndex: true,
@@ -78,6 +83,7 @@ export const systems: Chapter = {
     },
     {
       id: "planet-mass",
+      confidence: "approximate",
       title: "Planet masses, and giants",
       statement: "A planet's mass is drawn evenly on a logarithmic scale up to 25 Earth masses; the top tenth of draws spreads from there to 13 Jupiter masses. The draw is then scaled by the solids in the star's disk, which follow its metallicity: a metal-poor star builds lighter planets, and a body that ends up too small is no planet. Above 15 Earth masses a planet is a giant with no solid surface.",
       rule: `log-uniform ${formatSig(PLANET_MASS_DRAW.min)}–${formatSig(PLANET_MASS_DRAW.knee.mass)} M⊕ for draws below ${PLANET_MASS_DRAW.knee.u}; log-uniform ${formatSig(PLANET_MASS_DRAW.knee.mass)}–${formatInt(PLANET_MASS_DRAW.max)} M⊕ above; then × 10^(α · [Fe/H]), at most ${formatInt(PLANET_MASS_DRAW.max)} M⊕; below ${formatSig(PLANET_MASS_DRAW.min)} M⊕ no planet`,
@@ -113,6 +119,7 @@ export const systems: Chapter = {
     },
     {
       id: "planet-radius",
+      confidence: "approximate",
       title: "Planet sizes",
       statement: "A planet's radius follows from its mass by a measured law with three regimes, rocky, Neptune-like and Jupiter-like, and a ±20% spread for make-up.",
       rule: MASS_RADIUS.map((l) => `M ≤ ${l.upToMass === Infinity ? "∞" : l.upToMass}: R = ${l.coefficient} · M^${l.exponent}`).join("; ") + " (× 0.8–1.2)",
@@ -131,6 +138,7 @@ export const systems: Chapter = {
     },
     {
       id: "moons",
+      confidence: "approximate",
       title: "Moons of giants",
       statement: "A giant builds a satellite system in the disk around it: two to five moons sharing a fixed share of its mass, spaced outward like Jupiter's, none beyond half the planet's Hill radius. Moons formed beyond the snow line are rich in ice; all are locked to their planet and share its tilt. The planet's tide flexes each moon on its eccentric orbit and heats it: q = (21/2)(k₂/Q) G M_p² R⁵ n e² / a⁶ / 4πR². Moons as heavy as the smallest planet are worlds: the same physics, history, life and civilizations as planets, in their planet's starlight, warmed by tides too (MO4).",
       rule: `system mass = ${exact(SATELLITE_MASS_RATIO)} × M_p, split at sorted uniform draws; first orbit ${FIRST_MOON_ORBIT.planetRadii}–${FIRST_MOON_ORBIT.planetRadii * (1 + FIRST_MOON_ORBIT.spread)} planet radii, each next × ${MOON_SPACING.min}–${MOON_SPACING.min + MOON_SPACING.range}; no moon beyond ${exact(HILL_SHARE)} × Hill radius`,
@@ -151,6 +159,7 @@ export const systems: Chapter = {
     },
     {
       id: "formation-air",
+      confidence: "approximate",
       title: "The air a planet starts with",
       statement: "Every rocky planet draws one of five atmosphere classes from the same distribution, whatever its size or heat; each class has a background pressure. Its history then decides what it keeps: escape strips the weak-gravity and strongly irradiated (Atmospheric escape).",
       rule: `none / thin / moderate / thick / crushing below draws ${ATMOSPHERE_DRAW.noneBelow} / ${ATMOSPHERE_DRAW.thinBelow} / ${ATMOSPHERE_DRAW.moderateBelow} / ${ATMOSPHERE_DRAW.thickBelow} / 1; planets below ${OWN_AIR_STREAM_BELOW_MASS} M⊕ draw from their own stream`,
@@ -169,6 +178,7 @@ export const systems: Chapter = {
     },
     {
       id: "planet-type",
+      confidence: "approximate",
       title: "What kind of world it is",
       statement: "A planet's type is read from what its history left, not drawn: lava above 1,000 K, an ocean world when water covers over 90%, an ice world over 85% ice, a desert when almost dry and warm, otherwise rocky. Giants colder than 75 K are ice giants.",
       constants: [
@@ -191,6 +201,7 @@ export const systems: Chapter = {
     },
     {
       id: "neighbour-spacing",
+      confidence: "established",
       title: "Neighbours too close to share their orbits",
       statement: "Two planets on neighbouring orbits pull on each other. Closer together than a few times the distance over which their gravity rules the star's, they cannot both keep their orbits: the lighter one is thrown out of the system.",
       rule: `R_H = ((m₁ + m₂) / 3M★)^⅓ · (a₁ + a₂) / 2; neighbours closer than ${formatSig(HILL_SPACING)} R_H cannot both stay; the lighter leaves (the outer if equal); checked from the innermost pair outward until none is too close`,
@@ -213,6 +224,7 @@ export const systems: Chapter = {
     },
     {
       id: "binary-orbits",
+      confidence: "approximate",
       title: "Where a companion lets planets orbit",
       statement: "A companion star's pull leaves two places where a planet's orbit lasts: close to its star, or far out around both stars. A planet drawn in between cannot stay and is removed; planets beyond the outer limit orbit both stars.",
       rule: `around the star: a < a_b · (${S_TYPE_LIMIT.c} − ${-S_TYPE_LIMIT.mu}μ − ${-S_TYPE_LIMIT.e}e + ${S_TYPE_LIMIT.muE}μe + ${S_TYPE_LIMIT.e2}e² − ${-S_TYPE_LIMIT.muE2}μe²); around both: a > a_b · (${P_TYPE_LIMIT.c} + ${P_TYPE_LIMIT.e}e − ${-P_TYPE_LIMIT.e2}e² + ${P_TYPE_LIMIT.mu}μ − ${-P_TYPE_LIMIT.eMu}eμ − ${-P_TYPE_LIMIT.mu2}μ² + ${P_TYPE_LIMIT.e2Mu2}e²μ²); μ = m₂ / (m₁ + m₂), a_b and e the pair's separation and eccentricity`,
@@ -254,6 +266,7 @@ export const bodies: Chapter = {
   cards: [
     {
       id: "gravity",
+      confidence: "established",
       title: "Gravity and escape velocity",
       statement: "Surface gravity is mass over radius squared, in Earth units; escape velocity grows with √(mass / radius).",
       rule: `g = M / R²; v_esc = ${EARTH_ESCAPE_VELOCITY_KMS} km/s × √(M / R)`,
@@ -271,6 +284,7 @@ export const bodies: Chapter = {
     },
     {
       id: "tidal-locking",
+      confidence: "approximate",
       title: "Tidal locking",
       statement: "A planet close enough to its star is turned to keep one face towards it. The distance grows with the star's mass and age.",
       rule: `locked inside ${TIDAL_LOCK_CONSTANT_AU} AU × (age × M★²)^⅙`,
@@ -288,6 +302,7 @@ export const bodies: Chapter = {
     },
     {
       id: "spin-tilt",
+      confidence: "speculative",
       title: "Day length and tilt",
       statement: "A free planet's day is drawn between 8 and 60 hours on a logarithmic scale; its tilt is usually under 35°, sometimes up to 90°. Without a large moon to hold it, a tilt wanders through a world's history as the other planets pull on it; a planet alone, or locked to its star, keeps its tilt.",
       rule: `day = ${ROTATION_HOURS.min} × (${ROTATION_HOURS.max} / ${ROTATION_HOURS.min})^draw h; tilt: ${formatPercent(TILT.lowShare)} of planets 0–${TILT.lowMaxDeg}°, the rest ${TILT.lowMaxDeg}–${TILT.maxDeg}°`,
@@ -303,6 +318,7 @@ export const bodies: Chapter = {
     },
     {
       id: "water-inventory",
+      confidence: "approximate",
       title: "How much water a planet gets",
       statement: "Inside the young star's snow line a planet gets a little water; beyond it, much more. Small planets keep less.",
       rule: `snow line = ${SNOW_LINE_AU_PER_SQRT_L} AU × √L(birth); water ≈ ${WATER_INSIDE_SNOW_LINE.median} (÷× ${WATER_INSIDE_SNOW_LINE.spread}) inside, ${WATER_BEYOND_SNOW_LINE.median} (÷× ${WATER_BEYOND_SNOW_LINE.spread}) beyond; × min(1, M / ${WATER_RETENTION_MASS} M⊕)`,
@@ -315,6 +331,7 @@ export const bodies: Chapter = {
     },
     {
       id: "inner-heat",
+      confidence: "approximate",
       title: "Inner heat and volcanism",
       statement: "A planet's tectonic activity starts with its mass and fades as its interior cools: larger planets stay active longer. The heat flowing out through its surface follows the same activity, scaled to Earth's.",
       rule: `τ(t) = min(1, √M × e^(−t / ${INTERIOR_COOLING_GYR} Gyr)); heat flow q = ${EARTH_HEAT_FLOW_W_M2} W/m² × τ / τ⊕ (τ⊕ = Earth today); T_int = (q / σ)^¼`,

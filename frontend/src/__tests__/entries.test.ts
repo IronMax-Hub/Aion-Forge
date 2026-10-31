@@ -99,6 +99,17 @@ describe("encyclopedia entries", () => {
     }
   });
 
+  it("label every biosphere and civilization as a speculative model, first among their limits (Phase 4)", () => {
+    for (const sample of samples) {
+      const labelled = entriesOf(sample).filter(({ entry }) => entry.subject.kind === "biosphere" || entry.subject.kind === "civilization");
+      expect(labelled.length).toBeGreaterThan(0);
+      for (const { entry } of labelled) expect(entry.limits[0].text, entry.citation).toMatch(/^A speculative model/);
+      for (const { entry } of entriesOf(sample).filter(({ entry }) => entry.subject.kind === "planet" || entry.subject.kind === "star")) {
+        expect(entry.limits.some((l) => /speculative/.test(l.text)), entry.citation).toBe(false);
+      }
+    }
+  });
+
   it("date a chronicle between the planet's formation and today, oldest first", () => {
     for (const sample of samples) {
       for (const { entry, star, planet } of entriesOf(sample)) {

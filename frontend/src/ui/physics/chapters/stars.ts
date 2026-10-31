@@ -42,6 +42,7 @@ export const stars: Chapter = {
   cards: [
     {
       id: "star-mass",
+      confidence: "approximate",
       title: "Masses: most stars are small",
       statement: "A star's mass comes from one draw through the initial mass function measured in the Milky Way: red dwarfs are most stars, and stars heavier than 8 M☉ about one in 250.",
       rule: KROUPA_IMF.pieces.map((p, i) => `dN/dm ∝ m^−${p.slope} from ${p.fromSolar} M☉${i + 1 < KROUPA_IMF.pieces.length ? "" : ` to ${KROUPA_IMF.maxSolar} M☉`}`).join("; ") + "; mass = the IMF's inverse at draw^threshold",
@@ -63,6 +64,7 @@ export const stars: Chapter = {
     },
     {
       id: "star-lifespan",
+      confidence: "approximate",
       title: "Lifespan: heavy stars burn out fast",
       statement: "A star's life shortens steeply with mass: twice the Sun's mass lives about a sixth as long.",
       rule: `lifespan = ${LIFESPAN.solarGyr} Gyr / M^${LIFESPAN.massExponent} / entropy rate, at least ${LIFESPAN.minGyr} Gyr`,
@@ -87,12 +89,13 @@ export const stars: Chapter = {
     },
     {
       id: "star-age",
+      confidence: "approximate",
       title: "Ages",
       statement: "Stars form at a constant rate from the universe's start to today, so each star's age is a random moment in the universe's history, whatever its lifespan. A star older than its lifespan has ended: heavy stars are mostly white dwarfs, neutron stars and black holes by now, while red dwarfs all still shine.",
       rule: `age = draw × ${UNIVERSE_AGE_GYR} Gyr; a star past ${REMNANT_FRACTION} of its lifespan is a remnant`,
       constants: [{ name: "Age of the universe", value: exact(UNIVERSE_AGE_GYR, "Gyr"), meaning: "No star is older" }],
       why: "A constant star-formation rate is the simplest history that leaves the old, heavy stars dead, as observed: white dwarfs are several per cent of the stars near the Sun.",
-      limits: ["A constant birth rate: real galaxies formed stars faster early on (ellipticals almost only then), which is not modelled.", "A remnant keeps its progenitor's mass in the model."],
+      limits: ["A constant birth rate: real galaxies formed stars faster early on (ellipticals almost only then), which is not modelled.", "A white dwarf weighs its remnant mass (A3.3); neutron stars and black holes keep their progenitor's mass."],
       laws: [{ law: "entropyRate", how: "Shorter lifespans: more stars have ended" }],
       code: "simulation/star.ts · generateStarsFor",
       effect: (ctx) => [said(
@@ -101,6 +104,7 @@ export const stars: Chapter = {
     },
     {
       id: "star-phases",
+      confidence: "approximate",
       title: "Life stages",
       statement: "A star contracts as a protostar, burns hydrogen on the main sequence, swells into a giant, and ends as a white dwarf, neutron star or black hole depending on its mass.",
       rule: `protostar until min(${PROTOSTAR_FRACTION} × lifespan, ${PROTOSTAR_MAX_GYR} Gyr); main sequence to ${MAIN_SEQUENCE_END_FRACTION} of its life; giant to ${REMNANT_FRACTION}; then a remnant: white dwarf below ${REMNANT_MASS.neutronStarFrom} M☉, neutron star to ${REMNANT_MASS.blackHoleAbove} M☉, black hole above`,
@@ -112,7 +116,7 @@ export const stars: Chapter = {
       ],
       why: "These are the stages and mass limits of stellar evolution, simplified to fixed shares of a star's life.",
       limits: [
-        "The giant phase is one stage at once 500 times brighter; subgiants, the helium flash and planetary nebulae are not modelled.",
+        "The giant phase is one stage at its full brightness at once; subgiants, the helium flash and planetary nebulae are not modelled.",
         `A star that is a remnant today was a giant until it became one; its planets felt that light (decision 44). Its giant temperature is not stored and is taken as ${formatInt(PAST_GIANT_TEMPERATURE_K)} K.`,
         "Neutron stars and black holes have no planets.",
       ],
@@ -122,6 +126,7 @@ export const stars: Chapter = {
     },
     {
       id: "star-light",
+      confidence: "approximate",
       title: "Brightness and colour",
       statement: "A main-sequence star's brightness rises as the 3.5th power of its mass; its temperature follows from that brightness and its size, with a ±10% spread. A giant shines about 500 times the Sun per solar mass of its own, between the red clump and the tip of the giant branch, or twice its main-sequence light if that is more, and no brighter than the brightest supergiants seen. Remnants glow as small hot bodies: a white dwarf cools and fades over billions of years.",
       rule: `L = M^${MASS_LUMINOSITY_EXPONENT}; R = M^${MS_RADIUS_EXPONENT}; T = ${SOLAR_TEMPERATURE_K} K × (L / R²)^¼ × (${TEMPERATURE_JITTER.low} + draw × ${TEMPERATURE_JITTER.span}); giant L = min(${formatSig(GIANT_LUMINOSITY.maxSolar)}, max(${GIANT_LUMINOSITY.perSolarMass} M, ${GIANT_LUMINOSITY.mainSequenceFactor} M^${MASS_LUMINOSITY_EXPONENT})); white dwarf L = ${WHITE_DWARF.solarAt1Gyr} × (t_cool / 1 Gyr)^−${WHITE_DWARF.coolingExponent}, T from L = R²T⁴ at R = ${WHITE_DWARF.radiusSolar} R☉; neutron star L = R²T⁴ at R = 12 km`,
@@ -156,6 +161,7 @@ export const stars: Chapter = {
     },
     {
       id: "star-brightening",
+      confidence: "approximate",
       title: "Stars brighten as they age",
       statement: "On the main sequence a star's light rises steadily: it ends 80% brighter than it began. The Sun started at about 70% of today's light.",
       rule: `L(t) ∝ 1 + ${MAIN_SEQUENCE_BRIGHTENING} × t / t_main-sequence-end, anchored so today's luminosity is unchanged`,
@@ -172,6 +178,7 @@ export const stars: Chapter = {
     },
     {
       id: "star-radius",
+      confidence: "approximate",
       title: "Size, and planets swallowed",
       statement: "A star's radius follows from its light and temperature. A giant swells to tenths of an AU and swallows the planets inside it; a remnant swallowed those inside the giant it once was. A white dwarf's surviving planets were pushed outward as its giant shed its mass: their orbits widened by the mass the star lost.",
       rule: `R = R☉ × √L × (${SOLAR_TEMPERATURE_K} K / T)²; a planet whose orbit lies inside R is removed`,
@@ -192,6 +199,7 @@ export const stars: Chapter = {
     },
     {
       id: "star-activity",
+      confidence: "approximate",
       title: "Magnetic activity, flares and ultraviolet",
       statement: "Young stars are magnetically active: they flare, and give off X-rays and extreme ultraviolet (XUV). Activity stays at full strength until a saturation time, then fades. Red dwarfs stay saturated for billions of years; the Sun left saturation at 0.1 Gyr and has been fading since.",
       rule: `activity = 1 until t_sat, then (t / t_sat)^−${ACTIVITY_DECAY_EXPONENT}; XUV = L × (s × ${formatSig(XUV_SATURATED_SHARE)} × activity × envelope + photosphere below ${XUV_MAX_NM} nm)`,
@@ -219,6 +227,7 @@ export const stars: Chapter = {
     },
     {
       id: "star-rare",
+      confidence: "illustrative",
       title: "Rare stars",
       statement: "A star is marked rare when it is very massive, a neutron star or black hole, or an old red dwarf near the end of a very long life.",
       rule: `mass > ${RARE_STAR.massAbove} M☉, or a neutron star or black hole, or main sequence past ${formatPercent(RARE_STAR.oldShareAbove)} of its life below ${RARE_STAR.oldDwarfMassBelow} M☉`,
@@ -231,6 +240,7 @@ export const stars: Chapter = {
     },
     {
       id: "star-companions",
+      confidence: "approximate",
       title: "Companions",
       statement: "About half of Sun-like stars have a companion, more among heavy stars and fewer among red dwarfs. A companion is lighter than its primary, shares its age, and orbits it at a distance drawn from the observed spread of binary periods, from days to millions of years.",
       rule: `chance ${COMPANION_CHANCE.map((b) => `${b.chance} below ${b.massBelow} M☉`).join(", ").replace(" below Infinity M☉", " above")}; companion mass = q × primary, q uniform ${MASS_RATIO.min}–${MASS_RATIO.max}; log₁₀(period / days) normal, median ${LOG_PERIOD_DAYS.median}, σ ${LOG_PERIOD_DAYS.sigma}; a³ = (M₁ + M₂) × (period / ${DAYS_PER_YEAR} days)² (AU); e = 0 below ${CIRCULAR_BELOW_DAYS} days, else uniform 0–${MAX_ECCENTRICITY}`,
@@ -267,7 +277,7 @@ export const stars: Chapter = {
   ],
   missing: [
     "No triple or higher multiple stars, and companions without planets of their own (step 6).",
-    "No metallicity (step 4).",
-    "No stars that died before today; the galaxy's past light is not modelled (step 9).",
+    "Metallicity does not change a star's light, colour or lifespan; it reaches only its planets (enrichment).",
+    "The galaxy's past light is not modelled (step 9).",
   ],
 };

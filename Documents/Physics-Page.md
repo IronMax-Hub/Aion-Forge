@@ -29,6 +29,7 @@ It serves the charter's question, "how do simple rules produce extraordinary com
 | Part of a card | Example (stellar lifespan) |
 |---|---|
 | Title and plain statement | Heavier stars burn out faster: lifespan falls as the 2.5th power of mass. |
+| Confidence tier (Phase 4) | Approximate: one of established, approximate, speculative or illustrative |
 | Rule | `lifespan = 10 Gyr / M^2.5 / entropy` (shown as written in the code, collapsible) |
 | Constants, with values read from the code | 10 Gyr; exponent 2.5; floor 0.003 Gyr |
 | Why it is this way | The Sun lives about 10 Gyr; the mass–luminosity relation (L ∝ M^3.5) burns fuel ∝ M at a rate ∝ M^3.5. |
@@ -39,6 +40,17 @@ It serves the charter's question, "how do simple rules produce extraordinary com
 | Where it lives | `simulation/star.ts`, `calcLifespan` · decided in AF-021 |
 
 At the top of the page: the universe's citation (`AF-U-0001-86A0 · v11`), the six laboratory laws with their current values, and for each law the rules it reaches, including the ones it does not (C7: gravity moves orbits but not surface gravity).
+
+**Confidence tiers (Phase 4 of the November 2026 fixing plan).** Below the laws, the page explains four tiers, and every card carries one beside its title (`RuleCard.confidence`, `CONFIDENCE` in `ui/physics/catalogue.ts`). They fold the unified audit's six categories (§6) into four:
+
+| Tier | What it promises | Examples |
+|---|---|---|
+| Established | Textbook physics or an exact procedure; the equation is right, its inputs may be approximate | The seed's streams, the Hill-radius spacing, surface gravity, transit spectra |
+| Approximate | A measured relation or simplified framework, within its calibrated range; the card names source and limits | The IMF, star light and lifespans, the climate, weathering, escape |
+| Speculative model | Nothing measures it, because Earth is the only example | Every life and minds card, the Great Filter, oxygen and methane from life, tilt wander, catastrophes |
+| Illustrative | Made to look right, not computed from physics | The galaxy's shape and size, star count, plate maps, habitability and rarity scores |
+
+The life and minds chapters' introductions say that their counts are what the assumptions produce, not predictions; the origin card names the abiogenesis rate as an assumption and points to Emergence Sensitivity. In the encyclopedia, every biosphere and civilization entry's first limit says it comes from a speculative model.
 
 ## The rules, by chapter
 

@@ -48,9 +48,37 @@ export interface Constant {
   meaning: string;
 }
 
+/**
+ * How far a rule can be trusted as a picture of the real universe (Phase 4; the
+ * unified audit's §6, its six categories folded into four).
+ */
+export type Confidence = "established" | "approximate" | "speculative" | "illustrative";
+
+/** Each confidence tier's name and what it promises, in the order the page lists them. */
+export const CONFIDENCE: Record<Confidence, { label: string; meaning: string }> = {
+  established: {
+    label: "Established",
+    meaning: "Textbook physics or an exact procedure: Kepler's laws, Stefan–Boltzmann, the Hill radius, the seed's random streams. The equation is right; its inputs may still be approximate.",
+  },
+  approximate: {
+    label: "Approximate",
+    meaning: "A measured relation or a simplified physical framework, used within the range it was calibrated on: the initial mass function, mass–luminosity and mass–radius, the energy-balance climate, weathering. Each card names its source and its limits.",
+  },
+  speculative: {
+    label: "Speculative model",
+    meaning: "No measurement constrains it, because the only example is Earth: how often life begins, how it evolves, minds, civilizations, the Great Filter's gates. These are assumptions to experiment with, not predictions about the real universe.",
+  },
+  illustrative: {
+    label: "Illustrative",
+    meaning: "Made to look right rather than computed from physics: the galaxy's shape, star counts, plate maps, and scores for reading worlds. Do not read it as a physical prediction.",
+  },
+};
+
 export interface RuleCard {
   id: string;
   title: string;
+  /** How far the rule can be trusted as a picture of the real universe. */
+  confidence: Confidence;
   /** The rule in plain words. */
   statement: string;
   /** The rule as the code computes it. */

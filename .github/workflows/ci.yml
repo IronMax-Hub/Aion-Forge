@@ -1,11 +1,14 @@
-# Checks every push and pull request (AF-009): the frontend's types, lint and
-# tests, and the backend's types and tests. Nothing here needs a GPU, a
-# database or a network service: the tests fake all three.
+# Checks the development branch (AF-009): every push to it and every pull
+# request into it. Runs the frontend's types, lint and tests, and the
+# backend's types and tests. Nothing here needs a GPU, a database or a
+# network service: the tests fake all three.
 name: CI
 
 on:
   push:
+    branches: [development]
   pull_request:
+    branches: [development]
 
 jobs:
   frontend:

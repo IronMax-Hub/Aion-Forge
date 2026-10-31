@@ -108,10 +108,16 @@ export function traceRay(cameraPos: Vec3, screenDir: Vec3, steps: TraceSteps): R
   return { fate: "circling", direction: vel };
 }
 
-/** The shift g of light from gas in circular orbit at radius r, leaving in direction `towardCamera`. */
+/**
+ * The shift g of light from gas in circular orbit at radius r, leaving in the coordinate direction
+ * `towardCamera`. The gas's speed is a static observer's measure there, so the light's angle to the
+ * orbit is taken in that observer's frame: the direction's radial part stretched by 1/√(1 − 1/r).
+ */
 export function shiftFactor(p: Vec3, r: number, towardCamera: Vec3): number {
+  const outward = normalize(p);
+  const localDir = normalize(add(towardCamera, scale(outward, (1 / Math.sqrt(1 - 1 / r) - 1) * dot(towardCamera, outward))));
   const orbitDir = normalize(add([-p[2], 0, p[0]], [1e-6, 0, 0]));
   const beta = Math.min(Math.sqrt(0.5 / (r - 1)), MAX_GAS_SPEED);
-  const doppler = Math.sqrt(1 - beta * beta) / (1 - beta * dot(orbitDir, towardCamera));
+  const doppler = Math.sqrt(1 - beta * beta) / (1 - beta * dot(orbitDir, localDir));
   return Math.sqrt(1 - 1 / r) * doppler;
 }

@@ -199,12 +199,17 @@ float discTemperatureShare(float r) {
   return pow(max(f, 0.0) / F_PEAK, 0.25);
 }
 
-// The shift g of light from gas in circular orbit at radius r, leaving in direction `towardCamera`
+// The shift g of light from gas in circular orbit at radius r, leaving in the coordinate
+// direction `towardCamera`. The gas's speed is a static observer's measure there, so the
+// light's angle to the orbit is taken in that observer's frame too: the direction's radial
+// part is stretched by 1/√(1 − 1/r), as the camera's is shrunk (cameraRay).
 float shiftFactor(vec3 p, float r, vec3 towardCamera) {
+  vec3 outward = normalize(p);
+  vec3 localDir = normalize(towardCamera + (inversesqrt(1.0 - 1.0 / r) - 1.0) * dot(towardCamera, outward) * outward);
   vec3 orbitDir = normalize(vec3(-p.z, 0.0, p.x) + vec3(1e-6, 0.0, 0.0));   // the gas orbits anticlockwise seen from +y
   // its speed, to a static observer there; inside the last stable orbit gas plunges, held here below light's
   float beta = min(sqrt(0.5 / (r - 1.0)), MAX_GAS_SPEED);
-  float doppler = sqrt(1.0 - beta * beta) / (1.0 - beta * dot(orbitDir, towardCamera));
+  float doppler = sqrt(1.0 - beta * beta) / (1.0 - beta * dot(orbitDir, localDir));
   return sqrt(1.0 - 1.0 / r) * doppler;                    // with gravity's redshift
 }
 

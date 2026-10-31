@@ -95,4 +95,17 @@ describe("the black hole's light paths (CPU copy of the shader)", () => {
     expect(shiftFactor(p, DISC_INNER, [0, 0, 1])).toBeCloseTo(redshift / (gamma * (1 - beta)), 5);
     expect(shiftFactor(p, DISC_INNER, [0, 0, -1])).toBeCloseTo(redshift / (gamma * (1 + beta)), 5);
   });
+
+  it("takes the light's angle to the orbit in the gas's own static frame, not in coordinates", () => {
+    const p: Vec3 = [DISC_INNER, 0, 0];
+    const beta = 0.5;
+    const redshift = Math.sqrt(1 - 1 / DISC_INNER);
+    const gamma = 1 / Math.sqrt(1 - beta * beta);
+    // Leaving at 60° from the outward direction in coordinates: tan ψ = √(1 − 1/r)·tan 60° in the gas's frame
+    const alpha = Math.PI / 3;
+    const psi = Math.atan(redshift * Math.tan(alpha));
+    const g = shiftFactor(p, DISC_INNER, [Math.cos(alpha), 0, Math.sin(alpha)]);
+    expect(g).toBeCloseTo(redshift / (gamma * (1 - beta * Math.sin(psi))), 5);
+    expect(g).not.toBeCloseTo(redshift / (gamma * (1 - beta * Math.sin(alpha))), 2);
+  });
 });

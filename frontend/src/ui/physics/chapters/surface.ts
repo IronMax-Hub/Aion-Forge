@@ -13,7 +13,7 @@ import {
   CH4_DESTRUCTION_PER_GYR, CRUST_O2_CAPACITY_BAR, CRUST_O2_SINK_BAR_PER_GYR, FORMATION_DELAY_GYR, FROZEN_ICE_SHARE,
   IMPACT_BACKGROUND_PER_GYR, IMPACT_EARLY_PER_GYR, IMPACT_EARLY_TIMESCALE_GYR, O2_REFERENCE_BAR,
   OCEANS_LOST_WATER, OUTGASSING_BAR_PER_GYR, OXIDATION_O2_BAR, PHOTOLYSIS_O2_BAR_PER_WATER, SEAFLOOR_WEATHERING_SHARE,
-  STEP_GYR, VOLCANIC_O2_SINK_BAR_PER_GYR, VOLCANIC_PULSE_OUTGASSING, VOLCANIC_PULSE_PER_GYR,
+  STEP_GYR, SUBSTEP_GYR, VOLCANIC_O2_SINK_BAR_PER_GYR, VOLCANIC_PULSE_OUTGASSING, VOLCANIC_PULSE_PER_GYR,
   WEATHERING_REFERENCE_K, WEATHERING_WARMING_SCALE_K,
 } from "../../../simulation/worldHistory";
 import { atmosphereClassOf, EARTH_ESCAPE_VELOCITY_KMS, SURFACE_PRESSURE_BAR } from "../../../simulation/planetPhysics";
@@ -189,13 +189,14 @@ export const history: Chapter = {
     {
       id: "steps",
       title: "Steps through time",
-      statement: `A world's history runs in steps of ${formatInt(STEP_GYR * 1000)} Myr, from ${FORMATION_DELAY_GYR} Gyr after its star formed to today.`,
+      statement: `A world's history runs in steps of ${formatInt(STEP_GYR * 1000)} Myr, from ${FORMATION_DELAY_GYR} Gyr after its star formed to today. A step in which the world freezes over or thaws is taken again in ${formatInt(SUBSTEP_GYR * 1000)} Myr sub-steps, for its carbon and climate.`,
       constants: [
         { name: "Step", value: exact(STEP_GYR, "Gyr"), meaning: "" },
+        { name: "Sub-step", value: exact(SUBSTEP_GYR, "Gyr"), meaning: "Across freezing over and thawing: about the time weathering takes to draw a thawed world's CO₂ down (A1.3)" },
         { name: "Start", value: exact(FORMATION_DELAY_GYR, "Gyr"), meaning: "After the star formed" },
       ],
       why: "Fine enough for climate transitions and evolution, coarse enough to run thousands of histories in a minute.",
-      limits: ["A world whose star is younger than the start runs no steps: today is its formation state."],
+      limits: ["A world whose star is younger than the start runs no steps: today is its formation state.", "A thaw that refreezes within one step is not recorded as an event, and its brief liquid water cannot start life."],
       laws: [],
       code: "simulation/worldHistory.ts · runWorldHistory",
       needsIndex: true,

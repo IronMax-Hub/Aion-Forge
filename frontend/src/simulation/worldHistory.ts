@@ -101,7 +101,7 @@ import type { Star } from "./star";
 import { companionAsStar, mainSequenceEndGyr, receivedLuminosityAt } from "./star";
 import type { Geography } from "./geography";
 import { areaBelow, BAND_COUNT, seaLevelFor, waterDepthKm } from "./geography";
-import type { ClimateInputs, PresentClimate } from "./climate";
+import type { PresentClimate } from "./climate";
 import {
   bandAlbedo, bandGeometry, boilingPointK, co2SaturationBar, freezingKAt, CO2_REFERENCE_BAR, equilibriumTemperatureK, greenhouseK,
   RUNAWAY_EFFECTIVE_K, solveBands, solvePresentClimate, surfaceMeanK,
@@ -123,6 +123,8 @@ import type { PhylogenySummary } from "./evolution/phylogeny";
 
 export const STEPS_PER_GYR = 10;
 export const STEP_GYR = 1 / STEPS_PER_GYR;
+/** A step that freezes over or thaws is done again in sub-steps this long, Gyr (A1.3): about the time weathering takes to draw a thawed world's CO₂ down. */
+export const SUBSTEP_GYR = 0.001;
 /** The loop starts this long after the star forms; the same delay biosphere.ts uses. */
 export const FORMATION_DELAY_GYR = 0.5;
 
@@ -261,6 +263,14 @@ export interface WorldState {
   lightBiomass: number;
   chemicalBiomass: number;
   totalBiomass: number;
+}
+
+/** Where a stretch of the carbon budget starts: CO₂, CO₂ ice, mean temperature and ice cover. */
+interface CarbonStart {
+  co2: number;
+  co2Ice: number;
+  meanK: number;
+  iced: Uint8Array;
 }
 
 export interface WorldSnapshot extends WorldState {
@@ -515,7 +525,6 @@ export function runWorldHistory(
       axialTiltDeg = reflectInto(axialTiltDeg + tiltStep, tiltRange.lo, tiltRange.hi);
       geometry = bandGeometry(axialTiltDeg, physics.tidallyLocked);
     }
-    const interiorK = interiorTemperatureK(interiorHeatFlow(planet, t));
     if (star.age >= msEnd && t0 < msEnd && t >= msEnd) events.push({ kind: "star-leaves-main-sequence", tGyr: msEnd });
     if (t0 < companionMsEnd && t >= companionMsEnd) events.push({ kind: "companion-leaves-main-sequence", tGyr: companionMsEnd });
 
@@ -524,52 +533,79 @@ export function runWorldHistory(
       IMPACT_BACKGROUND_PER_GYR + IMPACT_EARLY_PER_GYR * exp(-t0 / IMPACT_EARLY_TIMESCALE_GYR), dt);
     const volcanicPulse = happens(galaxySeed, planet, step, PURPOSE.VOLCANISM, VOLCANIC_PULSE_PER_GYR * tau, dt);
 
-    // 4a. CO₂: the step's budget closes at the CO₂ where CO₂ = CO₂₀ + (outgassing − weathering(CO₂))·Δt.
-    // Weathering is judged against the step's starting ice and oceans, which is what the rock sees.
+    // 4a and 3. CO₂ and climate. The carbon budget closes at the CO₂ where
+    // CO₂ = CO₂₀ + (outgassing − weathering(CO₂))·Δt, then the climate is solved
+    // over oceans filled from this step's starting water. A step that freezes over
+    // or thaws is done again in sub-steps of SUBSTEP_GYR (A1.3): a thawed world's
+    // weathering draws its CO₂ down within a few Myr, and a whole step would hold
+    // it warm for the whole step, so whether today found it frozen or thawed would
+    // depend on the step's length.
     const wetness = wetnessOf(state.water);
     const outgassing = OUTGASSING_BAR_PER_GYR * tau * g * (volcanicPulse ? VOLCANIC_PULSE_OUTGASSING : 1);
-    // Weathering needs liquid water and rock: bare land as far as it is wet, and the
-    // ocean floor at a fraction of land's rate; none under ice or while the oceans are steam
-    let openLand = 0;
-    let openOcean = 0;
-    for (let k = 0; k < BAND_COUNT; k++) {
-      if (state.iced[k]) continue;
-      openLand += geometry.areas[k] * (1 - bandOcean[k]);
-      openOcean += geometry.areas[k] * bandOcean[k];
-    }
-    const weatherableLand = state.steam ? 0 : openLand * wetness + SEAFLOOR_WEATHERING_SHARE * openOcean;
     const pressureAt = (co2: number) => pressureOf(co2, state.o2Bar, state.ch4Bar, state.water, state.steam);
-    const inputsAt = (co2: number): ClimateInputs => ({
-      luminosity, orbitAU, co2Bar: co2, ch4Bar: state.ch4Bar, wetness, pressureBar: pressureAt(co2), interiorK, steam: state.steam,
-    });
-    let co2 = state.co2Bar + outgassing * dt;
-    if (weatherableLand > 0) {
-      const eqK = equilibriumTemperatureK(luminosity, orbitAU, bandAlbedo(geometry, bandOcean, state.iced, wetness));
-      const weathering = (c: number) => {
-        const meanK = surfaceMeanK(eqK, interiorK, greenhouseK(pressureAt(c), c, state.ch4Bar, wetness));
-        return WEATHERING_BAR_PER_GYR * g * weatherableLand * Math.sqrt(c / CO2_REFERENCE_BAR)
-          * exp((meanK - WEATHERING_REFERENCE_K) / WEATHERING_WARMING_SCALE_K);
-      };
-      const budget = (c: number) => c - state.co2Bar - (outgassing - weathering(c)) * dt;
-      co2 = solveIncreasing(budget, 0, co2);
-    }
-    // CO₂ freezes out above its saturation pressure at the step's starting temperature, and
-    // its ice sublimes back below it (decision 28); the first step starts warm, with no ice
-    let co2Ice = state.co2IceBar;
-    if (step > 1) {
-      const capBar = co2SaturationBar(state.meanK);
-      if (co2 > capBar) {
-        co2Ice += co2 - capBar;
-        co2 = capBar;
-      } else if (co2Ice > 0) {
-        const sublimed = Math.min(co2Ice, capBar - co2);
-        co2 += sublimed;
-        co2Ice -= sublimed;
+    /**
+     * The CO₂ and climate after `span` Gyr ending at `tEnd`, from a starting CO₂, CO₂ ice, mean
+     * temperature and ice cover. Weathering is judged against the starting ice and oceans,
+     * which is what the rock sees; `freezeOut` lets CO₂ above its saturation pressure at the
+     * starting temperature freeze out, and its ice sublime back below it (decision 28).
+     */
+    const carbonAndClimate = (start: CarbonStart, span: number, tEnd: number, freezeOut: boolean) => {
+      const stepLuminosity = receivedLuminosityAt(star, orbitAU, aroundBoth, tEnd);
+      const stepInteriorK = interiorTemperatureK(interiorHeatFlow(planet, tEnd));
+      // Weathering needs liquid water and rock: bare land as far as it is wet, and the
+      // ocean floor at a fraction of land's rate; none under ice or while the oceans are steam
+      let openLand = 0;
+      let openOcean = 0;
+      for (let k = 0; k < BAND_COUNT; k++) {
+        if (start.iced[k]) continue;
+        openLand += geometry.areas[k] * (1 - bandOcean[k]);
+        openOcean += geometry.areas[k] * bandOcean[k];
+      }
+      const weatherableLand = state.steam ? 0 : openLand * wetness + SEAFLOOR_WEATHERING_SHARE * openOcean;
+      let co2 = start.co2 + outgassing * span;
+      if (weatherableLand > 0) {
+        const eqK = equilibriumTemperatureK(stepLuminosity, orbitAU, bandAlbedo(geometry, bandOcean, start.iced, wetness));
+        const weathering = (c: number) => {
+          const meanK = surfaceMeanK(eqK, stepInteriorK, greenhouseK(pressureAt(c), c, state.ch4Bar, wetness));
+          return WEATHERING_BAR_PER_GYR * g * weatherableLand * Math.sqrt(c / CO2_REFERENCE_BAR)
+            * exp((meanK - WEATHERING_REFERENCE_K) / WEATHERING_WARMING_SCALE_K);
+        };
+        const budget = (c: number) => c - start.co2 - (outgassing - weathering(c)) * span;
+        co2 = solveIncreasing(budget, 0, co2);
+      }
+      let co2Ice = start.co2Ice;
+      if (freezeOut) {
+        const capBar = co2SaturationBar(start.meanK);
+        if (co2 > capBar) {
+          co2Ice += co2 - capBar;
+          co2 = capBar;
+        } else if (co2Ice > 0) {
+          const sublimed = Math.min(co2Ice, capBar - co2);
+          co2 += sublimed;
+          co2Ice -= sublimed;
+        }
+      }
+      const climate = solveBands(geometry, bandOcean, {
+        luminosity: stepLuminosity, orbitAU, co2Bar: co2, ch4Bar: state.ch4Bar, wetness, pressureBar: pressureAt(co2),
+        interiorK: stepInteriorK, steam: state.steam,
+      }, start.iced);
+      return { co2, co2Ice, climate };
+    };
+    // The first step starts warm, with no CO₂ ice to freeze out
+    const stepStart: CarbonStart = { co2: state.co2Bar, co2Ice: state.co2IceBar, meanK: state.meanK, iced: state.iced };
+    let carbon = carbonAndClimate(stepStart, dt, t, step > 1);
+    if ((carbon.climate.iceFraction >= FROZEN_ICE_SHARE) !== (state.iceFraction >= FROZEN_ICE_SHARE)) {
+      const substeps = Math.ceil(dt / SUBSTEP_GYR - 1e-9);
+      let start = stepStart;
+      for (let i = 1; i <= substeps; i++) {
+        const tSub = i === substeps ? t : t0 + (i * dt) / substeps;
+        carbon = carbonAndClimate(start, dt / substeps, tSub, step > 1 || i > 1);
+        start = { co2: carbon.co2, co2Ice: carbon.co2Ice, meanK: carbon.climate.meanK, iced: carbon.climate.iced };
       }
     }
-
-    // 3. Climate, over oceans filled from this step's starting water
-    const climate = solveBands(geometry, bandOcean, inputsAt(co2), state.iced);
+    const climate = carbon.climate;
+    let co2 = carbon.co2;
+    const co2Ice = carbon.co2Ice;
 
     // 4b. Water escapes while the upper air is moist, energy-limited by the step's dose; its oxygen stays behind
     const lostWater = waterLost(state.water, stepDose, planet.size, physics.escapeVelocityKms, climate.meanK, backgroundBar);

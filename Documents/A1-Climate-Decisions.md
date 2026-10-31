@@ -78,3 +78,28 @@ A1.3 will take smaller steps around freezing and thawing, so the cycle's timing,
 | Familiar Reality civilizations (100000 / 42 / 7777) | 3 / 6 / 3 | 2 / 6 / 3 |
 
 Life is otherwise unchanged to within a few planets: steam worlds were already lifeless.
+
+## A1.3 done: sub-steps across freezing over and thawing
+
+A step in which a world freezes over or thaws (crosses 90% ice) has its carbon budget and climate redone in **1 Myr sub-steps**: the time weathering takes to draw a thawed world's CO₂ down. Other steps are unchanged bit for bit, so a world that never crosses the threshold has exactly the history it had.
+
+Earth twin at the outer edge, today, at 10 / 20 / 40 steps per Gyr:
+
+| AU | v18 | after A1.3 |
+|---|---|---|
+| 1.3 | 232 K frozen / **304 K open ocean** / 234 K frozen | 236 / 247 / 248 K, all frozen |
+| 1.37 | **312 K open ocean** / 254 K frozen / 246 K frozen | 242 / 248 / 237 K, all frozen |
+| 1.5 | **320 K open ocean** / 252 K frozen / 246 K frozen | 252 / 238 / 253 K, all frozen |
+
+All three step sizes now agree on the state. The remaining ±8 K is the CO₂ built up under the ice since the last brief thaw: the cycle's phase today, which no finite step can pin exactly. Before, these worlds alternated frozen and open in whole 100 Myr steps and spent ~40% of their history thawed. Now their thaws last a few Myr, and they are found frozen nearly all the time, as limit-cycle models predict (Menou 2015). Freeze-over and thaw is the only trigger. The first version also sub-stepped whenever any ice band moved, which cost 4× on ordinary worlds and gained nothing.
+
+| Familiar Reality (100000 / 42 / 7777) | v18 | after A1.2 | after A1.3 |
+|---|---|---|---|
+| Living today | 24.4 / 25.8 / 22.4 % | 22.4 / 23.7 / 20.7 % | 25.6 / 26.7 / 24.4 % |
+| Systems with organisms | 757 / 771 / 740 | 714 / 734 / 694 | 757 / 772 / 754 |
+| Civilizations | 10 / 12 / 5 | 2 / 6 / 3 | 3 / 5 / 4 |
+| World history time, seed 100000 | 80 s | 75 s | 97 s |
+
+Life today recovers because each artificial whole-step freeze-over had struck life as a catastrophe every cycle. Civilizations stay about half of v18's: that is A1.1's runaway limit.
+
+**Limits.** A thaw that refreezes within one step is not recorded as an event, and its few Myr of open water cannot start life. Runaway onsets are not sub-stepped: they follow the star's slow brightening, so their date is off by at most one step, and nothing cycles.

@@ -119,15 +119,30 @@ describe("the carbon thermostat", () => {
   });
 
   it("thaws a frozen world with volcanism, as CO₂ builds up under the ice", () => {
+    // The steps before a thaw are frozen, with CO₂ rising from one to the next: frozen ground does not weather
     const thawed = [1.2, 1.25, 1.3, 1.35, 1.4].some((orbitalRadius) => {
       const h = history({ planet: { orbitalRadius } });
       const s = h.snapshots!;
-      const thaw = h.events.find((e) => e.kind === "thaws");
-      if (s[0].iceFraction < FROZEN_ICE_SHARE || !thaw) return false;
-      const atThaw = s.find((x) => x.tGyr === thaw.tGyr)!;
-      return atThaw.co2Bar > s[0].co2Bar * 10;
+      return h.events.filter((e) => e.kind === "thaws").some((thaw) => {
+        const i = s.findIndex((x) => x.tGyr === thaw.tGyr);
+        const before = s.slice(Math.max(0, i - 3), i);
+        return before.length === 3 && before.every((x) => x.iceFraction >= FROZEN_ICE_SHARE)
+          && before[1].co2Bar > before[0].co2Bar && before[2].co2Bar > before[1].co2Bar;
+      });
     });
     expect(thawed).toBe(true);
+  });
+
+  it("thaws only briefly at the outer edge, so it is found frozen most of the time (A1.3)", () => {
+    // Weathering draws a thawed world's CO₂ down within a few Myr, and it freezes again: steps
+    // that freeze over or thaw are taken in 1 Myr sub-steps, so a thaw is not held for a whole step.
+    // With whole steps these worlds spent half their history thawed (rules v18)
+    for (const orbitalRadius of [1.3, 1.37, 1.5]) {
+      const s = history({ planet: { orbitalRadius }, lifeless: true }).snapshots!;
+      const thawedShare = s.filter((x) => x.iceFraction < FROZEN_ICE_SHARE).length / s.length;
+      expect(thawedShare).toBeLessThan(0.25);
+      expect(s[s.length - 1].iceFraction).toBeGreaterThanOrEqual(FROZEN_ICE_SHARE);
+    }
   });
 
   it("scales outgassing with gravity: a small dry world gains far less CO₂", () => {

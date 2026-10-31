@@ -12,6 +12,9 @@
 // each neighbouring planet (each neighbour has the other half). A unit that
 // already fits is left as it was, so only crowded systems change.
 //
+// Orbits are drawn where the physics puts them: at effectiveOrbitAU, which the
+// gravity setting moves in by √gravity (GAL-005), not at the drawn-for radius.
+//
 // Assumptions and limits: every orbit is a circle round the drawn star. In a
 // binary the stars move round their centre of mass; the room to the star is
 // measured from the host star at the system's centre, as drawn when planets
@@ -19,7 +22,9 @@
 //
 // Presentation only: it reads planets and moons and never writes to the simulation.
 
+import type { UniverseConfig } from "../simulation/config";
 import type { Planet } from "../simulation/planet";
+import { effectiveOrbitAU } from "../simulation/planetBasics";
 
 /** Planetary-system view draws orbits at this many scene units per AU. */
 export const SYSTEM_UNITS_PER_AU = 2.5;
@@ -33,6 +38,11 @@ const MOON_DISTANCE = { base: 2, perDoubling: 1.2 };
 const MOON_SIZE = { perEarthRadius: 0.035, min: 0.008, max: 0.03 };
 // A planet with its moons fills at most this share of its room, so a hairline of space stays between neighbours
 const ROOM_SHARE = 0.9;
+
+/** A planet's orbit as drawn, in scene units: at the distance the physics uses (effectiveOrbitAU). */
+export function drawnOrbit(planet: Planet, config: UniverseConfig): number {
+  return effectiveOrbitAU(planet.orbitalRadius, config) * SYSTEM_UNITS_PER_AU;
+}
 
 /** How one planet is drawn: its sphere's radius, and each moon's distance from it and sphere radius, in scene units. */
 export interface PlanetLayout {
@@ -60,14 +70,14 @@ export function layoutReach(layout: PlanetLayout): number {
  * Each planet's layout, by planet key: the usual sizes, with each planet and its moons shrunk as one
  * until they fit between the star's surface and halfway to each neighbour.
  */
-export function systemLayout(planets: readonly Planet[], scale: number): Map<string, PlanetLayout> {
+export function systemLayout(planets: readonly Planet[], scale: number, config: UniverseConfig): Map<string, PlanetLayout> {
   const starRadius = HOST_STAR_RADIUS * scale;
   const sorted = [...planets].sort((a, b) => a.orbitalRadius - b.orbitalRadius);
   const layouts = new Map<string, PlanetLayout>();
   sorted.forEach((planet, i) => {
-    const orbit = planet.orbitalRadius * SYSTEM_UNITS_PER_AU;
-    const inner = i > 0 ? (orbit - sorted[i - 1].orbitalRadius * SYSTEM_UNITS_PER_AU) / 2 : Infinity;
-    const outer = i + 1 < sorted.length ? (sorted[i + 1].orbitalRadius * SYSTEM_UNITS_PER_AU - orbit) / 2 : Infinity;
+    const orbit = drawnOrbit(planet, config);
+    const inner = i > 0 ? (orbit - drawnOrbit(sorted[i - 1], config)) / 2 : Infinity;
+    const outer = i + 1 < sorted.length ? (drawnOrbit(sorted[i + 1], config) - orbit) / 2 : Infinity;
     const room = ROOM_SHARE * Math.min(orbit - starRadius, inner, outer);
     const usual = usualLayout(planet, scale);
     const shrink = Math.min(1, room / layoutReach(usual));

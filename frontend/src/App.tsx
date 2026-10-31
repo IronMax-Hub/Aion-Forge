@@ -719,7 +719,7 @@ export default function App() {
     ui.panelOpen();
     ambientLayer.setContext("system", systemColour(String(star.id), star.temperature, system.planets.length));
 
-    rendererRef.current.renderPlanetarySystem(system, star, (planet, moonIndex) => {
+    rendererRef.current.renderPlanetarySystem(system, star, universeConfig, (planet, moonIndex) => {
       setSelectedPlanet(planet);
       setSelectedSmallMoon(planet && moonIndex !== undefined ? { planetKey: planet.key, moonIndex } : null);
       setSelectedBiosphere(null);

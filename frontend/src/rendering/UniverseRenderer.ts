@@ -211,6 +211,8 @@ export interface ViewScale {
 
 // Orbit-control limits outside the planet view
 const DEFAULT_DISTANCE = { min: 0.01, max: 2000 };
+// Where the camera starts for every new galaxy: above the disc, looking at its centre
+const GALAXY_START_POSITION = new THREE.Vector3(0, 80, 220);
 // The views' slow turns, in turns per minute (OrbitControls' autoRotateSpeed, given each frame's
 // duration). They match what the views did on the owner's phone at 120 frames a second, when
 // the turn was counted per frame and so ran many times slower on a slow desktop GPU.
@@ -453,7 +455,7 @@ export class UniverseRenderer {
     this.scene = new THREE.Scene();
 
     this.camera = new THREE.PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 0.01, 100000);
-    this.camera.position.set(0, 80, 220);
+    this.camera.position.copy(GALAXY_START_POSITION);
 
     // ENH-510: cinematic orbit controls
     this.controls = new OrbitControls(this.camera, canvas);
@@ -532,6 +534,7 @@ export class UniverseRenderer {
   // ── Galaxy dust cloud (ENH-501 / ENH-503) ────────────────────────────────
 
   renderGalaxy(particles: GalaxyParticles) {
+    this.resetGalaxyCamera();
     if (this.galaxyMesh) {
       this.scene.remove(this.galaxyMesh);
       this.galaxyMesh.geometry.dispose();
@@ -1022,6 +1025,15 @@ export class UniverseRenderer {
     this.planetView = null;
     this.controls.minDistance = DEFAULT_DISTANCE.min;
     this.controls.maxDistance = this.systemMaxDistance;
+  }
+
+  /** Put the camera back where every galaxy starts, so a new one is seen whole whatever the last was zoomed to. */
+  private resetGalaxyCamera() {
+    this.tween = null;
+    this.camera.position.copy(GALAXY_START_POSITION);
+    this.controls.target.set(0, 0, 0);
+    this.controls.autoRotate = true;
+    this.controls.update();
   }
 
   // ── Star highlight ────────────────────────────────────────────────────────

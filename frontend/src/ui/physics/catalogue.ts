@@ -110,7 +110,7 @@ export function rowsWhere(index: UniverseIndex, test: (row: number) => boolean):
 
 /** What each laboratory law does in the code, in one sentence (C7: some reach less than their names suggest). */
 export const LAW_DOES: Record<LawKey, string> = {
-  gravityStrength: "Moves every orbit in by √gravity (effectiveOrbitAU), so the climate feels a closer star. Surface gravity, escape velocity, orbital periods and tidal locking do not read it (issue C7).",
+  gravityStrength: "Moves every orbit in by √gravity (effectiveOrbitAU), so the climate feels a closer star, and orbital periods and tidal locking follow the closer orbit. Surface gravity and escape velocity do not read it, and Kepler's law keeps gravity at its real strength (issue C7).",
   expansionRate: "Scales the galaxy's size: where its stars lie. Nothing else reads it.",
   stellarIgnitionThreshold: "Shrinks the star mass roll: above 1, fewer heavy stars and more small, long-lived ones.",
   entropyRate: "Divides every star's lifespan. A star's luminosity is unchanged, so it burns the same fuel faster (issue C7).",

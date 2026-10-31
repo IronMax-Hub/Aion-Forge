@@ -82,7 +82,8 @@ export const galaxy: Chapter = {
         { name: "Disc's hottest", value: `${formatInt(DISC_PEAK_TEMPERATURE.kelvin)} K`, meaning: `At the limit around ${formatSolarMasses(DISC_PEAK_TEMPERATURE.atSolar)}; ∝ (rate / mass)^¼` },
       ],
       why: "Observed central black holes run from about a million solar masses in spirals like ours to billions in giant ellipticals, while many dwarf galaxies show none. Most feed slowly, wrapped in faint hot gas like Sagittarius A*; a few feed fast enough for their gas to cool into a thin, brilliant disc (Shakura–Sunyaev).",
-      limits: ["Its mass follows the galaxy's type only, not its size; it does not spin; its feeding rate is drawn, not fed by the galaxy's gas; it acts on nothing: no orbits, no quasar phase, no effect on stars or life."],
+      limits: ["Its mass follows the galaxy's type only, not its size; it does not spin; its feeding rate is drawn, not fed by the galaxy's gas; it acts on nothing: no orbits, no quasar phase, no effect on stars or life.",
+        "In the close-up, the disc's temperature follows the Newtonian Shakura–Sunyaev profile, without its relativistic (Novikov–Thorne) correction, and its colours stop at 40,000 K: hotter gas shows the same blue-white, only brighter."],
       laws: [],
       code: "simulation/blackHole.ts · centralBlackHoleFor",
       effect: (ctx) => {

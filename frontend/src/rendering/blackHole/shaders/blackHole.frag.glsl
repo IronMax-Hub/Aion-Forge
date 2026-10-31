@@ -18,7 +18,9 @@
 // - Thin disc: each crossing of the disc plane between its inner edge and its
 //   outer fade adds the disc's light there, so the disc's far side shows above
 //   and below the shadow and thin rings of higher images hug it. The gas's
-//   temperature follows Shakura–Sunyaev, peaking at peakTemperatureK. Its light
+//   temperature follows Shakura–Sunyaev, peaking at peakTemperatureK: the
+//   Newtonian profile, a deliberate approximation that leaves out the
+//   relativistic (Novikov–Thorne) correction, which cools the innermost gas. Its light
 //   is shifted by g, the product of gravitational redshift and the Doppler shift
 //   of gas in Keplerian orbit: the observed colour is a blackbody at g·T and its
 //   brightness scales as g⁴, so the side coming towards the camera is brighter
@@ -178,7 +180,9 @@ float clumps(float r, float phi) {
 
 // ── Light ────────────────────────────────────────────────────────────────────
 
-// Approximate sRGB-primaries colour of a blackbody, normalised to its brightest channel
+// Approximate sRGB-primaries colour of a blackbody, normalised to its brightest channel.
+// Clamped to 1000–40,000 K, deliberately: above 40,000 K a blackbody's visible colour barely
+// changes (it tends to a fixed blue-white), so hotter gas differs only in brightness.
 vec3 blackbody(float kelvin) {
   float t = clamp(kelvin, 1000.0, 40000.0) / 100.0;
   // Both sides of each choice are kept finite: some GPUs evaluate both, and a NaN from

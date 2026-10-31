@@ -121,6 +121,8 @@ Enter a seed and click **Generate**, or click **Random seed** to generate a univ
 
 Sound is off by default; turn it on from the status bar.
 
+**3. On an Android phone** (optional): `npm run android` in `frontend/` builds a debug APK with Capacitor (needs the Android SDK and a JDK). The phone runs the same simulation, so a seed gives the same universe as on the desktop. How it is packaged and laid out for a phone: `Documents/Mobile-APK.md`.
+
 ---
 
 ## Quick Start Seeds
@@ -153,9 +155,15 @@ Galaxy view
   → Leave orbit              → Back to the planetary system
   → Scan biosphere           → Biosphere inspector
   → Check for civilization   → Civilization inspector
+  → click the galactic centre → Central black hole panel → Approach for a close-up
   → Timeline (sidebar)       → Universe timeline
+  → Encyclopedia (sidebar)   → An entry for the galaxy, any star, planet, biosphere or civilization
+  → Physics (sidebar)        → Every rule the universe runs on, and what it did here
+  → Great Filter (sidebar)   → How many worlds pass each step from a solid surface to a civilization
   → breadcrumb (top bar)     → Back to any earlier level
 ```
+
+The biosphere inspector opens a **Tree of life**: every lineage that evolved on the world, when it branched and when it died out.
 
 ---
 
@@ -163,12 +171,14 @@ Galaxy view
 
 Click **Edit parameters…** to adjust the six fundamental constants:
 
-* **Gravity Strength** — alters planetary orbital radii
-* **Expansion Rate** — scales the galaxy
-* **Stellar Ignition Threshold** — changes the mass distribution of stars
-* **Entropy Rate** — alters stellar lifespans
-* **Emergence Sensitivity** — controls how often life appears
-* **Intelligence Modifier** — adjusts civilization emergence probability
+* **Gravity Strength** — moves every orbit in by √gravity, so the climate, orbital periods and tidal locking feel a closer star
+* **Expansion Rate** — scales the galaxy's size
+* **Stellar Ignition Threshold** — reshapes the star mass draw: above 1, fewer heavy stars and more small, long-lived ones
+* **Entropy Rate** — divides every star's lifespan
+* **Emergence Sensitivity** — multiplies the rate at which life begins on liquid water
+* **Intelligence Modifier** — sets how much information processing a mind needs
+
+The Physics page says exactly what each law reaches, and what it does not.
 
 Apply a **Preset** for curated configurations, or adjust sliders manually.
 
@@ -201,7 +211,7 @@ Sound is off by default. Use **Sound off / Sound on** in the status bar to toggl
 Aion Forge is laid out like scientific observatory software:
 
 * **Top bar** — the universe ID (AF-U-XXXX-XXXX), a clickable breadcrumb, and seed controls (Generate, Random seed, Regenerate)
-* **Left sidebar** — universe facts, the Life markers switch (rings every star system with life and labels the nearest ones with their most advanced life form or civilization), current physical parameters, comparison and experiment log, saved universes (Save universe, Library, Import), and the timeline
+* **Left sidebar** — universe facts, overlays that mark every star system holding life or a civilization (living or in ruins), current physical parameters, comparison and experiment log, saved universes (Save universe, Library, Import), the Encyclopedia, Physics and Great Filter, and the timeline
 * **Centre** — the rendered galaxy, planetary system or planet seen from orbit; tool panels open over it
 * **Right dock** — the selected star, planet table, planet, biosphere or civilization, with values in physical units (M☉, L☉, K, AU, Gyr) and spectral types
 * **Status bar** — hints, a scale bar (light-years in the galaxy, AU in a system, kilometres around a planet), and sound controls
@@ -212,31 +222,33 @@ Distances in light-years use a display convention — the default galaxy radius 
 
 ## Current Status
 
-**Version 1.0, Enhancements I, III and V, and Worlds Up Close Phase A, A1–A10, and Phase C2 steps C2.1–C2.7 and C2.10, and Phase B, B1–B6, and The Galaxy Through Time EN0 (simulation rules v10)**
+**Simulation rules v19** (November 2026). Version 1.0 and its enhancements, Worlds Up Close, The Galaxy Through Time, the central black hole, and the October 2026 scientific audit's corrections are in. What each rule says, where it comes from and how far to trust it is on the in-app **Physics** page and in `Documents/physics.md`.
 
 ### Simulation
 
-* Deterministic galaxy generation — spiral, elliptical, irregular
-* 2,000-star stellar populations with full lifecycle simulation; red giants swell and engulf their innermost planets
-* Planetary systems that form beyond the young star's heat, with planet types and resource abundance
-* Planets from small rocky worlds to super-Jupiters of up to 13 Jupiter masses, sized by a measured mass–radius relation (Chen & Kipping 2017)
-* Physical planets — gravity, escape velocity, orbital period, axial tilt, rotation, tidal locking, and water set by the snow line
-* Geography of solid planets — continents, oceans and elevation on a grid of cells
-* World histories over billions of years — the star brightens, volcanoes outgas CO₂, land and seafloor weather it away, oceans can boil off in a runaway greenhouse, and today's climate, pressure and atmosphere class are what that history leaves
-* Life that begins by chance where there is liquid water, then branches, adapts and dies out inside its planet's history: lineages with a six-trait genome, sharing energy through food chains, shaped by oxygen, gravity, UV and catastrophes; their oxygen and methane change the air
-* Civilization formation, technological progression, collapse and recovery
-* Atmospheric composition — the gases each atmosphere holds today: N₂, CO₂, O₂, CH₄ and ozone as the world history left them, water vapour by Clausius–Clapeyron, N₂O from living biomass under oxygen, CO₂, NO₂ and CFCs from active industrial civilizations, and on giants hydrogen and helium, carbon as methane or (above ~1,100 K) carbon monoxide by chemical equilibrium, and cold-trapped ammonia and water. Oxygen alone does not prove life: worlds that lost water to space keep its oxygen
-* Transit spectra — how deep each planet's transit is from 0.3 to 20 µm, from its gases, temperature and gravity: Rayleigh scattering and absorption bands of every gas above, over a scale height that light, hot air makes tall, under a cloud deck that thick or humid air and cold giants carry
-* Observing transits — 1 to 200 transits, with photon noise that falls as the square root of their number and follows the star's light; each transit is its own measurement, so a longer look adds to a shorter one, and the same observation always shows the same data
-* Detection — each gas's significance from how much worse the data fit without it, and a verdict: oxygen with methane is a strong biosignature, oxygen alone is ambiguous (lifeless worlds make it too), methane on a temperate world or N₂O a possible one, CFCs a technosignature
-* Spectrum tab in the planet panel — the observed spectrum with error bars, the model and the detected gases' bands on a log wavelength axis, a transits control, each gas's significance and the verdict; a universe's first strong biosignature or technosignature can be recorded as a discovery. How the reading works, what it measured and what it cannot show: `Documents/spectrum.md`
+* Deterministic galaxy generation — spiral, elliptical, irregular — with a central black hole whose mass suits the galaxy's type, and heavy elements that build up generation by generation, fastest near the centre
+* 2,000 stars per universe, their masses drawn from the Kroupa initial mass function (three-quarters are red dwarfs, as in the Milky Way). Stars form throughout the universe's 13.7 billion years, so the old heavy ones have become white dwarfs, neutron stars and black holes. Stars brighten as they age, swell into giants that engulf their inner planets, and stay magnetically active and flaring while young
+* Binary stars — about half of Sun-like stars have a companion; planets orbit one star or both, only where the pair allows a stable orbit, and receive both stars' light
+* Planetary systems that form beyond the young star's heat, with orbits scaled to the star's mass; some systems get a hot Jupiter. Planets from small rocky worlds to super-Jupiters, sized by a measured mass–radius relation (Chen & Kipping 2017); above 1.75 Earth radii they keep gas envelopes and become sub-Neptunes with no surface. Neighbours packed too closely throw each other out
+* Moons — large moons for rocky planets, families of moons for giants, tidally heated; moon worlds have their own histories and can carry life
+* Physical planets — gravity, escape velocity, orbital period, axial tilt that can wander without a large moon, rotation, tidal locking, water set by where the planet formed, and heat from inside
+* Geography of solid planets — plates, continents, mountains, oceans and elevation on a grid of cells
+* World histories over billions of years — the star brightens, volcanoes outgas CO₂, land and seafloor weather it away, worlds freeze over and thaw, air escapes to space, and oceans boil once a world absorbs more than a moist atmosphere can radiate (the runaway greenhouse limit). Today's climate, pressure and atmosphere are what that history leaves
+* Life that begins by chance where there is liquid water, then branches, adapts and dies out inside its planet's history: lineages with a six-trait genome, sharing energy through food chains, shaped by light, oxygen, gravity, ultraviolet, flares and catastrophes; their oxygen and methane change the air
+* Minds that evolve, not ones that are rolled: a lineage that eats other life, weighs more than a gram and processes enough information becomes a mind. Its civilization farms, and with fire on land it can go on to industry, communication networks and space, or collapse and leave ruins
+* Life, minds and civilizations are **speculative models**: Earth is the only example of life known. Under v19, life is common and minds are rare, a few per universe at most, because red dwarfs' dim light rarely lets life fill its air with oxygen. Each rule on the Physics page is marked established, approximate, speculative or illustrative
+* Atmospheric composition — N₂, CO₂, O₂, CH₄ and ozone as the world history left them, water vapour by Clausius–Clapeyron, N₂O from living biomass, CO₂, NO₂ and CFCs from industry, and on giants hydrogen, helium, methane or carbon monoxide by chemical equilibrium, ammonia and water. Oxygen alone does not prove life: worlds that lost water to space keep its oxygen
+* Transit spectra — each planet's transit depth from 0.3 to 20 µm, observed over 1 to 200 transits with photon noise, each gas's detection significance, and a verdict from strong biosignature to technosignature. How it works: `Documents/spectrum.md`
+* The Encyclopedia — an entry for the galaxy and every star, planet, moon world, biosphere and civilization, written from the simulation's data, each sentence traceable to the fields it came from
+* The Great Filter — how many worlds pass each of twelve gates, from a solid surface to a lasting civilization, and which gate lets the fewest through
+* The Physics page — every rule, its constants read from the code, its source and limits, which law reaches it, and what it did to the universe on screen
 * Historical event recording and timeline replay
 * Configurable laws of physics with experiment comparison
 * Universe persistence, library, export/import, and discovery collections
-* Life survey run in a background worker; saved counts are marked when they were made under older simulation rules. The survey also keeps every world's facts in one index (`universeIndex.ts`) for the encyclopedia, Great Filter and atlas to come (`Documents/Galaxy-Through-Time.md`)
-* Determinism tests for every simulation layer, among some 250 tests
+* Life survey run on all cores but one in background workers; saved counts are marked when they were made under older rules. Every world's facts go into one index (`universeIndex.ts`) that the encyclopedia, Great Filter and Physics page read
+* Over 700 tests: determinism for every layer, physics and climate checks, population probes against measured astronomy, and reference entries
 
-The simulation rules carry a version number (`frontend/src/simulation/version.ts`). It rises whenever a change alters what a seed produces, so older saved figures can be recognised.
+The simulation rules carry a version number (`frontend/src/simulation/version.ts`). It rises whenever a change alters what a seed produces, so older saved figures can be recognised. What changed from v18 to v19: `Documents/Phase-3-v18-to-v19.md`.
 
 ### Enhancement I — The Observatory
 
@@ -279,6 +291,10 @@ A visual transformation from particle simulation to astronomical experience.
 * ACES filmic tone mapping
 * Cinematic camera — damping, slow auto-rotation, eased focus tweens
 
+### The central black hole
+
+The galaxy's central black hole can be approached for a close-up, drawn by tracing light along its curved paths in a GLSL shader: the shadow, the photon ring, and a thin accretion disc or faint hot flow, Doppler-brightened on its approaching side and coloured by its temperature. The camera is a static observer, and a CPU copy of the shader's light paths checks it against exact Schwarzschild results in the tests. Quality levels trade detail for speed; the heavier ones need a capable GPU. What was checked and how: `Documents/Phase-2-Report-2026-10.md`.
+
 ### Worlds Up Close — the planet view
 
 A third level of zoom: from a planetary system down to a single planet seen from orbit. Everything drawn comes from the simulated world; presentation choices (fine detail, cloud patterns, storms, rings) come from each planet's own seeded visual stream, so the same planet always looks the same, and nothing drawn feeds back into the simulation.
@@ -307,10 +323,12 @@ The planet inspector shows the same world in figures: physical properties, a Sur
 * Web Audio API
 * Web Workers — the life survey runs off the main thread
 * Three.js — galaxy, system and planet rendering
-* GLSL — custom shaders for star glow, dust, the night sky, and the planet view (globe baking and lighting, atmosphere, clouds, rings)
+* GLSL — custom shaders for star glow, dust, the night sky, the planet view (globe baking and lighting, atmosphere, clouds, rings) and the black hole's light paths
+* Capacitor — the Android app (`frontend/android/`)
 * Node.js + Express + mysql2 — local API for saved data (`backend/`)
 * MySQL — Library, discoveries, experiment log, star bookmarks
 * Vitest — determinism, physics, climate, rendering-data and formatting tests (frontend); record validation tests (backend)
+* GitHub Actions — types, lint and tests for the frontend and backend on every push to `development` and every pull request into it
 
 ---
 
@@ -323,9 +341,14 @@ Begin by reading:
 * `Documents/SYSTEM_SPEC.md` — the design specification: what exists in a universe and how the layers relate
 * `Documents/SIMULATION_RULES.md` — the laws of behaviour every simulation layer follows (determinism, causality, thresholds, feedback)
 * `Documents/ROADMAP.md` — development phases
+* `Documents/physics.md` — every rule and constant the simulation uses, with sources; the in-app Physics page shows the same from the code
+* `Documents/evolution.md` — how life, minds and civilizations evolve
 * `Worlds-Up-Close.md` and `Worlds-Up-Close-Revision-1.md` — the plan for planets, their histories and the planet view (the revision takes precedence)
-* `Documents/stats.md` — life counts and timings recorded after each change to the rules
+* `Documents/Fixing-Plan-2026-11.md` — the current plan, from the October 2026 scientific audit
+* `Documents/stats.md` — life counts and timings recorded after each change to the rules (`npm run stats` in `frontend/`; `npm run probes` checks populations against measured astronomy)
 * `Documents/SHOWCASE.md` — notable seeds and what to look for in them
+
+Work on a branch and open pull requests into `development`, where CI runs.
 
 Contributions must preserve determinism, understandability, emergence, and wonder.
 

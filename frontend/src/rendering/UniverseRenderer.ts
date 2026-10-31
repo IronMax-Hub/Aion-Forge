@@ -6,6 +6,7 @@ import type { Star, StellarPopulation } from "../simulation/star";
 import { companionAsStar, stellarRadiusAU } from "../simulation/star";
 import { pairLight } from "../simulation/binary";
 import { starDisplayColour, starDisplayThreeColour, starLightThreeColour } from "./starColour";
+import { nearestStarOnScreen } from "./starPick";
 import { moonKey } from "../simulation/bodyKey";
 import { formatSig, spectralType, STELLAR_CLASS_NAME } from "../ui/format";
 import type { Planet, PlanetarySystem, SolidWorld } from "../simulation/planet";
@@ -1084,9 +1085,9 @@ export class UniverseRenderer {
     }
     if (!this.starMesh || this.starData.length === 0) return;
     this.raycaster.params.Points = { threshold: 3 };
-    const hits = this.raycaster.intersectObject(this.starMesh);
-    if (hits.length > 0) {
-      this.selectStar(this.starData[hits[0].index!]);
+    const picked = nearestStarOnScreen(this.raycaster.intersectObject(this.starMesh));
+    if (picked !== null) {
+      this.selectStar(this.starData[picked]);
     } else {
       this.onStarSelected?.(null);
       this.highlightStar(null);

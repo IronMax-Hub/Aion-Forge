@@ -21,8 +21,16 @@ export function atmosphereFromDraw(r: number): AtmosphereType {
   return "crushing";
 }
 
-/** Above this mass (Earth masses) a planet is a gas or ice giant with no solid surface. */
+/** Above this mass (Earth masses) a planet is a gas or ice giant; below it, an envelope world is a sub-Neptune. */
 export const GIANT_PLANET_MASS = 15;
+
+/**
+ * From this radius (Earth radii) up, a planet keeps a hydrogen–helium envelope and
+ * has no solid surface (A3.4): the middle of the radius valley that splits rocky
+ * super-Earths from gas-wrapped sub-Neptunes (Fulton et al. 2017). With Chen &
+ * Kipping's radii and their ±20% spread, planets of about 3.5–5.5 M⊕ fall either side.
+ */
+export const ENVELOPE_FROM_EARTH_RADII = 1.75;
 
 /**
  * The physical distance of an orbit from its star, in AU. gravityStrength > 1

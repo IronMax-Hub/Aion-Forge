@@ -5,7 +5,8 @@ import type { Star } from "../simulation/star";
 import type { Civilization } from "../simulation/civilization";
 import type { DiscoveryItem } from "../simulation/persistence";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
-import { PLANET_COLORS, GIANT_PLANET_MASS } from "../simulation/planet";
+import { PLANET_COLORS } from "../simulation/planet";
+import { hasSolidSurface } from "../simulation/geography";
 import type { Moon } from "../simulation/moons";
 import { tidalHeatFlow } from "../simulation/interiorHeat";
 import { generateBiosphere } from "../simulation/biosphere";
@@ -77,7 +78,7 @@ const TAB_LABEL: Record<Tab, string> = { overview: "Overview", spectrum: "Spectr
 
 const CAN_HAVE_LIFE: Record<string, boolean> = {
   rocky: true, ocean: true, ice: true, desert: true,
-  "gas-giant": false, "ice-giant": false, lava: false, rogue: false,
+  "gas-giant": false, "ice-giant": false, "sub-neptune": false, lava: false, rogue: false,
 };
 
 export function PlanetPanel({
@@ -87,7 +88,7 @@ export function PlanetPanel({
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [r, g, b] = PLANET_COLORS[planet.type];
-  const isGiant = planet.type === "gas-giant" || planet.mass > GIANT_PLANET_MASS;
+  const isGiant = !hasSolidSurface(planet);
   const planetColor = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
   const canScan = CAN_HAVE_LIFE[planet.type];
   const airChange = formatAirChange(planet.formationAtmosphere, planet.atmosphere);

@@ -189,7 +189,8 @@ function equilibriumCO(temperatureK: number, carbon: number, water: number, h2: 
 
 /** A giant's air at its cloud tops: hydrogen and helium, with carbon as chemistry leaves it and what is not frozen out. */
 function giantComposition(planet: Planet): AtmosphereComposition {
-  const bulk = planet.type === "ice-giant" ? GIANT_BULK["ice-giant"] : GIANT_BULK["gas-giant"];
+  // A sub-Neptune's envelope is volatile-rich, as an ice giant's is (A3.4)
+  const bulk = planet.type === "gas-giant" ? GIANT_BULK["gas-giant"] : GIANT_BULK["ice-giant"];
   const t = planet.temperature;
   const co = equilibriumCO(t, bulk.CH4, GIANT_DEEP_H2O, 1 - bulk.He - bulk.CH4);
   const ch4 = bulk.CH4 - co;

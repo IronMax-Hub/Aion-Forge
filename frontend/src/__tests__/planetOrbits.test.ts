@@ -3,7 +3,7 @@ import { makeConfig } from "../simulation/config";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { EARTH_MASS_IN_SUNS, HILL_SHARE, moonOrbitLimit } from "../simulation/moons";
 import { effectiveOrbitAU, generatePlanetsFor, solidWorldOf } from "../simulation/planet";
-import { orbitAUAt } from "../simulation/planetBasics";
+import { ENVELOPE_FROM_EARTH_RADII, GIANT_PLANET_MASS, orbitAUAt } from "../simulation/planetBasics";
 import { runWorldHistory } from "../simulation/worldHistory";
 import { derivePhysics } from "../simulation/planetPhysics";
 import { generateStarsFor, massLossWidening, massTodaySolar, remnantFromGyr } from "../simulation/star";
@@ -107,5 +107,31 @@ describe("planets of white dwarfs (A3.3)", () => {
     }
     expect(h.snapshots!.some((s) => s.tGyr < remnantFromGyr(star))).toBe(true);
     expect(h.snapshots!.some((s) => s.tGyr >= remnantFromGyr(star))).toBe(true);
+  });
+});
+
+describe("sub-Neptunes (A3.4)", () => {
+  const seed = 42;
+  const config = makeConfig(seed);
+  const planets = generateStarsFor(buildGalaxyConfig(seed, config), undefined, config).stars
+    .filter((star) => star.classification === "main-sequence").slice(0, 150)
+    .flatMap((star) => generatePlanetsFor(star, seed, config).planets);
+
+  it("wrap every planet above the radius valley in an envelope: no surface, no geography, no life", () => {
+    const enveloped = planets.filter((p) => p.size >= ENVELOPE_FROM_EARTH_RADII);
+    expect(enveloped.filter((p) => p.type === "sub-neptune").length).toBeGreaterThan(20);
+    for (const p of enveloped) {
+      expect(p.surface).toBeNull();
+      expect(p.life).toBeNull();
+      expect(p.type === "sub-neptune").toBe(p.mass <= GIANT_PLANET_MASS);
+      expect(p.atmosphere).toBe("crushing");
+    }
+    for (const p of planets.filter((x) => x.surface !== null)) expect(p.size).toBeLessThan(ENVELOPE_FROM_EARTH_RADII);
+  });
+
+  it("leaves no solid planet of an Earth's mass or more lighter than rock, 3 g/cm³", () => {
+    const solids = planets.filter((p) => p.surface !== null && p.mass >= 1);
+    expect(solids.length).toBeGreaterThan(50);
+    for (const p of solids) expect((5.51 * p.mass) / p.size ** 3).toBeGreaterThan(3);
   });
 });

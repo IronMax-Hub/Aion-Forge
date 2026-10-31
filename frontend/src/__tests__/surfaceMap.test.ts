@@ -1,6 +1,7 @@
+import { hasSolidSurface } from "../simulation/geography";
 import { describe, it, expect } from "vitest";
 import * as THREE from "three";
-import { generatePlanetsFor, solidWorldOf, GIANT_PLANET_MASS } from "../simulation/planet";
+import { generatePlanetsFor, solidWorldOf } from "../simulation/planet";
 import type { Planet, SolidWorld } from "../simulation/planet";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import type { Star } from "../simulation/star";
@@ -21,7 +22,7 @@ const config = makeConfig(seed);
 const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 25);
 const solid: { star: Star; planet: Planet }[] = stars.flatMap((star) =>
   generatePlanetsFor(star, seed, config).planets
-    .filter((planet) => planet.mass <= GIANT_PLANET_MASS)
+    .filter((planet) => hasSolidSurface(planet))
     .map((planet) => ({ star, planet })));
 
 // A few planets with coastlines: some cells under water (open or frozen) and some not

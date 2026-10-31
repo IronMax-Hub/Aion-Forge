@@ -1,9 +1,10 @@
+import { hasSolidSurface } from "../simulation/geography";
 import { describe, it, expect } from "vitest";
 import * as THREE from "three";
 import { bandCountFor, giantLookOf, GlobeTextureCache, noiseOffsetOf, cloudOffsetOf } from "../rendering/planet/globe";
 import { ringIciness } from "../rendering/planet/rings";
 import { PlanetView, glowColourOf, shimmerOf } from "../rendering/planet/PlanetView";
-import { generatePlanetsFor, solidWorldOf, GIANT_PLANET_MASS } from "../simulation/planet";
+import { generatePlanetsFor, solidWorldOf } from "../simulation/planet";
 import type { Planet } from "../simulation/planet";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import type { Star } from "../simulation/star";
@@ -19,7 +20,7 @@ const config = makeConfig(seed);
 const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 120);
 const all: { star: Star; planet: Planet }[] = stars.flatMap((star) =>
   generatePlanetsFor(star, seed, config).planets.map((planet) => ({ star, planet })));
-const giants = all.filter(({ planet }) => planet.mass > GIANT_PLANET_MASS);
+const giants = all.filter(({ planet }) => !hasSolidSurface(planet));
 const lava = all.filter(({ planet }) => planet.type === "lava");
 const towardStar = new THREE.Vector3(1, 0, 0);
 

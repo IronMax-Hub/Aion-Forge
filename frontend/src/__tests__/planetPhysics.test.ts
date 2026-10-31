@@ -1,9 +1,10 @@
+import { hasSolidSurface } from "../simulation/geography";
 import { describe, it, expect } from "vitest";
 import { derivePhysics, tectonicActivity, tidalLockingDistanceAU, SURFACE_PRESSURE_BAR, atmosphereClassOf } from "../simulation/planetPhysics";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { luminosityAt, mainSequenceEndGyr, generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import type { Star } from "../simulation/star";
-import { generatePlanetsFor, planetKey, GIANT_PLANET_MASS } from "../simulation/planet";
+import { generatePlanetsFor, planetKey } from "../simulation/planet";
 import type { Planet } from "../simulation/planet";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { makeConfig } from "../simulation/config";
@@ -142,7 +143,7 @@ describe("planet physics across a universe", () => {
 
   it("locks habitable-zone planets of red dwarfs far more often than those of Sun-like stars", () => {
     const lockedShare = (inClass: (s: Star) => boolean) => {
-      const hz = all.filter((e) => inClass(e.star) && e.planet.mass < GIANT_PLANET_MASS && e.planet.temperature > 200 && e.planet.temperature < 330);
+      const hz = all.filter((e) => inClass(e.star) && hasSolidSurface(e.planet) && e.planet.temperature > 200 && e.planet.temperature < 330);
       return hz.filter((e) => e.physics.tidallyLocked).length / hz.length;
     };
     expect(lockedShare((s) => s.mass < 0.6)).toBeGreaterThan(5 * lockedShare((s) => s.mass > 0.8 && s.mass < 1.2));

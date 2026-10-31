@@ -46,7 +46,7 @@ export const NO_PARENT = -1;
 
 /** `type` codes: a planet's type is its position here. */
 export const PLANET_TYPE_CODES: readonly PlanetType[] = [
-  "rocky", "ocean", "ice", "desert", "gas-giant", "ice-giant", "lava", "rogue",
+  "rocky", "ocean", "ice", "desert", "gas-giant", "ice-giant", "lava", "rogue", "sub-neptune",
 ];
 
 /** `lifeStage` codes; 0 is no life today. */

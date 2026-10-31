@@ -252,6 +252,7 @@ export const PLANET_TYPE_LABEL: Record<PlanetType, string> = {
   desert:      "Desert planet",
   "gas-giant": "Gas giant",
   "ice-giant": "Ice giant",
+  "sub-neptune": "Sub-Neptune",
   lava:        "Lava world",
   rogue:       "Rogue planet",
 };

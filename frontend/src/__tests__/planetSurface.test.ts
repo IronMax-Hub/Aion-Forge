@@ -1,3 +1,4 @@
+import { hasSolidSurface } from "../simulation/geography";
 import { describe, it, expect } from "vitest";
 import { generatePlanetsFor, GIANT_PLANET_MASS } from "../simulation/planet";
 import type { Planet } from "../simulation/planet";
@@ -18,8 +19,8 @@ const config = makeConfig(seed);
 const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 510);
 const all: { star: Star; planet: Planet }[] = stars.flatMap((star) =>
   generatePlanetsFor(star, seed, config).planets.map((planet) => ({ star, planet })));
-const solid = all.filter(({ planet }) => planet.mass <= GIANT_PLANET_MASS);
-const giants = all.filter(({ planet }) => planet.mass > GIANT_PLANET_MASS);
+const solid = all.filter(({ planet }) => hasSolidSurface(planet));
+const giants = all.filter(({ planet }) => !hasSolidSurface(planet));
 
 describe("planet types", () => {
   it("gives every solid planet a surface and no giant one", () => {
@@ -45,9 +46,11 @@ describe("planet types", () => {
     for (const t of ["lava", "ocean", "ice", "desert", "rocky"]) expect(types).toContain(t);
   });
 
-  it("makes cold giants ice giants and warm ones gas giants", () => {
-    for (const { planet } of giants) expect(planet.type).toBe(planet.temperature < 75 ? "ice-giant" : "gas-giant");
-    expect(new Set(giants.map(({ planet }) => planet.type))).toEqual(new Set(["ice-giant", "gas-giant"]));
+  it("makes envelope worlds below the giants' mass sub-Neptunes, cold giants ice giants and warm ones gas giants", () => {
+    for (const { planet } of giants) {
+      expect(planet.type).toBe(planet.mass <= GIANT_PLANET_MASS ? "sub-neptune" : planet.temperature < 75 ? "ice-giant" : "gas-giant");
+    }
+    expect(new Set(giants.map(({ planet }) => planet.type))).toEqual(new Set(["sub-neptune", "ice-giant", "gas-giant"]));
   });
 
   it("reports the surface temperature of solid planets and the cloud-top temperature of giants", () => {

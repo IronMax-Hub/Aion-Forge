@@ -5,7 +5,7 @@ import {
   FIRST_ORBIT_AU, ICE_GIANT_MAX_K, ICE_WORLD_MIN_ICE, LAVA_MIN_K, METALLICITY_MASS_EXPONENT, OCEAN_WORLD_MIN_OCEAN, ORBIT_SPACING,
   PLANET_COUNT,
 } from "../../../simulation/planet";
-import { GIANT_PLANET_MASS, MASS_RADIUS, PLANET_MASS_DRAW } from "../../../simulation/planetBasics";
+import { ENVELOPE_FROM_EARTH_RADII, GIANT_PLANET_MASS, MASS_RADIUS, PLANET_MASS_DRAW } from "../../../simulation/planetBasics";
 import {
   EARTH_ESCAPE_VELOCITY_KMS, INTERIOR_COOLING_GYR, ROTATION_HOURS, SNOW_LINE_AU_PER_SQRT_L, SURFACE_PRESSURE_BAR,
   TIDAL_LOCK_CONSTANT_AU, TILT, WATER_BEYOND_SNOW_LINE, WATER_INSIDE_SNOW_LINE, WATER_RETENTION_MASS,
@@ -82,7 +82,8 @@ export const systems: Chapter = {
       rule: `log-uniform ${formatSig(PLANET_MASS_DRAW.min)}–${formatSig(PLANET_MASS_DRAW.knee.mass)} M⊕ for draws below ${PLANET_MASS_DRAW.knee.u}; log-uniform ${formatSig(PLANET_MASS_DRAW.knee.mass)}–${formatInt(PLANET_MASS_DRAW.max)} M⊕ above; then × 10^(α · [Fe/H]), at most ${formatInt(PLANET_MASS_DRAW.max)} M⊕; below ${formatSig(PLANET_MASS_DRAW.min)} M⊕ no planet`,
       constants: [
         { name: "α", value: exact(METALLICITY_MASS_EXPONENT), meaning: "Mass ∝ the disk's solids (decision 8)" },
-        { name: "Giant above", value: exact(GIANT_PLANET_MASS, "M⊕"), meaning: "No solid surface beyond this" },
+        { name: "Envelope from", value: exact(ENVELOPE_FROM_EARTH_RADII, "R⊕"), meaning: "From this radius a planet keeps a gas envelope and has no surface: the radius valley (Fulton et al. 2017); a sub-Neptune (A3.4)" },
+        { name: "Giant above", value: exact(GIANT_PLANET_MASS, "M⊕"), meaning: "An envelope world this heavy is a gas or ice giant" },
         { name: "Heaviest planet", value: exact(PLANET_MASS_DRAW.max, "M⊕"), meaning: "About 13 Jupiter masses, where brown dwarfs begin" },
       ],
       why: "Small planets are common and giants rarer, as exoplanet surveys find; a single cut separates rocky worlds from those that gathered thick gas envelopes.",

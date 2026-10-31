@@ -16,7 +16,7 @@ import { largeMoonOf, moonOrbitOf, TILT_HOLDING_RATIO } from "./moons";
 import type { Moon, MoonOrbit } from "./moons";
 import { moonKey } from "./bodyKey";
 import type { PlanetPhysics } from "./planetPhysics";
-import { buildGeography } from "./geography";
+import { buildGeography, hasSolidSurface } from "./geography";
 import type { Geography } from "./geography";
 import { runWorldHistory } from "./worldHistory";
 import type { WorldEvent, WorldHistory, WorldState } from "./worldHistory";
@@ -35,6 +35,7 @@ export type PlanetType =
   | "desert"
   | "gas-giant"
   | "ice-giant"
+  | "sub-neptune"
   | "lava"
   | "rogue";
 
@@ -215,7 +216,9 @@ export const ICE_WORLD_MIN_ICE = 0.85;
 export const DESERT_MAX_OCEAN = 0.03;
 export const DESERT_MIN_K = 273;
 
-function giantType(temperatureK: number): PlanetType {
+/** A world with no surface: a sub-Neptune below the giants' mass (A3.4); above it, an ice or gas giant by its temperature. */
+function envelopeType(mass: number, temperatureK: number): PlanetType {
+  if (mass <= GIANT_PLANET_MASS) return "sub-neptune";
   return temperatureK < ICE_GIANT_MAX_K ? "ice-giant" : "gas-giant";
 }
 
@@ -543,8 +546,10 @@ export function generatePlanetsFor(
   // Every draw above is taken; now each world is completed, knowing its siblings (MO5)
   const hasSiblings = survivors.length > 1;
   for (const planet of survivors) {
-    if (planet.mass > GIANT_PLANET_MASS) {
-      planet.type = giantType(planet.temperature);
+    if (!hasSolidSurface(planet)) {
+      planet.type = envelopeType(planet.mass, planet.temperature);
+      // A sub-Neptune's envelope is crushing, as a giant's is (its air draw is still taken, in pickAtmosphere)
+      planet.atmosphere = planet.formationAtmosphere = "crushing";
       planet.moons = moonsOf(planet, star, galaxySeed, config);
     } else {
       const large = largeMoonOf(planet, star, galaxySeed, config);
@@ -572,6 +577,7 @@ export const PLANET_COLORS: Record<PlanetType, [number, number, number]> = {
   desert:      [0.82, 0.65, 0.30],
   "gas-giant": [0.70, 0.55, 0.35],
   "ice-giant": [0.45, 0.65, 0.85],
+  "sub-neptune": [0.55, 0.72, 0.78],
   lava:        [0.90, 0.25, 0.05],
   rogue:       [0.20, 0.18, 0.22],
 };

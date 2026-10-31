@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generatePlanetsFor, dustSublimationAU, effectiveOrbitAU } from "../simulation/planet";
+import { generatePlanetsFor, dustSublimationAU, effectiveOrbitAU, HOT_JUPITER, ORBIT_MASS_EXPONENT } from "../simulation/planet";
 import { planetMassFromDraw, typicalRadiusForMass } from "../simulation/planetBasics";
 import type { Planet } from "../simulation/planet";
 import { generateStarsFor, UNIVERSE_AGE_GYR, stellarRadiusAU, luminosityAt } from "../simulation/star";
@@ -35,12 +35,14 @@ describe("where planets form", () => {
     }
   });
 
-  it("leaves dim stars' systems where they were drawn: innermost orbits at 0.1–0.4 AU", () => {
-    const dim = systems.filter(({ star, planets }) => planets.length > 0 && dustSublimationAU(star) < 0.1 && planets[0].orbitalIndex === 0);
+  it("leaves dim stars' systems where they were drawn: innermost orbits at 0.1–0.4 AU × M^⅓ (A3.5)", () => {
+    const dim = systems.filter(({ star, planets }) => planets.length > 0 && dustSublimationAU(star) < 0.1 && planets[0].orbitalIndex === 0
+      && planets[0].mass < HOT_JUPITER.minMass && star.classification !== "white-dwarf");
     expect(dim.length).toBeGreaterThan(100);
-    for (const { planets } of dim) {
-      expect(planets[0].orbitalRadius).toBeGreaterThanOrEqual(0.1);
-      expect(planets[0].orbitalRadius).toBeLessThan(0.4);
+    for (const { star, planets } of dim) {
+      const scale = star.mass ** ORBIT_MASS_EXPONENT;
+      expect(planets[0].orbitalRadius).toBeGreaterThanOrEqual(0.1 * scale - 1e-12);
+      expect(planets[0].orbitalRadius).toBeLessThan(0.4 * scale);
     }
   });
 

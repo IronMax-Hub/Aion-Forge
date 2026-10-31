@@ -91,10 +91,10 @@ describe("geography of a planet", () => {
     expect(buildGeography(planet(), physics(), 43).elevationKm).not.toEqual(a.elevationKm);
   });
 
-  it("has no surface for giant planets", () => {
-    expect(hasSolidSurface(planet({ mass: 15 }))).toBe(true);
-    expect(hasSolidSurface(planet({ mass: 16 }))).toBe(false);
-    expect(() => buildGeography(planet({ mass: 16 }), physics(), 42)).toThrow(RangeError);
+  it("has no surface for planets above the radius valley: sub-Neptunes and giants (A3.4)", () => {
+    expect(hasSolidSurface(planet({ size: 1.74 }))).toBe(true);
+    expect(hasSolidSurface(planet({ size: 1.75 }))).toBe(false);
+    expect(() => buildGeography(planet({ size: 2, mass: 5 }), physics(), 42)).toThrow(RangeError);
   });
 
   it("holds the planet's water below sea level", () => {
@@ -142,7 +142,7 @@ describe("geography of a planet", () => {
 
   it("gives larger planets more plates, always 6 to 14", () => {
     const small = earths(100, {}, { size: 0.4, mass: 0.1 }).map((g) => g.plateCount);
-    const large = earths(100, {}, { size: 2.2, mass: 10 }).map((g) => g.plateCount);
+    const large = earths(100, {}, { size: 1.7, mass: 4 }).map((g) => g.plateCount);
     for (const n of [...small, ...large]) { expect(n).toBeGreaterThanOrEqual(6); expect(n).toBeLessThanOrEqual(14); }
     expect(sum(large) / 100).toBeGreaterThan(sum(small) / 100 + 2);
   });

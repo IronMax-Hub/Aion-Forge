@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { HOST_STAR_RADIUS, layoutReach, SYSTEM_UNITS_PER_AU, systemLayout } from "../rendering/systemLayout";
+import { hostStarRadius, layoutReach, SYSTEM_UNITS_PER_AU, systemLayout } from "../rendering/systemLayout";
 import { makeConfig } from "../simulation/config";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { generatePlanetsFor } from "../simulation/planet";
@@ -25,7 +25,7 @@ function overlapsOf(planets: readonly Planet[]): string[] {
   sorted.forEach((planet, i) => {
     const orbit = planet.orbitalRadius * SYSTEM_UNITS_PER_AU;
     const reach = layoutReach(layouts.get(planet.key)!);
-    if (orbit - reach < HOST_STAR_RADIUS * scale) found.push(`${planet.key} reaches into the star`);
+    if (orbit - reach < hostStarRadius(planets, scale)) found.push(`${planet.key} reaches into the star`);
     const next = sorted[i + 1];
     if (next && orbit + reach > next.orbitalRadius * SYSTEM_UNITS_PER_AU - layoutReach(layouts.get(next.key)!)) {
       found.push(`${planet.key} reaches into ${next.key}`);

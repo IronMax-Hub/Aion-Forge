@@ -278,6 +278,8 @@ interface CarbonStart {
 export interface WorldSnapshot extends WorldState {
   /** Length of this step, Gyr (the last step is shortened to end at the star's age). */
   dtGyr: number;
+  /** The sub-steps its carbon and climate were taken in (A1.3: a step that froze over or thawed); 1 for a whole step. */
+  substeps: number;
   impact: boolean;
   volcanicPulse: boolean;
   /** The events recorded during this step. */
@@ -600,8 +602,9 @@ export function runWorldHistory(
     // The first step starts warm, with no CO₂ ice to freeze out
     const stepStart: CarbonStart = { co2: state.co2Bar, co2Ice: state.co2IceBar, meanK: state.meanK, iced: state.iced };
     let carbon = carbonAndClimate(stepStart, dt, t, step > 1);
+    let substeps = 1;
     if ((carbon.climate.iceFraction >= FROZEN_ICE_SHARE) !== (state.iceFraction >= FROZEN_ICE_SHARE)) {
-      const substeps = Math.ceil(dt / SUBSTEP_GYR - 1e-9);
+      substeps = Math.ceil(dt / SUBSTEP_GYR - 1e-9);
       let start = stepStart;
       for (let i = 1; i <= substeps; i++) {
         const tSub = i === substeps ? t : t0 + (i * dt) / substeps;
@@ -695,7 +698,7 @@ export function runWorldHistory(
       bandK: climate.bandK, iced: climate.iced, bandOcean: Float64Array.from(bandOcean), bandLiquid,
       lightBiomass: 0, chemicalBiomass: 0, totalBiomass: 0,
     };
-    const snapshot: WorldSnapshot = { ...state, dtGyr: dt, impact, volcanicPulse, events: stepEvents };
+    const snapshot: WorldSnapshot = { ...state, dtGyr: dt, substeps, impact, volcanicPulse, events: stepEvents };
 
     // 6. Life: once, a chance of beginning where there is liquid water; then one engine step per step
     if (life === null) {

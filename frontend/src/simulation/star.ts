@@ -166,13 +166,15 @@ function calcTemperature(cls: StellarClass, mass: number, jitter: number, coolin
 /** L = M^3.5 on the main sequence (solar units). */
 export const MASS_LUMINOSITY_EXPONENT = 3.5;
 /**
- * A giant's luminosity (A2.4): about twice its main-sequence light, as heavy stars
- * evolve at nearly constant luminosity; at least the red clump's ~50 L☉ for a Sun
- * (∝ M²), where low-mass giants spend most of their giant life; and no more than
- * the Humphreys–Davidson limit, the brightest cool supergiants seen (~6×10⁵ L☉).
- * An approximation of the giant branches, not a track.
+ * A giant's luminosity (A2.4), one value for its whole giant phase. A Sun-like giant
+ * ranges from ~50 L☉ (the red clump) to ~2,500 L☉ (the red-giant branch's tip, about
+ * 1 AU across, where it engulfs its inner planets); 500 L☉ per solar mass stands
+ * between them. Heavy stars evolve at nearly constant luminosity, so a giant is at
+ * least twice its main-sequence light, and no brighter than the Humphreys–Davidson
+ * limit, the brightest cool supergiants seen (~6×10⁵ L☉). A rule of thumb for the
+ * giant branches, not a track.
  */
-export const GIANT_LUMINOSITY = { mainSequenceFactor: 2, clumpSolar: 50, clumpMassExponent: 2, maxSolar: 6e5 } as const;
+export const GIANT_LUMINOSITY = { perSolarMass: 500, mainSequenceFactor: 2, maxSolar: 6e5 } as const;
 /**
  * Remnants shine as blackbodies, L = 4πR²σT⁴, or R²·(T/T☉)⁴ in solar units (A2.4).
  * A white dwarf is about Earth's size and cools by Mestel's law, L ∝ t_cool^−1.4,
@@ -198,10 +200,10 @@ function blackbodyLuminosity(radiusSolar: number, temperatureK: number): number 
   return radiusSolar * radiusSolar * t * t * t * t;
 }
 
-/** A giant's luminosity, L☉: twice its main-sequence light, at least the red clump's, at most the Humphreys–Davidson limit. */
+/** A giant's luminosity, L☉: 500 L☉ per solar mass or twice its main-sequence light, at most the Humphreys–Davidson limit. */
 function giantLuminosity(mass: number): number {
-  const clump = GIANT_LUMINOSITY.clumpSolar * pow(mass, GIANT_LUMINOSITY.clumpMassExponent);
-  return Math.min(GIANT_LUMINOSITY.maxSolar, Math.max(clump, GIANT_LUMINOSITY.mainSequenceFactor * mainSequenceLuminosity(mass)));
+  const branches = GIANT_LUMINOSITY.perSolarMass * mass;
+  return Math.min(GIANT_LUMINOSITY.maxSolar, Math.max(branches, GIANT_LUMINOSITY.mainSequenceFactor * mainSequenceLuminosity(mass)));
 }
 
 /** Mass–luminosity relation for a main-sequence star, in solar luminosities. */

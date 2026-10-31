@@ -99,7 +99,7 @@ describe("the past giant phase of today's remnants (decision 44)", () => {
     for (const star of whiteDwarfs) {
       const msEnd = mainSequenceEndGyr(star);
       const middle = (msEnd + remnantFromGyr(star)) / 2;
-      const giant = Math.min(GIANT_LUMINOSITY.maxSolar, Math.max(GIANT_LUMINOSITY.clumpSolar * star.mass ** GIANT_LUMINOSITY.clumpMassExponent,
+      const giant = Math.min(GIANT_LUMINOSITY.maxSolar, Math.max(GIANT_LUMINOSITY.perSolarMass * star.mass,
         GIANT_LUMINOSITY.mainSequenceFactor * star.mass ** MASS_LUMINOSITY_EXPONENT));
       expect(luminosityAt(star, middle)).toBeCloseTo(giant, 6);
       expect(temperatureAt(star, middle)).toBe(PAST_GIANT_TEMPERATURE_K);

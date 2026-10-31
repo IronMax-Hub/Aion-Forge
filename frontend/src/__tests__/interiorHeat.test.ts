@@ -5,7 +5,7 @@ import { co2SaturationBar } from "../simulation/climate";
 import { makeConfig } from "../simulation/config";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { generatePlanetsFor, solidWorldOf } from "../simulation/planet";
-import { runWorldHistory } from "../simulation/worldHistory";
+import { FROZEN_ICE_SHARE, runWorldHistory } from "../simulation/worldHistory";
 
 describe("interior heat (IH1)", () => {
   it("gives Earth today its measured heat flow and about 35 K", () => {
@@ -47,6 +47,10 @@ describe("CO₂ that freezes out (IH2, decision 28)", () => {
       const h = runWorldHistory(planet, world.physics, world.geography, star, seed, config, { keepSnapshots: true });
       const snaps = h.snapshots!;
       for (let i = 1; i < snaps.length; i++) {
+        // A step that froze over or thawed is taken in sub-steps (A1.3), each freezing out against the last
+        // sub-step's temperature, which the snapshots do not keep
+        const frozen = (x: (typeof snaps)[number]) => x.iceFraction >= FROZEN_ICE_SHARE;
+        if (frozen(snaps[i]) !== frozen(snaps[i - 1])) continue;
         expect(snaps[i].co2Bar).toBeLessThanOrEqual(co2SaturationBar(snaps[i - 1].meanK) * (1 + 1e-12));
         expect(snaps[i].co2IceBar).toBeGreaterThanOrEqual(0);
       }

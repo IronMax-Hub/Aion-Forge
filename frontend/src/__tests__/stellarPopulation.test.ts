@@ -94,12 +94,12 @@ describe("giants and remnants (A2.4)", () => {
   const stars = [...SEEDS, 4, 5, 6, 7, 8].flatMap((seed) => starsOf(seed));
   const blackbody = (radiusSolar: number, k: number) => radiusSolar ** 2 * (k / SOLAR_TEMPERATURE_K) ** 4;
 
-  it("keeps giants within the brightest supergiants seen, and no wider than ~15 AU", () => {
+  it("keeps giants within the brightest supergiants seen, Sun-like ones about 500 L☉, and none wider than ~15 AU", () => {
     const giants = stars.filter((s) => s.classification === "red-giant");
     expect(giants.length).toBeGreaterThan(30);
     for (const g of giants) {
       expect(g.luminosity).toBeLessThanOrEqual(GIANT_LUMINOSITY.maxSolar);
-      expect(g.luminosity).toBeGreaterThanOrEqual(GIANT_LUMINOSITY.clumpSolar * g.mass ** 2 - 1e-9);
+      expect(g.luminosity).toBeGreaterThanOrEqual(Math.min(GIANT_LUMINOSITY.maxSolar, GIANT_LUMINOSITY.perSolarMass * g.mass) - 1e-9);
       expect(stellarRadiusAU(g)).toBeLessThan(15);
     }
   });

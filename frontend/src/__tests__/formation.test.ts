@@ -54,11 +54,13 @@ describe("engulfment", () => {
     for (const { star, planet } of all) expect(effectiveOrbitAU(planet.orbitalRadius, config)).toBeGreaterThan(stellarRadiusAU(star));
   });
 
-  it("gives the Sun a radius of one solar radius, and swollen red giants an AU or so", () => {
+  it("gives the Sun a radius of one solar radius, and swollen red giants a few tenths of an AU", () => {
     const sun = { ...stars[0], luminosity: 1, temperature: 5772 };
     expect(stellarRadiusAU(sun)).toBeCloseTo(0.00465, 5);
     const giants = stars.filter((s) => s.classification === "red-giant");
-    expect(Math.max(...giants.map(stellarRadiusAU))).toBeGreaterThan(0.5);
+    // One luminosity stands for the whole giant phase (A2.4): a Sun-like giant at 500 L☉ is 0.2–0.4 AU across,
+    // between the red clump (~0.05 AU) and the branch's tip (~1 AU)
+    expect(Math.max(...giants.map(stellarRadiusAU))).toBeGreaterThan(0.3);
   });
 
   it("removes engulfed planets but lets survivors keep their index, id and key", () => {

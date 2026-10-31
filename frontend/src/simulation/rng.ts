@@ -71,6 +71,7 @@ export const SALT = {
   MOON:           0x300F5A7E,   // a giant's regular moons (MO2)
   COMPANION:      0xB1A2C0DE,   // each star's companion, if it has one (BS1)
   BLACK_HOLE:     0xB1AC0E01,   // the galaxy's central black hole, if it has one
+  MIGRATION:      0x407E0A11,   // whether a system's giant migrated inward to become a hot Jupiter (A3.5)
 } as const;
 
 /** A standard normal draw (Box–Muller), from two draws of `rng`. */

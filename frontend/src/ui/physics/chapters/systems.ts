@@ -2,7 +2,7 @@
 
 import {
   ARCHITECTURE_ROLL, ATMOSPHERE_DRAW, DESERT_MAX_OCEAN, OWN_AIR_STREAM_BELOW_MASS, DESERT_MIN_K, DUST_SUBLIMATION_K,
-  FIRST_ORBIT_AU, ICE_GIANT_MAX_K, ICE_WORLD_MIN_ICE, LAVA_MIN_K, METALLICITY_MASS_EXPONENT, OCEAN_WORLD_MIN_OCEAN, ORBIT_SPACING,
+  FIRST_ORBIT_AU, HOT_JUPITER, ICE_GIANT_MAX_K, ORBIT_MASS_EXPONENT, ICE_WORLD_MIN_ICE, LAVA_MIN_K, METALLICITY_MASS_EXPONENT, OCEAN_WORLD_MIN_OCEAN, ORBIT_SPACING,
   PLANET_COUNT,
 } from "../../../simulation/planet";
 import { ENVELOPE_FROM_EARTH_RADII, GIANT_PLANET_MASS, MASS_RADIUS, PLANET_MASS_DRAW } from "../../../simulation/planetBasics";
@@ -55,17 +55,18 @@ export const systems: Chapter = {
     {
       id: "orbits",
       title: "Where planets orbit",
-      statement: "The innermost planet forms beyond the young star's dust-sublimation line, where dust would be too hot to survive; each next orbit is a fixed-ish ratio further out, set by the system's architecture.",
-      rule: `first orbit ${FIRST_ORBIT_AU.base}–${FIRST_ORBIT_AU.base + FIRST_ORBIT_AU.spread} AU, moved out as a whole to at least (${EQUILIBRIUM_K_AT_1_AU} / ${DUST_SUBLIMATION_K} K)² × √L(birth) AU; next = previous × ratio`,
+      statement: "A system's orbits are drawn as a Sun's would be and set at the same periods around the star's own mass, so a red dwarf's planets lie closer in. The innermost forms beyond the young star's dust-sublimation line, where dust would be too hot to survive; each next orbit is a fixed-ish ratio further out, set by the system's architecture. Now and then a giant migrates inward to a few-day orbit, a hot Jupiter, clearing the planets inside its path.",
+      rule: `first orbit (${FIRST_ORBIT_AU.base}–${FIRST_ORBIT_AU.base + FIRST_ORBIT_AU.spread} AU) × M^${formatSig(ORBIT_MASS_EXPONENT, 2)}, moved out as a whole to at least (${EQUILIBRIUM_K_AT_1_AU} / ${DUST_SUBLIMATION_K} K)² × √L(birth) AU; next = previous × ratio`,
       constants: [
         { name: "Dust sublimation", value: exact(DUST_SUBLIMATION_K, "K"), meaning: "Planets form outside this temperature" },
+        { name: "Hot Jupiters", value: `${formatPercent(HOT_JUPITER.chance)} of systems with a giant of ${HOT_JUPITER.minMass} M⊕ or more`, meaning: `Its innermost giant migrates to a ${HOT_JUPITER.periodDays.min}–${HOT_JUPITER.periodDays.max} day orbit: about 1.2% of Sun-like stars (Wright et al. 2012)` },
         ...(Object.entries(ORBIT_SPACING) as [string, { base: number; spread: number }][]).map(([arch, s]) => ({
           name: `${arch[0].toUpperCase()}${arch.slice(1)} spacing`, value: `× ${s.base}–${formatSig(s.base + s.spread)}`, meaning: "Ratio of each orbit to the one before",
         })),
         { name: "Architecture shares", value: `${formatPercent(ARCHITECTURE_ROLL.compactBelow)} / ${formatPercent(ARCHITECTURE_ROLL.distributedBelow - ARCHITECTURE_ROLL.compactBelow)} / ${formatPercent(ARCHITECTURE_ROLL.resonantBelow - ARCHITECTURE_ROLL.distributedBelow)} / ${formatPercent(1 - ARCHITECTURE_ROLL.resonantBelow)}`, meaning: "Compact / distributed / resonant / chaotic" },
       ],
       why: "Planets form in the disk of dust and gas around a young star, where solids can exist; a brighter star pushes that edge out, so its planets form farther away at similar temperatures.",
-      limits: ["Orbits are circular and never migrate; planets never scatter one another (step 7 adds that)."],
+      limits: ["Orbits are circular; the only migration is a hot Jupiter's, and it does not depend on the star's metallicity, as hot Jupiters' frequency does."],
       laws: [{ law: "gravityStrength", how: "Divides every orbit by √gravity (the effective orbit the climate feels)" }],
       code: "simulation/planet.ts · dustSublimationAU, generateOrbits",
       needsIndex: true,

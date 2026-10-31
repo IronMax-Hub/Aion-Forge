@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { makeConfig } from "../simulation/config";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { EARTH_MASS_IN_SUNS, HILL_SHARE, moonOrbitLimit } from "../simulation/moons";
-import { effectiveOrbitAU, generatePlanetsFor, solidWorldOf } from "../simulation/planet";
+import { effectiveOrbitAU, generatePlanetsFor, HOT_JUPITER, ORBIT_MASS_EXPONENT, solidWorldOf } from "../simulation/planet";
+import type { Planet } from "../simulation/planet";
 import { ENVELOPE_FROM_EARTH_RADII, GIANT_PLANET_MASS, orbitAUAt } from "../simulation/planetBasics";
 import { runWorldHistory } from "../simulation/worldHistory";
 import { derivePhysics } from "../simulation/planetPhysics";
@@ -133,5 +134,56 @@ describe("sub-Neptunes (A3.4)", () => {
     const solids = planets.filter((p) => p.surface !== null && p.mass >= 1);
     expect(solids.length).toBeGreaterThan(50);
     for (const p of solids) expect((5.51 * p.mass) / p.size ** 3).toBeGreaterThan(3);
+  });
+});
+
+describe("orbits that scale with their star (A3.5)", () => {
+  const seed = 42;
+  const config = makeConfig(seed);
+  const hosts = generateStarsFor(buildGalaxyConfig(seed, config), undefined, config).stars
+    .filter((star) => star.classification === "main-sequence").slice(0, 400);
+  const systems = hosts.map((star) => ({ star, planets: generatePlanetsFor(star, seed, config).planets }));
+
+  it("put a small star's planets closer in, at the same periods a Sun's would have", () => {
+    // The innermost drawn orbit is 0.1–0.4 AU for a Sun; × M^⅓ for a star of mass M, unless moved out to the dust line
+    for (const { star, planets } of systems) {
+      if (star.mass > 0.5 || planets.length === 0 || planets.some((p) => p.mass >= HOT_JUPITER.minMass)) continue;
+      const innermost = Math.min(...planets.map((p) => effectiveOrbitAU(p.orbitalRadius, config)));
+      expect(innermost).toBeGreaterThanOrEqual(0.1 * star.mass ** ORBIT_MASS_EXPONENT - 1e-12);
+    }
+  });
+
+  it("populates red dwarfs' habitable zones with solid planets", () => {
+    const redDwarfWorlds = systems.filter(({ star }) => star.mass < 0.5).flatMap(({ planets }) => planets.filter((p) => p.surface !== null));
+    const temperate = redDwarfWorlds.filter((p) => p.temperature > 200 && p.temperature < 300);
+    expect(temperate.length).toBeGreaterThan(30);
+  });
+});
+
+describe("hot Jupiters (A3.5)", () => {
+  it("orbit about 1% of Sun-like stars, in 3–5 days, alone inside their old orbit", () => {
+    let sunLike = 0;
+    const hot: { star: Star; planet: Planet; planets: Planet[] }[] = [];
+    for (const seed of [42, 7777, 100000]) {
+      const config = makeConfig(seed);
+      const stars = generateStarsFor(buildGalaxyConfig(seed, config), undefined, config).stars
+        .filter((s) => s.classification === "main-sequence" && s.mass >= 0.6 && s.mass <= 1.4);
+      for (const star of stars) {
+        sunLike++;
+        const planets = generatePlanetsFor(star, seed, config).planets;
+        const planet = planets.find((p) => p.mass >= HOT_JUPITER.minMass && effectiveOrbitAU(p.orbitalRadius, config) < 0.1);
+        if (planet) hot.push({ star, planet, planets });
+      }
+    }
+    const share = hot.length / sunLike;
+    expect(share).toBeGreaterThan(0.004);
+    expect(share).toBeLessThan(0.025);
+    for (const { star, planet, planets } of hot) {
+      // Default gravity: the orbit as drawn
+      const days = 365.25 * Math.sqrt(planet.orbitalRadius ** 3 / star.mass);
+      expect(days).toBeGreaterThanOrEqual(HOT_JUPITER.periodDays.min - 1e-9);
+      expect(days).toBeLessThanOrEqual(HOT_JUPITER.periodDays.max + 1e-9);
+      expect(planets[0]).toBe(planet);
+    }
   });
 });

@@ -157,6 +157,23 @@ function pickArchitecture(r: number): OrbitalArch {
 // its planets ten times as far out, at the same temperatures.
 export const DUST_SUBLIMATION_K = 1500;
 
+// Orbits scale with the star (A3.5). The drawn orbits are a Sun's; a star of
+// mass M has the same orbits in period, so they lie at a × M^⅓ (Kepler). Small
+// stars' planets lie closer in, where their habitable zones are, as observed:
+// the period distribution of planets barely changes with the host's type.
+// Then, as before, a system inside the young star's dust-sublimation line is
+// moved out as a whole.
+export const ORBIT_MASS_EXPONENT = 1 / 3;
+
+// Hot Jupiters (A3.5). A giant can migrate through its disk to a few-day
+// orbit, sweeping out or scattering the planets inside its path. In a system
+// with a giant of at least minMass, the innermost such giant migrates with this
+// chance, to a period of 3–5 days; the planets inside its old orbit are thrown
+// out. About a quarter of Sun-like systems have such a giant, so the chance
+// gives about 1.2% of Sun-like stars a hot Jupiter, as observed (Wright et
+// al. 2012). One roll and one period draw, from the system's own stream.
+export const HOT_JUPITER = { minMass: 95, chance: 0.045, periodDays: { min: 3, max: 5 } } as const;
+
 /** The inner edge of a star's planet-forming disk, AU: its dust-sublimation line at formation. */
 export function dustSublimationAU(star: Star): number {
   const ratio = EQUILIBRIUM_K_AT_1_AU / DUST_SUBLIMATION_K;
@@ -437,6 +454,35 @@ function moonWorld(moon: Moon, giant: Planet, star: Star, galaxySeed: number, co
 }
 
 /**
+ * The system after its innermost giant of HOT_JUPITER.minMass or more, if it orbits its own star, has
+ * migrated inward (with HOT_JUPITER.chance) to a 3–5 day orbit: the planets inside its old orbit are
+ * cleared; a giant that would land inside the star's reach is engulfed. `planets` are in orbit order,
+ * null where a planet was removed; the result keeps only planets.
+ */
+function migrateHotJupiter(
+  planets: readonly (Planet | null)[], star: Star, galaxySeed: number, config: UniverseConfig, widening: number, starRadiusAU: number,
+): { planets: Planet[]; cleared: number; engulfed: boolean } {
+  const present = planets.filter((planet): planet is Planet => planet !== null);
+  const rng = createRNG(mixSeed(galaxySeed, star.id, SALT.MIGRATION));
+  const roll = rng();
+  const periodDraw = rng();
+  const index = present.findIndex((p) => p.mass >= HOT_JUPITER.minMass && !p.orbitsBothStars);
+  if (index < 0 || roll >= HOT_JUPITER.chance) return { planets: present, cleared: 0, engulfed: false };
+
+  const giant = present[index];
+  const { min, max } = HOT_JUPITER.periodDays;
+  const periodYears = (min + (max - min) * periodDraw) / 365.25;
+  // Kepler round the star as it was when the giant migrated; stored as the other orbits are (A3.3, gravity)
+  const formedAU = pow(star.mass * periodYears * periodYears, 1 / 3);
+  const kept = present.slice(index + 1);
+  if (formedAU <= starRadiusAU) return { planets: kept, cleared: index, engulfed: true };
+  const orbitalRadius = formedAU * Math.sqrt(config.gravityStrength) * widening;
+  const todayAU = effectiveOrbitAU(orbitalRadius, config);
+  const temperature = equilibriumTemp(star.luminosity + companionLuminosityAt(star, todayAU, false, star.age), todayAU);
+  return { planets: [{ ...giant, orbitalRadius, temperature }, ...kept], cleared: index, engulfed: false };
+}
+
+/**
  * A world's least distance from its star's companion, AU (BS3): around the primary, the pair's
  * closest approach less the world's orbit; around both, the world's orbit less the companion's
  * farthest reach from the pair's centre.
@@ -469,7 +515,7 @@ export function generatePlanetsFor(
   const arch = pickArchitecture(rng());
   // The drawn system, moved out as a whole when the innermost orbit lies inside the
   // young star's dust-sublimation line (owner decision); a dim star's system is unchanged
-  const drawn = generateOrbits(arch, count, rng);
+  const drawn = generateOrbits(arch, count, rng).map((radius) => radius * pow(star.mass, ORBIT_MASS_EXPONENT));
   const spread = Math.max(1, dustSublimationAU(star) / effectiveOrbitAU(drawn[0], config));
   const orbits = drawn.map((radius) => radius * spread);
   // A star that has since swollen past a planet's orbit has engulfed it
@@ -539,9 +585,12 @@ export function generatePlanetsFor(
     return planet;
   });
 
+  // A giant that migrates inward clears the planets inside its old orbit (A3.5)
+  const migrated = migrateHotJupiter(planets, star, galaxySeed, config, widening, starRadiusAU);
+  if (migrated.engulfed) engulfed++;
   // Survivors keep their index, id and key: a missing planet leaves a gap, as it would in a catalogue.
   // Of neighbours too close to share their orbits, the lighter is thrown out (RP1)
-  const settled = settleNeighbours(planets.filter((planet): planet is Planet => planet !== null), star.mass, star.mass + (star.companion?.mass ?? 0));
+  const settled = settleNeighbours(migrated.planets, star.mass, star.mass + (star.companion?.mass ?? 0));
   const survivors = settled.kept;
   // Every draw above is taken; now each world is completed, knowing its siblings (MO5)
   const hasSiblings = survivors.length > 1;
@@ -565,7 +614,7 @@ export function generatePlanetsFor(
     planet.habitabilityScore = calcHabitability(planet.type, planet.atmosphere, planet.resourceAbundance, planet.surface);
     planet.isRare = rareReasonOf(planet) !== null;
   }
-  return { hostStarId: star.id, galaxySeed, planets: survivors, engulfed, tooSmall, unstable, ejected: settled.ejected.length };
+  return { hostStarId: star.id, galaxySeed, planets: survivors, engulfed, tooSmall, unstable, ejected: settled.ejected.length + migrated.cleared };
 }
 
 // ── Color palette for rendering (AF-044) ──────────────────────────────────────

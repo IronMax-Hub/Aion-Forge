@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { makeConfig } from "../simulation/config";
 import { buildGalaxyConfig } from "../simulation/galaxy";
-import { generateStarsFor, KROUPA_IMF, kroupaMass, LIFESPAN, REMNANT_FRACTION, UNIVERSE_AGE_GYR } from "../simulation/star";
+import {
+  generateStarsFor, GIANT_LUMINOSITY, KROUPA_IMF, kroupaMass, LIFESPAN, NEUTRON_STAR_RADIUS_SOLAR, REMNANT_FRACTION, SOLAR_TEMPERATURE_K,
+  stellarRadiusAU, UNIVERSE_AGE_GYR, WHITE_DWARF,
+} from "../simulation/star";
 import type { Star } from "../simulation/star";
 
 // The stellar population against measured astronomy (Phase 3, A2).
@@ -83,5 +86,43 @@ describe("star formation through time (A2.2)", () => {
     const heavy = stars.filter((s) => s.mass > 8);
     expect(heavy.length).toBeGreaterThan(20);
     expect(heavy.filter(remnant).length / heavy.length).toBeGreaterThan(0.9);
+  });
+});
+
+describe("giants and remnants (A2.4)", () => {
+  // Heavy stars are rare under Kroupa: a few universes give enough giants and remnants
+  const stars = [...SEEDS, 4, 5, 6, 7, 8].flatMap((seed) => starsOf(seed));
+  const blackbody = (radiusSolar: number, k: number) => radiusSolar ** 2 * (k / SOLAR_TEMPERATURE_K) ** 4;
+
+  it("keeps giants within the brightest supergiants seen, and no wider than ~15 AU", () => {
+    const giants = stars.filter((s) => s.classification === "red-giant");
+    expect(giants.length).toBeGreaterThan(30);
+    for (const g of giants) {
+      expect(g.luminosity).toBeLessThanOrEqual(GIANT_LUMINOSITY.maxSolar);
+      expect(g.luminosity).toBeGreaterThanOrEqual(GIANT_LUMINOSITY.clumpSolar * g.mass ** 2 - 1e-9);
+      expect(stellarRadiusAU(g)).toBeLessThan(15);
+    }
+  });
+
+  it("cools white dwarfs with age, from ~100,000 K to ~4,000 K, shining as blackbodies of Earth's size", () => {
+    const dwarfs = stars.filter((s) => s.classification === "white-dwarf")
+      .map((s) => ({ star: s, coolingGyr: s.age - REMNANT_FRACTION * s.lifespan }))
+      .sort((a, b) => a.coolingGyr - b.coolingGyr);
+    expect(dwarfs.length).toBeGreaterThan(100);
+    for (let i = 1; i < dwarfs.length; i++) expect(dwarfs[i].star.luminosity).toBeLessThanOrEqual(dwarfs[i - 1].star.luminosity);
+    for (const { star } of dwarfs) expect(star.luminosity).toBeCloseTo(blackbody(WHITE_DWARF.radiusSolar, star.temperature), 12);
+    const oldest = dwarfs[dwarfs.length - 1];
+    expect(oldest.coolingGyr).toBeGreaterThan(8);
+    expect(oldest.star.temperature).toBeGreaterThan(3000);
+    expect(oldest.star.temperature).toBeLessThan(5000);
+    // A white dwarf a gigayear old: about 10⁻³ L☉ (Mestel)
+    const gigayear = dwarfs.find((d) => d.coolingGyr > 0.9 && d.coolingGyr < 1.1);
+    if (gigayear) expect(Math.log10(gigayear.star.luminosity)).toBeCloseTo(-3, 0);
+  });
+
+  it("gives neutron stars the light of a 12 km blackbody at their temperature", () => {
+    const neutron = stars.filter((s) => s.classification === "neutron-star");
+    expect(neutron.length).toBeGreaterThan(5);
+    for (const n of neutron) expect(n.luminosity).toBeCloseTo(blackbody(NEUTRON_STAR_RADIUS_SOLAR, n.temperature), 12);
   });
 });

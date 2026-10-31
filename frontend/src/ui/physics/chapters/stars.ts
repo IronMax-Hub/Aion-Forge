@@ -1,11 +1,11 @@
 // Chapter 3 of the Physics page: stars (PH1).
 
 import {
-  ACTIVITY_DECAY_EXPONENT, ACTIVITY_SCALE, ENVELOPE_FADE_K, PAST_GIANT_TEMPERATURE_K, SOLAR_AGE_GYR, SOLAR_RADIUS_AU, GIANT_LUMINOSITY_FACTOR, LIFESPAN, luminosityAt, MAIN_SEQUENCE_BRIGHTENING,
-  MAIN_SEQUENCE_END_FRACTION, KROUPA_IMF, MASS_LUMINOSITY_EXPONENT, MS_RADIUS_EXPONENT, NEUTRON_STAR_LUMINOSITY,
+  ACTIVITY_DECAY_EXPONENT, ACTIVITY_SCALE, ENVELOPE_FADE_K, PAST_GIANT_TEMPERATURE_K, SOLAR_AGE_GYR, SOLAR_RADIUS_AU, GIANT_LUMINOSITY, LIFESPAN, luminosityAt, MAIN_SEQUENCE_BRIGHTENING,
+  MAIN_SEQUENCE_END_FRACTION, KROUPA_IMF, MASS_LUMINOSITY_EXPONENT, MS_RADIUS_EXPONENT, NEUTRON_STAR_RADIUS_SOLAR,
   PROTOSTAR_FRACTION, PROTOSTAR_MAX_GYR, RARE_STAR, REMNANT_FRACTION, REMNANT_MASS, SATURATION, saturationTimeGyr,
   SOLAR_TEMPERATURE_K, SOLAR_XUV_TODAY, stellarRadiusAU, TEMP_RANGE, TEMPERATURE_JITTER, UNIVERSE_AGE_GYR,
-  WHITE_DWARF_LUMINOSITY, XUV_MAX_NM, XUV_SATURATED_SHARE, xuvLuminosityAt,
+  WHITE_DWARF, XUV_MAX_NM, XUV_SATURATED_SHARE, xuvLuminosityAt,
 } from "../../../simulation/star";
 import type { Star, StellarClass } from "../../../simulation/star";
 import {
@@ -123,16 +123,19 @@ export const stars: Chapter = {
     {
       id: "star-light",
       title: "Brightness and colour",
-      statement: "A main-sequence star's brightness rises as the 3.5th power of its mass; its temperature follows from that brightness and its size, with a ±10% spread. Giants shine 500 times brighter than they did on the main sequence; remnants are faint.",
-      rule: `L = M^${MASS_LUMINOSITY_EXPONENT}; R = M^${MS_RADIUS_EXPONENT}; T = ${SOLAR_TEMPERATURE_K} K × (L / R²)^¼ × (${TEMPERATURE_JITTER.low} + draw × ${TEMPERATURE_JITTER.span}); giant L × ${GIANT_LUMINOSITY_FACTOR}; white dwarf ${WHITE_DWARF_LUMINOSITY.base} + (T / ${WHITE_DWARF_LUMINOSITY.hottestK}) × ${WHITE_DWARF_LUMINOSITY.range} L☉; neutron star ${NEUTRON_STAR_LUMINOSITY} L☉`,
+      statement: "A main-sequence star's brightness rises as the 3.5th power of its mass; its temperature follows from that brightness and its size, with a ±10% spread. Giants shine about twice as bright as they did on the main sequence, at least as a red-clump giant does and no brighter than the brightest supergiants seen. Remnants glow as small hot bodies: a white dwarf cools and fades over billions of years.",
+      rule: `L = M^${MASS_LUMINOSITY_EXPONENT}; R = M^${MS_RADIUS_EXPONENT}; T = ${SOLAR_TEMPERATURE_K} K × (L / R²)^¼ × (${TEMPERATURE_JITTER.low} + draw × ${TEMPERATURE_JITTER.span}); giant L = min(${formatSig(GIANT_LUMINOSITY.maxSolar)}, max(${GIANT_LUMINOSITY.clumpSolar} M², ${GIANT_LUMINOSITY.mainSequenceFactor} M^${MASS_LUMINOSITY_EXPONENT})); white dwarf L = ${WHITE_DWARF.solarAt1Gyr} × (t_cool / 1 Gyr)^−${WHITE_DWARF.coolingExponent}, T from L = R²T⁴ at R = ${WHITE_DWARF.radiusSolar} R☉; neutron star L = R²T⁴ at R = 12 km`,
       constants: [
         { name: "Mass–luminosity exponent", value: exact(MASS_LUMINOSITY_EXPONENT), meaning: "L ∝ M^3.5" },
-        { name: "Giant brightening", value: `× ${GIANT_LUMINOSITY_FACTOR}`, meaning: "Over its main-sequence luminosity" },
+        { name: "Giant brightening", value: `× ${GIANT_LUMINOSITY.mainSequenceFactor}`, meaning: "Over its main-sequence luminosity; at least the red clump's ~50 L☉ × M²" },
+        { name: "Brightest giant", value: `${formatSig(GIANT_LUMINOSITY.maxSolar)} L☉`, meaning: "The Humphreys–Davidson limit of cool supergiants" },
+        { name: "White dwarf", value: `${WHITE_DWARF.solarAt1Gyr} L☉ at 1 Gyr`, meaning: `Mestel cooling, L ∝ t^−${WHITE_DWARF.coolingExponent}; Earth-sized; youngest counted as ${formatSig(WHITE_DWARF.youngestGyr * 1000)} Myr` },
+        { name: "Neutron star radius", value: `${formatSig(NEUTRON_STAR_RADIUS_SOLAR, 3)} R☉`, meaning: "12 km" },
         { name: "Main-sequence temperatures", value: `${formatInt(TEMP_RANGE["main-sequence"][0])}–${formatInt(TEMP_RANGE["main-sequence"][1])} K`, meaning: "Clamped to this range" },
       ],
       why: "Stefan–Boltzmann (L = R² T⁴ in solar units) ties colour to brightness and size, so a star's colour and light agree.",
       source: "Mass–luminosity and mass–radius relations; Stefan–Boltzmann law",
-      limits: ["The temperature spread changes colour without changing brightness, so a star's radius from L and T differs by up to ±20% from the one that set T (issue C8).", "Giants' and remnants' temperatures are drawn within a range, not computed."],
+      limits: ["The temperature spread changes colour without changing brightness, so a star's radius from L and T differs by up to ±20% from the one that set T (issue C8).", "Giants' and neutron stars' temperatures are drawn within a range; a neutron star does not cool with age.", "The giant's luminosity is a rule of thumb for the giant branches, not an evolutionary track."],
       laws: [],
       code: "simulation/star.ts · calcTemperature, calcLuminosity",
       effect: (ctx) => {

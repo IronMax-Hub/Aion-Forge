@@ -130,7 +130,7 @@ export const TEMP_RANGE: Record<StellarClass, [number, number]> = {
   protostar: [2000, 4000],
   "main-sequence": [2300, 40000], // coolest red dwarfs to hottest O stars
   "red-giant": [3000, 5000],
-  "white-dwarf": [8000, 80000],
+  "white-dwarf": [3000, 110000],   // not drawn: from its cooling (whiteDwarfTemperatureK), 1 Myr to 13.7 Gyr
   "neutron-star": [100000, 1000000],
   "black-hole": [0, 0],
 };
@@ -146,9 +146,11 @@ function mainSequenceRadius(mass: number): number {
   return pow(mass, MS_RADIUS_EXPONENT);
 }
 
-function calcTemperature(cls: StellarClass, mass: number, jitter: number): number {
+function calcTemperature(cls: StellarClass, mass: number, jitter: number, coolingGyr: number): number {
   const [lo, hi] = TEMP_RANGE[cls];
   if (cls === "black-hole") return 0;
+  // A white dwarf's temperature follows from its cooling (A2.4); its draw is still made, so later draws stay put
+  if (cls === "white-dwarf") return whiteDwarfTemperatureK(coolingGyr);
   if (cls === "main-sequence") {
     // Stefan–Boltzmann in solar units: L = R²·T⁴, so T = T☉·(L / R²)^¼.
     // Uses the same mass–luminosity relation as calcLuminosity, so colour and brightness agree.
@@ -163,11 +165,44 @@ function calcTemperature(cls: StellarClass, mass: number, jitter: number): numbe
 
 /** L = M^3.5 on the main sequence (solar units). */
 export const MASS_LUMINOSITY_EXPONENT = 3.5;
-/** A red giant shines this many times its main-sequence luminosity. */
-export const GIANT_LUMINOSITY_FACTOR = 500;
-/** A neutron star's luminosity, L☉; a white dwarf's is base + (T / hottestK) · range. */
-export const NEUTRON_STAR_LUMINOSITY = 0.00001;
-export const WHITE_DWARF_LUMINOSITY = { base: 0.001, hottestK: 80000, range: 0.05 } as const;
+/**
+ * A giant's luminosity (A2.4): about twice its main-sequence light, as heavy stars
+ * evolve at nearly constant luminosity; at least the red clump's ~50 L☉ for a Sun
+ * (∝ M²), where low-mass giants spend most of their giant life; and no more than
+ * the Humphreys–Davidson limit, the brightest cool supergiants seen (~6×10⁵ L☉).
+ * An approximation of the giant branches, not a track.
+ */
+export const GIANT_LUMINOSITY = { mainSequenceFactor: 2, clumpSolar: 50, clumpMassExponent: 2, maxSolar: 6e5 } as const;
+/**
+ * Remnants shine as blackbodies, L = 4πR²σT⁴, or R²·(T/T☉)⁴ in solar units (A2.4).
+ * A white dwarf is about Earth's size and cools by Mestel's law, L ∝ t_cool^−1.4,
+ * at about 10⁻³ L☉ a gigayear after it forms; its age as a remnant is floored at
+ * youngestGyr. A neutron star is about 12 km across.
+ */
+export const WHITE_DWARF = { radiusSolar: 0.012, solarAt1Gyr: 1e-3, coolingExponent: 1.4, youngestGyr: 0.001 } as const;
+export const NEUTRON_STAR_RADIUS_SOLAR = 12 / 695_700;
+
+/** A white dwarf's luminosity after cooling for `coolingGyr`, L☉ (Mestel's law). */
+function whiteDwarfLuminosity(coolingGyr: number): number {
+  return WHITE_DWARF.solarAt1Gyr * pow(Math.max(WHITE_DWARF.youngestGyr, coolingGyr), -WHITE_DWARF.coolingExponent);
+}
+
+/** A white dwarf's temperature after cooling for `coolingGyr`, K: Stefan–Boltzmann at its luminosity and radius. */
+function whiteDwarfTemperatureK(coolingGyr: number): number {
+  return SOLAR_TEMPERATURE_K * pow(whiteDwarfLuminosity(coolingGyr) / (WHITE_DWARF.radiusSolar * WHITE_DWARF.radiusSolar), 0.25);
+}
+
+/** A blackbody's luminosity, L☉, from its radius in solar radii and its temperature. */
+function blackbodyLuminosity(radiusSolar: number, temperatureK: number): number {
+  const t = temperatureK / SOLAR_TEMPERATURE_K;
+  return radiusSolar * radiusSolar * t * t * t * t;
+}
+
+/** A giant's luminosity, L☉: twice its main-sequence light, at least the red clump's, at most the Humphreys–Davidson limit. */
+function giantLuminosity(mass: number): number {
+  const clump = GIANT_LUMINOSITY.clumpSolar * pow(mass, GIANT_LUMINOSITY.clumpMassExponent);
+  return Math.min(GIANT_LUMINOSITY.maxSolar, Math.max(clump, GIANT_LUMINOSITY.mainSequenceFactor * mainSequenceLuminosity(mass)));
+}
 
 /** Mass–luminosity relation for a main-sequence star, in solar luminosities. */
 function mainSequenceLuminosity(mass: number): number {
@@ -176,9 +211,9 @@ function mainSequenceLuminosity(mass: number): number {
 
 function calcLuminosity(cls: StellarClass, mass: number, temp: number): number {
   if (cls === "black-hole") return 0;
-  if (cls === "neutron-star") return NEUTRON_STAR_LUMINOSITY;
-  if (cls === "white-dwarf") return WHITE_DWARF_LUMINOSITY.base + (temp / WHITE_DWARF_LUMINOSITY.hottestK) * WHITE_DWARF_LUMINOSITY.range;
-  if (cls === "red-giant") return mainSequenceLuminosity(mass) * GIANT_LUMINOSITY_FACTOR;
+  if (cls === "neutron-star") return blackbodyLuminosity(NEUTRON_STAR_RADIUS_SOLAR, temp);
+  if (cls === "white-dwarf") return blackbodyLuminosity(WHITE_DWARF.radiusSolar, temp);
+  if (cls === "red-giant") return giantLuminosity(mass);
   return mainSequenceLuminosity(mass);
 }
 
@@ -257,7 +292,7 @@ export function remnantFromGyr(star: Star): number {
 }
 
 function pastGiantLuminosity(star: Star): number {
-  return mainSequenceLuminosity(star.mass) * GIANT_LUMINOSITY_FACTOR;
+  return giantLuminosity(star.mass);
 }
 
 /** The radius a remnant reached as a giant, AU (Stefan–Boltzmann at PAST_GIANT_TEMPERATURE_K); 0 for other stars. */
@@ -621,7 +656,7 @@ function starMetallicity(galaxy: GalaxyConfig, id: number, [x, , z]: [number, nu
 function companionFrom(draw: CompanionDraw, age: number, entropyRate: number): Companion {
   const lifespan = calcLifespan(draw.mass) / entropyRate;
   const classification = classify(draw.mass, age, lifespan);
-  const temperature = calcTemperature(classification, draw.mass, draw.temperatureDraw);
+  const temperature = calcTemperature(classification, draw.mass, draw.temperatureDraw, age - lifespan * REMNANT_FRACTION);
   return {
     mass: draw.mass,
     periodDays: draw.periodDays,
@@ -658,7 +693,7 @@ export function generateStarsFor(
       cls === "neutron-star" ||
       cls === "black-hole" ||
       (cls === "main-sequence" && age > lifespan * RARE_STAR.oldShareAbove && mass < RARE_STAR.oldDwarfMassBelow);
-    const temp = calcTemperature(cls, mass, rng());
+    const temp = calcTemperature(cls, mass, rng(), age - lifespan * REMNANT_FRACTION);
     const luminosity = calcLuminosity(cls, mass, temp);
 
     let pos: [number, number, number];

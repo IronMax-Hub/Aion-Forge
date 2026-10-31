@@ -5,7 +5,7 @@ import {
 } from "../simulation/atmosphericEscape";
 import { boilingPointK, freezingKAt, WATER_TRIPLE_POINT } from "../simulation/climate";
 import {
-  generateStarsFor, GIANT_LUMINOSITY_FACTOR, luminosityAt, mainSequenceEndGyr, MASS_LUMINOSITY_EXPONENT, pastGiantRadiusAU,
+  generateStarsFor, GIANT_LUMINOSITY, luminosityAt, mainSequenceEndGyr, MASS_LUMINOSITY_EXPONENT, pastGiantRadiusAU,
   remnantFromGyr, temperatureAt, PAST_GIANT_TEMPERATURE_K, UNIVERSE_AGE_GYR, xuvLuminosityAt,
 } from "../simulation/star";
 import type { Star } from "../simulation/star";
@@ -99,7 +99,9 @@ describe("the past giant phase of today's remnants (decision 44)", () => {
     for (const star of whiteDwarfs) {
       const msEnd = mainSequenceEndGyr(star);
       const middle = (msEnd + remnantFromGyr(star)) / 2;
-      expect(luminosityAt(star, middle)).toBeCloseTo(Math.pow(star.mass, MASS_LUMINOSITY_EXPONENT) * GIANT_LUMINOSITY_FACTOR, 6);
+      const giant = Math.min(GIANT_LUMINOSITY.maxSolar, Math.max(GIANT_LUMINOSITY.clumpSolar * star.mass ** GIANT_LUMINOSITY.clumpMassExponent,
+        GIANT_LUMINOSITY.mainSequenceFactor * star.mass ** MASS_LUMINOSITY_EXPONENT));
+      expect(luminosityAt(star, middle)).toBeCloseTo(giant, 6);
       expect(temperatureAt(star, middle)).toBe(PAST_GIANT_TEMPERATURE_K);
       expect(luminosityAt(star, star.age)).toBe(star.luminosity);
     }

@@ -15,7 +15,8 @@
 // Assumptions and limits: every orbit is a circle round the drawn star. In a
 // binary the stars move round their centre of mass; the room to the star is
 // measured from the host star at the system's centre, as drawn when planets
-// circle one star (the host star is drawn no larger than HOST_STAR_RADIUS).
+// circle one star (the host star is drawn no larger than HOST_STAR_RADIUS, nor
+// a third of the way to its innermost planet, hostStarRadius).
 //
 // Presentation only: it reads planets and moons and never writes to the simulation.
 
@@ -25,6 +26,14 @@ import type { Planet } from "../simulation/planet";
 export const SYSTEM_UNITS_PER_AU = 2.5;
 /** The host star's drawn radius at the usual scale (far larger than true scale, as the planets are). */
 export const HOST_STAR_RADIUS = 0.12;
+/** The drawn star reaches at most this share of the way to its innermost planet, so a hot Jupiter's orbit stays outside it. */
+const STAR_SHARE_OF_INNERMOST = 1 / 3;
+
+/** The host star's drawn radius: the usual size, but no more than a third of the way to its innermost planet. */
+export function hostStarRadius(planets: readonly Planet[], scale: number): number {
+  const innermost = Math.min(...planets.map((p) => p.orbitalRadius * SYSTEM_UNITS_PER_AU));
+  return Math.min(HOST_STAR_RADIUS * scale, STAR_SHARE_OF_INNERMOST * innermost);
+}
 // A planet's sphere: its radius in Earth radii times this, kept between these, in scene units
 const PLANET_SIZE = { perEarthRadius: 0.035, min: 0.025, max: 0.09 };
 // Moons on screen (MO6): the innermost sits this many planet-marker radii out, each doubling of distance adds this many more
@@ -61,7 +70,7 @@ export function layoutReach(layout: PlanetLayout): number {
  * until they fit between the star's surface and halfway to each neighbour.
  */
 export function systemLayout(planets: readonly Planet[], scale: number): Map<string, PlanetLayout> {
-  const starRadius = HOST_STAR_RADIUS * scale;
+  const starRadius = hostStarRadius(planets, scale);
   const sorted = [...planets].sort((a, b) => a.orbitalRadius - b.orbitalRadius);
   const layouts = new Map<string, PlanetLayout>();
   sorted.forEach((planet, i) => {

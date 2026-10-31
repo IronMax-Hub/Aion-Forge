@@ -1,13 +1,14 @@
+import { hasSolidSurface } from "../simulation/geography";
 import { describe, it, expect } from "vitest";
 import * as THREE from "three";
-import { generatePlanetsFor, solidWorldOf, GIANT_PLANET_MASS } from "../simulation/planet";
+import { generatePlanetsFor, solidWorldOf } from "../simulation/planet";
 import type { Planet, SolidWorld } from "../simulation/planet";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import type { Star } from "../simulation/star";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { makeConfig } from "../simulation/config";
 import { surfaceGrid } from "../simulation/geography";
-import { FREEZING_K, SURFACE_KIND } from "../simulation/climate";
+import { SURFACE_KIND } from "../simulation/climate";
 import {
   buildSurfaceMap, sampleSurfaceMap, surfaceMapTexture, directionAt,
   SURFACE_MAP_CHANNELS, SURFACE_MAP_WIDTH, SURFACE_MAP_HEIGHT,
@@ -21,7 +22,7 @@ const config = makeConfig(seed);
 const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 25);
 const solid: { star: Star; planet: Planet }[] = stars.flatMap((star) =>
   generatePlanetsFor(star, seed, config).planets
-    .filter((planet) => planet.mass <= GIANT_PLANET_MASS)
+    .filter((planet) => hasSolidSurface(planet))
     .map((planet) => ({ star, planet })));
 
 // A few planets with coastlines: some cells under water (open or frozen) and some not
@@ -95,10 +96,10 @@ describe("surface map", () => {
       positions.forEach((p, i) => {
         const t = sampleSurfaceMap(uploaded, p, SURFACE_MAP_CHANNELS.temperatureK);
         expect(t).toBeCloseTo(present.cellTemperatureK[i], -0.5);   // within ~1.5 K after filtering and half precision
-        if (Math.abs(present.cellTemperatureK[i] - FREEZING_K) < 2) return;
+        if (Math.abs(present.cellTemperatureK[i] - present.freezingK) < 2) return;
         const submerged = sampleSurfaceMap(uploaded, p, SURFACE_MAP_CHANNELS.submerged) > 0.5;
-        // The shader's rule: frozen water is ice, frozen land is snow as far as the planet is wet
-        const kind = t < FREEZING_K
+        // The shader's rule, at the world's own freezing point: frozen water is ice, frozen land is snow as far as the planet is wet
+        const kind = t < present.freezingK
           ? (submerged || present.wetness >= 0.5 ? SURFACE_KIND.ice : SURFACE_KIND.land)
           : (submerged ? SURFACE_KIND.ocean : SURFACE_KIND.land);
         expect(kind).toBe(present.cellSurface[i]);

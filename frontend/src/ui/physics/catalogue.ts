@@ -112,7 +112,7 @@ export function rowsWhere(index: UniverseIndex, test: (row: number) => boolean):
 export const LAW_DOES: Record<LawKey, string> = {
   gravityStrength: "Moves every orbit in by √gravity (effectiveOrbitAU), so the climate feels a closer star. Surface gravity, escape velocity, orbital periods and tidal locking do not read it (issue C7).",
   expansionRate: "Scales the galaxy's size: where its stars lie. Nothing else reads it.",
-  stellarIgnitionThreshold: "Shrinks the star mass roll: above 1, fewer heavy stars and more small, long-lived ones.",
+  stellarIgnitionThreshold: "Reshapes the star mass draw smoothly (draw^threshold): above 1, fewer heavy stars and more small, long-lived ones.",
   entropyRate: "Divides every star's lifespan. A star's luminosity is unchanged, so it burns the same fuel faster (issue C7).",
   emergenceSensitivity: "Multiplies the rate at which life begins on liquid water.",
   intelligenceModifier: `Sets the information processing a mind needs: 1 − ${1 - MIND_BASE_THRESHOLD} × modifier.`,

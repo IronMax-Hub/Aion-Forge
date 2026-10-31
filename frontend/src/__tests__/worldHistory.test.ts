@@ -119,15 +119,30 @@ describe("the carbon thermostat", () => {
   });
 
   it("thaws a frozen world with volcanism, as CO₂ builds up under the ice", () => {
+    // The steps before a thaw are frozen, with CO₂ rising from one to the next: frozen ground does not weather
     const thawed = [1.2, 1.25, 1.3, 1.35, 1.4].some((orbitalRadius) => {
       const h = history({ planet: { orbitalRadius } });
       const s = h.snapshots!;
-      const thaw = h.events.find((e) => e.kind === "thaws");
-      if (s[0].iceFraction < FROZEN_ICE_SHARE || !thaw) return false;
-      const atThaw = s.find((x) => x.tGyr === thaw.tGyr)!;
-      return atThaw.co2Bar > s[0].co2Bar * 10;
+      return h.events.filter((e) => e.kind === "thaws").some((thaw) => {
+        const i = s.findIndex((x) => x.tGyr === thaw.tGyr);
+        const before = s.slice(Math.max(0, i - 3), i);
+        return before.length === 3 && before.every((x) => x.iceFraction >= FROZEN_ICE_SHARE)
+          && before[1].co2Bar > before[0].co2Bar && before[2].co2Bar > before[1].co2Bar;
+      });
     });
     expect(thawed).toBe(true);
+  });
+
+  it("thaws only briefly at the outer edge, so it is found frozen most of the time (A1.3)", () => {
+    // Weathering draws a thawed world's CO₂ down within a few Myr, and it freezes again: steps
+    // that freeze over or thaw are taken in 1 Myr sub-steps, so a thaw is not held for a whole step.
+    // With whole steps these worlds spent half their history thawed (rules v18)
+    for (const orbitalRadius of [1.3, 1.37, 1.5]) {
+      const s = history({ planet: { orbitalRadius }, lifeless: true }).snapshots!;
+      const thawedShare = s.filter((x) => x.iceFraction < FROZEN_ICE_SHARE).length / s.length;
+      expect(thawedShare).toBeLessThan(0.25);
+      expect(s[s.length - 1].iceFraction).toBeGreaterThanOrEqual(FROZEN_ICE_SHARE);
+    }
   });
 
   it("scales outgassing with gravity: a small dry world gains far less CO₂", () => {
@@ -155,13 +170,28 @@ describe("water", () => {
     expect(h.final.co2Bar).toBeGreaterThan(before.co2Bar * 1000);
   });
 
+  it("boils the oceans once a world absorbs more than moist air can radiate, below the boiling point (A1.1)", () => {
+    // The runaway limit puts an Earth twin's inner edge near 0.92 AU (climate.ts): at 0.9 AU its
+    // oceans go, though its mean temperature under 1 bar never reached 373 K; at 0.95 AU they stay
+    const inside = history({ planet: { orbitalRadius: 0.9 }, lifeless: true });
+    expect(inside.final.steam || inside.final.water < OCEANS_LOST_WATER).toBe(true);
+    expect(inside.present.oceanFraction).toBe(0);
+    const runaway = inside.events.find((e) => e.kind === "runaway-greenhouse")!;
+    const before = inside.snapshots!.filter((x) => x.tGyr < runaway.tGyr);
+    expect(before[before.length - 1].meanK).toBeLessThan(373);
+    const outside = history({ planet: { orbitalRadius: 0.95 }, lifeless: true });
+    expect(outside.final.steam).toBe(false);
+    expect(outside.present.oceanFraction).toBeGreaterThan(0.4);
+  });
+
   it("leaves oxygen from the escaping water: an oxidised atmosphere with no life", () => {
     expect(has(history({ planet: { orbitalRadius: 0.3 }, lifeless: true }), "oxidation")).toBe(true);
   });
 
   it("escapes more slowly from a planet with a higher escape velocity", () => {
-    const weak = history({ planet: { orbitalRadius: 0.5 }, physics: { escapeVelocityKms: 8 } });
-    const strong = history({ planet: { orbitalRadius: 0.5 }, physics: { escapeVelocityKms: 20 } });
+    // Just inside the runaway limit, where the steam has not all escaped by today
+    const weak = history({ planet: { orbitalRadius: 0.9 }, physics: { escapeVelocityKms: 8 } });
+    const strong = history({ planet: { orbitalRadius: 0.9 }, physics: { escapeVelocityKms: 20 } });
     expect(weak.final.water).toBeLessThan(earthPhysics.waterInventory);
     expect(strong.final.water).toBeGreaterThan(weak.final.water);
   });
@@ -169,8 +199,9 @@ describe("water", () => {
 
 describe("stars that have left the main sequence", () => {
   it("records the star leaving, and the brightening giant boils the oceans of a once-temperate world", () => {
+    // At 1.1 AU: at 1 AU the star's late main-sequence brightening already passes the runaway limit
     const giant: Partial<Star> = { mass: 1, lifespan: 10, age: 9, classification: "red-giant", luminosity: 500 };
-    const h = history({ star: giant });
+    const h = history({ planet: { orbitalRadius: 1.1 }, star: giant });
     const leaves = h.events.find((e) => e.kind === "star-leaves-main-sequence");
     expect(leaves?.tGyr).toBe(mainSequenceEndGyr({ ...sun, ...giant }));
     const before = h.snapshots!.filter((s) => s.tGyr < leaves!.tGyr);

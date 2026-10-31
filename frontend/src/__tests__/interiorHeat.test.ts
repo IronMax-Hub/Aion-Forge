@@ -47,6 +47,9 @@ describe("CO₂ that freezes out (IH2, decision 28)", () => {
       const h = runWorldHistory(planet, world.physics, world.geography, star, seed, config, { keepSnapshots: true });
       const snaps = h.snapshots!;
       for (let i = 1; i < snaps.length; i++) {
+        // A step that froze over or thawed is taken in sub-steps (A1.3), each freezing out against the last
+        // sub-step's temperature, which the snapshots do not keep
+        if (snaps[i].substeps > 1) continue;
         expect(snaps[i].co2Bar).toBeLessThanOrEqual(co2SaturationBar(snaps[i - 1].meanK) * (1 + 1e-12));
         expect(snaps[i].co2IceBar).toBeGreaterThanOrEqual(0);
       }

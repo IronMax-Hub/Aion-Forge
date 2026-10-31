@@ -28,9 +28,9 @@ import { createRNG, mixSeed, SALT } from "./rng";
 import { bodyKey } from "./bodyKey";
 import { exp, pow } from "./detmath";
 import type { Planet, AtmosphereType } from "./planet";
-import { effectiveOrbitAU } from "./planetBasics";
+import { effectiveOrbitAU, orbitAUAt } from "./planetBasics";
 import type { Star } from "./star";
-import { luminosityAt } from "./star";
+import { luminosityAt, massTodaySolar } from "./star";
 import { makeConfig } from "./config";
 import type { UniverseConfig } from "./config";
 
@@ -116,6 +116,15 @@ export function planetWaterInventory(orbitAU: number, snowLineAU: number, mass: 
   return Math.min(1, aroundMedian(water.median, water.spread, draw)) * retention;
 }
 
+/**
+ * The mass a planet's orbit goes round, M☉ (A3.1): both stars' for a planet that orbits
+ * both, as Kepler's law and the Hill sphere see them from outside the pair; otherwise its own star's.
+ */
+export function orbitedMassSolar(planet: Pick<Planet, "orbitsBothStars">, star: Star): number {
+  // A white dwarf's planets go round its remnant mass (A3.3)
+  return massTodaySolar(star) + (planet.orbitsBothStars && star.companion ? star.companion.mass : 0);
+}
+
 /** The physical properties of a planet around its star. */
 export function derivePhysics(planet: Planet, star: Star, galaxySeed: number, cfg?: UniverseConfig): PlanetPhysics {
   const config = cfg ?? makeConfig(galaxySeed);
@@ -127,7 +136,7 @@ export function derivePhysics(planet: Planet, star: Star, galaxySeed: number, cf
   const waterDraw = rng();
 
   const orbitAU = effectiveOrbitAU(planet.orbitalRadius, config);
-  const orbitalPeriodYears = Math.sqrt((orbitAU * orbitAU * orbitAU) / star.mass);
+  const orbitalPeriodYears = Math.sqrt((orbitAU * orbitAU * orbitAU) / orbitedMassSolar(planet, star));
   // A moon world (MO4) is locked to its planet, not its star: its day is its orbit around the
   // planet, it shares the planet's tilt, and it has the water its moon rule gave it (MO2)
   const moon = planet.moonOrbit;
@@ -142,7 +151,9 @@ export function derivePhysics(planet: Planet, star: Star, galaxySeed: number, cf
       : TILT.lowMaxDeg + tiltDraw * (TILT.maxDeg - TILT.lowMaxDeg);
 
   const snowLineAU = snowLineAUOf(star);
-  const waterInventory = moon ? moon.waterInventory : planetWaterInventory(orbitAU, snowLineAU, planet.mass, waterDraw);
+  // Water is gathered where the planet formed: a white dwarf's planets formed closer in (A3.3)
+  const formedAU = orbitAUAt(planet.orbitalRadius, config, star, 0);
+  const waterInventory = moon ? moon.waterInventory : planetWaterInventory(formedAU, snowLineAU, planet.mass, waterDraw);
 
   return {
     surfaceGravity: planet.mass / (planet.size * planet.size),

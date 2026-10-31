@@ -24,7 +24,7 @@ import {
   secondsPerOrbit, SYSTEM_STARLIGHT_INTENSITY, systemLights, SystemOrbits,
 } from "./systemView";
 import type { KeplerPath } from "./systemView";
-import { HOST_STAR_RADIUS, SYSTEM_UNITS_PER_AU, systemLayout } from "./systemLayout";
+import { HOST_STAR_RADIUS, hostStarRadius, SYSTEM_UNITS_PER_AU, systemLayout } from "./systemLayout";
 import type { PlanetLayout } from "./systemLayout";
 import { SystemGlobes } from "./systemGlobes";
 import { PlanetView, ORBIT_DISTANCE, starlightIntensity } from "./planet/PlanetView";
@@ -746,7 +746,7 @@ export class UniverseRenderer {
     const companion = hostStar.companion;
     const companionStar = companionAsStar(hostStar);
     if (!companion || !companionStar) {
-      group.add(hostStarObject(starDisplayThreeColour(hostStar.temperature), HOST_STAR_RADIUS * scale), ...systemLights(starCol));
+      group.add(hostStarObject(starDisplayThreeColour(hostStar.temperature), hostStarRadius(system.planets, scale)), ...systemLights(starCol));
       return group;
     }
     const companionCol = starLightThreeColour(companion.temperature);
@@ -766,7 +766,7 @@ export class UniverseRenderer {
 
     if (aroundBoth.length === 0) {
       // A companion round the primary: their relative orbit, with the centre of mass on the line between them
-      const radius = HOST_STAR_RADIUS * scale;
+      const radius = hostStarRadius(system.planets, scale);
       group.add(hostStarObject(drawnCol, radius), ...systemLights(starCol));
       const closest = 3 * radius * (1 + companionSize);
       const a = Math.min(maxDistance / 2 / (1 + e), Math.max(trueA, closest / (1 - e)));

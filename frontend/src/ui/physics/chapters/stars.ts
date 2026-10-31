@@ -1,11 +1,11 @@
 // Chapter 3 of the Physics page: stars (PH1).
 
 import {
-  ACTIVITY_DECAY_EXPONENT, ACTIVITY_SCALE, ENVELOPE_FADE_K, PAST_GIANT_TEMPERATURE_K, SOLAR_AGE_GYR, SOLAR_RADIUS_AU, GIANT_LUMINOSITY_FACTOR, LIFESPAN, luminosityAt, MAIN_SEQUENCE_BRIGHTENING,
-  MAIN_SEQUENCE_END_FRACTION, MASS_DRAW, MASS_LUMINOSITY_EXPONENT, MS_RADIUS_EXPONENT, NEUTRON_STAR_LUMINOSITY,
+  ACTIVITY_DECAY_EXPONENT, ACTIVITY_SCALE, ENVELOPE_FADE_K, PAST_GIANT_TEMPERATURE_K, SOLAR_AGE_GYR, SOLAR_RADIUS_AU, GIANT_LUMINOSITY, LIFESPAN, luminosityAt, MAIN_SEQUENCE_BRIGHTENING,
+  MAIN_SEQUENCE_END_FRACTION, KROUPA_IMF, WHITE_DWARF_MASS, MASS_LUMINOSITY_EXPONENT, MS_RADIUS_EXPONENT, NEUTRON_STAR_RADIUS_SOLAR,
   PROTOSTAR_FRACTION, PROTOSTAR_MAX_GYR, RARE_STAR, REMNANT_FRACTION, REMNANT_MASS, SATURATION, saturationTimeGyr,
   SOLAR_TEMPERATURE_K, SOLAR_XUV_TODAY, stellarRadiusAU, TEMP_RANGE, TEMPERATURE_JITTER, UNIVERSE_AGE_GYR,
-  WHITE_DWARF_LUMINOSITY, XUV_MAX_NM, XUV_SATURATED_SHARE, xuvLuminosityAt,
+  WHITE_DWARF, XUV_MAX_NM, XUV_SATURATED_SHARE, xuvLuminosityAt,
 } from "../../../simulation/star";
 import type { Star, StellarClass } from "../../../simulation/star";
 import {
@@ -43,14 +43,14 @@ export const stars: Chapter = {
     {
       id: "star-mass",
       title: "Masses: most stars are small",
-      statement: "A star's mass comes from one draw through a curve that makes small stars common and giant ones rare, as in real star formation.",
-      rule: MASS_DRAW.map((b) => `draw < ${b.below}: ${b.base} + (draw − ${b.from}) × ${b.slope}`).join("; ") + " (M☉); the draw is divided by the ignition threshold",
-      constants: MASS_DRAW.map((b) => ({ name: `Below draw ${b.below}`, value: `${b.base} M☉ + ${b.slope} per unit`, meaning: "One piece of the curve" })),
-      why: "Real stars follow an initial mass function weighted heavily towards red dwarfs; a piecewise curve gives that shape with one draw.",
-      source: "Shape inspired by the initial mass function (Salpeter, Kroupa); not fitted to it",
-      limits: ["The smallest star is 0.1 M☉ and the largest about 100 M☉; brown dwarfs are not made.", "Far more massive stars than in the Milky Way: 12% of draws (those above 0.88) give more than 5 M☉."],
-      laws: [{ law: "stellarIgnitionThreshold", how: "Divides the draw: above 1, fewer heavy stars" }],
-      code: "simulation/star.ts · MASS_DRAW, generateMass",
+      statement: "A star's mass comes from one draw through the initial mass function measured in the Milky Way: red dwarfs are most stars, and stars heavier than 8 M☉ about one in 250.",
+      rule: KROUPA_IMF.pieces.map((p, i) => `dN/dm ∝ m^−${p.slope} from ${p.fromSolar} M☉${i + 1 < KROUPA_IMF.pieces.length ? "" : ` to ${KROUPA_IMF.maxSolar} M☉`}`).join("; ") + "; mass = the IMF's inverse at draw^threshold",
+      constants: KROUPA_IMF.pieces.map((p) => ({ name: `From ${p.fromSolar} M☉`, value: `slope ${p.slope}`, meaning: "dN/dm ∝ m^−slope" })),
+      why: "Star formation makes many small stars and few large ones, in a shape measured in clusters and the solar neighbourhood; the draw is the share of stars lighter than the one drawn.",
+      source: "Kroupa 2001, the initial mass function above the hydrogen-burning limit",
+      limits: ["The smallest star is 0.08 M☉ and the largest 100 M☉; brown dwarfs are not made.", "One function for every galaxy and every epoch: no top-heavy IMF in starbursts or the early universe."],
+      laws: [{ law: "stellarIgnitionThreshold", how: "Raises the draw to its power: above 1, fewer heavy stars" }],
+      code: "simulation/star.ts · KROUPA_IMF, kroupaMass",
       effect: (ctx) => {
         let from = 0;
         const parts = MASS_BINS.map(({ label, below }) => {
@@ -88,12 +88,12 @@ export const stars: Chapter = {
     {
       id: "star-age",
       title: "Ages",
-      statement: "Each star formed at a random moment within its lifespan or the universe's age, whichever is shorter, so every star in the galaxy is alive or a remnant today.",
-      rule: `age = draw × min(lifespan, ${UNIVERSE_AGE_GYR} Gyr)`,
+      statement: "Stars form at a constant rate from the universe's start to today, so each star's age is a random moment in the universe's history, whatever its lifespan. A star older than its lifespan has ended: heavy stars are mostly white dwarfs, neutron stars and black holes by now, while red dwarfs all still shine.",
+      rule: `age = draw × ${UNIVERSE_AGE_GYR} Gyr; a star past ${REMNANT_FRACTION} of its lifespan is a remnant`,
       constants: [{ name: "Age of the universe", value: exact(UNIVERSE_AGE_GYR, "Gyr"), meaning: "No star is older" }],
-      why: "Star formation spread over cosmic time; the draw stands in for a constant birth rate.",
-      limits: ["A constant birth rate: the early universe's burst of star formation is not modelled.", "No star has already died and gone: remnants appear only in the last 5% of a life."],
-      laws: [{ law: "entropyRate", how: "Shorter lifespans cap ages lower" }],
+      why: "A constant star-formation rate is the simplest history that leaves the old, heavy stars dead, as observed: white dwarfs are several per cent of the stars near the Sun.",
+      limits: ["A constant birth rate: real galaxies formed stars faster early on (ellipticals almost only then), which is not modelled.", "A remnant keeps its progenitor's mass in the model."],
+      laws: [{ law: "entropyRate", how: "Shorter lifespans: more stars have ended" }],
       code: "simulation/star.ts · generateStarsFor",
       effect: (ctx) => [said(
         `The median star is ${formatGyr(median(ctx.stars.map((s) => s.age)))} old; ${formatInt(ctx.stars.filter((s) => s.age > 10).length)} are older than 10 Gyr.`,
@@ -123,16 +123,19 @@ export const stars: Chapter = {
     {
       id: "star-light",
       title: "Brightness and colour",
-      statement: "A main-sequence star's brightness rises as the 3.5th power of its mass; its temperature follows from that brightness and its size, with a ±10% spread. Giants shine 500 times brighter than they did on the main sequence; remnants are faint.",
-      rule: `L = M^${MASS_LUMINOSITY_EXPONENT}; R = M^${MS_RADIUS_EXPONENT}; T = ${SOLAR_TEMPERATURE_K} K × (L / R²)^¼ × (${TEMPERATURE_JITTER.low} + draw × ${TEMPERATURE_JITTER.span}); giant L × ${GIANT_LUMINOSITY_FACTOR}; white dwarf ${WHITE_DWARF_LUMINOSITY.base} + (T / ${WHITE_DWARF_LUMINOSITY.hottestK}) × ${WHITE_DWARF_LUMINOSITY.range} L☉; neutron star ${NEUTRON_STAR_LUMINOSITY} L☉`,
+      statement: "A main-sequence star's brightness rises as the 3.5th power of its mass; its temperature follows from that brightness and its size, with a ±10% spread. A giant shines about 500 times the Sun per solar mass of its own, between the red clump and the tip of the giant branch, or twice its main-sequence light if that is more, and no brighter than the brightest supergiants seen. Remnants glow as small hot bodies: a white dwarf cools and fades over billions of years.",
+      rule: `L = M^${MASS_LUMINOSITY_EXPONENT}; R = M^${MS_RADIUS_EXPONENT}; T = ${SOLAR_TEMPERATURE_K} K × (L / R²)^¼ × (${TEMPERATURE_JITTER.low} + draw × ${TEMPERATURE_JITTER.span}); giant L = min(${formatSig(GIANT_LUMINOSITY.maxSolar)}, max(${GIANT_LUMINOSITY.perSolarMass} M, ${GIANT_LUMINOSITY.mainSequenceFactor} M^${MASS_LUMINOSITY_EXPONENT})); white dwarf L = ${WHITE_DWARF.solarAt1Gyr} × (t_cool / 1 Gyr)^−${WHITE_DWARF.coolingExponent}, T from L = R²T⁴ at R = ${WHITE_DWARF.radiusSolar} R☉; neutron star L = R²T⁴ at R = 12 km`,
       constants: [
         { name: "Mass–luminosity exponent", value: exact(MASS_LUMINOSITY_EXPONENT), meaning: "L ∝ M^3.5" },
-        { name: "Giant brightening", value: `× ${GIANT_LUMINOSITY_FACTOR}`, meaning: "Over its main-sequence luminosity" },
+        { name: "Giant", value: `${GIANT_LUMINOSITY.perSolarMass} L☉ per M☉`, meaning: "Between the red clump (~50 L☉) and the branch's tip (~2,500 L☉) for a Sun; at least × " + GIANT_LUMINOSITY.mainSequenceFactor + " its main-sequence light" },
+        { name: "Brightest giant", value: `${formatSig(GIANT_LUMINOSITY.maxSolar)} L☉`, meaning: "The Humphreys–Davidson limit of cool supergiants" },
+        { name: "White dwarf", value: `${WHITE_DWARF.solarAt1Gyr} L☉ at 1 Gyr`, meaning: `Mestel cooling, L ∝ t^−${WHITE_DWARF.coolingExponent}; Earth-sized; youngest counted as ${formatSig(WHITE_DWARF.youngestGyr * 1000)} Myr` },
+        { name: "Neutron star radius", value: `${formatSig(NEUTRON_STAR_RADIUS_SOLAR, 3)} R☉`, meaning: "12 km" },
         { name: "Main-sequence temperatures", value: `${formatInt(TEMP_RANGE["main-sequence"][0])}–${formatInt(TEMP_RANGE["main-sequence"][1])} K`, meaning: "Clamped to this range" },
       ],
       why: "Stefan–Boltzmann (L = R² T⁴ in solar units) ties colour to brightness and size, so a star's colour and light agree.",
       source: "Mass–luminosity and mass–radius relations; Stefan–Boltzmann law",
-      limits: ["The temperature spread changes colour without changing brightness, so a star's radius from L and T differs by up to ±20% from the one that set T (issue C8).", "Giants' and remnants' temperatures are drawn within a range, not computed."],
+      limits: ["The temperature spread changes colour without changing brightness, so a star's radius from L and T differs by up to ±20% from the one that set T (issue C8).", "Giants' and neutron stars' temperatures are drawn within a range; a neutron star does not cool with age.", "The giant's luminosity is a rule of thumb for the giant branches, not an evolutionary track."],
       laws: [],
       code: "simulation/star.ts · calcTemperature, calcLuminosity",
       effect: (ctx) => {
@@ -170,11 +173,14 @@ export const stars: Chapter = {
     {
       id: "star-radius",
       title: "Size, and planets swallowed",
-      statement: "A star's radius follows from its light and temperature. A giant swells to an AU or more and swallows the planets inside it; a remnant swallowed those inside the giant it once was.",
+      statement: "A star's radius follows from its light and temperature. A giant swells to tenths of an AU and swallows the planets inside it; a remnant swallowed those inside the giant it once was. A white dwarf's surviving planets were pushed outward as its giant shed its mass: their orbits widened by the mass the star lost.",
       rule: `R = R☉ × √L × (${SOLAR_TEMPERATURE_K} K / T)²; a planet whose orbit lies inside R is removed`,
-      constants: [{ name: "The Sun's radius", value: `${SOLAR_RADIUS_AU} AU`, meaning: "R☉" }],
-      why: "Stefan–Boltzmann again: a cool, bright giant must be enormous.",
-      limits: ["Engulfment is decided by today's radius only: a planet is gone or untouched, never partly evaporated or moved outward by the star's mass loss."],
+      constants: [
+        { name: "The Sun's radius", value: `${SOLAR_RADIUS_AU} AU`, meaning: "R☉" },
+        { name: "White dwarf mass", value: `${WHITE_DWARF_MASS.perInitialSolar} M_i + ${WHITE_DWARF_MASS.baseSolar} M☉`, meaning: `The initial–final mass relation (Kalirai et al. 2008), at most ${WHITE_DWARF_MASS.maxSolar} M☉; orbits widen by M_i / M_f` },
+      ],
+      why: "Stefan–Boltzmann again: a cool, bright giant must be enormous. A star that loses mass slowly holds its planets more loosely, and each orbit widens so that a·M stays the same.",
+      limits: ["Engulfment is decided by the giant's one radius: a planet is gone or untouched, never partly evaporated.", "A white dwarf's planets move out, but a companion's orbit does not, and the instability that can follow is not modelled."],
       laws: [{ law: "gravityStrength", how: "Orbits move in by √gravity, so more planets lie inside a giant" }],
       code: "simulation/star.ts · stellarRadiusAU; simulation/planet.ts · generatePlanetsFor",
       effect: (ctx) => {

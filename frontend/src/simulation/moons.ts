@@ -41,7 +41,7 @@ import { companionLuminosityAt } from "./star";
 import type { AtmosphereType, Planet } from "./planet";
 import type { UniverseConfig } from "./config";
 import { atmosphereFromDraw, effectiveOrbitAU, typicalRadiusForMass } from "./planetBasics";
-import { derivePhysics, planetWaterInventory } from "./planetPhysics";
+import { derivePhysics, orbitedMassSolar, planetWaterInventory } from "./planetPhysics";
 import { iceShellKm, interiorHeatFlow, tidalHeatFlow } from "./interiorHeat";
 import { ALBEDO, equilibriumTemperatureK } from "./climate";
 import { waterDepthKm } from "./geography";
@@ -109,7 +109,7 @@ export interface Moon {
 
 /** Half the planet's Hill radius, in planet radii: no moon forms farther out. */
 export function moonOrbitLimit(giant: Planet, star: Star, config: UniverseConfig): number {
-  const hillAU = effectiveOrbitAU(giant.orbitalRadius, config) * pow((giant.mass * EARTH_MASS_IN_SUNS) / (3 * star.mass), 1 / 3);
+  const hillAU = effectiveOrbitAU(giant.orbitalRadius, config) * pow((giant.mass * EARTH_MASS_IN_SUNS) / (3 * orbitedMassSolar(giant, star)), 1 / 3);
   return (HILL_SHARE * hillAU) / (giant.size * EARTH_RADIUS_AU);
 }
 
@@ -218,6 +218,9 @@ export function moonsOf(giant: Planet, star: Star, galaxySeed: number, config: U
 // share of the planet's (the Moon: 0.0123), its orbit 30–60 planet radii. It
 // takes the planets' water rule (impact debris is not ice-rich). A moon of 1%
 // of its planet's mass or more holds the planet's tilt steady (decision 12).
+// Like a giant's moons, it is kept only within half the planet's Hill radius
+// (A3.2): close to its star, a planet's Hill sphere is too small to hold a
+// moon so far out, and it has none.
 // Draws come from the planet's own moon stream, mixSeed(galaxySeed,
 // ...bodyKey(planet), SALT.MOON).
 
@@ -244,6 +247,7 @@ export function largeMoonOf(planet: Planet, star: Star, galaxySeed: number, conf
   const { massRatio, orbitPlanetRadii } = LARGE_MOON;
   const mass = planet.mass * massRatio.min * pow(massRatio.max / massRatio.min, ratioDraw);
   const orbit = orbitPlanetRadii.min + (orbitPlanetRadii.max - orbitPlanetRadii.min) * orbitDraw;
+  if (orbit > moonOrbitLimit(planet, star, config)) return null;
   const physics = derivePhysics(planet, star, galaxySeed, config);
   const orbitAU = effectiveOrbitAU(planet.orbitalRadius, config);
   const waterInventory = planetWaterInventory(orbitAU, physics.snowLineAU, mass, waterDraw);

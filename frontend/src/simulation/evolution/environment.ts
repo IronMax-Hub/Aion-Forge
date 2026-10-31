@@ -199,7 +199,8 @@ export function environmentContext(planet: Planet, physics: PlanetPhysics, star:
 
 /** What life meets during one step: the step's snapshot read as pressures. */
 export function environmentFor(step: WorldSnapshot, context: EnvironmentContext): Environment {
-  const { star, orbitAU, aroundBoth, gravity } = context;
+  const { star, aroundBoth, gravity } = context;
+  const orbitAU = step.orbitAU;   // the step's: a white dwarf's planets were closer before it shed its mass (A3.3)
   const geometry = step.axialTiltDeg === context.axialTiltDeg ? context.geometry : bandGeometry(step.axialTiltDeg, context.tidallyLocked);
   const starTemperatureK = temperatureAt(star, step.tGyr);
   const flux = step.luminosity / (orbitAU * orbitAU);

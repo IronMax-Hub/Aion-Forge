@@ -7,7 +7,8 @@ import { generateGalaxy, buildGalaxyConfig, GALAXY_PARTICLE_COUNT } from "./simu
 import type { GalaxyConfig, GalaxyType, GalaxyParticles } from "./simulation/galaxy";
 import { generateStarsFor, irradianceAt, UNIVERSE_AGE_GYR } from "./simulation/star";
 import type { Star, StellarPopulation } from "./simulation/star";
-import { generatePlanetsFor, solidWorldOf, effectiveOrbitAU, GIANT_PLANET_MASS } from "./simulation/planet";
+import { generatePlanetsFor, solidWorldOf, effectiveOrbitAU } from "./simulation/planet";
+import { hasSolidSurface } from "./simulation/geography";
 import { derivePhysics } from "./simulation/planetPhysics";
 import type { Planet, PlanetarySystem, SolidWorld } from "./simulation/planet";
 import { generateBiosphere } from "./simulation/biosphere";
@@ -661,7 +662,7 @@ export default function App() {
     if (star) {
       // What the planet view draws: the planet's own world, kept from opening the system, lit by its star
       const sight = systemSightsRef.current.get(planet.key) ?? (() => {
-        const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, star, currentSeed, universeConfig) : null;
+        const world = hasSolidSurface(planet) ? solidWorldOf(planet, star, currentSeed, universeConfig) : null;
         const biosphere = systemBiosphereRef.current.get(planet.key) ?? generateBiosphere(planet, star);
         return planetSightOf(planet, star, world, biosphere, generateCivilization(biosphere, planet, currentSeed).civilization);
       })();

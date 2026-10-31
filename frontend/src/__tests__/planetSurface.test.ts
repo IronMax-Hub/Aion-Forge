@@ -1,3 +1,4 @@
+import { hasSolidSurface } from "../simulation/geography";
 import { describe, it, expect } from "vitest";
 import { generatePlanetsFor, GIANT_PLANET_MASS } from "../simulation/planet";
 import type { Planet } from "../simulation/planet";
@@ -15,11 +16,13 @@ import { derivePhysics, atmosphereClassOf } from "../simulation/planetPhysics";
 const seed = 100000;
 const config = makeConfig(seed);
 // 510 stars: from rules v17 the first civilization without fire is star 507's (a mind in deep water)
-const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 510);
+const allStars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
+// The first 510, and star 1660, whose mind has no fire (rules v19: seed 100000's only civilization)
+const stars = [...allStars.slice(0, 510), allStars[1660]];
 const all: { star: Star; planet: Planet }[] = stars.flatMap((star) =>
   generatePlanetsFor(star, seed, config).planets.map((planet) => ({ star, planet })));
-const solid = all.filter(({ planet }) => planet.mass <= GIANT_PLANET_MASS);
-const giants = all.filter(({ planet }) => planet.mass > GIANT_PLANET_MASS);
+const solid = all.filter(({ planet }) => hasSolidSurface(planet));
+const giants = all.filter(({ planet }) => !hasSolidSurface(planet));
 
 describe("planet types", () => {
   it("gives every solid planet a surface and no giant one", () => {
@@ -45,9 +48,11 @@ describe("planet types", () => {
     for (const t of ["lava", "ocean", "ice", "desert", "rocky"]) expect(types).toContain(t);
   });
 
-  it("makes cold giants ice giants and warm ones gas giants", () => {
-    for (const { planet } of giants) expect(planet.type).toBe(planet.temperature < 75 ? "ice-giant" : "gas-giant");
-    expect(new Set(giants.map(({ planet }) => planet.type))).toEqual(new Set(["ice-giant", "gas-giant"]));
+  it("makes envelope worlds below the giants' mass sub-Neptunes, cold giants ice giants and warm ones gas giants", () => {
+    for (const { planet } of giants) {
+      expect(planet.type).toBe(planet.mass <= GIANT_PLANET_MASS ? "sub-neptune" : planet.temperature < 75 ? "ice-giant" : "gas-giant");
+    }
+    expect(new Set(giants.map(({ planet }) => planet.type))).toEqual(new Set(["sub-neptune", "ice-giant", "gas-giant"]));
   });
 
   it("reports the surface temperature of solid planets and the cloud-top temperature of giants", () => {
@@ -88,7 +93,8 @@ describe("habitability", () => {
   });
 
   it("fades below 0.4 g; with the Chen & Kipping radii no solid planet reaches the 2.5 g upper edge", () => {
-    const light = solid.filter(({ planet }) => planet.surface!.surfaceGravity < 0.4 && planet.surface!.habitableFraction >= 0.5);
+    // Any light world with some liquid water: under rules v19 none below 0.4 g in this sample has half its surface habitable
+    const light = solid.filter(({ planet }) => planet.surface!.surfaceGravity < 0.4 && planet.surface!.habitableFraction > 0);
     expect(light.length).toBeGreaterThan(0);
     // Full credit at 0.4 g, none at 0.2 g
     for (const { planet } of light) expect(planet.habitabilityScore).toBeLessThanOrEqual(Math.max(0, (planet.surface!.surfaceGravity - 0.2) / 0.2) + 1e-12);

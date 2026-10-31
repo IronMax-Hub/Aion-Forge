@@ -16,12 +16,17 @@
 // only its consumer descendants — owner decision after plant minds were found;
 // v17: a consumer gains from thinking as far as it sees, water life breathes
 // dissolved oxygen, and only a mind on land has fire; v18: step 7, rogue planets, from
-// RP1's unstable neighbours). Presentation-only changes never bump it.
+// RP1's unstable neighbours; v19: the October 2026 audit's corrections, as one
+// batch (Documents/Fixing-Plan-2026-11.md, Phase 3): the runaway greenhouse,
+// bounded steam worlds and sub-steps across freezing over (A1); the Kroupa IMF,
+// a constant star-formation history, bounded giants and cooling white dwarfs
+// (A2); pair and remnant masses, sub-Neptunes, orbits scaled with the star and
+// hot Jupiters (A3)). Presentation-only changes never bump it.
 //
 // Limits: it records which rules made a record, not what those rules were. An
 // older version cannot be re-run; a recount always uses the current rules.
 
-export const SIMULATION_RULES_VERSION = 18;
+export const SIMULATION_RULES_VERSION = 19;
 
 /** Whether a record's numbers were produced by rules older than the current ones. */
 export function countedUnderOlderRules(rulesVersion: number): boolean {

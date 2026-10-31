@@ -1,6 +1,6 @@
 # Scientific probes · rules v19
 
-Measured 2026-10-31T19:03:48.809Z.
+Measured 2026-10-31T19:48:17.516Z.
 
 ## A1 Stellar population
 
@@ -90,8 +90,8 @@ First 250 main-sequence stars of seed 42.
 | Solid planets | 627 |
 | Solids above 2.04 M⊕ | 11.5% |
 | Solids below 3 g/cm³ | 116 |
-| Solids with life | 55.5% |
-| Ever-wet worlds with life | 88.5% |
+| Solids with life | 52.5% |
+| Ever-wet worlds with life | 84.8% |
 | Lava worlds | 8 |
 | Hottest lava world | 2301 K |
 

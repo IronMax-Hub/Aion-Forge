@@ -1,6 +1,6 @@
 # Rules v18 → v19: the audit's corrections
 
-Phase 3 of `Documents/Fixing-Plan-2026-11.md`, on branch `galaxy-planet-validation`, bumped once (`61cb16d`). Step reports: `A1-Climate-Decisions.md`, `A2-Stars-Report.md`, `A3-Planets-Report.md`. Raw figures: `stats.md` (entries for `1294752`, v18, and `61cb16d`, v19), `baseline-v18/probes.md` and `v19/probes.md`.
+Phase 3 of `Documents/Fixing-Plan-2026-11.md`, on branch `galaxy-planet-validation`, bumped once (`61cb16d`), with one owner-approved fix added inside v19 (`6659389`). Step reports: `A1-Climate-Decisions.md`, `A2-Stars-Report.md`, `A3-Planets-Report.md`. Raw figures: `stats.md` (entries for `1294752`, v18, and `6659389`, v19), `baseline-v18/probes.md` and `v19/probes.md`.
 
 ## What changed
 
@@ -18,6 +18,7 @@ Phase 3 of `Documents/Fixing-Plan-2026-11.md`, on branch `galaxy-planet-validati
 | A3.3 | White dwarfs weigh their remnant mass; their planets' orbits widen by M_i/M_f | Kalirai et al. 2008 |
 | A3.4 | Planets of 1.75 R⊕ or more keep an envelope: sub-Neptunes, with no surface | Fulton et al. 2017 |
 | A3.5 | Orbits scale as M^⅓; about 1.2% of Sun-like stars get a hot Jupiter | Wright et al. 2012 |
+| Decision 27 | Below water's triple point, water is ice below 273.16 K and vapour above. Before, it was ice at any temperature, so a warm, airless world had ice at 374 K and life in "liquid under the ice" | Owner decision, 1 Nov 2026 |
 
 ## The audit's probes, v18 → v19
 
@@ -43,27 +44,27 @@ Familiar Reality, seeds 100000 / 42 / 7777:
 | Planets | 6,766 / 7,275 / 6,828 | 7,320 / 7,827 / 7,285 |
 | Solid planets | 5,806 / 5,669 / 5,794 | 5,259 / 4,802 / 5,280 |
 | Tidally locked | 19.4 / 19.6 / 20.1 % | 28.1 / 28.8 / 29.4 % |
-| Liquid water today | 8.0 / 9.0 / 7.8 % | 6.7 / 7.8 / 6.4 % |
-| Ever had life | 35.5 / 37.6 / 34.5 % | 46.8 / 51.6 / 45.8 % |
-| Life-bearing planets | 1,419 / 1,461 / 1,298 | 1,771 / 1,802 / 1,769 |
-| Systems with multicellular life or more | 102 / 118 / 95 | 22 / 32 / 43 |
+| Liquid water today | 8.0 / 9.0 / 7.8 % | 6.8 / 7.8 / 6.5 % |
+| Ever had life | 35.5 / 37.6 / 34.5 % | 44.4 / 49.1 / 43.2 % |
+| Life-bearing planets | 1,419 / 1,461 / 1,298 | 1,659 / 1,685 / 1,626 |
+| Systems with multicellular life or more | 102 / 118 / 95 | 23 / 32 / 43 |
 | Civilizations | 10 / 12 / 5 | 1 / 1 / 1 |
-| World history time, seed 100000 (this PC) | 80 s | 131 s |
+| World history time, seed 100000 (this PC) | 80 s | 108 s |
 
 Great Filter for seed 100000 (worlds passing each gate), v18 → v19:
 
 | Gate | v18 | v19 |
 |---|---|---|
 | Solid surface | 5,806 | 5,259 |
-| Liquid water at some time | 2,690 | 3,037 |
-| Life began | 2,062 | 2,459 |
-| Life used starlight | 388 | 541 |
+| Liquid water at some time | 2,690 | 2,976 |
+| Life began | 2,062 | 2,333 |
+| Life used starlight | 388 | 396 |
 | Life's oxygen filled the air | 151 | **35** |
 | A multicellular body | 115 | 26 |
 | A mind | 10 | 1 |
 | Fire within reach | 3 | 0 |
 
-**The shape of the filter changed.** v18's steepest gate was a multicellular body to a mind. In v19 a new choke appears earlier: **life's oxygen filling the air (541 → 35, 6%)**. Most life now orbits red dwarfs, whose dim red light gives light-using life too little energy to oxygenate a planet. Without oxygen, bodies stay tiny, and without large bodies, no minds.
+**The shape of the filter changed.** v18's steepest gate was a multicellular body to a mind. In v19 a new choke appears earlier: **life's oxygen filling the air (396 → 35, 9%)**. Most life now orbits red dwarfs, whose dim red light gives light-using life too little energy to oxygenate a planet. Without oxygen, bodies stay tiny, and without large bodies, no minds.
 
 Each default universe now has about one civilization:
 
@@ -77,7 +78,7 @@ Nothing was tuned to move these numbers. They follow from rules that now match m
 
 ## Known limits and open items
 
-- **Owner decision needed:** below water's triple point the climate marks water as ice at any temperature (decision 27's "water is ice"), even at 374 K. The globe's shader draws such a world as bare land, and the surface-map test now catches the disagreement on a sampled airless planet. Physically, ice that warm in near-vacuum sublimates; the climate header even says "or vapour above 273.16 K", but the code never does it.
+- **Fixed inside v19 (decision 27):** below water's triple point, warm water is now vapour and its basins lie dry. Worlds that ever froze over fall from about 9% to 3%. Light-using life falls by a quarter (541 → 396 for seed 100000), because warm, airless worlds no longer start life under ice that could not exist there. Minds and civilizations are unchanged. The globe draws ice at each world's own freezing point.
 - **Not modelled:**
   - a white dwarf's companion orbit widening, and the instability that follows;
   - hot Jupiters' dependence on metallicity;

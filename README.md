@@ -129,14 +129,14 @@ These seeds produce universes worth exploring. Figures are for the default param
 
 | Seed | Galaxy Type | Planets with organisms | Moon worlds with organisms | Civilizations | Systems past agriculture |
 |------|-------------|---:|---:|---:|---:|
-| `404040` | Elliptical | 1840 | 720 | 4 | 2 |
-| `3141592` | Spiral | 1840 | 555 | 3 | 1 |
-| `100000` | Spiral | 1771 | 441 | 1 | 0 |
-| `271828` | Elliptical | 1811 | 664 | 1 | 0 |
-| `161803` | Elliptical | 1771 | 800 | 0 | 0 |
-| `137035` | Irregular | 1579 | 133 | 0 | 0 |
+| `404040` | Elliptical | 1724 | 710 | 4 | 2 |
+| `3141592` | Spiral | 1704 | 548 | 3 | 1 |
+| `100000` | Spiral | 1659 | 438 | 1 | 0 |
+| `271828` | Elliptical | 1667 | 658 | 1 | 0 |
+| `161803` | Elliptical | 1640 | 796 | 0 | 0 |
+| `137035` | Irregular | 1417 | 131 | 0 | 0 |
 
-With 2,000 stars per universe, default parameters give these seeds about 1,600 to 1,850 planets with organisms. Three-quarters of stars are red dwarfs, as in the Milky Way, and they outlive the universe; their planets, close in and often locked facing their star, get life easily, but under dim red light and their young stars' flares it nearly always stays microbial. Worlds absorbing more starlight than a moist atmosphere can radiate lose their oceans in a runaway greenhouse, and planets larger than about 1.75 Earth radii keep thick gas envelopes with no surface. A civilization begins when a lineage that eats other life and is heavier than a gram evolves enough information processing to count as a mind; under these rules that happens a handful of times per universe at most, and many of those species have since died out. Civilizations need fire to get past farming, and fire needs a mind that lives on land, exposed land and enough oxygen. For a quieter universe, change the laws instead: the **Fragile Life** preset leaves life on about one solid planet in twenty and no minds; **Abundant Life** and **Eternal Stars** give the most life.
+With 2,000 stars per universe, default parameters give these seeds about 1,400 to 1,750 planets with organisms. Three-quarters of stars are red dwarfs, as in the Milky Way, and they outlive the universe; their planets, close in and often locked facing their star, get life easily, but under dim red light and their young stars' flares it nearly always stays microbial. Worlds absorbing more starlight than a moist atmosphere can radiate lose their oceans in a runaway greenhouse, and planets larger than about 1.75 Earth radii keep thick gas envelopes with no surface. A civilization begins when a lineage that eats other life and is heavier than a gram evolves enough information processing to count as a mind; under these rules that happens a handful of times per universe at most, and many of those species have since died out. Civilizations need fire to get past farming, and fire needs a mind that lives on land, exposed land and enough oxygen. For a quieter universe, change the laws instead: the **Fragile Life** preset leaves life on about one solid planet in twenty and no minds; **Abundant Life** and **Eternal Stars** give the most life.
 
 Generating a universe takes about 20 seconds on a four-core machine (under a minute on one core), because every planet's life is evolved through its history; the survey runs in the background on all cores but one, with a progress bar.
 

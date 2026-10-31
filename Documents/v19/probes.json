@@ -1,6 +1,6 @@
 {
   "rulesVersion": 19,
-  "measured": "2026-10-31T19:03:48.809Z",
+  "measured": "2026-10-31T19:48:17.516Z",
   "population": {
     "seeds": [
       42,
@@ -418,8 +418,8 @@
     "solids": 627,
     "solidsAboveNeptunianBranch": 0.11483253588516747,
     "solidsBelow3gcc": 116,
-    "solidsWithLife": 0.5550239234449761,
-    "everWetWithLife": 0.8854961832061069,
+    "solidsWithLife": 0.5247208931419458,
+    "everWetWithLife": 0.8479381443298969,
     "lavaWorlds": 8,
     "maxLavaK": 2301
   }

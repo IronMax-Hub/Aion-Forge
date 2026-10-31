@@ -5,6 +5,8 @@
 import type { UniverseConfig } from "./config";
 import type { AtmosphereType } from "./planet";
 import { pow } from "./detmath";
+import type { Star } from "./star";
+import { massLossWidening, remnantFromGyr } from "./star";
 
 /** The atmosphere draw: none, thin, moderate and thick below these bounds of one draw, else crushing (planets and moons). */
 export const ATMOSPHERE_DRAW = { noneBelow: 0.15, thinBelow: 0.35, moderateBelow: 0.70, thickBelow: 0.90 } as const;
@@ -19,8 +21,16 @@ export function atmosphereFromDraw(r: number): AtmosphereType {
   return "crushing";
 }
 
-/** Above this mass (Earth masses) a planet is a gas or ice giant with no solid surface. */
+/** Above this mass (Earth masses) a planet is a gas or ice giant; below it, an envelope world is a sub-Neptune. */
 export const GIANT_PLANET_MASS = 15;
+
+/**
+ * From this radius (Earth radii) up, a planet keeps a hydrogen–helium envelope and
+ * has no solid surface (A3.4): the middle of the radius valley that splits rocky
+ * super-Earths from gas-wrapped sub-Neptunes (Fulton et al. 2017). With Chen &
+ * Kipping's radii and their ±20% spread, planets of about 3.5–5.5 M⊕ fall either side.
+ */
+export const ENVELOPE_FROM_EARTH_RADII = 1.75;
 
 /**
  * The physical distance of an orbit from its star, in AU. gravityStrength > 1
@@ -28,6 +38,16 @@ export const GIANT_PLANET_MASS = 15;
  */
 export function effectiveOrbitAU(orbitalRadius: number, config: UniverseConfig): number {
   return orbitalRadius / Math.sqrt(config.gravityStrength);
+}
+
+/**
+ * The orbit t Gyr after the star formed, AU (A3.3): today's (`orbitalRadius`, effective) once
+ * the star is a white dwarf, and narrower by the mass it lost before that; for any other star, today's.
+ */
+export function orbitAUAt(orbitalRadius: number, config: UniverseConfig, star: Pick<Star, "mass" | "classification" | "lifespan">, tGyr: number): number {
+  const today = effectiveOrbitAU(orbitalRadius, config);
+  const widening = massLossWidening(star);
+  return widening > 1 && tGyr < remnantFromGyr(star) ? today / widening : today;
 }
 
 // Planet masses (Earth masses). A draw u in 0–1 maps log-uniformly onto

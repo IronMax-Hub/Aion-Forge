@@ -26,7 +26,12 @@ function readLegacyList(key: string): unknown[] {
 
 /** Import legacy browser data once. Resolves to the number of records sent (0 if nothing to do). */
 export async function importLocalDataOnce(): Promise<number> {
-  if (localStorage.getItem(IMPORTED_FLAG)) return 0;
+  // Storage that cannot be read holds no legacy data either: nothing to import (AF-004)
+  try {
+    if (localStorage.getItem(IMPORTED_FLAG)) return 0;
+  } catch {
+    return 0;
+  }
 
   const payload = {
     universes:   readLegacyList(LEGACY_KEYS.universes),
@@ -38,6 +43,7 @@ export async function importLocalDataOnce(): Promise<number> {
               + payload.experiments.length + payload.bookmarks.length;
 
   if (total > 0) await importData(payload);   // throws if the server is unreachable; retried next start
-  localStorage.setItem(IMPORTED_FLAG, new Date().toISOString());
+  // If the flag cannot be kept, the next start sends the same records again; the server skips those it has
+  try { localStorage.setItem(IMPORTED_FLAG, new Date().toISOString()); } catch { /* flag not kept */ }
   return total;
 }

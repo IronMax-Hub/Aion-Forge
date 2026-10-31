@@ -31,20 +31,59 @@ export interface Star {
   companion: Companion | null; // its binary companion (BS1)
 }
 
-// ── Mass distribution (AF-020) ────────────────────────────────────────────────
-// IMF-inspired: heavily weighted toward low-mass stars
+// ── Mass distribution (AF-020, A2.1) ──────────────────────────────────────────
+//
+// The Kroupa (2001) initial mass function: the number of stars per unit mass
+// falls as m^−1.3 from 0.08 M☉ (hydrogen burning's lower limit) to 0.5 M☉, and
+// as m^−2.3 above, to 100 M☉. About 73% of stars are lighter than 0.5 M☉ and
+// about 0.4% heavier than 8 M☉. A star's mass is drawn by the function's exact
+// inverse: the draw u is the share of stars lighter than it.
+//
+// The ignition threshold (a universe law) reshapes the draw smoothly, u → u^threshold:
+// above 1 the draws crowd towards 0, so fewer heavy stars and more small,
+// long-lived ones; below 1 the opposite. At 1 the IMF is Kroupa's.
 
-/** The mass draw, piecewise linear in the roll r: below each bound, mass = base + (r − from) · slope, M☉. */
-export const MASS_DRAW = [
-  { below: 0.60, from: 0,    base: 0.1, slope: 1.5 },
-  { below: 0.88, from: 0.60, base: 1.0, slope: 14.3 },
-  { below: 0.97, from: 0.88, base: 5.0, slope: 166.7 },
-  { below: 1,    from: 0.97, base: 20,  slope: 2667 },
-] as const;
+/** The Kroupa IMF's pieces: dN/dm ∝ m^−slope from each piece's lower mass to the next's, M☉. */
+export const KROUPA_IMF = {
+  pieces: [
+    { fromSolar: 0.08, slope: 1.3 },
+    { fromSolar: 0.5, slope: 2.3 },
+  ],
+  maxSolar: 100,
+} as const;
 
-function generateMass(r: number): number {
-  const band = MASS_DRAW.find((b) => r < b.below) ?? MASS_DRAW[MASS_DRAW.length - 1];
-  return band.from === 0 ? band.base + r * band.slope : band.base + (r - band.from) * band.slope;
+/** ∫ m^−slope dm from a to b. */
+function powerIntegral(a: number, b: number, slope: number): number {
+  const k = 1 - slope;
+  return (pow(b, k) - pow(a, k)) / k;
+}
+
+// Each piece's weight (continuous at its lower edge) and its share of all stars, computed once
+const IMF_PIECES = (() => {
+  const bounds = KROUPA_IMF.pieces.map((piece, i) => ({
+    ...piece, toSolar: KROUPA_IMF.pieces[i + 1]?.fromSolar ?? KROUPA_IMF.maxSolar,
+  }));
+  let weight = 1;
+  const weighted = bounds.map((piece, i) => {
+    if (i > 0) weight *= pow(piece.fromSolar, piece.slope - bounds[i - 1].slope);   // continuous at the joint
+    return { ...piece, weight, count: weight * powerIntegral(piece.fromSolar, piece.toSolar, piece.slope) };
+  });
+  const total = weighted.reduce((sum, piece) => sum + piece.count, 0);
+  let below = 0;
+  return weighted.map((piece) => {
+    const shareFrom = below / total;
+    below += piece.count;
+    return { ...piece, shareFrom, share: piece.count / total, total };
+  });
+})();
+
+/** The mass, M☉, of which a share u (0–1) of stars are lighter: the Kroupa IMF's inverse. */
+export function kroupaMass(u: number): number {
+  const piece = IMF_PIECES.find((p) => u < p.shareFrom + p.share) ?? IMF_PIECES[IMF_PIECES.length - 1];
+  const k = 1 - piece.slope;
+  // Solve weight · ∫ from fromSolar to m = (u − shareFrom) · total for m
+  const inner = pow(piece.fromSolar, k) + (k * (u - piece.shareFrom) * piece.total) / piece.weight;
+  return Math.min(piece.toSolar, pow(inner, 1 / k));
 }
 
 // ── Lifespan from mass (AF-021) ───────────────────────────────────────────────
@@ -91,7 +130,7 @@ export const TEMP_RANGE: Record<StellarClass, [number, number]> = {
   protostar: [2000, 4000],
   "main-sequence": [2300, 40000], // coolest red dwarfs to hottest O stars
   "red-giant": [3000, 5000],
-  "white-dwarf": [8000, 80000],
+  "white-dwarf": [3000, 110000],   // not drawn: from its cooling (whiteDwarfTemperatureK), 1 Myr to 13.7 Gyr
   "neutron-star": [100000, 1000000],
   "black-hole": [0, 0],
 };
@@ -107,9 +146,11 @@ function mainSequenceRadius(mass: number): number {
   return pow(mass, MS_RADIUS_EXPONENT);
 }
 
-function calcTemperature(cls: StellarClass, mass: number, jitter: number): number {
+function calcTemperature(cls: StellarClass, mass: number, jitter: number, coolingGyr: number): number {
   const [lo, hi] = TEMP_RANGE[cls];
   if (cls === "black-hole") return 0;
+  // A white dwarf's temperature follows from its cooling (A2.4); its draw is still made, so later draws stay put
+  if (cls === "white-dwarf") return whiteDwarfTemperatureK(coolingGyr);
   if (cls === "main-sequence") {
     // Stefan–Boltzmann in solar units: L = R²·T⁴, so T = T☉·(L / R²)^¼.
     // Uses the same mass–luminosity relation as calcLuminosity, so colour and brightness agree.
@@ -124,11 +165,46 @@ function calcTemperature(cls: StellarClass, mass: number, jitter: number): numbe
 
 /** L = M^3.5 on the main sequence (solar units). */
 export const MASS_LUMINOSITY_EXPONENT = 3.5;
-/** A red giant shines this many times its main-sequence luminosity. */
-export const GIANT_LUMINOSITY_FACTOR = 500;
-/** A neutron star's luminosity, L☉; a white dwarf's is base + (T / hottestK) · range. */
-export const NEUTRON_STAR_LUMINOSITY = 0.00001;
-export const WHITE_DWARF_LUMINOSITY = { base: 0.001, hottestK: 80000, range: 0.05 } as const;
+/**
+ * A giant's luminosity (A2.4), one value for its whole giant phase. A Sun-like giant
+ * ranges from ~50 L☉ (the red clump) to ~2,500 L☉ (the red-giant branch's tip, about
+ * 1 AU across, where it engulfs its inner planets); 500 L☉ per solar mass stands
+ * between them. Heavy stars evolve at nearly constant luminosity, so a giant is at
+ * least twice its main-sequence light, and no brighter than the Humphreys–Davidson
+ * limit, the brightest cool supergiants seen (~6×10⁵ L☉). A rule of thumb for the
+ * giant branches, not a track.
+ */
+export const GIANT_LUMINOSITY = { perSolarMass: 500, mainSequenceFactor: 2, maxSolar: 6e5 } as const;
+/**
+ * Remnants shine as blackbodies, L = 4πR²σT⁴, or R²·(T/T☉)⁴ in solar units (A2.4).
+ * A white dwarf is about Earth's size and cools by Mestel's law, L ∝ t_cool^−1.4,
+ * at about 10⁻³ L☉ a gigayear after it forms; its age as a remnant is floored at
+ * youngestGyr. A neutron star is about 12 km across.
+ */
+export const WHITE_DWARF = { radiusSolar: 0.012, solarAt1Gyr: 1e-3, coolingExponent: 1.4, youngestGyr: 0.001 } as const;
+export const NEUTRON_STAR_RADIUS_SOLAR = 12 / 695_700;
+
+/** A white dwarf's luminosity after cooling for `coolingGyr`, L☉ (Mestel's law). */
+function whiteDwarfLuminosity(coolingGyr: number): number {
+  return WHITE_DWARF.solarAt1Gyr * pow(Math.max(WHITE_DWARF.youngestGyr, coolingGyr), -WHITE_DWARF.coolingExponent);
+}
+
+/** A white dwarf's temperature after cooling for `coolingGyr`, K: Stefan–Boltzmann at its luminosity and radius. */
+function whiteDwarfTemperatureK(coolingGyr: number): number {
+  return SOLAR_TEMPERATURE_K * pow(whiteDwarfLuminosity(coolingGyr) / (WHITE_DWARF.radiusSolar * WHITE_DWARF.radiusSolar), 0.25);
+}
+
+/** A blackbody's luminosity, L☉, from its radius in solar radii and its temperature. */
+function blackbodyLuminosity(radiusSolar: number, temperatureK: number): number {
+  const t = temperatureK / SOLAR_TEMPERATURE_K;
+  return radiusSolar * radiusSolar * t * t * t * t;
+}
+
+/** A giant's luminosity, L☉: 500 L☉ per solar mass or twice its main-sequence light, at most the Humphreys–Davidson limit. */
+function giantLuminosity(mass: number): number {
+  const branches = GIANT_LUMINOSITY.perSolarMass * mass;
+  return Math.min(GIANT_LUMINOSITY.maxSolar, Math.max(branches, GIANT_LUMINOSITY.mainSequenceFactor * mainSequenceLuminosity(mass)));
+}
 
 /** Mass–luminosity relation for a main-sequence star, in solar luminosities. */
 function mainSequenceLuminosity(mass: number): number {
@@ -137,9 +213,9 @@ function mainSequenceLuminosity(mass: number): number {
 
 function calcLuminosity(cls: StellarClass, mass: number, temp: number): number {
   if (cls === "black-hole") return 0;
-  if (cls === "neutron-star") return NEUTRON_STAR_LUMINOSITY;
-  if (cls === "white-dwarf") return WHITE_DWARF_LUMINOSITY.base + (temp / WHITE_DWARF_LUMINOSITY.hottestK) * WHITE_DWARF_LUMINOSITY.range;
-  if (cls === "red-giant") return mainSequenceLuminosity(mass) * GIANT_LUMINOSITY_FACTOR;
+  if (cls === "neutron-star") return blackbodyLuminosity(NEUTRON_STAR_RADIUS_SOLAR, temp);
+  if (cls === "white-dwarf") return blackbodyLuminosity(WHITE_DWARF.radiusSolar, temp);
+  if (cls === "red-giant") return giantLuminosity(mass);
   return mainSequenceLuminosity(mass);
 }
 
@@ -212,13 +288,37 @@ function isRemnant(star: Star): boolean {
   return REMNANTS.includes(star.classification);
 }
 
+// ── A white dwarf's mass, and its planets' wider orbits (A3.3) ──────────────────
+//
+// A star that ends as a white dwarf sheds most of its mass as a giant. Its
+// remnant's mass follows the initial–final mass relation of Kalirai et al.
+// (2008), M_f = 0.109·M_i + 0.394 M☉, below the Chandrasekhar mass. The mass
+// leaves slowly against an orbit's period, so each planet's orbit widens by
+// M_initial / M_final (a·M is conserved) as the star becomes a remnant.
+// `star.mass` stays the star's initial mass: lifespan, colour and history
+// read it. Neutron stars and black holes keep no planets.
+
+/** The white-dwarf initial–final mass relation, M☉ (Kalirai et al. 2008), at most the Chandrasekhar mass. */
+export const WHITE_DWARF_MASS = { perInitialSolar: 0.109, baseSolar: 0.394, maxSolar: 1.38 } as const;
+
+/** The star's mass today, M☉: a white dwarf's remnant mass; any other star's initial mass. */
+export function massTodaySolar(star: Pick<Star, "mass" | "classification">): number {
+  if (star.classification !== "white-dwarf") return star.mass;
+  return Math.min(WHITE_DWARF_MASS.maxSolar, WHITE_DWARF_MASS.perInitialSolar * star.mass + WHITE_DWARF_MASS.baseSolar);
+}
+
+/** How much wider its planets' orbits are today than when they formed: initial / today's mass. */
+export function massLossWidening(star: Pick<Star, "mass" | "classification">): number {
+  return star.mass / massTodaySolar(star);
+}
+
 /** When the star became a remnant, Gyr after it formed. */
-export function remnantFromGyr(star: Star): number {
+export function remnantFromGyr(star: Pick<Star, "lifespan">): number {
   return star.lifespan * REMNANT_FRACTION;
 }
 
 function pastGiantLuminosity(star: Star): number {
-  return mainSequenceLuminosity(star.mass) * GIANT_LUMINOSITY_FACTOR;
+  return giantLuminosity(star.mass);
 }
 
 /** The radius a remnant reached as a giant, AU (Stefan–Boltzmann at PAST_GIANT_TEMPERATURE_K); 0 for other stars. */
@@ -550,6 +650,12 @@ export const RARE_STAR = { massAbove: 40, oldShareAbove: 0.9, oldDwarfMassBelow:
 
 /** Age of every universe, in billion years; no star is older. */
 export const UNIVERSE_AGE_GYR = 13.7;
+// Stars form at a constant rate from the universe's start to today (A2.2): a
+// star's age is drawn uniformly over the universe's age, whatever its lifespan.
+// A star older than its lifespan has ended: a white dwarf, neutron star or
+// black hole. Real galaxies' rates rose and fell (spirals steadily, ellipticals
+// mostly early); a constant rate is the simplest history that makes old stars
+// dead (owner decision: constant rate to start).
 
 // ── Metallicity (MZ2) ─────────────────────────────────────────────────────────
 //
@@ -576,7 +682,7 @@ function starMetallicity(galaxy: GalaxyConfig, id: number, [x, , z]: [number, nu
 function companionFrom(draw: CompanionDraw, age: number, entropyRate: number): Companion {
   const lifespan = calcLifespan(draw.mass) / entropyRate;
   const classification = classify(draw.mass, age, lifespan);
-  const temperature = calcTemperature(classification, draw.mass, draw.temperatureDraw);
+  const temperature = calcTemperature(classification, draw.mass, draw.temperatureDraw, age - lifespan * REMNANT_FRACTION);
   return {
     mass: draw.mass,
     periodDays: draw.periodDays,
@@ -600,19 +706,20 @@ export function generateStarsFor(
   const stars: Star[] = [];
 
   for (let i = 0; i < STAR_COUNT; i++) {
-    // stellarIgnitionThreshold > 1 shrinks the mass roll: fewer heavy stars, more small long-lived ones
-    const massRoll = Math.min(0.9999, rng() * (1 / config.stellarIgnitionThreshold));
-    const mass = generateMass(Math.max(0, massRoll));
+    // stellarIgnitionThreshold > 1 crowds the draw towards light stars: fewer heavy ones, more small long-lived ones
+    const mass = kroupaMass(pow(rng(), config.stellarIgnitionThreshold));
     // entropyRate > 1 = faster decay = shorter lifespans
     const lifespan = calcLifespan(mass) / config.entropyRate;
-    const age = rng() * Math.min(lifespan, universeAgeBY);
+    // Formed at a constant rate over the galaxy's history (A2.2): a star older than its
+    // lifespan is a remnant today, so heavy stars are mostly remnants, as observed
+    const age = rng() * universeAgeBY;
     const cls = classify(mass, age, lifespan);
     const isRare =
       mass > RARE_STAR.massAbove ||
       cls === "neutron-star" ||
       cls === "black-hole" ||
       (cls === "main-sequence" && age > lifespan * RARE_STAR.oldShareAbove && mass < RARE_STAR.oldDwarfMassBelow);
-    const temp = calcTemperature(cls, mass, rng());
+    const temp = calcTemperature(cls, mass, rng(), age - lifespan * REMNANT_FRACTION);
     const luminosity = calcLuminosity(cls, mass, temp);
 
     let pos: [number, number, number];

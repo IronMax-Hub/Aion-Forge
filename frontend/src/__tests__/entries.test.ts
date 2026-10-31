@@ -30,6 +30,10 @@ interface Sample {
   index: UniverseIndex;
 }
 
+// Stars added to a seed's sample for a kind of world its first stars lack: under rules v19 civilizations
+// are rare, and seed 100000's only one, in ruins, is at star 1660
+const EXTRA_STARS: Record<number, number[]> = { 100000: [1660] };
+
 function sampleOf(seed: number): Sample {
   const config = makeConfig(seed);
   const galaxy = buildGalaxyConfig(seed, config);
@@ -41,7 +45,7 @@ function sampleOf(seed: number): Sample {
     return world;
   };
   const rows: IndexRow[] = [];
-  const systems = stars.slice(0, SAMPLE_STARS).map((star) => {
+  const systems = [...stars.slice(0, SAMPLE_STARS), ...(EXTRA_STARS[seed] ?? []).map((id) => stars[id])].map((star) => {
     const system = generatePlanetsFor(star, seed, config, keep);
     rows.push(...indexRowsFor(system, star, seed, config));
     return { star, planets: system.planets };

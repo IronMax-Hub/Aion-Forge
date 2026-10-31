@@ -1,0 +1,426 @@
+{
+  "rulesVersion": 18,
+  "measured": "2026-10-31T09:42:52.473Z",
+  "population": {
+    "seeds": [
+      42,
+      7777,
+      100000,
+      1,
+      2,
+      3
+    ],
+    "stars": 12000,
+    "classShares": {
+      "main-sequence": 0.90625,
+      "red-giant": 0.04775,
+      "protostar": 0.021583333333333333,
+      "white-dwarf": 0.019,
+      "neutron-star": 0.0036666666666666666,
+      "black-hole": 0.00175
+    },
+    "massShares": {
+      "above8": 0.10141666666666667,
+      "above20": 0.03133333333333333,
+      "below1": 0.60425,
+      "below05": 0.26766666666666666
+    },
+    "giants": 573,
+    "maxGiantLuminosity": 4220584117.510192,
+    "maxGiantRadiusAU": 669.4946312008232,
+    "giantsWiderThan5AU": 132
+  },
+  "sweep": [
+    {
+      "orbitAU": 0.45,
+      "meanK": 665,
+      "maxK": 666,
+      "pressureBar": 103.85,
+      "co2Bar": 103.0925,
+      "steam": false,
+      "ocean": 0,
+      "ice": 0,
+      "water": 0,
+      "everLiquidWater": false
+    },
+    {
+      "orbitAU": 0.5,
+      "meanK": 583,
+      "maxK": 583,
+      "pressureBar": 66.67,
+      "co2Bar": 65.8308,
+      "steam": false,
+      "ocean": 0,
+      "ice": 0,
+      "water": 0,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 0.6,
+      "meanK": 336,
+      "maxK": 349,
+      "pressureBar": 0.92,
+      "co2Bar": 0,
+      "steam": false,
+      "ocean": 0.63,
+      "ice": 0,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 0.7,
+      "meanK": 322,
+      "maxK": 335,
+      "pressureBar": 0.96,
+      "co2Bar": 0,
+      "steam": false,
+      "ocean": 0.63,
+      "ice": 0,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 0.72,
+      "meanK": 320,
+      "maxK": 332,
+      "pressureBar": 0.96,
+      "co2Bar": 0,
+      "steam": false,
+      "ocean": 0.63,
+      "ice": 0,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 0.8,
+      "meanK": 310,
+      "maxK": 323,
+      "pressureBar": 0.98,
+      "co2Bar": 0,
+      "steam": false,
+      "ocean": 0.63,
+      "ice": 0,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 0.9,
+      "meanK": 300,
+      "maxK": 312,
+      "pressureBar": 0.98,
+      "co2Bar": 0.0001,
+      "steam": false,
+      "ocean": 0.63,
+      "ice": 0,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 0.95,
+      "meanK": 295,
+      "maxK": 307,
+      "pressureBar": 0.99,
+      "co2Bar": 0.0003,
+      "steam": false,
+      "ocean": 0.63,
+      "ice": 0,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 1,
+      "meanK": 290,
+      "maxK": 302,
+      "pressureBar": 0.99,
+      "co2Bar": 0.0005,
+      "steam": false,
+      "ocean": 0.63,
+      "ice": 0,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 1.1,
+      "meanK": 278,
+      "maxK": 290,
+      "pressureBar": 1,
+      "co2Bar": 0.002,
+      "steam": false,
+      "ocean": 0.572,
+      "ice": 0.128,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 1.2,
+      "meanK": 271,
+      "maxK": 282,
+      "pressureBar": 1.01,
+      "co2Bar": 0.0173,
+      "steam": false,
+      "ocean": 0.489,
+      "ice": 0.256,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 1.3,
+      "meanK": 232,
+      "maxK": 244,
+      "pressureBar": 1.03,
+      "co2Bar": 0.0362,
+      "steam": false,
+      "ocean": 0,
+      "ice": 1,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 1.37,
+      "meanK": 312,
+      "maxK": 315,
+      "pressureBar": 4.44,
+      "co2Bar": 3.4478,
+      "steam": false,
+      "ocean": 0.63,
+      "ice": 0,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 1.5,
+      "meanK": 320,
+      "maxK": 322,
+      "pressureBar": 8,
+      "co2Bar": 7.0024,
+      "steam": false,
+      "ocean": 0.63,
+      "ice": 0,
+      "water": 0.08,
+      "everLiquidWater": true
+    },
+    {
+      "orbitAU": 1.7,
+      "meanK": 220,
+      "maxK": 228,
+      "pressureBar": 1.91,
+      "co2Bar": 0.9082,
+      "steam": false,
+      "ocean": 0,
+      "ice": 1,
+      "water": 0.08,
+      "everLiquidWater": true
+    }
+  ],
+  "steps": [
+    {
+      "stepsPerGyr": 10,
+      "climates": [
+        {
+          "orbitAU": 1,
+          "meanK": 290,
+          "maxK": 302,
+          "pressureBar": 0.99,
+          "co2Bar": 0.0005,
+          "steam": false,
+          "ocean": 0.63,
+          "ice": 0,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.2,
+          "meanK": 271,
+          "maxK": 282,
+          "pressureBar": 1.01,
+          "co2Bar": 0.0173,
+          "steam": false,
+          "ocean": 0.489,
+          "ice": 0.256,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.3,
+          "meanK": 232,
+          "maxK": 244,
+          "pressureBar": 1.03,
+          "co2Bar": 0.0362,
+          "steam": false,
+          "ocean": 0,
+          "ice": 1,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.37,
+          "meanK": 312,
+          "maxK": 315,
+          "pressureBar": 4.44,
+          "co2Bar": 3.4478,
+          "steam": false,
+          "ocean": 0.63,
+          "ice": 0,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.5,
+          "meanK": 320,
+          "maxK": 322,
+          "pressureBar": 8,
+          "co2Bar": 7.0024,
+          "steam": false,
+          "ocean": 0.63,
+          "ice": 0,
+          "water": 0.08,
+          "everLiquidWater": true
+        }
+      ]
+    },
+    {
+      "stepsPerGyr": 20,
+      "climates": [
+        {
+          "orbitAU": 1,
+          "meanK": 287,
+          "maxK": 299,
+          "pressureBar": 0.99,
+          "co2Bar": 0.0002,
+          "steam": false,
+          "ocean": 0.629,
+          "ice": 0.006,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.2,
+          "meanK": 266,
+          "maxK": 278,
+          "pressureBar": 1.01,
+          "co2Bar": 0.0129,
+          "steam": false,
+          "ocean": 0.417,
+          "ice": 0.354,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.3,
+          "meanK": 304,
+          "maxK": 310,
+          "pressureBar": 2.73,
+          "co2Bar": 1.7318,
+          "steam": false,
+          "ocean": 0.63,
+          "ice": 0,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.37,
+          "meanK": 254,
+          "maxK": 260,
+          "pressureBar": 2.76,
+          "co2Bar": 1.7661,
+          "steam": false,
+          "ocean": 0,
+          "ice": 1,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.5,
+          "meanK": 252,
+          "maxK": 256,
+          "pressureBar": 3.89,
+          "co2Bar": 2.8957,
+          "steam": false,
+          "ocean": 0,
+          "ice": 1,
+          "water": 0.08,
+          "everLiquidWater": true
+        }
+      ]
+    },
+    {
+      "stepsPerGyr": 40,
+      "climates": [
+        {
+          "orbitAU": 1,
+          "meanK": 287,
+          "maxK": 299,
+          "pressureBar": 0.99,
+          "co2Bar": 0.0002,
+          "steam": false,
+          "ocean": 0.629,
+          "ice": 0.006,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.2,
+          "meanK": 266,
+          "maxK": 278,
+          "pressureBar": 1.01,
+          "co2Bar": 0.0129,
+          "steam": false,
+          "ocean": 0.417,
+          "ice": 0.354,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.3,
+          "meanK": 234,
+          "maxK": 245,
+          "pressureBar": 1.04,
+          "co2Bar": 0.0478,
+          "steam": false,
+          "ocean": 0,
+          "ice": 1,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.37,
+          "meanK": 246,
+          "maxK": 253,
+          "pressureBar": 1.96,
+          "co2Bar": 0.9589,
+          "steam": false,
+          "ocean": 0,
+          "ice": 1,
+          "water": 0.08,
+          "everLiquidWater": true
+        },
+        {
+          "orbitAU": 1.5,
+          "meanK": 246,
+          "maxK": 251,
+          "pressureBar": 3.17,
+          "co2Bar": 2.1753,
+          "steam": false,
+          "ocean": 0,
+          "ice": 1,
+          "water": 0.08,
+          "everLiquidWater": true
+        }
+      ]
+    }
+  ],
+  "systems": {
+    "seed": 42,
+    "hosts": 250,
+    "planetsPerStar": 3.95,
+    "giantShare": 0.20850202429149797,
+    "hotJupiters": 0,
+    "solids": 782,
+    "solidsAboveNeptunianBranch": 0.3030690537084399,
+    "solidsBelow3gcc": 261,
+    "solidsWithLife": 0.39641943734015345,
+    "everWetWithLife": 0.8051948051948052,
+    "lavaWorlds": 197,
+    "maxLavaK": 8540
+  }
+}

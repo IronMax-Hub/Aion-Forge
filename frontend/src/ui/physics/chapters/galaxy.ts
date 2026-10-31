@@ -82,13 +82,14 @@ export const galaxy: Chapter = {
         { name: "Disc's hottest", value: `${formatInt(DISC_PEAK_TEMPERATURE.kelvin)} K`, meaning: `At the limit around ${formatSolarMasses(DISC_PEAK_TEMPERATURE.atSolar)}; ∝ (rate / mass)^¼` },
       ],
       why: "Observed central black holes run from about a million solar masses in spirals like ours to billions in giant ellipticals, while many dwarf galaxies show none. Most feed slowly, wrapped in faint hot gas like Sagittarius A*; a few feed fast enough for their gas to cool into a thin, brilliant disc (Shakura–Sunyaev).",
-      limits: ["Its mass follows the galaxy's type only, not its size; it does not spin; its feeding rate is drawn, not fed by the galaxy's gas; it acts on nothing: no orbits, no quasar phase, no effect on stars or life."],
+      limits: ["Its mass follows the galaxy's type only, not its size; it does not spin; its feeding rate is drawn, not fed by the galaxy's gas; it acts on nothing: no orbits, no quasar phase, no effect on stars or life.",
+        "In the close-up, the disc's temperature follows the Newtonian Shakura–Sunyaev profile, without its relativistic (Novikov–Thorne) correction, and its colours stop at 40,000 K: hotter gas shows the same blue-white, only brighter."],
       laws: [],
       code: "simulation/blackHole.ts · centralBlackHoleFor",
       effect: (ctx) => {
         const hole = centralBlackHoleFor(ctx.galaxy);
         return [hole
-          ? said(`This galaxy's is ${formatSolarMasses(hole.massSolar)}, its event horizon ${formatHorizonRadius(eventHorizonRadiusKm(hole))} in radius, feeding at ${formatSig(hole.eddingtonRatio, 2)} of its limit: ${hole.accretionMode === "thin-disc" ? `a thin disc, ${formatInt(hole.discPeakTemperatureK)} K at its inner edge` : "a faint hot flow"}.`, "galaxy.type", "galaxy.seed")
+          ? said(`This galaxy's is ${formatSolarMasses(hole.massSolar)}, its event horizon ${formatHorizonRadius(eventHorizonRadiusKm(hole))} in radius, feeding at ${formatSig(hole.eddingtonRatio, 2)} of its limit: ${hole.accretionMode === "thin-disc" ? `a thin disc, ${formatInt(hole.discPeakTemperatureK)} K at its hottest` : "a faint hot flow"}.`, "galaxy.type", "galaxy.seed")
           : said("This galaxy has no central black hole.", "galaxy.type", "galaxy.seed")];
       },
     },

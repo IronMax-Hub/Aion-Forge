@@ -37,8 +37,27 @@
 // - Water phase. Liquid up to the boiling point set by total pressure
 //   (Clausius–Clapeyron, capped at water's critical point). Below 1 atm the
 //   curve passes through water's triple point; below the triple point's
-//   pressure there is no liquid at all: water is ice, or vapour above 273.16 K
-//   (decision 27, with escape, AE2).
+//   pressure there is no liquid at all: water is ice below 273.16 K and
+//   vapour above it (decision 27, with escape, AE2), so a warm basin there is
+//   dry: neither ocean nor ice (fixed in v19: it had been ice at any temperature).
+// - Runaway greenhouse. A wet planet's air can radiate at most about 282 W/m²
+//   (the Simpson–Nakajima limit; Goldblatt et al. 2013): water vapour blocks
+//   more as it warms. A planet that absorbs more than that, starlight and
+//   interior heat together, cannot balance with liquid oceans, whatever its
+//   mean temperature: its oceans boil into the air. In this model's terms that
+//   is an effective temperature above RUNAWAY_EFFECTIVE_K, about 266 K (Earth's
+//   is 255 K), which puts an Earth twin's inner edge near 0.92 AU.
+// - Steam. Once the oceans are steam, the surface temperature is set by what
+//   the steam can radiate, not by the greenhouse above: the air radiates the
+//   limit's 282 W/m² until the surface reaches about 1,600 K, where its light
+//   starts to leave through water vapour's 4 µm window (Goldblatt et al. 2013).
+//   Above that the window carries the rest: absorbed = 282 + ε·σ(T⁴ − 1,600⁴),
+//   with ε the share of a 1,600–2,000 K surface's light at 3.5–4.1 µm (~0.07).
+//   A steam world absorbing less than the limit radiates it all at any
+//   temperature up to 1,600 K, and sits at the greenhouse's value below that.
+// - Maximum CO₂ greenhouse. Beyond about 8 bar of CO₂ more CO₂ reflects as
+//   much starlight as it traps (Kasting et al. 1993, Kopparapu et al. 2013), so
+//   the CO₂ term stops rising there; the pressure term still counts all the gas.
 //
 // Assumptions and limits:
 // - One mean temperature per region; no seasons, no day–night cycle on a
@@ -70,6 +89,8 @@ export const ALBEDO = { ocean: 0.28, land: 0.32, ice: 0.62 };
 export const GREENHOUSE_BASE_K = 16.5;           // dry, per √bar of total pressure
 export const CO2_REFERENCE_BAR = 2.8e-4;  // pre-industrial Earth
 const CO2_FLOOR_BAR = 1e-7;               // below this the log term stops falling
+/** Above this the CO₂ term stops rising: the maximum greenhouse (Kasting et al. 1993). */
+export const MAX_GREENHOUSE_CO2_BAR = 8;
 export const GREENHOUSE_PER_CO2_DOUBLING_K = 1.5; // dry; 3 K with water vapour
 export const GREENHOUSE_PER_SQRT_CH4_K = 150;    // dry; 1,000 ppm of methane gives ~9 K with vapour
 export const VAPOUR_FEEDBACK = 0.5;
@@ -101,6 +122,17 @@ export const CO2_CRITICAL_K = 304.13;
 const CO2_SUBLIMATION_J_PER_MOL = 26_100;   // over ice: 1 atm at 195 K
 const CO2_VAPORIZATION_J_PER_MOL = 15_300;  // over liquid
 
+/** The most a moist atmosphere can radiate, W/m² (Goldblatt et al. 2013). */
+export const RUNAWAY_LIMIT_W_PER_M2 = 282;
+/** The Stefan–Boltzmann constant, W/(m²·K⁴). */
+const STEFAN_BOLTZMANN = 5.670e-8;
+/** The effective temperature at which a planet absorbs RUNAWAY_LIMIT_W_PER_M2: above it, oceans cannot stay liquid, K. */
+export const RUNAWAY_EFFECTIVE_K = pow(RUNAWAY_LIMIT_W_PER_M2 / STEFAN_BOLTZMANN, 0.25);
+/** A steam atmosphere's surface temperature where its light starts to leave through the 4 µm window, K (Goldblatt et al. 2013). */
+export const STEAM_WINDOW_K = 1600;
+/** The share of a hot surface's light that leaves through that window (Planck share at 3.5–4.1 µm, 1,600–2,000 K). */
+export const STEAM_WINDOW_SHARE = 0.07;
+
 const MAX_ICE_ITERATIONS = 30;
 const LN2 = 0.6931471805599453;
 
@@ -116,7 +148,7 @@ export function equilibriumTemperatureK(luminosity: number, orbitAU: number, alb
 
 /** Warming by the atmosphere at Earth's effective temperature, K. `wetness` (0–1) is how much surface water can feed vapour. */
 export function greenhouseK(pressureBar: number, co2Bar: number, ch4Bar: number, wetness: number): number {
-  const co2Doublings = log(Math.max(CO2_FLOOR_BAR, co2Bar) / CO2_REFERENCE_BAR) / LN2;
+  const co2Doublings = log(Math.min(MAX_GREENHOUSE_CO2_BAR, Math.max(CO2_FLOOR_BAR, co2Bar)) / CO2_REFERENCE_BAR) / LN2;
   const dry = GREENHOUSE_BASE_K * Math.sqrt(pressureBar)
     + GREENHOUSE_PER_CO2_DOUBLING_K * co2Doublings
     + GREENHOUSE_PER_SQRT_CH4_K * Math.sqrt(ch4Bar);
@@ -153,6 +185,18 @@ export function surfaceMeanK(eqK: number, intK: number, warmingK: number): numbe
 
 
 
+/**
+ * The surface temperature under a steam atmosphere, K: past the runaway limit, the temperature at
+ * which the 4 µm window radiates what the air cannot; within it, the greenhouse's value `greenhouseMeanK`,
+ * no hotter than where the window opens.
+ */
+export function steamSurfaceK(effectiveK: number, greenhouseMeanK: number): number {
+  const absorbed = STEFAN_BOLTZMANN * effectiveK * effectiveK * effectiveK * effectiveK;
+  if (absorbed <= RUNAWAY_LIMIT_W_PER_M2) return Math.min(greenhouseMeanK, STEAM_WINDOW_K);
+  const window4 = STEAM_WINDOW_K * STEAM_WINDOW_K * STEAM_WINDOW_K * STEAM_WINDOW_K;
+  return pow(window4 + (absorbed - RUNAWAY_LIMIT_W_PER_M2) / (STEAM_WINDOW_SHARE * STEFAN_BOLTZMANN), 0.25);
+}
+
 /** Temperature difference between the most and least lit regions per unit of insolation, K. */
 export function contrastK(pressureBar: number): number {
   return CONTRAST_MAX_K * (REDISTRIBUTION_HALF_BAR / (pressureBar + REDISTRIBUTION_HALF_BAR));
@@ -167,9 +211,14 @@ export function boilingPointK(pressureBar: number): number {
   return t > 0 ? Math.min(WATER_CRITICAL_K, t) : WATER_CRITICAL_K;
 }
 
-/** Below this temperature water is ice, K: the freezing point, or, below the triple point's pressure, always (decision 27). */
+/** Below this temperature water is ice, K: the freezing point, or, below the triple point's pressure, the triple point's temperature (decision 27). */
 export function freezingKAt(pressureBar: number): number {
-  return pressureBar < WATER_TRIPLE_POINT.bar ? Infinity : FREEZING_K;
+  return pressureBar < WATER_TRIPLE_POINT.bar ? WATER_TRIPLE_POINT.K : FREEZING_K;
+}
+
+/** Whether water can lie liquid under this pressure: not below the triple point's (decision 27); above freezing it is vapour there. */
+export function liquidWaterPossible(pressureBar: number): boolean {
+  return pressureBar >= WATER_TRIPLE_POINT.bar;
 }
 
 /** P₂ coefficient of annual-mean insolation for an axial tilt (−0.625 upright, +0.3125 on its side). */
@@ -228,10 +277,14 @@ export interface ClimateInputs {
   wetness: number;
   /** The temperature the interior's heat alone would give the surface, K (IH1). */
   interiorK: number;
+  /** The oceans are steam: the surface temperature is the steam's (steamSurfaceK). */
+  steam?: boolean;
 }
 
 export interface BandClimate {
   meanK: number;
+  /** The effective temperature of the starlight it absorbs and its interior heat, K: above RUNAWAY_EFFECTIVE_K, oceans boil. */
+  effectiveK: number;
   bandK: Float64Array;
   iced: Uint8Array;
   albedo: number;
@@ -252,16 +305,22 @@ function albedoOf(ocean: number, iced: boolean, wetness: number): number {
   return white * ALBEDO.ice + (1 - white) * ALBEDO.land;
 }
 
-/** Global albedo of the bands for an ice cover. */
-export function bandAlbedo(geometry: BandGeometry, bandOcean: Float64Array, iced: Uint8Array, wetness: number): number {
+/**
+ * Global albedo of the bands for an ice cover. `openWater` is each band's water where it is not frozen
+ * (by default all of it; none below water's triple point, where it is vapour).
+ */
+export function bandAlbedo(
+  geometry: BandGeometry, bandOcean: Float64Array, iced: Uint8Array, wetness: number, openWater: Float64Array = bandOcean,
+): number {
   let albedo = 0;
-  for (let k = 0; k < BAND_COUNT; k++) albedo += geometry.areas[k] * albedoOf(bandOcean[k], iced[k] === 1, wetness);
+  for (let k = 0; k < BAND_COUNT; k++) albedo += geometry.areas[k] * albedoOf(iced[k] === 1 ? bandOcean[k] : openWater[k], iced[k] === 1, wetness);
   return albedo;
 }
 
 /** The mean temperature of a climate's inputs over a given equilibrium temperature, K. */
 function meanKOf(eqK: number, inputs: ClimateInputs): number {
-  return surfaceMeanK(eqK, inputs.interiorK, greenhouseK(inputs.pressureBar, inputs.co2Bar, inputs.ch4Bar, inputs.wetness));
+  const greenhouseMeanK = surfaceMeanK(eqK, inputs.interiorK, greenhouseK(inputs.pressureBar, inputs.co2Bar, inputs.ch4Bar, inputs.wetness));
+  return inputs.steam ? steamSurfaceK(effectiveTemperatureK(eqK, inputs.interiorK), greenhouseMeanK) : greenhouseMeanK;
 }
 
 /** The share of the energy that is starlight, T_eq⁴ / T_eff⁴: only starlight is uneven. */
@@ -281,11 +340,15 @@ export function solveBands(
   const bandK = new Float64Array(BAND_COUNT);
   const contrast = contrastK(inputs.pressureBar);
   const freezingK = freezingKAt(inputs.pressureBar);
+  // Below the triple point unfrozen water is vapour: its basins lie dry, as bare land
+  const openWater = liquidWaterPossible(inputs.pressureBar) ? bandOcean : new Float64Array(BAND_COUNT);
   let albedo = 0;
   let meanK = 0;
+  let effectiveK = 0;
   for (let iteration = 0; iteration < MAX_ICE_ITERATIONS; iteration++) {
-    albedo = bandAlbedo(geometry, bandOcean, iced, inputs.wetness);
+    albedo = bandAlbedo(geometry, bandOcean, iced, inputs.wetness, openWater);
     const eqK = equilibriumTemperatureK(inputs.luminosity, inputs.orbitAU, albedo);
+    effectiveK = effectiveTemperatureK(eqK, inputs.interiorK);
     meanK = meanKOf(eqK, inputs);
     const uneven = contrast * starlightShare(eqK, inputs.interiorK);
     let changed = false;
@@ -307,11 +370,11 @@ export function solveBands(
       iceFraction += area * white;
       openLandFraction += area * (1 - white);
     } else {
-      openOceanFraction += area * bandOcean[k];
-      openLandFraction += area * (1 - bandOcean[k]);
+      openOceanFraction += area * openWater[k];
+      openLandFraction += area * (1 - openWater[k]);
     }
   }
-  return { meanK, bandK, iced, albedo, iceFraction, openOceanFraction, openLandFraction };
+  return { meanK, effectiveK, bandK, iced, albedo, iceFraction, openOceanFraction, openLandFraction };
 }
 
 // ── Present day: all 642 cells ────────────────────────────────────────────────
@@ -343,6 +406,8 @@ export interface PresentClimate {
   seaLevelKm: number;
   /** The wetness the climate was solved for: how much of frozen land is snow. */
   wetness: number;
+  /** Below this temperature its water is ice, K (freezingKAt its pressure): the globe draws ice by it. */
+  freezingK: number;
 }
 
 // Moisture halves with every cell (~1,100 km on Earth) from open water
@@ -396,17 +461,20 @@ export function solvePresentClimate(
   }
 
   const contrast = contrastK(inputs.pressureBar);
+  const freezingK = freezingKAt(inputs.pressureBar);
+  // Below the triple point unfrozen water is vapour: its basins lie dry (decision 27)
+  const liquidPossible = liquidWaterPossible(inputs.pressureBar);
   const temperatureK = new Float64Array(n);
   for (let iteration = 0; iteration < MAX_ICE_ITERATIONS; iteration++) {
     let albedo = 0;
-    for (let i = 0; i < n; i++) albedo += grid.areas[i] * albedoOf(ocean[i], iced[i] === 1, inputs.wetness);
+    for (let i = 0; i < n; i++) albedo += grid.areas[i] * albedoOf(iced[i] || liquidPossible ? ocean[i] : 0, iced[i] === 1, inputs.wetness);
     const eqK = equilibriumTemperatureK(inputs.luminosity, inputs.orbitAU, albedo);
     const meanK = meanKOf(eqK, inputs);
     const uneven = contrast * starlightShare(eqK, inputs.interiorK);
     let changed = false;
     for (let i = 0; i < n; i++) {
       temperatureK[i] = Math.max(inputs.interiorK, meanK + uneven * (insolation[i] / insolationMean - 1));
-      const frozen = temperatureK[i] < freezingKAt(inputs.pressureBar) ? 1 : 0;
+      const frozen = temperatureK[i] < freezingK ? 1 : 0;
       if (frozen !== iced[i]) { iced[i] = frozen; changed = true; }
     }
     if (!changed) break;
@@ -429,10 +497,12 @@ export function solvePresentClimate(
       const white = icedShare(ocean[i], inputs.wetness);
       iceFraction += area * white;
       surface[i] = white >= 0.5 ? SURFACE_KIND.ice : SURFACE_KIND.land;
-    } else if (ocean[i]) {
+    } else if (ocean[i] && liquidPossible) {
       oceanFraction += area;
       surface[i] = SURFACE_KIND.ocean;
       openWater[i] = 1;
+    } else if (ocean[i]) {
+      ocean[i] = 0;   // vapour: the basin holds no water today
     }
   }
 
@@ -442,7 +512,7 @@ export function solvePresentClimate(
   let liquidUnderIceFraction = 0;
   if (!steam) {
     const heatFlow = heatFlowAt(inputs.interiorK);
-    const noOpenWater = freezingKAt(inputs.pressureBar) === Infinity;
+    const noOpenWater = !liquidPossible;
     for (let i = 0; i < n; i++) {
       if (noOpenWater && temperatureK[i] >= ICE_SHELL_BASE_K) continue;
       if (iced[i] && ocean[i] && seaLevelKm - geography.elevationKm[i] > iceShellKm(heatFlow, temperatureK[i])) {
@@ -453,7 +523,7 @@ export function solvePresentClimate(
 
   const moisture = moistureOf(openWater, temperatureK);
   const boilingK = boilingPointK(inputs.pressureBar);
-  const liquid = (t: number) => !steam && inputs.wetness > 0 && t >= freezingKAt(inputs.pressureBar) && t < boilingK;
+  const liquid = (t: number) => !steam && liquidPossible && inputs.wetness > 0 && t >= freezingK && t < boilingK;
   let habitableFraction = 0;
   const liquidAreaByBand = new Float64Array(BAND_COUNT);
   const areaByBand = new Float64Array(BAND_COUNT);
@@ -485,5 +555,6 @@ export function solvePresentClimate(
     cellSubmerged: ocean,
     seaLevelKm,
     wetness: inputs.wetness,
+    freezingK,
   };
 }

@@ -3,7 +3,9 @@
 
 import { z } from "zod";
 
-const seed      = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+// The simulation reads a seed's low 32 bits (frontend simulation/rng.ts, MAX_SEED),
+// so wider seeds would alias another universe and its ID (AF-016)
+const seed      = z.number().int().nonnegative().max(0xffffffff);
 const count     = z.number().int().nonnegative();
 const factor    = z.number().finite().positive();
 const epochMs   = z.number().int().nonnegative();

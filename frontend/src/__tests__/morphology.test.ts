@@ -107,13 +107,15 @@ describe("body plans of real planets", () => {
   const seed = 100000;
   const config = makeConfig(seed);
   const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
+  // Three stars with living complex life today (rules v19; no living body in this universe reaches 1 kg,
+  // so planets with bodies of 1 g or more: 101-3, 445-5 and 1660-1)
+  const hosts = [101, 445, 1660].map((id) => stars[id]);
   const living: { world: SolidWorld; planetId: number; starId: number }[] = [];
-  for (const star of stars) {
+  for (const star of hosts) {
     for (const planet of generatePlanetsFor(star, seed, config).planets) {
-      if (planet.life?.endedGyr !== null || !planet.surface || planet.life.phylogeny.largestLog10BodyMassKg! < 0) continue;
+      if (planet.life?.endedGyr !== null || !planet.surface || planet.life.phylogeny.largestLog10BodyMassKg! < -3) continue;
       living.push({ world: solidWorldOf(planet, star, seed, config), planetId: planet.id, starId: star.id });
     }
-    if (living.length >= 3) break;
   }
 
   it("give every lineage of a living, complex planet a sound plan", () => {

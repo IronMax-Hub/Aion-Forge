@@ -45,7 +45,7 @@ import { createRNG, mixSeed, SALT } from "./rng";
 import { bodyKey } from "./bodyKey";
 import { cos, sin } from "./detmath";
 import type { Planet } from "./planet";
-import { GIANT_PLANET_MASS } from "./planetBasics";
+import { ENVELOPE_FROM_EARTH_RADII } from "./planetBasics";
 import type { PlanetPhysics } from "./planetPhysics";
 import { tectonicActivity } from "./planetPhysics";
 
@@ -263,9 +263,9 @@ export interface Geography {
   bands: GeographyBand[];
 }
 
-/** Whether a planet has a surface: everything but the giants (R7). */
-export function hasSolidSurface(planet: Planet): boolean {
-  return planet.mass <= GIANT_PLANET_MASS;
+/** Whether a planet has a surface: one smaller than the radius valley; sub-Neptunes and giants have none (R7, A3.4). */
+export function hasSolidSurface(planet: Pick<Planet, "size">): boolean {
+  return planet.size < ENVELOPE_FROM_EARTH_RADII;
 }
 
 /** Global water layer depth in km for a planet's water inventory. */

@@ -1,8 +1,9 @@
+import { hasSolidSurface } from "../simulation/geography";
 import { describe, it, expect } from "vitest";
 import { atmosphereComposition } from "../simulation/atmosphereComposition";
 import { waterSaturationBar } from "../simulation/climate";
 import type { Gas } from "../simulation/atmosphereComposition";
-import { generatePlanetsFor, GIANT_PLANET_MASS, planetKey } from "../simulation/planet";
+import { generatePlanetsFor, planetKey } from "../simulation/planet";
 import type { Planet, PlanetSurface } from "../simulation/planet";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import type { Star } from "../simulation/star";
@@ -21,8 +22,8 @@ const config = makeConfig(seed);
 const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 400);
 const all: { star: Star; planet: Planet }[] = stars.flatMap((star) =>
   generatePlanetsFor(star, seed, config).planets.map((planet) => ({ star, planet })));
-const solid = all.filter(({ planet }) => planet.mass <= GIANT_PLANET_MASS);
-const giants = all.filter(({ planet }) => planet.mass > GIANT_PLANET_MASS);
+const solid = all.filter(({ planet }) => hasSolidSurface(planet));
+const giants = all.filter(({ planet }) => !hasSolidSurface(planet));
 const civilizationOf = (planet: Planet, star: Star) =>
   generateCivilization(generateBiosphere(planet, star), planet, seed).civilization;
 

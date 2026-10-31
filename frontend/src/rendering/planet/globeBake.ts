@@ -22,7 +22,6 @@
 // Presentation only: it reads what the planet is and never writes to the simulation.
 
 import * as THREE from "three";
-import { FREEZING_K } from "../../simulation/climate";
 import type { Vegetation } from "./life";
 import type { SurfaceMapData } from "./surfaceMap";
 import { surfaceMapTexture, SURFACE_MAP_HEIGHT, SURFACE_MAP_WIDTH } from "./surfaceMap";
@@ -71,6 +70,8 @@ export interface SurfaceBakeInputs {
   overcast: number;
   /** Water's boiling point under the planet's air, K. */
   boilingK: number;
+  /** Below this its water is ice, K (the present climate's freezingK): higher below water's triple point. */
+  freezingK: number;
   /** Life's tint (A9); null on a lifeless planet. */
   vegetation: Vegetation | null;
 }
@@ -113,7 +114,7 @@ export class GlobeBake {
       surfaceMap: { value: map },
       noiseOffset: { value: new THREE.Vector3(...inputs.noiseOffset) },
       wetness: { value: inputs.wetness },
-      freezingK: { value: FREEZING_K },
+      freezingK: { value: inputs.freezingK },
       bumpScale: { value: inputs.bumpScale },
       cloudOffset: { value: new THREE.Vector3(...inputs.cloudOffset) },
       overcast: { value: inputs.overcast },

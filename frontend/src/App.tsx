@@ -7,7 +7,8 @@ import { generateGalaxy, buildGalaxyConfig, GALAXY_PARTICLE_COUNT } from "./simu
 import type { GalaxyConfig, GalaxyType, GalaxyParticles } from "./simulation/galaxy";
 import { generateStarsFor, irradianceAt, UNIVERSE_AGE_GYR } from "./simulation/star";
 import type { Star, StellarPopulation } from "./simulation/star";
-import { generatePlanetsFor, solidWorldOf, effectiveOrbitAU, GIANT_PLANET_MASS } from "./simulation/planet";
+import { generatePlanetsFor, solidWorldOf, effectiveOrbitAU } from "./simulation/planet";
+import { hasSolidSurface } from "./simulation/geography";
 import { derivePhysics } from "./simulation/planetPhysics";
 import type { Planet, PlanetarySystem, SolidWorld } from "./simulation/planet";
 import { generateBiosphere } from "./simulation/biosphere";
@@ -53,6 +54,7 @@ import type { Entry, SubjectRef } from "./ui/encyclopedia/entry";
 import type { UniverseIndex } from "./simulation/universeIndex";
 import { bodyName, moonName, starName, planetLifeLabel, lifeMarkerLabel, civilizationMarkerLabel, formatSolarMasses, PLANET_TYPE_LABEL } from "./ui/format";
 import { makeUniverseId, generateUniverseSummary, importUniverseFromFile } from "./simulation/persistence";
+import { isSeed, MAX_SEED } from "./simulation/rng";
 import type { UniverseMeta, DiscoveryItem } from "./simulation/persistence";
 import { makeJournalEntry } from "./simulation/journal";
 import type { JournalEntry } from "./simulation/journal";
@@ -436,8 +438,9 @@ export default function App() {
 
   const handleSeedSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = parseInt(inputSeed, 10);
-    if (!isNaN(parsed) && parsed >= 0) {
+    // Whole digits only, within the seeds the simulation can tell apart (AF-016)
+    const parsed = /^\d+$/.test(inputSeed.trim()) ? Number(inputSeed.trim()) : NaN;
+    if (isSeed(parsed)) {
       setSeed(parsed);
       generate(parsed);
     }
@@ -661,7 +664,7 @@ export default function App() {
     if (star) {
       // What the planet view draws: the planet's own world, kept from opening the system, lit by its star
       const sight = systemSightsRef.current.get(planet.key) ?? (() => {
-        const world = planet.mass <= GIANT_PLANET_MASS ? solidWorldOf(planet, star, currentSeed, universeConfig) : null;
+        const world = hasSolidSurface(planet) ? solidWorldOf(planet, star, currentSeed, universeConfig) : null;
         const biosphere = systemBiosphereRef.current.get(planet.key) ?? generateBiosphere(planet, star);
         return planetSightOf(planet, star, world, biosphere, generateCivilization(biosphere, planet, currentSeed).civilization);
       })();
@@ -717,7 +720,7 @@ export default function App() {
     ui.panelOpen();
     ambientLayer.setContext("system", systemColour(String(star.id), star.temperature, system.planets.length));
 
-    rendererRef.current.renderPlanetarySystem(system, star, (planet, moonIndex) => {
+    rendererRef.current.renderPlanetarySystem(system, star, universeConfig, (planet, moonIndex) => {
       setSelectedPlanet(planet);
       setSelectedSmallMoon(planet && moonIndex !== undefined ? { planetKey: planet.key, moonIndex } : null);
       setSelectedBiosphere(null);
@@ -1113,6 +1116,8 @@ export default function App() {
             className="seed-input"
             type="number"
             min={0}
+            max={MAX_SEED}
+            step={1}
             placeholder="Enter seed…"
             value={inputSeed}
             onChange={(e) => setInputSeed(e.target.value)}

@@ -1,6 +1,7 @@
+import { hasSolidSurface } from "../simulation/geography";
 import { describe, it, expect } from "vitest";
 import { HILL_SHARE, LARGE_MOON, MOON_COUNT, MOON_ECCENTRICITY, MOON_WATER, TILT_HOLDING_RATIO, moonOrbitLimit, moonsOf, SATELLITE_MASS_RATIO } from "../simulation/moons";
-import { generatePlanetsFor, GIANT_PLANET_MASS, solidWorldOf } from "../simulation/planet";
+import { generatePlanetsFor, solidWorldOf } from "../simulation/planet";
 import { PLANET_MASS_DRAW } from "../simulation/planetBasics";
 import { buildGeography } from "../simulation/geography";
 import { surveyLife } from "../simulation/lifeSurvey";
@@ -18,7 +19,7 @@ const seed = 100000;
 const config = makeConfig(seed);
 const stars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars.slice(0, 300);
 const giants = stars.flatMap((star) => generatePlanetsFor(star, seed, config).planets
-  .filter((p) => p.mass > GIANT_PLANET_MASS).map((planet) => ({ planet, star })));
+  .filter((p) => !hasSolidSurface(p)).map((planet) => ({ planet, star })));
 
 const sun: Star = {
   id: 1, position: [0, 0, 0], mass: 1, age: 4.6, lifespan: 10, temperature: 5772, luminosity: 1,
@@ -37,7 +38,7 @@ describe("regular moons of giants (MO2)", () => {
     const withoutWorlds = (moons: Planet["moons"]) => moons.map((m) => ({ ...m, world: null }));
     for (const { planet } of giants) expect(withoutWorlds(planet.moons)).toEqual(moonsOf(planet, stars.find((s) => s.id === planet.hostStarId)!, seed, config));
     for (const star of stars.slice(0, 50)) {
-      for (const p of generatePlanetsFor(star, seed, config).planets) if (p.mass <= GIANT_PLANET_MASS) expect(p.moons.length).toBeLessThanOrEqual(1);
+      for (const p of generatePlanetsFor(star, seed, config).planets) if (hasSolidSurface(p)) expect(p.moons.length).toBeLessThanOrEqual(1);
     }
   });
 
@@ -186,7 +187,7 @@ describe("moons as worlds (MO4)", () => {
 
 describe("large moons of rocky planets (MO5)", () => {
   const rocky = stars.flatMap((star) => generatePlanetsFor(star, seed, config).planets
-    .filter((p) => p.mass <= GIANT_PLANET_MASS).map((planet) => ({ planet, star })));
+    .filter((p) => hasSolidSurface(p)).map((planet) => ({ planet, star })));
 
   it("come to about one rocky planet in four, within the drawn ranges", () => {
     const withMoon = rocky.filter(({ planet }) => planet.moons.length > 0);

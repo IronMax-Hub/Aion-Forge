@@ -40,8 +40,10 @@ const earths = Array.from({ length: 40 }, (_, copy) => earth(copy));
 const seed = 100000;
 const config = makeConfig(seed);
 const allStars = generateStarsFor(buildGalaxyConfig(seed, config), UNIVERSE_AGE_GYR, config).stars;
-// The first hundred systems, and the first two with a mind (minds are rare from rules v14: stars 288 and 297)
-const stars = [...allStars.slice(0, 100), allStars[288], allStars[297]];
+// The first hundred systems, the first two whose life oxygenates its air and the only one with a mind
+// (rules v19: oxygen-making life is rare around the red dwarfs that most stars now are, and seed 100000's
+// one mind is at star 1660; under v14–v18 the first minds were at stars 288 and 297)
+const stars = [...allStars.slice(0, 100), allStars[101], allStars[156], allStars[1660]];
 const worlds = stars.flatMap((star) => generatePlanetsFor(star, seed, config).planets
   .filter((planet) => planet.surface !== null)
   .map((planet) => {

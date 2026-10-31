@@ -59,6 +59,18 @@ describe("central black hole", () => {
     }
   });
 
+  it("puts the disc's hottest temperature where Shakura–Sunyaev does, at the limit around 10⁸ M☉", () => {
+    // SI constants: G, c, σ (Stefan–Boltzmann), the Sun's mass, and the Eddington luminosity per solar mass
+    const G = 6.674e-11, C = 2.998e8, SIGMA = 5.670e-8, SUN_KG = 1.989e30, EDDINGTON_W_PER_SUN = 1.257e31;
+    const mass = DISC_PEAK_TEMPERATURE.atSolar * SUN_KG;
+    const efficiency = 1 - Math.sqrt(8 / 9);                       // a non-spinning hole's, to its innermost stable orbit
+    const inflow = (EDDINGTON_W_PER_SUN * DISC_PEAK_TEMPERATURE.atSolar) / (efficiency * C * C);
+    const innerEdge = (6 * G * mass) / (C * C);
+    const hottestShare = (36 / 49) ** 3 * (1 - Math.sqrt(36 / 49));   // at r = 49/36 of the inner edge
+    const kelvin = ((3 * G * mass * inflow * hottestShare) / (8 * Math.PI * SIGMA * innerEdge ** 3)) ** 0.25;
+    expect(Math.abs(DISC_PEAK_TEMPERATURE.kelvin / kelvin - 1)).toBeLessThan(0.01);
+  });
+
   it("has Sagittarius A*'s horizon at its mass", () => {
     expect(eventHorizonRadiusKm({ massSolar: 4.3e6 })).toBeCloseTo(1.27e7, -5);
   });

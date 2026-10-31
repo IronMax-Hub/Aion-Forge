@@ -5,6 +5,7 @@ import {
 } from "../simulation/binary";
 import type { Companion } from "../simulation/binary";
 import { effectiveOrbitAU, generatePlanetsFor } from "../simulation/planet";
+import { orbitAUAt } from "../simulation/planetBasics";
 import {
   companionAsStar, companionLuminosityAt, generateStarsFor, irradianceAt, luminosityAt, mainSequenceEndGyr, receivedLuminosityAt,
   stellarRadiusAU, UNIVERSE_AGE_GYR, xuvFluence,
@@ -119,7 +120,9 @@ describe("where planets can orbit (BS2)", () => {
     for (const { star, system } of systems) {
       removed += system.unstable;
       for (const p of system.planets) {
-        const where = binaryOrbitOf(effectiveOrbitAU(p.orbitalRadius, config), star.mass, star.companion!);
+        // Judged where the planet formed: a white dwarf's planets have since moved out (A3.3), and the
+        // instability that can bring them is not modelled
+        const where = binaryOrbitOf(orbitAUAt(p.orbitalRadius, config, star, 0), star.mass, star.companion!);
         expect(where).not.toBe("unstable");
         expect(p.orbitsBothStars === true).toBe(where === "around-both");
         if (p.orbitsBothStars) aroundBoth++;

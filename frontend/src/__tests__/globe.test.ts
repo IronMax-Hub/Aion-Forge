@@ -1,3 +1,4 @@
+import { hasSolidSurface } from "../simulation/geography";
 import { describe, it, expect } from "vitest";
 import * as THREE from "three";
 import { cubeSphereGeometry } from "../rendering/planet/cubeSphere";
@@ -11,7 +12,7 @@ import { PlanetView, SECONDS_PER_ROTATION, globeMaterial, globeOrientation, spin
 import { axisFrame } from "../rendering/planet/surfaceMap";
 import { derivePhysics } from "../simulation/planetPhysics";
 import { surfaceGrid } from "../simulation/geography";
-import { generatePlanetsFor, solidWorldOf, GIANT_PLANET_MASS } from "../simulation/planet";
+import { generatePlanetsFor, solidWorldOf } from "../simulation/planet";
 import type { Planet } from "../simulation/planet";
 import { generateStarsFor, UNIVERSE_AGE_GYR } from "../simulation/star";
 import type { Star } from "../simulation/star";
@@ -104,7 +105,7 @@ describe("baked globe atlas", () => {
 describe("which planets get a globe", () => {
   it("draws every solid planet's surface, lava worlds included; giants get bands instead", () => {
     for (const { planet } of all) {
-      expect(drawsSurface(planet)).toBe(planet.mass <= GIANT_PLANET_MASS);
+      expect(drawsSurface(planet)).toBe(hasSolidSurface(planet));
     }
     expect(drawn.length).toBeGreaterThan(GLOBE_CACHE_SIZE);
   });

@@ -61,8 +61,13 @@ export const THIN_DISC_FROM_EDDINGTON = 0.01;
 /**
  * A thin disc's hottest temperature, K, at the Eddington limit around a black hole of
  * `atSolar` M☉. It scales as (rate / mass)^¼, so lighter and hungrier black holes have hotter discs.
+ *
+ * From Shakura–Sunyaev: σT⁴ = (3GMṀ / 8πr³)(1 − √(r_in/r)), hottest at r = 49/36 r_in, where
+ * the bracket times (r_in/r)³ is 0.05665. The inner edge r_in is the innermost stable orbit of
+ * a non-spinning hole, 6GM/c², which also sets the efficiency η = 1 − √(8/9) ≈ 0.057. At the
+ * limit, Ṁ = L_Edd / ηc² with L_Edd = 1.26×10³¹ W per M☉, and at 10⁸ M☉ that gives 1.54×10⁵ K.
  */
-export const DISC_PEAK_TEMPERATURE = { kelvin: 5e5, atSolar: 1e8 } as const;
+export const DISC_PEAK_TEMPERATURE = { kelvin: 1.54e5, atSolar: 1e8 } as const;
 
 export type BlackHoleKind = "supermassive" | "intermediate-mass";
 
@@ -74,7 +79,7 @@ export interface CentralBlackHole {
   kind: BlackHoleKind;
   eddingtonRatio: number;        // how fast it feeds, as a share of its Eddington limit
   accretionMode: AccretionMode;
-  discPeakTemperatureK: number;  // its gas's hottest temperature, at the disc's inner edge
+  discPeakTemperatureK: number;  // its gas's hottest temperature, just outside the disc's inner edge
 }
 
 /** The galaxy's central black hole, or null for a galaxy that has none; the same galaxy always gives the same one. */

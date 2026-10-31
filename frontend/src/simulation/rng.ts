@@ -17,6 +17,18 @@ export function createRNG(seed: number) {
 
 export type RNG = ReturnType<typeof createRNG>;
 
+/**
+ * The largest universe seed. createRNG and makeUniverseId read a seed's low 32
+ * bits, so seeds 2³² apart would make the same universe under the same ID:
+ * seeds are kept to 0…2³²−1 wherever they are entered or read (AF-016).
+ */
+export const MAX_SEED = 0xffffffff;
+
+/** Whether `value` is a universe seed: a whole number from 0 to MAX_SEED. */
+export function isSeed(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_SEED;
+}
+
 // ── Stream seeds ──────────────────────────────────────────────────────────────
 //
 // Why: combining ids with XOR is symmetric, so star 2 / planet 5 and star 5 /
@@ -71,6 +83,7 @@ export const SALT = {
   MOON:           0x300F5A7E,   // a giant's regular moons (MO2)
   COMPANION:      0xB1A2C0DE,   // each star's companion, if it has one (BS1)
   BLACK_HOLE:     0xB1AC0E01,   // the galaxy's central black hole, if it has one
+  MIGRATION:      0x407E0A11,   // whether a system's giant migrated inward to become a hot Jupiter (A3.5)
 } as const;
 
 /** A standard normal draw (Box–Muller), from two draws of `rng`. */

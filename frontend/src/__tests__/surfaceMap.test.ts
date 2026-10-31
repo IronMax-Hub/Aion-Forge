@@ -8,7 +8,7 @@ import type { Star } from "../simulation/star";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { makeConfig } from "../simulation/config";
 import { surfaceGrid } from "../simulation/geography";
-import { FREEZING_K, SURFACE_KIND } from "../simulation/climate";
+import { SURFACE_KIND } from "../simulation/climate";
 import {
   buildSurfaceMap, sampleSurfaceMap, surfaceMapTexture, directionAt,
   SURFACE_MAP_CHANNELS, SURFACE_MAP_WIDTH, SURFACE_MAP_HEIGHT,
@@ -96,10 +96,10 @@ describe("surface map", () => {
       positions.forEach((p, i) => {
         const t = sampleSurfaceMap(uploaded, p, SURFACE_MAP_CHANNELS.temperatureK);
         expect(t).toBeCloseTo(present.cellTemperatureK[i], -0.5);   // within ~1.5 K after filtering and half precision
-        if (Math.abs(present.cellTemperatureK[i] - FREEZING_K) < 2) return;
+        if (Math.abs(present.cellTemperatureK[i] - present.freezingK) < 2) return;
         const submerged = sampleSurfaceMap(uploaded, p, SURFACE_MAP_CHANNELS.submerged) > 0.5;
-        // The shader's rule: frozen water is ice, frozen land is snow as far as the planet is wet
-        const kind = t < FREEZING_K
+        // The shader's rule, at the world's own freezing point: frozen water is ice, frozen land is snow as far as the planet is wet
+        const kind = t < present.freezingK
           ? (submerged || present.wetness >= 0.5 ? SURFACE_KIND.ice : SURFACE_KIND.land)
           : (submerged ? SURFACE_KIND.ocean : SURFACE_KIND.land);
         expect(kind).toBe(present.cellSurface[i]);

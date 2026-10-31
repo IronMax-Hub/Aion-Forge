@@ -3,7 +3,7 @@ import {
   airRetained, criticalDose, EARTH_OCEANS_LOST_PER_GYR, EARTH_XUV_FLUENCE, moistThresholdK, REFERENCE_SUN, WATER_LOST_PER_DOSE, waterLost,
   xuvDose,
 } from "../simulation/atmosphericEscape";
-import { boilingPointK, freezingKAt, WATER_TRIPLE_POINT } from "../simulation/climate";
+import { bandGeometry, boilingPointK, freezingKAt, liquidWaterPossible, solveBands, WATER_TRIPLE_POINT } from "../simulation/climate";
 import {
   generateStarsFor, GIANT_LUMINOSITY, luminosityAt, mainSequenceEndGyr, MASS_LUMINOSITY_EXPONENT, pastGiantRadiusAU,
   remnantFromGyr, temperatureAt, PAST_GIANT_TEMPERATURE_K, UNIVERSE_AGE_GYR, xuvLuminosityAt,
@@ -14,7 +14,7 @@ import { buildGalaxyConfig } from "../simulation/galaxy";
 import { effectiveOrbitAU, generatePlanetsFor, solidWorldOf } from "../simulation/planet";
 import { WATER_INSIDE_SNOW_LINE } from "../simulation/planetPhysics";
 import { runWorldHistory } from "../simulation/worldHistory";
-import { buildGeography } from "../simulation/geography";
+import { BAND_COUNT, buildGeography } from "../simulation/geography";
 
 const keeps = (escapeVelocityKms: number, orbitAU: number) =>
   airRetained(xuvDose(REFERENCE_SUN, orbitAU, 0, REFERENCE_SUN.age), escapeVelocityKms);
@@ -83,9 +83,25 @@ describe("water's triple point (decision 27)", () => {
     expect(boilingPointK(0.001)).toBe(WATER_TRIPLE_POINT.K);
   });
 
-  it("holds no liquid water below the triple point's pressure", () => {
-    expect(freezingKAt(0.001)).toBe(Infinity);
+  it("holds no liquid water below the triple point's pressure: ice below 273.16 K, vapour above", () => {
+    expect(liquidWaterPossible(0.001)).toBe(false);
+    expect(freezingKAt(0.001)).toBe(WATER_TRIPLE_POINT.K);
+    expect(liquidWaterPossible(1)).toBe(true);
     expect(freezingKAt(1)).toBe(263);
+  });
+
+  it("leaves a warm, nearly airless world's basins dry: neither ocean nor ice (v19; they had been ice at any temperature)", () => {
+    const geometry = bandGeometry(23, false);
+    const ocean = new Float64Array(BAND_COUNT).fill(0.6);
+    const air = { luminosity: 1.5, orbitAU: 1, pressureBar: 0.001, co2Bar: 0, ch4Bar: 0, wetness: 1, interiorK: 35 };
+    const warm = solveBands(geometry, ocean, air, new Uint8Array(BAND_COUNT));
+    // Airless, its poles stay cold: only bands below 273.16 K hold ice, and no band holds open water
+    expect(Math.max(...warm.bandK)).toBeGreaterThan(WATER_TRIPLE_POINT.K + 20);
+    warm.bandK.forEach((k, band) => expect(warm.iced[band]).toBe(k < WATER_TRIPLE_POINT.K ? 1 : 0));
+    expect(warm.openOceanFraction).toBe(0);
+    // The same world far out is frozen: its water is ice
+    const cold = solveBands(geometry, ocean, { ...air, orbitAU: 3 }, new Uint8Array(BAND_COUNT));
+    expect(cold.iceFraction).toBeGreaterThan(0.5);
   });
 });
 

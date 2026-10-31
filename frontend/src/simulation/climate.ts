@@ -37,8 +37,9 @@
 // - Water phase. Liquid up to the boiling point set by total pressure
 //   (Clausius–Clapeyron, capped at water's critical point). Below 1 atm the
 //   curve passes through water's triple point; below the triple point's
-//   pressure there is no liquid at all: water is ice, or vapour above 273.16 K
-//   (decision 27, with escape, AE2).
+//   pressure there is no liquid at all: water is ice below 273.16 K and
+//   vapour above it (decision 27, with escape, AE2), so a warm basin there is
+//   dry: neither ocean nor ice (fixed in v19: it had been ice at any temperature).
 // - Runaway greenhouse. A wet planet's air can radiate at most about 282 W/m²
 //   (the Simpson–Nakajima limit; Goldblatt et al. 2013): water vapour blocks
 //   more as it warms. A planet that absorbs more than that, starlight and
@@ -210,9 +211,14 @@ export function boilingPointK(pressureBar: number): number {
   return t > 0 ? Math.min(WATER_CRITICAL_K, t) : WATER_CRITICAL_K;
 }
 
-/** Below this temperature water is ice, K: the freezing point, or, below the triple point's pressure, always (decision 27). */
+/** Below this temperature water is ice, K: the freezing point, or, below the triple point's pressure, the triple point's temperature (decision 27). */
 export function freezingKAt(pressureBar: number): number {
-  return pressureBar < WATER_TRIPLE_POINT.bar ? Infinity : FREEZING_K;
+  return pressureBar < WATER_TRIPLE_POINT.bar ? WATER_TRIPLE_POINT.K : FREEZING_K;
+}
+
+/** Whether water can lie liquid under this pressure: not below the triple point's (decision 27); above freezing it is vapour there. */
+export function liquidWaterPossible(pressureBar: number): boolean {
+  return pressureBar >= WATER_TRIPLE_POINT.bar;
 }
 
 /** P₂ coefficient of annual-mean insolation for an axial tilt (−0.625 upright, +0.3125 on its side). */
@@ -299,10 +305,15 @@ function albedoOf(ocean: number, iced: boolean, wetness: number): number {
   return white * ALBEDO.ice + (1 - white) * ALBEDO.land;
 }
 
-/** Global albedo of the bands for an ice cover. */
-export function bandAlbedo(geometry: BandGeometry, bandOcean: Float64Array, iced: Uint8Array, wetness: number): number {
+/**
+ * Global albedo of the bands for an ice cover. `openWater` is each band's water where it is not frozen
+ * (by default all of it; none below water's triple point, where it is vapour).
+ */
+export function bandAlbedo(
+  geometry: BandGeometry, bandOcean: Float64Array, iced: Uint8Array, wetness: number, openWater: Float64Array = bandOcean,
+): number {
   let albedo = 0;
-  for (let k = 0; k < BAND_COUNT; k++) albedo += geometry.areas[k] * albedoOf(bandOcean[k], iced[k] === 1, wetness);
+  for (let k = 0; k < BAND_COUNT; k++) albedo += geometry.areas[k] * albedoOf(iced[k] === 1 ? bandOcean[k] : openWater[k], iced[k] === 1, wetness);
   return albedo;
 }
 
@@ -329,11 +340,13 @@ export function solveBands(
   const bandK = new Float64Array(BAND_COUNT);
   const contrast = contrastK(inputs.pressureBar);
   const freezingK = freezingKAt(inputs.pressureBar);
+  // Below the triple point unfrozen water is vapour: its basins lie dry, as bare land
+  const openWater = liquidWaterPossible(inputs.pressureBar) ? bandOcean : new Float64Array(BAND_COUNT);
   let albedo = 0;
   let meanK = 0;
   let effectiveK = 0;
   for (let iteration = 0; iteration < MAX_ICE_ITERATIONS; iteration++) {
-    albedo = bandAlbedo(geometry, bandOcean, iced, inputs.wetness);
+    albedo = bandAlbedo(geometry, bandOcean, iced, inputs.wetness, openWater);
     const eqK = equilibriumTemperatureK(inputs.luminosity, inputs.orbitAU, albedo);
     effectiveK = effectiveTemperatureK(eqK, inputs.interiorK);
     meanK = meanKOf(eqK, inputs);
@@ -357,8 +370,8 @@ export function solveBands(
       iceFraction += area * white;
       openLandFraction += area * (1 - white);
     } else {
-      openOceanFraction += area * bandOcean[k];
-      openLandFraction += area * (1 - bandOcean[k]);
+      openOceanFraction += area * openWater[k];
+      openLandFraction += area * (1 - openWater[k]);
     }
   }
   return { meanK, effectiveK, bandK, iced, albedo, iceFraction, openOceanFraction, openLandFraction };
@@ -393,6 +406,8 @@ export interface PresentClimate {
   seaLevelKm: number;
   /** The wetness the climate was solved for: how much of frozen land is snow. */
   wetness: number;
+  /** Below this temperature its water is ice, K (freezingKAt its pressure): the globe draws ice by it. */
+  freezingK: number;
 }
 
 // Moisture halves with every cell (~1,100 km on Earth) from open water
@@ -446,17 +461,20 @@ export function solvePresentClimate(
   }
 
   const contrast = contrastK(inputs.pressureBar);
+  const freezingK = freezingKAt(inputs.pressureBar);
+  // Below the triple point unfrozen water is vapour: its basins lie dry (decision 27)
+  const liquidPossible = liquidWaterPossible(inputs.pressureBar);
   const temperatureK = new Float64Array(n);
   for (let iteration = 0; iteration < MAX_ICE_ITERATIONS; iteration++) {
     let albedo = 0;
-    for (let i = 0; i < n; i++) albedo += grid.areas[i] * albedoOf(ocean[i], iced[i] === 1, inputs.wetness);
+    for (let i = 0; i < n; i++) albedo += grid.areas[i] * albedoOf(iced[i] || liquidPossible ? ocean[i] : 0, iced[i] === 1, inputs.wetness);
     const eqK = equilibriumTemperatureK(inputs.luminosity, inputs.orbitAU, albedo);
     const meanK = meanKOf(eqK, inputs);
     const uneven = contrast * starlightShare(eqK, inputs.interiorK);
     let changed = false;
     for (let i = 0; i < n; i++) {
       temperatureK[i] = Math.max(inputs.interiorK, meanK + uneven * (insolation[i] / insolationMean - 1));
-      const frozen = temperatureK[i] < freezingKAt(inputs.pressureBar) ? 1 : 0;
+      const frozen = temperatureK[i] < freezingK ? 1 : 0;
       if (frozen !== iced[i]) { iced[i] = frozen; changed = true; }
     }
     if (!changed) break;
@@ -479,10 +497,12 @@ export function solvePresentClimate(
       const white = icedShare(ocean[i], inputs.wetness);
       iceFraction += area * white;
       surface[i] = white >= 0.5 ? SURFACE_KIND.ice : SURFACE_KIND.land;
-    } else if (ocean[i]) {
+    } else if (ocean[i] && liquidPossible) {
       oceanFraction += area;
       surface[i] = SURFACE_KIND.ocean;
       openWater[i] = 1;
+    } else if (ocean[i]) {
+      ocean[i] = 0;   // vapour: the basin holds no water today
     }
   }
 
@@ -492,7 +512,7 @@ export function solvePresentClimate(
   let liquidUnderIceFraction = 0;
   if (!steam) {
     const heatFlow = heatFlowAt(inputs.interiorK);
-    const noOpenWater = freezingKAt(inputs.pressureBar) === Infinity;
+    const noOpenWater = !liquidPossible;
     for (let i = 0; i < n; i++) {
       if (noOpenWater && temperatureK[i] >= ICE_SHELL_BASE_K) continue;
       if (iced[i] && ocean[i] && seaLevelKm - geography.elevationKm[i] > iceShellKm(heatFlow, temperatureK[i])) {
@@ -503,7 +523,7 @@ export function solvePresentClimate(
 
   const moisture = moistureOf(openWater, temperatureK);
   const boilingK = boilingPointK(inputs.pressureBar);
-  const liquid = (t: number) => !steam && inputs.wetness > 0 && t >= freezingKAt(inputs.pressureBar) && t < boilingK;
+  const liquid = (t: number) => !steam && liquidPossible && inputs.wetness > 0 && t >= freezingK && t < boilingK;
   let habitableFraction = 0;
   const liquidAreaByBand = new Float64Array(BAND_COUNT);
   const areaByBand = new Float64Array(BAND_COUNT);
@@ -535,5 +555,6 @@ export function solvePresentClimate(
     cellSubmerged: ocean,
     seaLevelKm,
     wetness: inputs.wetness,
+    freezingK,
   };
 }

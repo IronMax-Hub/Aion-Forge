@@ -174,6 +174,7 @@ export class GlobeTextureCache {
         cloudOffset: cloudOffsetOf(planet, galaxySeed),
         overcast: overcastShare(planet.surface?.pressureBar ?? 0),
         boilingK: boilingPointK(planet.surface?.pressureBar ?? 0),
+        freezingK: world.history.present.freezingK,
         vegetation,
       }, this.detail);
     } else {

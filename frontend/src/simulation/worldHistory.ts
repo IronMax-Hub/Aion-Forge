@@ -103,7 +103,7 @@ import type { Geography } from "./geography";
 import { areaBelow, BAND_COUNT, seaLevelFor, waterDepthKm } from "./geography";
 import type { PresentClimate } from "./climate";
 import {
-  bandAlbedo, bandGeometry, boilingPointK, co2SaturationBar, freezingKAt, CO2_REFERENCE_BAR, equilibriumTemperatureK, greenhouseK,
+  bandAlbedo, bandGeometry, boilingPointK, co2SaturationBar, liquidWaterPossible, CO2_REFERENCE_BAR, equilibriumTemperatureK, greenhouseK,
   RUNAWAY_EFFECTIVE_K, solveBands, solvePresentClimate, surfaceMeanK,
 } from "./climate";
 import { airRetained, moistThresholdK, waterLost, xuvDose } from "./atmosphericEscape";
@@ -480,9 +480,10 @@ export function runWorldHistory(
   const liquidShares = (iced: Uint8Array, bandK: Float64Array, pressureBar: number, heatFlow: number, steam: boolean) => {
     const liquid = new Float64Array(BAND_COUNT);
     if (steam) return liquid;
-    const noOpenWater = freezingKAt(pressureBar) === Infinity;
+    const noOpenWater = !liquidWaterPossible(pressureBar);
     geography.bands.forEach((band, k) => {
-      if (!iced[k]) { liquid[k] = bandOcean[k]; return; }
+      // Open water as it is; below the triple point unfrozen water is vapour, none of it liquid
+      if (!iced[k]) { liquid[k] = noOpenWater ? 0 : bandOcean[k]; return; }
       if (band.area === 0 || bandOcean[k] === 0) return;
       if (noOpenWater && bandK[k] >= ICE_SHELL_BASE_K) return;
       const shellKm = iceShellKm(heatFlow, bandK[k]);
@@ -562,17 +563,20 @@ export function runWorldHistory(
       const stepInteriorK = interiorTemperatureK(interiorHeatFlow(planet, tEnd));
       // Weathering needs liquid water and rock: bare land as far as it is wet, and the
       // ocean floor at a fraction of land's rate; none under ice or while the oceans are steam
+      // Below the triple point unfrozen water is vapour: its basins are dry rock, and no sea floor weathers
+      const liquidPossible = liquidWaterPossible(pressureAt(start.co2));
+      const openWater = liquidPossible ? bandOcean : new Float64Array(BAND_COUNT);
       let openLand = 0;
       let openOcean = 0;
       for (let k = 0; k < BAND_COUNT; k++) {
         if (start.iced[k]) continue;
-        openLand += geometry.areas[k] * (1 - bandOcean[k]);
-        openOcean += geometry.areas[k] * bandOcean[k];
+        openLand += geometry.areas[k] * (1 - openWater[k]);
+        openOcean += geometry.areas[k] * openWater[k];
       }
       const weatherableLand = state.steam ? 0 : openLand * wetness + SEAFLOOR_WEATHERING_SHARE * openOcean;
       let co2 = start.co2 + outgassing * span;
       if (weatherableLand > 0) {
-        const eqK = equilibriumTemperatureK(stepLuminosity, stepOrbitAU, bandAlbedo(geometry, bandOcean, start.iced, wetness));
+        const eqK = equilibriumTemperatureK(stepLuminosity, stepOrbitAU, bandAlbedo(geometry, bandOcean, start.iced, wetness, openWater));
         const weathering = (c: number) => {
           const meanK = surfaceMeanK(eqK, stepInteriorK, greenhouseK(pressureAt(c), c, state.ch4Bar, wetness));
           return WEATHERING_BAR_PER_GYR * g * weatherableLand * Math.sqrt(c / CO2_REFERENCE_BAR)

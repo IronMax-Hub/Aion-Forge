@@ -93,7 +93,7 @@
 import { createRNG, gaussian, mixSeed, SALT } from "./rng";
 import { exp } from "./detmath";
 import type { Planet } from "./planet";
-import { effectiveOrbitAU } from "./planetBasics";
+import { orbitAUAt } from "./planetBasics";
 import type { PlanetPhysics } from "./planetPhysics";
 import { bodyKey } from "./bodyKey";
 import { ICE_SHELL_BASE_K, iceShellKm, interiorActivity, interiorHeatFlow, interiorTemperatureK } from "./interiorHeat";
@@ -229,6 +229,8 @@ export interface WorldEvent {
 /** The state of the planet at the end of a step. */
 export interface WorldState {
   tGyr: number;
+  /** The orbit this step, AU: a white dwarf's planets were closer in before it shed its mass (A3.3). */
+  orbitAU: number;
   luminosity: number;
   tectonicActivity: number;
   water: number;             // inventory, A1 scale
@@ -380,14 +382,15 @@ export function runWorldHistory(
   cfg?: UniverseConfig, options: WorldHistoryOptions = {},
 ): WorldHistory {
   const config = cfg ?? makeConfig(galaxySeed);
-  const orbitAU = effectiveOrbitAU(planet.orbitalRadius, config);
+  // The orbit at a time: a white dwarf's planets were closer in before it shed its mass (A3.3)
+  const orbitAt = (tGyr: number) => orbitAUAt(planet.orbitalRadius, config, star, tGyr);
   const g = physics.surfaceGravity;
   // Escape (AE2): the dose before the history begins, and the air it leaves
   const startGyr = Math.min(star.age, FORMATION_DELAY_GYR);
   const formationBackgroundBar = physics.surfacePressureBar;
   // In a binary, both stars' light and XUV reach the world (BS3)
   const aroundBoth = planet.orbitsBothStars === true;
-  const startDose = xuvDose(star, orbitAU, 0, startGyr, aroundBoth);
+  const startDose = xuvDose(star, orbitAt(0), 0, startGyr, aroundBoth);
   const startRetained = airRetained(startDose, physics.escapeVelocityKms);
   let backgroundBar = formationBackgroundBar * startRetained;
   let geometry = bandGeometry(physics.axialTiltDeg, physics.tidallyLocked);
@@ -404,7 +407,8 @@ export function runWorldHistory(
   // Formation: warm, ice-free, with the water it was born with
   let state: WorldState = {
     tGyr: startGyr,
-    luminosity: receivedLuminosityAt(star, orbitAU, aroundBoth, startGyr),
+    luminosity: receivedLuminosityAt(star, orbitAt(startGyr), aroundBoth, startGyr),
+    orbitAU: orbitAt(startGyr),
     tectonicActivity: interiorActivity(planet, startGyr),
     water: physics.waterInventory,
     co2Bar: INITIAL_CO2_BAR * startRetained,
@@ -510,6 +514,7 @@ export function runWorldHistory(
     if (step === 1 && formationBackgroundBar > 0 && startRetained === 0) events.push({ kind: "air-lost", tGyr: t });
 
     // 1–2. Star and interior; the step's XUV dose and the air it leaves (AE2)
+    const orbitAU = orbitAt(t);
     const luminosity = receivedLuminosityAt(star, orbitAU, aroundBoth, t);
     const stepDose = xuvDose(star, orbitAU, t0, t, aroundBoth);
     const dose = state.xuvDose + stepDose;
@@ -550,7 +555,8 @@ export function runWorldHistory(
      * starting temperature freeze out, and its ice sublime back below it (decision 28).
      */
     const carbonAndClimate = (start: CarbonStart, span: number, tEnd: number, freezeOut: boolean) => {
-      const stepLuminosity = receivedLuminosityAt(star, orbitAU, aroundBoth, tEnd);
+      const stepOrbitAU = orbitAt(tEnd);
+      const stepLuminosity = receivedLuminosityAt(star, stepOrbitAU, aroundBoth, tEnd);
       const stepInteriorK = interiorTemperatureK(interiorHeatFlow(planet, tEnd));
       // Weathering needs liquid water and rock: bare land as far as it is wet, and the
       // ocean floor at a fraction of land's rate; none under ice or while the oceans are steam
@@ -564,7 +570,7 @@ export function runWorldHistory(
       const weatherableLand = state.steam ? 0 : openLand * wetness + SEAFLOOR_WEATHERING_SHARE * openOcean;
       let co2 = start.co2 + outgassing * span;
       if (weatherableLand > 0) {
-        const eqK = equilibriumTemperatureK(stepLuminosity, orbitAU, bandAlbedo(geometry, bandOcean, start.iced, wetness));
+        const eqK = equilibriumTemperatureK(stepLuminosity, stepOrbitAU, bandAlbedo(geometry, bandOcean, start.iced, wetness));
         const weathering = (c: number) => {
           const meanK = surfaceMeanK(eqK, stepInteriorK, greenhouseK(pressureAt(c), c, state.ch4Bar, wetness));
           return WEATHERING_BAR_PER_GYR * g * weatherableLand * Math.sqrt(c / CO2_REFERENCE_BAR)
@@ -586,7 +592,7 @@ export function runWorldHistory(
         }
       }
       const climate = solveBands(geometry, bandOcean, {
-        luminosity: stepLuminosity, orbitAU, co2Bar: co2, ch4Bar: state.ch4Bar, wetness, pressureBar: pressureAt(co2),
+        luminosity: stepLuminosity, orbitAU: stepOrbitAU, co2Bar: co2, ch4Bar: state.ch4Bar, wetness, pressureBar: pressureAt(co2),
         interiorK: stepInteriorK, steam: state.steam,
       }, start.iced);
       return { co2, co2Ice, climate };
@@ -680,7 +686,7 @@ export function runWorldHistory(
 
     const stepEvents = events.slice(eventsBefore).map((e) => e.kind);
     state = {
-      tGyr: t, luminosity, tectonicActivity: tau, water, co2Bar: co2, co2IceBar: co2Ice, o2Bar: o2, ch4Bar: ch4,
+      tGyr: t, orbitAU, luminosity, tectonicActivity: tau, water, co2Bar: co2, co2IceBar: co2Ice, o2Bar: o2, ch4Bar: ch4,
       ozone: Math.min(1, Math.sqrt(o2 / O2_REFERENCE_BAR)), unoxidisedCrust,
       backgroundBar, xuvDose: dose, airRetained: retained,
       pressureBar: pressureOf(co2, o2, ch4, water, steam),
@@ -718,7 +724,7 @@ export function runWorldHistory(
   // first step, this sets the starting climate and records no event.
   if (stepCount === 0) {
     const climate = solveBands(geometry, bandOcean, {
-      luminosity: state.luminosity, orbitAU, pressureBar: state.pressureBar, co2Bar: state.co2Bar,
+      luminosity: state.luminosity, orbitAU: state.orbitAU, pressureBar: state.pressureBar, co2Bar: state.co2Bar,
       ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water), interiorK: interiorTemperatureK(interiorHeatFlow(planet, state.tGyr)),
     }, state.iced);
     const steam = state.water >= OCEANS_LOST_WATER
@@ -733,7 +739,7 @@ export function runWorldHistory(
   }
 
   const present = solvePresentClimate(geography, {
-    luminosity: state.luminosity, orbitAU, pressureBar: state.pressureBar, co2Bar: state.co2Bar,
+    luminosity: state.luminosity, orbitAU: state.orbitAU, pressureBar: state.pressureBar, co2Bar: state.co2Bar,
     ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water), interiorK: interiorTemperatureK(interiorHeatFlow(planet, state.tGyr)),
     steam: state.steam,
   }, seaLevelKm, state.steam, state.axialTiltDeg, physics.tidallyLocked, state.iced);

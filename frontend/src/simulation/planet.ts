@@ -2,7 +2,7 @@ import { createRNG, mixSeed, SALT } from "./rng";
 import { bodyKey, planetKey } from "./bodyKey";
 import { pow } from "./detmath";
 import type { Star } from "./star";
-import { companionAsStar, companionLuminosityAt, luminosityAt, pastGiantRadiusAU, stellarRadiusAU } from "./star";
+import { companionAsStar, companionLuminosityAt, luminosityAt, massLossWidening, pastGiantRadiusAU, stellarRadiusAU } from "./star";
 import { makeConfig } from "./config";
 import { binaryOrbitOf } from "./binary";
 import { settleNeighbours } from "./rogues";
@@ -475,6 +475,9 @@ export function generatePlanetsFor(
   // and so can a companion (BS3), at the world's least distance from it
   const companion = companionAsStar(star);
   const companionRadiusAU = companion ? Math.max(stellarRadiusAU(companion), pastGiantRadiusAU(companion)) : 0;
+  // A white dwarf's surviving planets were pushed out as its giant shed its mass (A3.3): orbits are
+  // drawn, tested and settled where they formed, and kept where they are today
+  const widening = massLossWidening(star);
 
   let engulfed = 0;
   let tooSmall = 0;
@@ -485,7 +488,8 @@ export function generatePlanetsFor(
     // A companion allows orbits close to the star or far out around both, not between (BS2)
     const binaryOrbit = star.companion && binaryOrbitOf(orbitAU, star.mass, star.companion);
     // Stellar heating, from both stars in a binary (BS3), decides what atmosphere a planet can keep
-    const equilibriumK = equilibriumTemp(star.luminosity + companionLuminosityAt(star, orbitAU, binaryOrbit === "around-both", star.age), orbitAU);
+    const todayAU = orbitAU * widening;
+    const equilibriumK = equilibriumTemp(star.luminosity + companionLuminosityAt(star, todayAU, binaryOrbit === "around-both", star.age), todayAU);
     const atmosphere = pickAtmosphere(mass, rng, () => createRNG(mixSeed(galaxySeed, ...bodyKey({ hostStarId: star.id, id: idx }), SALT.AIR))());
     rng(); // the old type roll: still taken so the draws below stay aligned
     // Planets of the same mass differ in make-up, so in size: ±20% around the typical radius
@@ -510,7 +514,7 @@ export function generatePlanetsFor(
       id: idx,
       key: planetKey(star.id, idx),
       hostStarId: star.id,
-      orbitalRadius,
+      orbitalRadius: orbitalRadius * widening,
       orbitalIndex: idx,
       type: "gas-giant",
       size,

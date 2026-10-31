@@ -5,6 +5,8 @@
 import type { UniverseConfig } from "./config";
 import type { AtmosphereType } from "./planet";
 import { pow } from "./detmath";
+import type { Star } from "./star";
+import { massLossWidening, remnantFromGyr } from "./star";
 
 /** The atmosphere draw: none, thin, moderate and thick below these bounds of one draw, else crushing (planets and moons). */
 export const ATMOSPHERE_DRAW = { noneBelow: 0.15, thinBelow: 0.35, moderateBelow: 0.70, thickBelow: 0.90 } as const;
@@ -28,6 +30,16 @@ export const GIANT_PLANET_MASS = 15;
  */
 export function effectiveOrbitAU(orbitalRadius: number, config: UniverseConfig): number {
   return orbitalRadius / Math.sqrt(config.gravityStrength);
+}
+
+/**
+ * The orbit t Gyr after the star formed, AU (A3.3): today's (`orbitalRadius`, effective) once
+ * the star is a white dwarf, and narrower by the mass it lost before that; for any other star, today's.
+ */
+export function orbitAUAt(orbitalRadius: number, config: UniverseConfig, star: Pick<Star, "mass" | "classification" | "lifespan">, tGyr: number): number {
+  const today = effectiveOrbitAU(orbitalRadius, config);
+  const widening = massLossWidening(star);
+  return widening > 1 && tGyr < remnantFromGyr(star) ? today / widening : today;
 }
 
 // Planet masses (Earth masses). A draw u in 0–1 maps log-uniformly onto

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { makeConfig } from "../simulation/config";
 import { buildGalaxyConfig } from "../simulation/galaxy";
 import { EARTH_MASS_IN_SUNS, HILL_SHARE, moonOrbitLimit } from "../simulation/moons";
-import { effectiveOrbitAU, generatePlanetsFor } from "../simulation/planet";
+import { effectiveOrbitAU, generatePlanetsFor, solidWorldOf } from "../simulation/planet";
+import { orbitAUAt } from "../simulation/planetBasics";
+import { runWorldHistory } from "../simulation/worldHistory";
 import { derivePhysics } from "../simulation/planetPhysics";
-import { generateStarsFor } from "../simulation/star";
+import { generateStarsFor, massLossWidening, massTodaySolar, remnantFromGyr } from "../simulation/star";
 import type { Star } from "../simulation/star";
 
 // Planets' and moons' orbits against Kepler and Hill (Phase 3, A3).
@@ -24,7 +26,7 @@ const systems = SEEDS.flatMap((seed) => {
 describe("planets that orbit both stars (A3.1)", () => {
   const aroundBoth = systems.flatMap(({ seed, config, star, planets }) =>
     planets.filter((p) => p.orbitsBothStars).map((planet) => ({ seed, config, star, planet })));
-  const pairMass = (star: Star) => star.mass + star.companion!.mass;
+  const pairMass = (star: Star) => massTodaySolar(star) + star.companion!.mass;
 
   it("go round the pair's whole mass, by Kepler's law, in equal and unequal pairs", () => {
     expect(aroundBoth.length).toBeGreaterThan(20);
@@ -67,5 +69,43 @@ describe("moons within their planets' reach (A3.2)", () => {
     const cramped = planets.filter(({ star, planet }) => planet.surface !== null && moonOrbitLimit(planet, star, config) < 30);
     expect(cramped.length).toBeGreaterThan(20);
     for (const { planet } of cramped) expect(planet.moons).toEqual([]);
+  });
+});
+
+describe("planets of white dwarfs (A3.3)", () => {
+  const seed = 42;
+  const config = makeConfig(seed);
+  const dwarfs = generateStarsFor(buildGalaxyConfig(seed, config), undefined, config).stars
+    .filter((star) => star.classification === "white-dwarf").slice(0, 60);
+  const systems = dwarfs.map((star) => ({ star, planets: generatePlanetsFor(star, seed, config).planets })).filter((s) => s.planets.length > 0);
+
+  it("weighs a white dwarf by the initial–final mass relation, and widens its planets' orbits by what it lost", () => {
+    expect(systems.length).toBeGreaterThan(10);
+    for (const { star, planets } of systems) {
+      const remnant = massTodaySolar(star);
+      expect(remnant).toBeCloseTo(Math.min(1.38, 0.109 * star.mass + 0.394), 12);
+      expect(massLossWidening(star)).toBeGreaterThan(1.5);
+      for (const planet of planets) {
+        const today = effectiveOrbitAU(planet.orbitalRadius, config);
+        expect(orbitAUAt(planet.orbitalRadius, config, star, 0) * massLossWidening(star)).toBeCloseTo(today, 12);
+        expect(orbitAUAt(planet.orbitalRadius, config, star, star.age)).toBe(today);
+        // Kepler today: round the remnant, on the widened orbit
+        if (!planet.orbitsBothStars) {
+          expect(derivePhysics(planet, star, seed, config).orbitalPeriodYears).toBeCloseTo(Math.sqrt(today ** 3 / remnant), 12);
+        }
+      }
+    }
+  });
+
+  it("gives a white dwarf's planet its closer orbit in its history until the star became a remnant", () => {
+    const { star, planet } = systems.flatMap((s) => s.planets.filter((p) => p.surface !== null).map((p) => ({ star: s.star, planet: p })))[0];
+    const world = solidWorldOf(planet, star, seed, config);
+    const h = runWorldHistory(planet, world.physics, world.geography, star, seed, config, { keepSnapshots: true });
+    const today = effectiveOrbitAU(planet.orbitalRadius, config);
+    for (const s of h.snapshots!) {
+      expect(s.orbitAU).toBeCloseTo(s.tGyr < remnantFromGyr(star) ? today / massLossWidening(star) : today, 12);
+    }
+    expect(h.snapshots!.some((s) => s.tGyr < remnantFromGyr(star))).toBe(true);
+    expect(h.snapshots!.some((s) => s.tGyr >= remnantFromGyr(star))).toBe(true);
   });
 });

@@ -288,8 +288,32 @@ function isRemnant(star: Star): boolean {
   return REMNANTS.includes(star.classification);
 }
 
+// ── A white dwarf's mass, and its planets' wider orbits (A3.3) ──────────────────
+//
+// A star that ends as a white dwarf sheds most of its mass as a giant. Its
+// remnant's mass follows the initial–final mass relation of Kalirai et al.
+// (2008), M_f = 0.109·M_i + 0.394 M☉, below the Chandrasekhar mass. The mass
+// leaves slowly against an orbit's period, so each planet's orbit widens by
+// M_initial / M_final (a·M is conserved) as the star becomes a remnant.
+// `star.mass` stays the star's initial mass: lifespan, colour and history
+// read it. Neutron stars and black holes keep no planets.
+
+/** The white-dwarf initial–final mass relation, M☉ (Kalirai et al. 2008), at most the Chandrasekhar mass. */
+export const WHITE_DWARF_MASS = { perInitialSolar: 0.109, baseSolar: 0.394, maxSolar: 1.38 } as const;
+
+/** The star's mass today, M☉: a white dwarf's remnant mass; any other star's initial mass. */
+export function massTodaySolar(star: Pick<Star, "mass" | "classification">): number {
+  if (star.classification !== "white-dwarf") return star.mass;
+  return Math.min(WHITE_DWARF_MASS.maxSolar, WHITE_DWARF_MASS.perInitialSolar * star.mass + WHITE_DWARF_MASS.baseSolar);
+}
+
+/** How much wider its planets' orbits are today than when they formed: initial / today's mass. */
+export function massLossWidening(star: Pick<Star, "mass" | "classification">): number {
+  return star.mass / massTodaySolar(star);
+}
+
 /** When the star became a remnant, Gyr after it formed. */
-export function remnantFromGyr(star: Star): number {
+export function remnantFromGyr(star: Pick<Star, "lifespan">): number {
   return star.lifespan * REMNANT_FRACTION;
 }
 

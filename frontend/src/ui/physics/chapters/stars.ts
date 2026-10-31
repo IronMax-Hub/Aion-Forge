@@ -2,7 +2,7 @@
 
 import {
   ACTIVITY_DECAY_EXPONENT, ACTIVITY_SCALE, ENVELOPE_FADE_K, PAST_GIANT_TEMPERATURE_K, SOLAR_AGE_GYR, SOLAR_RADIUS_AU, GIANT_LUMINOSITY, LIFESPAN, luminosityAt, MAIN_SEQUENCE_BRIGHTENING,
-  MAIN_SEQUENCE_END_FRACTION, KROUPA_IMF, MASS_LUMINOSITY_EXPONENT, MS_RADIUS_EXPONENT, NEUTRON_STAR_RADIUS_SOLAR,
+  MAIN_SEQUENCE_END_FRACTION, KROUPA_IMF, WHITE_DWARF_MASS, MASS_LUMINOSITY_EXPONENT, MS_RADIUS_EXPONENT, NEUTRON_STAR_RADIUS_SOLAR,
   PROTOSTAR_FRACTION, PROTOSTAR_MAX_GYR, RARE_STAR, REMNANT_FRACTION, REMNANT_MASS, SATURATION, saturationTimeGyr,
   SOLAR_TEMPERATURE_K, SOLAR_XUV_TODAY, stellarRadiusAU, TEMP_RANGE, TEMPERATURE_JITTER, UNIVERSE_AGE_GYR,
   WHITE_DWARF, XUV_MAX_NM, XUV_SATURATED_SHARE, xuvLuminosityAt,
@@ -173,11 +173,14 @@ export const stars: Chapter = {
     {
       id: "star-radius",
       title: "Size, and planets swallowed",
-      statement: "A star's radius follows from its light and temperature. A giant swells to an AU or more and swallows the planets inside it; a remnant swallowed those inside the giant it once was.",
+      statement: "A star's radius follows from its light and temperature. A giant swells to tenths of an AU and swallows the planets inside it; a remnant swallowed those inside the giant it once was. A white dwarf's surviving planets were pushed outward as its giant shed its mass: their orbits widened by the mass the star lost.",
       rule: `R = R☉ × √L × (${SOLAR_TEMPERATURE_K} K / T)²; a planet whose orbit lies inside R is removed`,
-      constants: [{ name: "The Sun's radius", value: `${SOLAR_RADIUS_AU} AU`, meaning: "R☉" }],
-      why: "Stefan–Boltzmann again: a cool, bright giant must be enormous.",
-      limits: ["Engulfment is decided by today's radius only: a planet is gone or untouched, never partly evaporated or moved outward by the star's mass loss."],
+      constants: [
+        { name: "The Sun's radius", value: `${SOLAR_RADIUS_AU} AU`, meaning: "R☉" },
+        { name: "White dwarf mass", value: `${WHITE_DWARF_MASS.perInitialSolar} M_i + ${WHITE_DWARF_MASS.baseSolar} M☉`, meaning: `The initial–final mass relation (Kalirai et al. 2008), at most ${WHITE_DWARF_MASS.maxSolar} M☉; orbits widen by M_i / M_f` },
+      ],
+      why: "Stefan–Boltzmann again: a cool, bright giant must be enormous. A star that loses mass slowly holds its planets more loosely, and each orbit widens so that a·M stays the same.",
+      limits: ["Engulfment is decided by the giant's one radius: a planet is gone or untouched, never partly evaporated.", "A white dwarf's planets move out, but a companion's orbit does not, and the instability that can follow is not modelled."],
       laws: [{ law: "gravityStrength", how: "Orbits move in by √gravity, so more planets lie inside a giant" }],
       code: "simulation/star.ts · stellarRadiusAU; simulation/planet.ts · generatePlanetsFor",
       effect: (ctx) => {

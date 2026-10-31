@@ -79,9 +79,10 @@ describe("the Great Filter funnel", () => {
     // (5,911, 2,760, 2,120, 395, 152, 116, 10, 3, 3, 3, 0, 0 of 6,893 planets). Rules v18 (RP1): 127 planets
     // thrown out by a neighbour too close to share their orbits (5,806, 2,690, 2,062, 388, 151, 115, 10, 3, 3,
     // 3, 0, 0 of 6,766). Rules v19, the audit's corrections (Documents/Phase-3-v18-to-v19.md): the runaway
-    // limit, the Kroupa IMF with most stars red dwarfs, sub-Neptunes and orbits scaled with the star. Life is
-    // commoner, oxygen and minds far rarer
-    expect(funnel.steps.map((s) => s.passed)).toEqual([5259, 3037, 2459, 541, 35, 26, 1, 0, 0, 0, 0, 0]);
+    // limit, the Kroupa IMF with most stars red dwarfs, sub-Neptunes and orbits scaled with the star, and warm
+    // water below the triple point as vapour, not ice (whose "liquid under ice" had let life start on warm,
+    // airless worlds). Life is commoner, oxygen and minds far rarer
+    expect(funnel.steps.map((s) => s.passed)).toEqual([5259, 2976, 2333, 396, 35, 26, 1, 0, 0, 0, 0, 0]);
     for (let g = 1; g < funnel.steps.length; g++) {
       expect(funnel.steps[g].arrived).toBe(funnel.steps[g - 1].passed);
       expect(funnel.steps[g].passed).toBeLessThanOrEqual(funnel.steps[g].arrived);

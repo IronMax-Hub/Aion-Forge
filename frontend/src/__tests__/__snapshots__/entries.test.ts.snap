@@ -4,26 +4,17 @@ exports[`reference entries > a frozen living world 1`] = `
 {
   "chronicle": [
     {
-      "agoGyr": 3.7410882418509575,
+      "agoGyr": 3.711088241850957,
       "sentence": {
         "sources": [
           "star.age",
           "planet.orbitalIndex",
         ],
-        "text": "The planet formed at 0.216 AU.",
+        "text": "The planet formed at 0.809 AU.",
       },
     },
     {
-      "agoGyr": 2.591088241850957,
-      "sentence": {
-        "sources": [
-          "planet.worldEvents.air-lost",
-        ],
-        "text": "The last of its air was lost to space.",
-      },
-    },
-    {
-      "agoGyr": 1.091088241850957,
+      "agoGyr": 2.7910882418509573,
       "sentence": {
         "sources": [
           "planet.life.startedGyr",
@@ -32,21 +23,21 @@ exports[`reference entries > a frozen living world 1`] = `
       },
     },
     {
-      "agoGyr": 0.19108824185095719,
+      "agoGyr": 2.4910882418509575,
       "sentence": {
         "sources": [
-          "planet.life.phylogeny.firsts.light",
+          "biosphere.extinctions",
         ],
-        "text": "The first organisms that live on starlight appeared.",
+        "text": "Mass extinction: volcanic pulse ended 40% of living lineages.",
       },
     },
   ],
-  "citation": "AF-U-0001-86A0 · v19 · 0000 b",
-  "designation": "0000 b",
+  "citation": "AF-U-0001-86A0 · v19 · 0000 e",
+  "designation": "0000 e",
   "facts": [
     {
       "label": "Designation",
-      "value": "0000 b",
+      "value": "0000 e",
     },
     {
       "label": "Type",
@@ -54,35 +45,35 @@ exports[`reference entries > a frozen living world 1`] = `
     },
     {
       "label": "Orbit",
-      "value": "0.216 AU",
+      "value": "0.809 AU",
     },
     {
       "label": "Period",
-      "value": "67.2 days",
+      "value": "1.33 years",
     },
     {
       "label": "Mass",
-      "value": "0.248 M⊕",
+      "value": "0.446 M⊕",
     },
     {
       "label": "Radius",
-      "value": "0.697 R⊕",
+      "value": "0.831 R⊕",
     },
     {
       "label": "Gravity",
-      "value": "0.512 g",
+      "value": "0.646 g",
     },
     {
       "label": "Escape velocity",
-      "value": "6.69 km/s",
+      "value": "8.2 km/s",
     },
     {
       "label": "Day",
-      "value": "Tidally locked",
+      "value": "53.6 h",
     },
     {
       "label": "Tilt",
-      "value": "17.4°",
+      "value": "34.2°",
     },
     {
       "label": "Ocean / land / ice",
@@ -90,19 +81,19 @@ exports[`reference entries > a frozen living world 1`] = `
     },
     {
       "label": "Pressure",
-      "value": "0 bar (none)",
+      "value": "4.94 bar (thick)",
     },
     {
       "label": "Mean temperature",
-      "value": "171 K",
+      "value": "101 K",
     },
     {
       "label": "Temperature range",
-      "value": "30–611 K",
+      "value": "98–102 K",
     },
     {
       "label": "Main gases",
-      "value": "H₂O 100%",
+      "value": "N₂ 100%, CH₄ 0.00723%, CO₂ 6.2 × 10⁻⁶%",
     },
     {
       "label": "Habitability",
@@ -118,7 +109,7 @@ exports[`reference entries > a frozen living world 1`] = `
     },
     {
       "label": "Largest organism",
-      "value": "280 pg",
+      "value": "32 pg",
     },
   ],
   "lede": [
@@ -133,33 +124,32 @@ exports[`reference entries > a frozen living world 1`] = `
         "star.classification",
         "planet.orbitalRadius",
       ],
-      "text": "Ice world orbiting an M1 V star at 0.216 AU.",
+      "text": "Ice world orbiting an M1 V star at 0.809 AU.",
     },
     {
       "sources": [
         "star.age",
         "planet.orbitalIndex",
       ],
-      "text": "Formed 3.74 Gyr ago.",
+      "text": "Formed 3.71 Gyr ago.",
     },
     {
       "link": {
         "kind": "biosphere",
-        "planetIndex": 0,
+        "planetIndex": 3,
         "starId": 0,
       },
       "sources": [
         "planet.life.startedGyr",
         "star.age",
       ],
-      "text": "Life emerged 1.09 Gyr ago.",
+      "text": "Life emerged 2.79 Gyr ago.",
     },
     {
       "sources": [
-        "planet.formationAtmosphere",
-        "planet.worldEvents.air-lost",
+        "biosphere.extinctions",
       ],
-      "text": "It formed with moderate air; the last of it was lost to space 2.59 Gyr ago.",
+      "text": "Survived 1 mass extinction.",
     },
     {
       "sources": [
@@ -191,13 +181,13 @@ exports[`reference entries > a frozen living world 1`] = `
     },
     {
       "kind": "biosphere",
-      "planetIndex": 0,
+      "planetIndex": 3,
       "starId": 0,
     },
   ],
   "subject": {
     "kind": "planet",
-    "planetIndex": 0,
+    "planetIndex": 3,
     "starId": 0,
   },
   "title": "Ice world",
@@ -383,7 +373,7 @@ exports[`reference entries > a gas giant and its star 2`] = `
     },
     {
       "label": "Planets with life",
-      "value": "0006 b, 0006 h",
+      "value": "0006 h",
     },
   ],
   "lede": [
@@ -415,7 +405,7 @@ exports[`reference entries > a gas giant and its star 2`] = `
         "system.planets",
         "planet.life",
       ],
-      "text": "4 planets orbit it; life began on 2 of them.",
+      "text": "4 planets orbit it; life began on 1 of them.",
     },
   ],
   "limits": [
@@ -721,7 +711,7 @@ exports[`reference entries > a world of ruins 1`] = `
         "index.lifeBeganGyr",
         "star.age",
       ],
-      "text": "Life began here longer ago than 98% of the other worlds where it began.",
+      "text": "Life began here longer ago than 97% of the other worlds where it began.",
     },
     {
       "sources": [
@@ -1714,11 +1704,11 @@ exports[`reference entries > the galaxy 1`] = `
     },
     {
       "label": "Worlds where life began",
-      "value": "335",
+      "value": "316",
     },
     {
       "label": "Worlds with life today",
-      "value": "231",
+      "value": "211",
     },
     {
       "label": "Minds",
@@ -1730,7 +1720,7 @@ exports[`reference entries > the galaxy 1`] = `
     },
     {
       "label": "Great Filter",
-      "value": "Life's oxygen filled the air (10%)",
+      "value": "Life's oxygen filled the air (14%)",
     },
   ],
   "lede": [
@@ -1756,7 +1746,7 @@ exports[`reference entries > the galaxy 1`] = `
         "index.lifeBeganGyr",
         "index.lifeStage",
       ],
-      "text": "Life began on 335 of its 1,032 planets and lives on 231 today.",
+      "text": "Life began on 316 of its 1,032 planets and lives on 211 today.",
     },
     {
       "link": {
@@ -1782,7 +1772,7 @@ exports[`reference entries > the galaxy 1`] = `
         "index",
         "greatFilter.funnelOf",
       ],
-      "text": "The steepest gate of its Great Filter is “Life's oxygen filled the air”: 10% of the 71 worlds that reached it passed.",
+      "text": "The steepest gate of its Great Filter is “Life's oxygen filled the air”: 14% of the 50 worlds that reached it passed.",
     },
   ],
   "limits": [

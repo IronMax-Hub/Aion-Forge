@@ -3757,3 +3757,223 @@ Orders of firsts on worlds with a mind (oxygen in the air, life on land, a body 
 - 3 × oxygen → mind (never: land, 1 kg)
 - 2 × land → oxygen → mind (never: 1 kg)
 - 1 × oxygen → land → mind → 1 kg
+
+## 2026-10-31 · commit 6659389 · rules v19
+
+| Preset | Seed | Planets | Tidally locked | Solid planets | Median ocean cover at formation | Ocean worlds (> 90%) | Dry (< 3%) | Ever froze over | Runaway greenhouse | Oceans lost | Oxidised (by life or water loss) | Liquid water today | Runaway, worlds formed with no land | Ever had life | Living today | Median life start (Gyr) | Life-bearing planets | Systems with organisms | Systems by most advanced stage (micro / multi / complex / dominant) | Civilizations | Earth path (of worlds with a mind) | Survey (ms) | Geography (ms) | World history (ms) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|
+| Familiar Reality | 100000 | 7320 | 28.1% | 5259 | 91.3% | 51.6% | 0.2% | 3.3% | 1.1% | 13.8% | 5.0% | 6.8% | 0.8% | 44.4% | 31.5% | 0.2 | 1659 | 1039 | 1016 / 18 / 5 / 0 | 1 | 0 / 1 | 111276.1 | 2766 | 107531 |
+| Familiar Reality | 42 | 7827 | 28.8% | 4802 | 97.6% | 56.2% | 0.0% | 3.3% | 1.7% | 14.2% | 5.7% | 7.8% | 1.5% | 49.1% | 35.1% | 0.2 | 1685 | 1168 | 1136 / 25 / 7 / 0 | 1 | 0 / 1 | 133670.7 | 2771 | 129867 |
+| Familiar Reality | 7777 | 7285 | 29.4% | 5280 | 91.3% | 51.4% | 0.2% | 3.2% | 1.4% | 13.8% | 6.2% | 6.5% | 1.1% | 43.2% | 30.8% | 0.2 | 1626 | 1079 | 1036 / 33 / 10 / 0 | 1 | 0 / 1 | 116801.5 | 2806 | 113006 |
+| Slow Cosmos | 100000 | 7328 | 14.4% | 5279 | 97.6% | 56.2% | 0.1% | 1.9% | 0.1% | 8.4% | 3.4% | 4.3% | 0.1% | 44.5% | 30.5% | 0.2 | 1611 | 1083 | 1054 / 19 / 10 / 0 | 0 | 0 / 0 | 116146.7 | 2875 | 112304 |
+| Slow Cosmos | 42 | 7818 | 14.6% | 4809 | 99.9% | 60.7% | 0.0% | 2.3% | 0.2% | 9.1% | 3.7% | 4.6% | 0.1% | 49.3% | 34.5% | 0.2 | 1661 | 1212 | 1175 / 28 / 9 / 0 | 0 | 0 / 0 | 140947.1 | 2839 | 137045 |
+| Slow Cosmos | 7777 | 7255 | 14.7% | 5257 | 97.8% | 55.7% | 0.1% | 2.2% | 0.2% | 9.1% | 3.8% | 4.2% | 0.1% | 43.1% | 30.3% | 0.2 | 1595 | 1093 | 1063 / 18 / 12 / 0 | 3 | 0 / 3 | 119327.8 | 2834 | 115487 |
+| Fragile Life | 100000 | 7309 | 27.8% | 5251 | 91.4% | 51.8% | 0.2% | 3.4% | 1.8% | 13.5% | 4.3% | 6.2% | 1.5% | 6.7% | 5.3% | 2.6 | 276 | 305 | 301 / 3 / 1 / 0 | 0 | 0 / 0 | 35754.4 | 2762 | 32141 |
+| Fragile Life | 42 | 7821 | 28.5% | 4798 | 97.7% | 56.3% | 0.0% | 3.6% | 2.0% | 13.8% | 4.7% | 7.2% | 1.8% | 7.8% | 6.3% | 2.7 | 304 | 381 | 376 / 3 / 2 / 0 | 0 | 0 / 0 | 38759.0 | 2564 | 35460 |
+| Fragile Life | 7777 | 7270 | 28.9% | 5271 | 91.5% | 51.5% | 0.2% | 3.2% | 1.8% | 13.4% | 5.1% | 5.8% | 1.4% | 6.5% | 5.1% | 2.9 | 267 | 325 | 321 / 3 / 1 / 0 | 0 | 0 / 0 | 36119.3 | 2725 | 32737 |
+| Eternal Stars | 100000 | 7388 | 32.5% | 5317 | 91.6% | 52.0% | 0.1% | 2.4% | 0.1% | 14.0% | 4.4% | 7.4% | 0.0% | 44.2% | 32.0% | 0.2 | 1701 | 1061 | 1033 / 24 / 4 / 0 | 2 | 0 / 2 | 113142.9 | 2754 | 109665 |
+| Eternal Stars | 42 | 7874 | 33.4% | 4840 | 98.1% | 56.7% | 0.0% | 2.6% | 0.2% | 15.0% | 5.5% | 8.1% | 0.1% | 49.0% | 36.1% | 0.2 | 1746 | 1207 | 1168 / 30 / 9 / 0 | 3 | 0 / 3 | 132509.6 | 2770 | 128855 |
+| Eternal Stars | 7777 | 7336 | 33.7% | 5323 | 92.2% | 52.0% | 0.1% | 2.2% | 0.1% | 14.5% | 5.6% | 7.2% | 0.0% | 43.3% | 32.0% | 0.2 | 1703 | 1126 | 1087 / 28 / 11 / 0 | 4 | 0 / 4 | 116332.5 | 2826 | 112643 |
+| Rare Intelligence | 100000 | 7320 | 28.1% | 5259 | 91.3% | 51.6% | 0.2% | 3.3% | 1.1% | 13.8% | 4.9% | 6.8% | 0.9% | 45.5% | 32.0% | 0.2 | 1681 | 1047 | 1026 / 16 / 5 / 0 | 0 | 0 / 0 | 113047.6 | 2714 | 109522 |
+| Rare Intelligence | 42 | 7827 | 28.8% | 4802 | 97.6% | 56.2% | 0.0% | 3.3% | 1.7% | 14.2% | 5.8% | 7.8% | 1.5% | 50.3% | 35.5% | 0.2 | 1706 | 1174 | 1141 / 26 / 7 / 0 | 0 | 0 / 0 | 131210.6 | 2738 | 127604 |
+| Rare Intelligence | 7777 | 7285 | 29.4% | 5280 | 91.3% | 51.4% | 0.2% | 3.1% | 1.4% | 13.8% | 6.1% | 6.4% | 1.1% | 44.4% | 31.2% | 0.2 | 1649 | 1087 | 1045 / 31 / 11 / 0 | 0 | 0 / 0 | 114161.8 | 2696 | 110662 |
+| Abundant Life | 100000 | 7340 | 28.4% | 5283 | 93.4% | 53.0% | 0.1% | 2.3% | 0.9% | 11.9% | 4.0% | 6.8% | 0.8% | 47.1% | 32.5% | 0.2 | 1718 | 1064 | 1042 / 18 / 4 / 0 | 1 | 0 / 1 | 109729.1 | 2645 | 106327 |
+| Abundant Life | 42 | 7813 | 29.1% | 4794 | 98.9% | 58.1% | 0.0% | 3.0% | 1.3% | 12.2% | 5.0% | 7.6% | 1.4% | 52.3% | 37.3% | 0.1 | 1786 | 1227 | 1196 / 25 / 6 / 0 | 4 | 0 / 4 | 75045.6 | 1674 | 72934 |
+| Abundant Life | 7777 | 7299 | 29.7% | 5293 | 93.8% | 52.8% | 0.1% | 2.7% | 1.0% | 12.3% | 5.3% | 6.5% | 0.8% | 46.2% | 31.9% | 0.2 | 1690 | 1124 | 1096 / 23 / 5 / 0 | 4 | 0 / 4 | 64061.5 | 1665 | 61947 |
+
+Great Filter: worlds passing each gate (and every gate above it).
+
+| Preset | Seed | Planets | Solid surface | Liquid water at some time | Life began | Life used starlight | Life's oxygen filled the air | A multicellular body | A mind | Fire within the mind's reach | Industry reached | Global communication reached | Spaceflight reached | Still active today |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Familiar Reality | 100000 | 7320 | 5259 | 2976 | 2333 | 396 | 35 | 26 | 1 | 0 | 0 | 0 | 0 | 0 |
+| Familiar Reality | 42 | 7827 | 4802 | 2973 | 2359 | 380 | 58 | 39 | 1 | 0 | 0 | 0 | 0 | 0 |
+| Familiar Reality | 7777 | 7285 | 5280 | 2958 | 2280 | 380 | 59 | 48 | 1 | 0 | 0 | 0 | 0 | 0 |
+| Slow Cosmos | 100000 | 7328 | 5279 | 2862 | 2347 | 233 | 34 | 28 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Slow Cosmos | 42 | 7818 | 4809 | 2856 | 2369 | 239 | 36 | 28 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Slow Cosmos | 7777 | 7255 | 5257 | 2802 | 2268 | 234 | 39 | 29 | 3 | 0 | 0 | 0 | 0 | 0 |
+| Fragile Life | 100000 | 7309 | 5251 | 2989 | 353 | 64 | 6 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Fragile Life | 42 | 7821 | 4798 | 2981 | 375 | 49 | 11 | 7 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Fragile Life | 7777 | 7270 | 5271 | 2962 | 341 | 42 | 11 | 6 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Eternal Stars | 100000 | 7388 | 5317 | 3015 | 2352 | 409 | 34 | 25 | 2 | 0 | 0 | 0 | 0 | 0 |
+| Eternal Stars | 42 | 7874 | 4840 | 2989 | 2372 | 393 | 46 | 36 | 3 | 0 | 0 | 0 | 0 | 0 |
+| Eternal Stars | 7777 | 7336 | 5323 | 2989 | 2307 | 403 | 49 | 41 | 4 | 2 | 2 | 2 | 1 | 1 |
+| Rare Intelligence | 100000 | 7320 | 5259 | 2976 | 2392 | 403 | 36 | 25 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Rare Intelligence | 42 | 7827 | 4802 | 2973 | 2415 | 395 | 59 | 41 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Rare Intelligence | 7777 | 7285 | 5280 | 2958 | 2344 | 382 | 56 | 45 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Abundant Life | 100000 | 7340 | 5283 | 3016 | 2487 | 412 | 37 | 24 | 1 | 0 | 0 | 0 | 0 | 0 |
+| Abundant Life | 42 | 7813 | 4794 | 2988 | 2509 | 385 | 36 | 27 | 4 | 2 | 2 | 0 | 0 | 0 |
+| Abundant Life | 7777 | 7299 | 5293 | 2995 | 2444 | 385 | 53 | 43 | 4 | 1 | 1 | 1 | 1 | 1 |
+
+Atmospheric escape: solid planets stripped of their air, solid planets by today's air class, and worlds living today by host star class.
+
+| Preset | Seed | Solid planets | Stripped | Air today (none / thin / moderate / thick / crushing) | Runaway greenhouse | Living today (M / K / G / F or hotter / white dwarf) |
+|---|---:|---:|---:|---|---:|---|
+| Familiar Reality | 100000 | 5259 | 33.7% | 2252 / 699 / 1116 / 757 / 435 | 1.1% | 1347 / 250 / 48 / 13 / 1 |
+| Familiar Reality | 42 | 4802 | 31.2% | 1916 / 648 / 1056 / 744 / 438 | 1.7% | 1339 / 291 / 37 / 15 / 3 |
+| Familiar Reality | 7777 | 5280 | 34.3% | 2300 / 654 / 1129 / 713 / 484 | 1.4% | 1326 / 248 / 39 / 12 / 1 |
+| Slow Cosmos | 100000 | 5279 | 24.0% | 1832 / 812 / 1297 / 853 / 485 | 0.1% | 1289 / 251 / 40 / 31 / 0 |
+| Slow Cosmos | 42 | 4809 | 22.5% | 1577 / 744 / 1232 / 808 / 448 | 0.2% | 1285 / 265 / 59 / 51 / 1 |
+| Slow Cosmos | 7777 | 5257 | 25.1% | 1881 / 750 / 1319 / 791 / 516 | 0.2% | 1251 / 265 / 35 / 44 / 0 |
+| Fragile Life | 100000 | 5251 | 33.5% | 2245 / 704 / 1111 / 753 / 438 | 1.8% | 223 / 45 / 8 / 0 / 0 |
+| Fragile Life | 42 | 4798 | 31.1% | 1910 / 657 / 1063 / 743 / 425 | 2.0% | 236 / 62 / 6 / 0 / 0 |
+| Fragile Life | 7777 | 5271 | 34.0% | 2293 / 668 / 1123 / 711 / 476 | 1.8% | 220 / 36 / 7 / 2 / 2 |
+| Eternal Stars | 100000 | 5317 | 34.3% | 2294 / 708 / 1116 / 753 / 446 | 0.1% | 1436 / 209 / 35 / 21 / 0 |
+| Eternal Stars | 42 | 4840 | 31.5% | 1946 / 632 / 1084 / 732 / 446 | 0.2% | 1450 / 223 / 40 / 33 / 0 |
+| Eternal Stars | 7777 | 5323 | 34.6% | 2335 / 651 / 1128 / 707 / 502 | 0.1% | 1432 / 215 / 27 / 29 / 0 |
+| Rare Intelligence | 100000 | 5259 | 33.7% | 2252 / 699 / 1112 / 760 / 436 | 1.1% | 1364 / 256 / 48 / 12 / 1 |
+| Rare Intelligence | 42 | 4802 | 31.2% | 1916 / 648 / 1056 / 744 / 438 | 1.7% | 1358 / 292 / 38 / 15 / 3 |
+| Rare Intelligence | 7777 | 5280 | 34.3% | 2299 / 655 / 1128 / 714 / 484 | 1.4% | 1344 / 252 / 39 / 12 / 2 |
+| Abundant Life | 100000 | 5283 | 31.7% | 2171 / 742 / 1158 / 769 / 443 | 0.9% | 1450 / 223 / 35 / 9 / 1 |
+| Abundant Life | 42 | 4794 | 28.9% | 1827 / 649 / 1130 / 750 / 438 | 1.3% | 1481 / 246 / 45 / 10 / 4 |
+| Abundant Life | 7777 | 5293 | 31.8% | 2200 / 705 / 1168 / 729 / 491 | 1.0% | 1421 / 226 / 27 / 15 / 1 |
+
+Metallicity: the median star's [Fe/H] by star age.
+
+| Preset | Seed | 0 to 2 Gyr | 2 to 6 Gyr | 6 to 10 Gyr | 10 Gyr and above |
+|---|---:|---:|---:|---:|---:|
+| Familiar Reality | 100000 | −0.06 | −0.13 | −0.31 | −0.80 |
+| Familiar Reality | 42 | +0.21 | +0.20 | +0.21 | +0.15 |
+| Familiar Reality | 7777 | −0.00 | −0.14 | −0.32 | −0.74 |
+| Slow Cosmos | 100000 | −0.06 | −0.13 | −0.31 | −0.80 |
+| Slow Cosmos | 42 | +0.21 | +0.20 | +0.21 | +0.15 |
+| Slow Cosmos | 7777 | −0.00 | −0.14 | −0.32 | −0.74 |
+| Fragile Life | 100000 | −0.06 | −0.13 | −0.31 | −0.80 |
+| Fragile Life | 42 | +0.21 | +0.20 | +0.21 | +0.15 |
+| Fragile Life | 7777 | −0.00 | −0.14 | −0.32 | −0.74 |
+| Eternal Stars | 100000 | −0.06 | −0.13 | −0.31 | −0.80 |
+| Eternal Stars | 42 | +0.21 | +0.20 | +0.21 | +0.15 |
+| Eternal Stars | 7777 | −0.00 | −0.14 | −0.32 | −0.74 |
+| Rare Intelligence | 100000 | −0.06 | −0.13 | −0.31 | −0.80 |
+| Rare Intelligence | 42 | +0.21 | +0.20 | +0.21 | +0.15 |
+| Rare Intelligence | 7777 | −0.00 | −0.14 | −0.32 | −0.74 |
+| Abundant Life | 100000 | −0.06 | −0.13 | −0.31 | −0.80 |
+| Abundant Life | 42 | +0.21 | +0.20 | +0.21 | +0.15 |
+| Abundant Life | 7777 | −0.00 | −0.14 | −0.32 | −0.74 |
+
+By the host star's [Fe/H] (stars that can hold planets): stars; planets per star; giant share and solid share of their planets; the median solid planet's mass (M⊕); worlds living today.
+
+| Preset | Seed | below -0.5 | -0.5 to -0.2 | -0.2 to 0.1 | 0.1 and above |
+|---|---:|---|---|---|---|
+| Familiar Reality | 100000 | 697 · 3.13 · 9% / 85% · 0.22 · 503 | 447 · 3.73 · 11% / 72% · 0.22 · 396 | 497 · 4.15 · 14% / 66% · 0.28 · 455 | 348 · 4.05 · 22% / 60% · 0.32 · 305 |
+| Familiar Reality | 42 | 19 · 2.95 · 4% / 88% · 0.15 · 10 | 33 · 3.82 · 10% / 75% · 0.29 · 27 | 374 · 4.07 · 16% / 66% · 0.31 · 348 | 1563 · 3.92 · 23% / 60% · 0.33 · 1300 |
+| Familiar Reality | 7777 | 665 · 3.21 · 9% / 85% · 0.21 · 490 | 460 · 3.56 · 11% / 74% · 0.25 · 380 | 505 · 4.06 · 16% / 67% · 0.29 · 473 | 358 · 4.09 · 24% / 61% · 0.26 · 283 |
+| Slow Cosmos | 100000 | 698 · 3.13 · 9% / 85% · 0.22 · 474 | 448 · 3.73 · 11% / 72% · 0.22 · 370 | 498 · 4.14 · 14% / 67% · 0.28 · 461 | 348 · 4.05 · 22% / 60% · 0.30 · 306 |
+| Slow Cosmos | 42 | 19 · 3.00 · 4% / 88% · 0.18 · 9 | 33 · 3.85 · 10% / 76% · 0.30 · 21 | 374 · 4.10 · 16% / 66% · 0.30 · 329 | 1564 · 3.90 · 23% / 60% · 0.33 · 1302 |
+| Slow Cosmos | 7777 | 665 · 3.21 · 9% / 85% · 0.21 · 467 | 460 · 3.54 · 11% / 74% · 0.25 · 382 | 505 · 4.05 · 16% / 67% · 0.28 · 461 | 358 · 4.03 · 24% / 61% · 0.26 · 285 |
+| Fragile Life | 100000 | 697 · 3.13 · 9% / 85% · 0.22 · 100 | 447 · 3.72 · 11% / 72% · 0.22 · 76 | 497 · 4.15 · 15% / 66% · 0.28 · 53 | 348 · 4.04 · 22% / 60% · 0.32 · 47 |
+| Fragile Life | 42 | 19 · 2.95 · 4% / 88% · 0.15 · 5 | 33 · 3.82 · 10% / 75% · 0.29 · 7 | 374 · 4.07 · 16% / 66% · 0.31 · 63 | 1563 · 3.91 · 23% / 60% · 0.33 · 229 |
+| Fragile Life | 7777 | 665 · 3.20 · 8% / 85% · 0.21 · 96 | 460 · 3.55 · 11% / 74% · 0.25 · 63 | 505 · 4.05 · 16% / 67% · 0.29 · 74 | 358 · 4.08 · 24% / 61% · 0.26 · 34 |
+| Eternal Stars | 100000 | 698 · 3.16 · 9% / 85% · 0.22 · 528 | 448 · 3.77 · 11% / 72% · 0.22 · 395 | 498 · 4.16 · 14% / 67% · 0.28 · 471 | 348 · 4.08 · 22% / 60% · 0.31 · 307 |
+| Eternal Stars | 42 | 19 · 3.00 · 4% / 88% · 0.15 · 11 | 33 · 3.85 · 10% / 76% · 0.30 · 26 | 374 · 4.10 · 16% / 66% · 0.31 · 361 | 1564 · 3.94 · 23% / 60% · 0.33 · 1348 |
+| Eternal Stars | 7777 | 665 · 3.25 · 9% / 85% · 0.21 · 527 | 460 · 3.60 · 11% / 74% · 0.25 · 405 | 505 · 4.07 · 16% / 67% · 0.28 · 473 | 358 · 4.10 · 24% / 61% · 0.27 · 298 |
+| Rare Intelligence | 100000 | 697 · 3.13 · 9% / 85% · 0.22 · 508 | 447 · 3.73 · 11% / 72% · 0.22 · 399 | 497 · 4.15 · 14% / 66% · 0.28 · 461 | 348 · 4.05 · 22% / 60% · 0.32 · 313 |
+| Rare Intelligence | 42 | 19 · 2.95 · 4% / 88% · 0.15 · 10 | 33 · 3.82 · 10% / 75% · 0.29 · 26 | 374 · 4.07 · 16% / 66% · 0.31 · 352 | 1563 · 3.92 · 23% / 60% · 0.33 · 1318 |
+| Rare Intelligence | 7777 | 665 · 3.21 · 9% / 85% · 0.21 · 493 | 460 · 3.56 · 11% / 74% · 0.25 · 387 | 505 · 4.06 · 16% / 67% · 0.29 · 478 | 358 · 4.09 · 24% / 61% · 0.26 · 291 |
+| Abundant Life | 100000 | 698 · 3.14 · 9% / 85% · 0.22 · 519 | 448 · 3.74 · 11% / 72% · 0.21 · 401 | 498 · 4.14 · 14% / 67% · 0.28 · 483 | 348 · 4.05 · 22% / 60% · 0.31 · 315 |
+| Abundant Life | 42 | 19 · 2.95 · 4% / 88% · 0.15 · 9 | 33 · 3.82 · 10% / 75% · 0.30 · 27 | 374 · 4.07 · 16% / 66% · 0.31 · 359 | 1564 · 3.90 · 23% / 60% · 0.33 · 1391 |
+| Abundant Life | 7777 | 665 · 3.23 · 9% / 85% · 0.21 · 515 | 460 · 3.57 · 11% / 74% · 0.25 · 393 | 505 · 4.06 · 16% / 67% · 0.28 · 479 | 358 · 4.08 · 24% / 61% · 0.27 · 303 |
+
+Heat from inside: solid planets with open water today; worlds living today, and those frozen over; worlds frozen solid today; worlds whose life ended when their oceans froze solid; systems with organisms.
+
+| Preset | Seed | Solid planets | Open water today | Living today | Living, frozen over | Frozen solid today | Life ended frozen solid | Systems with organisms |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Familiar Reality | 100000 | 5259 | 6.8% | 1659 | 1190 | 2507 | 511 | 1039 |
+| Familiar Reality | 42 | 4802 | 7.8% | 1685 | 1217 | 2058 | 475 | 1168 |
+| Familiar Reality | 7777 | 5280 | 6.5% | 1626 | 1188 | 2501 | 486 | 1079 |
+| Slow Cosmos | 100000 | 5279 | 4.3% | 1611 | 1341 | 2892 | 629 | 1083 |
+| Slow Cosmos | 42 | 4809 | 4.6% | 1661 | 1383 | 2421 | 592 | 1212 |
+| Slow Cosmos | 7777 | 5257 | 4.2% | 1595 | 1331 | 2864 | 588 | 1093 |
+| Fragile Life | 100000 | 5251 | 6.2% | 276 | 210 | 2521 | 60 | 305 |
+| Fragile Life | 42 | 4798 | 7.2% | 304 | 243 | 2087 | 49 | 381 |
+| Fragile Life | 7777 | 5271 | 5.8% | 267 | 205 | 2518 | 53 | 325 |
+| Eternal Stars | 100000 | 5317 | 7.4% | 1701 | 1184 | 2489 | 518 | 1061 |
+| Eternal Stars | 42 | 4840 | 8.1% | 1746 | 1235 | 1995 | 479 | 1207 |
+| Eternal Stars | 7777 | 5323 | 7.2% | 1703 | 1196 | 2464 | 488 | 1126 |
+| Rare Intelligence | 100000 | 5259 | 6.8% | 1681 | 1204 | 2507 | 537 | 1047 |
+| Rare Intelligence | 42 | 4802 | 7.8% | 1706 | 1226 | 2058 | 501 | 1174 |
+| Rare Intelligence | 7777 | 5280 | 6.4% | 1649 | 1202 | 2501 | 510 | 1087 |
+| Abundant Life | 100000 | 5283 | 6.8% | 1718 | 1230 | 2592 | 580 | 1064 |
+| Abundant Life | 42 | 4794 | 7.6% | 1786 | 1296 | 2112 | 522 | 1227 |
+| Abundant Life | 7777 | 5293 | 6.5% | 1690 | 1228 | 2589 | 564 | 1124 |
+
+Moons: every moon; moon worlds (with histories); moon worlds with liquid water today (open or under ice); living moons; moon civilizations (living or in ruins); moon worlds above 373 K; moons with Io's tidal heat or more; planets whose tilt wanders.
+
+| Preset | Seed | Moons | Moon worlds | Liquid water today | Living | Civilizations | Above 373 K | Io's tidal heat or more | Wandering tilts |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Familiar Reality | 100000 | 7139 | 797 | 501 | 438 | 0 | 91 | 382 | 4747 |
+| Familiar Reality | 42 | 9950 | 1359 | 859 | 763 | 0 | 228 | 753 | 4358 |
+| Familiar Reality | 7777 | 6961 | 913 | 592 | 523 | 0 | 103 | 413 | 4744 |
+| Slow Cosmos | 100000 | 7718 | 855 | 569 | 510 | 0 | 93 | 394 | 4672 |
+| Slow Cosmos | 42 | 10628 | 1422 | 978 | 890 | 0 | 208 | 763 | 4306 |
+| Slow Cosmos | 7777 | 7520 | 975 | 684 | 603 | 0 | 98 | 413 | 4664 |
+| Fragile Life | 100000 | 7147 | 797 | 499 | 91 | 0 | 86 | 382 | 4739 |
+| Fragile Life | 42 | 9959 | 1359 | 859 | 187 | 0 | 222 | 752 | 4350 |
+| Fragile Life | 7777 | 6965 | 913 | 596 | 131 | 0 | 101 | 412 | 4730 |
+| Eternal Stars | 100000 | 6966 | 787 | 490 | 438 | 0 | 98 | 395 | 4824 |
+| Eternal Stars | 42 | 9662 | 1348 | 857 | 768 | 0 | 218 | 766 | 4425 |
+| Eternal Stars | 7777 | 6805 | 893 | 599 | 532 | 0 | 108 | 410 | 4806 |
+| Rare Intelligence | 100000 | 7139 | 797 | 501 | 444 | 0 | 91 | 382 | 4747 |
+| Rare Intelligence | 42 | 9950 | 1359 | 858 | 770 | 0 | 228 | 753 | 4358 |
+| Rare Intelligence | 7777 | 6961 | 913 | 592 | 533 | 0 | 103 | 413 | 4744 |
+| Abundant Life | 100000 | 7117 | 807 | 513 | 461 | 0 | 90 | 389 | 4766 |
+| Abundant Life | 42 | 9884 | 1357 | 888 | 802 | 0 | 209 | 759 | 4359 |
+| Abundant Life | 7777 | 6957 | 913 | 624 | 572 | 0 | 96 | 412 | 4763 |
+
+Binary stars: the share of stars with a companion by mass (the rule's chance in brackets); binaries; planets removed where a companion allows no orbit; planets orbiting both stars, and those of them living today; worlds living today per single star and per binary.
+
+| Preset | Seed | 0–0.5 M☉ (26%) | 0.5–1.3 M☉ (46%) | 1.3–5 M☉ (60%) | ≥ 5 M☉ (75%) | Binaries | Planets removed | Around both stars | Living around both | Living per single star | Living per binary |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Familiar Reality | 100000 | 25% | 44% | 59% | 86% | 633 | 501 | 220 | 43 | 0.951 | 0.567 |
+| Familiar Reality | 42 | 26% | 48% | 66% | 77% | 649 | 580 | 190 | 35 | 0.939 | 0.641 |
+| Familiar Reality | 7777 | 27% | 46% | 62% | 70% | 649 | 522 | 191 | 39 | 0.921 | 0.589 |
+| Slow Cosmos | 100000 | 25% | 43% | 60% | 88% | 611 | 541 | 255 | 45 | 0.911 | 0.565 |
+| Slow Cosmos | 42 | 26% | 49% | 62% | 82% | 630 | 630 | 246 | 48 | 0.904 | 0.670 |
+| Slow Cosmos | 7777 | 27% | 45% | 60% | 74% | 629 | 583 | 221 | 35 | 0.909 | 0.555 |
+| Fragile Life | 100000 | 25% | 44% | 59% | 86% | 633 | 501 | 220 | 7 | 0.162 | 0.087 |
+| Fragile Life | 42 | 26% | 48% | 66% | 77% | 649 | 578 | 190 | 6 | 0.170 | 0.116 |
+| Fragile Life | 7777 | 27% | 46% | 62% | 70% | 649 | 522 | 191 | 4 | 0.155 | 0.088 |
+| Eternal Stars | 100000 | 25% | 43% | 60% | 88% | 611 | 473 | 202 | 37 | 0.969 | 0.581 |
+| Eternal Stars | 42 | 26% | 49% | 62% | 82% | 630 | 559 | 189 | 40 | 0.957 | 0.690 |
+| Eternal Stars | 7777 | 27% | 45% | 60% | 74% | 629 | 491 | 176 | 35 | 0.953 | 0.631 |
+| Rare Intelligence | 100000 | 25% | 44% | 59% | 86% | 633 | 501 | 220 | 44 | 0.963 | 0.577 |
+| Rare Intelligence | 42 | 26% | 48% | 66% | 77% | 649 | 580 | 190 | 35 | 0.951 | 0.649 |
+| Rare Intelligence | 7777 | 27% | 46% | 62% | 70% | 649 | 522 | 191 | 39 | 0.933 | 0.598 |
+| Abundant Life | 100000 | 25% | 43% | 60% | 88% | 611 | 479 | 212 | 39 | 0.974 | 0.597 |
+| Abundant Life | 42 | 26% | 49% | 62% | 82% | 630 | 573 | 198 | 40 | 0.981 | 0.702 |
+| Abundant Life | 7777 | 27% | 45% | 60% | 74% | 629 | 507 | 183 | 32 | 0.947 | 0.623 |
+
+Orders of firsts on worlds with a mind (oxygen in the air, life on land, a body over 1 kg, a mind; Earth's path is oxygen → land → 1 kg → mind). "+" joins firsts in the same 100 Myr step.
+
+**Familiar Reality**
+
+- 1 × land → oxygen → mind (never: 1 kg)
+- 1 × land → oxygen → mind → 1 kg
+- 1 × oxygen → mind (never: land, 1 kg)
+
+**Slow Cosmos**
+
+- 2 × land → oxygen → mind (never: 1 kg)
+- 1 × oxygen → land → mind (never: 1 kg)
+
+**Fragile Life**: no minds.
+
+
+**Eternal Stars**
+
+- 3 × oxygen → land → mind → 1 kg
+- 1 × land → oxygen → 1 kg → mind
+- 1 × land → oxygen → mind (never: 1 kg)
+- 1 × land → oxygen → mind → 1 kg
+- 1 × oxygen → mind (never: land, 1 kg)
+- 1 × oxygen → mind → 1 kg (never: land)
+- 1 × oxygen + land → 1 kg → mind
+
+**Rare Intelligence**: no minds.
+
+
+**Abundant Life**
+
+- 3 × oxygen → land → mind (never: 1 kg)
+- 3 × oxygen → mind (never: land, 1 kg)
+- 2 × land → oxygen → mind (never: 1 kg)
+- 1 × oxygen → land → mind → 1 kg

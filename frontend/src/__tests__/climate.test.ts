@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   bandGeometry, boilingPointK, contrastK, equilibriumTemperatureK, greenhouseK, relativeInsolation,
   solveBands, solvePresentClimate, CO2_REFERENCE_BAR, FREEZING_K, co2SaturationBar, CO2_CRITICAL_K,
-  surfaceMeanK, bandAlbedo,
+  surfaceMeanK, bandAlbedo, effectiveTemperatureK, RUNAWAY_EFFECTIVE_K,
 } from "../simulation/climate";
 import type { ClimateInputs } from "../simulation/climate";
 import { buildGeography, surfaceGrid, BAND_COUNT } from "../simulation/geography";
@@ -19,6 +19,16 @@ describe("energy balance building blocks", () => {
   it("gives Earth 255 K without air and 33 K of greenhouse warming", () => {
     expect(equilibriumTemperatureK(1, 1, 0.3)).toBeCloseTo(254.3, 1);
     expect(greenhouseK(1, CO2_REFERENCE_BAR, 0, 1)).toBeCloseTo(33, 6);
+  });
+
+  it("puts the runaway limit at about 266 K effective, which an Earth twin passes near 0.92 AU (A1.1)", () => {
+    // σT⁴ = 282 W/m² (Goldblatt et al. 2013)
+    expect(RUNAWAY_EFFECTIVE_K).toBeCloseTo(265.6, 1);
+    // Earth's own mix of ocean and land, ice-free, and its interior's heat
+    const effectiveAt = (orbitAU: number) => effectiveTemperatureK(equilibriumTemperatureK(1, orbitAU, 0.295), 35);
+    expect(effectiveAt(0.9)).toBeGreaterThan(RUNAWAY_EFFECTIVE_K);
+    expect(effectiveAt(0.95)).toBeLessThan(RUNAWAY_EFFECTIVE_K);
+    expect(effectiveAt(1)).toBeLessThan(RUNAWAY_EFFECTIVE_K);
   });
 
   it("warms a wet planet by 3 K per doubling of CO₂, and a dry one by half that", () => {

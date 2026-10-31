@@ -39,6 +39,13 @@
 //   curve passes through water's triple point; below the triple point's
 //   pressure there is no liquid at all: water is ice, or vapour above 273.16 K
 //   (decision 27, with escape, AE2).
+// - Runaway greenhouse. A wet planet's air can radiate at most about 282 W/m²
+//   (the Simpson–Nakajima limit; Goldblatt et al. 2013): water vapour blocks
+//   more as it warms. A planet that absorbs more than that, starlight and
+//   interior heat together, cannot balance with liquid oceans, whatever its
+//   mean temperature: its oceans boil into the air. In this model's terms that
+//   is an effective temperature above RUNAWAY_EFFECTIVE_K, about 266 K (Earth's
+//   is 255 K), which puts an Earth twin's inner edge near 0.92 AU.
 //
 // Assumptions and limits:
 // - One mean temperature per region; no seasons, no day–night cycle on a
@@ -100,6 +107,13 @@ export const CO2_TRIPLE_POINT = { K: 216.58, bar: 5.185 } as const;
 export const CO2_CRITICAL_K = 304.13;
 const CO2_SUBLIMATION_J_PER_MOL = 26_100;   // over ice: 1 atm at 195 K
 const CO2_VAPORIZATION_J_PER_MOL = 15_300;  // over liquid
+
+/** The most a moist atmosphere can radiate, W/m² (Goldblatt et al. 2013). */
+export const RUNAWAY_LIMIT_W_PER_M2 = 282;
+/** The Stefan–Boltzmann constant, W/(m²·K⁴). */
+const STEFAN_BOLTZMANN = 5.670e-8;
+/** The effective temperature at which a planet absorbs RUNAWAY_LIMIT_W_PER_M2: above it, oceans cannot stay liquid, K. */
+export const RUNAWAY_EFFECTIVE_K = pow(RUNAWAY_LIMIT_W_PER_M2 / STEFAN_BOLTZMANN, 0.25);
 
 const MAX_ICE_ITERATIONS = 30;
 const LN2 = 0.6931471805599453;
@@ -232,6 +246,8 @@ export interface ClimateInputs {
 
 export interface BandClimate {
   meanK: number;
+  /** The effective temperature of the starlight it absorbs and its interior heat, K: above RUNAWAY_EFFECTIVE_K, oceans boil. */
+  effectiveK: number;
   bandK: Float64Array;
   iced: Uint8Array;
   albedo: number;
@@ -283,9 +299,11 @@ export function solveBands(
   const freezingK = freezingKAt(inputs.pressureBar);
   let albedo = 0;
   let meanK = 0;
+  let effectiveK = 0;
   for (let iteration = 0; iteration < MAX_ICE_ITERATIONS; iteration++) {
     albedo = bandAlbedo(geometry, bandOcean, iced, inputs.wetness);
     const eqK = equilibriumTemperatureK(inputs.luminosity, inputs.orbitAU, albedo);
+    effectiveK = effectiveTemperatureK(eqK, inputs.interiorK);
     meanK = meanKOf(eqK, inputs);
     const uneven = contrast * starlightShare(eqK, inputs.interiorK);
     let changed = false;
@@ -311,7 +329,7 @@ export function solveBands(
       openLandFraction += area * (1 - bandOcean[k]);
     }
   }
-  return { meanK, bandK, iced, albedo, iceFraction, openOceanFraction, openLandFraction };
+  return { meanK, effectiveK, bandK, iced, albedo, iceFraction, openOceanFraction, openLandFraction };
 }
 
 // ── Present day: all 642 cells ────────────────────────────────────────────────

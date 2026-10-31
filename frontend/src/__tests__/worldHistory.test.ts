@@ -155,13 +155,28 @@ describe("water", () => {
     expect(h.final.co2Bar).toBeGreaterThan(before.co2Bar * 1000);
   });
 
+  it("boils the oceans once a world absorbs more than moist air can radiate, below the boiling point (A1.1)", () => {
+    // The runaway limit puts an Earth twin's inner edge near 0.92 AU (climate.ts): at 0.9 AU its
+    // oceans go, though its mean temperature under 1 bar never reached 373 K; at 0.95 AU they stay
+    const inside = history({ planet: { orbitalRadius: 0.9 }, lifeless: true });
+    expect(inside.final.steam || inside.final.water < OCEANS_LOST_WATER).toBe(true);
+    expect(inside.present.oceanFraction).toBe(0);
+    const runaway = inside.events.find((e) => e.kind === "runaway-greenhouse")!;
+    const before = inside.snapshots!.filter((x) => x.tGyr < runaway.tGyr);
+    expect(before[before.length - 1].meanK).toBeLessThan(373);
+    const outside = history({ planet: { orbitalRadius: 0.95 }, lifeless: true });
+    expect(outside.final.steam).toBe(false);
+    expect(outside.present.oceanFraction).toBeGreaterThan(0.4);
+  });
+
   it("leaves oxygen from the escaping water: an oxidised atmosphere with no life", () => {
     expect(has(history({ planet: { orbitalRadius: 0.3 }, lifeless: true }), "oxidation")).toBe(true);
   });
 
   it("escapes more slowly from a planet with a higher escape velocity", () => {
-    const weak = history({ planet: { orbitalRadius: 0.5 }, physics: { escapeVelocityKms: 8 } });
-    const strong = history({ planet: { orbitalRadius: 0.5 }, physics: { escapeVelocityKms: 20 } });
+    // Just inside the runaway limit, where the steam has not all escaped by today
+    const weak = history({ planet: { orbitalRadius: 0.9 }, physics: { escapeVelocityKms: 8 } });
+    const strong = history({ planet: { orbitalRadius: 0.9 }, physics: { escapeVelocityKms: 20 } });
     expect(weak.final.water).toBeLessThan(earthPhysics.waterInventory);
     expect(strong.final.water).toBeGreaterThan(weak.final.water);
   });
@@ -169,8 +184,9 @@ describe("water", () => {
 
 describe("stars that have left the main sequence", () => {
   it("records the star leaving, and the brightening giant boils the oceans of a once-temperate world", () => {
+    // At 1.1 AU: at 1 AU the star's late main-sequence brightening already passes the runaway limit
     const giant: Partial<Star> = { mass: 1, lifespan: 10, age: 9, classification: "red-giant", luminosity: 500 };
-    const h = history({ star: giant });
+    const h = history({ planet: { orbitalRadius: 1.1 }, star: giant });
     const leaves = h.events.find((e) => e.kind === "star-leaves-main-sequence");
     expect(leaves?.tGyr).toBe(mainSequenceEndGyr({ ...sun, ...giant }));
     const before = h.snapshots!.filter((s) => s.tGyr < leaves!.tGyr);

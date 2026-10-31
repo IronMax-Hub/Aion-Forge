@@ -71,8 +71,9 @@
 // land cannot weather away, warms it enough to thaw. No code names snowballs.
 //
 // Water phase (R3): the moist greenhouse loses water gradually.
-// Past the boiling point set by total pressure the oceans are steam at once
-// (the runaway greenhouse) and the escape continues from the steam. The steam
+// The oceans are steam at once (the runaway greenhouse) past the boiling point
+// set by total pressure, or once the planet absorbs more than a moist air can
+// radiate (climate.ts, RUNAWAY_EFFECTIVE_K), and the escape continues from the steam. The steam
 // weighs on the surface like the ocean it was (Earth's would be ~270 bar),
 // which raises both the greenhouse and the boiling point, so the runaway holds
 // until the water escapes or the star dims enough for it to condense again.
@@ -102,7 +103,7 @@ import { areaBelow, BAND_COUNT, seaLevelFor, waterDepthKm } from "./geography";
 import type { ClimateInputs, PresentClimate } from "./climate";
 import {
   bandAlbedo, bandGeometry, boilingPointK, co2SaturationBar, freezingKAt, CO2_REFERENCE_BAR, equilibriumTemperatureK, greenhouseK,
-  solveBands, solvePresentClimate, surfaceMeanK,
+  RUNAWAY_EFFECTIVE_K, solveBands, solvePresentClimate, surfaceMeanK,
 } from "./climate";
 import { airRetained, moistThresholdK, waterLost, xuvDose } from "./atmosphericEscape";
 import { makeConfig } from "./config";
@@ -612,9 +613,10 @@ export function runWorldHistory(
     const ch4 = ch4Kept * keep;
 
     // Water phase for the next step (R3): oceans boil above the boiling point
-    // under the air alone; steam condenses below it under the air and the steam
+    // under the air alone, or past the runaway limit; steam condenses only below
+    // both, the boiling point now under the air and the steam
     const boilingK = boilingPointK(pressureOf(co2, o2, ch4, water, state.steam));
-    const steam = water >= OCEANS_LOST_WATER && climate.meanK >= boilingK;
+    const steam = water >= OCEANS_LOST_WATER && (climate.meanK >= boilingK || climate.effectiveK > RUNAWAY_EFFECTIVE_K);
     if (steam && !state.steam && step > 1) events.push({ kind: "runaway-greenhouse", tGyr: t });
     seaLevelKm = fillOceans(water, steam);
     // What stays liquid of the water the step leaves, under this step's ice (IH3)
@@ -682,7 +684,8 @@ export function runWorldHistory(
       luminosity: state.luminosity, orbitAU, pressureBar: state.pressureBar, co2Bar: state.co2Bar,
       ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water), interiorK: interiorTemperatureK(interiorHeatFlow(planet, state.tGyr)),
     }, state.iced);
-    const steam = state.water >= OCEANS_LOST_WATER && climate.meanK >= boilingPointK(state.pressureBar);
+    const steam = state.water >= OCEANS_LOST_WATER
+      && (climate.meanK >= boilingPointK(state.pressureBar) || climate.effectiveK > RUNAWAY_EFFECTIVE_K);
     if (steam) seaLevelKm = fillOceans(state.water, true);
     const bandLiquid = liquidShares(climate.iced, climate.bandK, state.pressureBar, interiorHeatFlow(planet, state.tGyr), steam);
     state = { ...state, bandOcean: Float64Array.from(bandOcean), bandLiquid, meanK: climate.meanK, iceFraction: climate.iceFraction,

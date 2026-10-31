@@ -88,7 +88,7 @@ export const galaxy: Chapter = {
       effect: (ctx) => {
         const hole = centralBlackHoleFor(ctx.galaxy);
         return [hole
-          ? said(`This galaxy's is ${formatSolarMasses(hole.massSolar)}, its event horizon ${formatHorizonRadius(eventHorizonRadiusKm(hole))} in radius, feeding at ${formatSig(hole.eddingtonRatio, 2)} of its limit: ${hole.accretionMode === "thin-disc" ? `a thin disc, ${formatInt(hole.discPeakTemperatureK)} K at its inner edge` : "a faint hot flow"}.`, "galaxy.type", "galaxy.seed")
+          ? said(`This galaxy's is ${formatSolarMasses(hole.massSolar)}, its event horizon ${formatHorizonRadius(eventHorizonRadiusKm(hole))} in radius, feeding at ${formatSig(hole.eddingtonRatio, 2)} of its limit: ${hole.accretionMode === "thin-disc" ? `a thin disc, ${formatInt(hole.discPeakTemperatureK)} K at its hottest` : "a faint hot flow"}.`, "galaxy.type", "galaxy.seed")
           : said("This galaxy has no central black hole.", "galaxy.type", "galaxy.seed")];
       },
     },

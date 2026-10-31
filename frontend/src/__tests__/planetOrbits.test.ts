@@ -48,3 +48,24 @@ describe("planets that orbit both stars (A3.1)", () => {
     }
   });
 });
+
+describe("moons within their planets' reach (A3.2)", () => {
+  const seed = 42;
+  const config = makeConfig(seed);
+  const hosts = generateStarsFor(buildGalaxyConfig(seed, config), undefined, config).stars.slice(0, 250);
+  const planets = hosts.flatMap((star) => generatePlanetsFor(star, seed, config).planets.map((planet) => ({ star, planet })));
+
+  it("keeps every moon, a rocky planet's large one too, within half its planet's Hill radius", () => {
+    const withMoons = planets.filter(({ planet }) => planet.moons.length > 0);
+    expect(withMoons.filter(({ planet }) => planet.surface !== null).length).toBeGreaterThan(10);
+    for (const { star, planet } of withMoons) {
+      for (const moon of planet.moons) expect(moon.orbitPlanetRadii).toBeLessThanOrEqual(moonOrbitLimit(planet, star, config));
+    }
+  });
+
+  it("leaves planets close to small stars without a large moon, as their Hill spheres cannot hold one", () => {
+    const cramped = planets.filter(({ star, planet }) => planet.surface !== null && moonOrbitLimit(planet, star, config) < 30);
+    expect(cramped.length).toBeGreaterThan(20);
+    for (const { planet } of cramped) expect(planet.moons).toEqual([]);
+  });
+});

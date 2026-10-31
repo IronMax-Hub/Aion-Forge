@@ -218,6 +218,9 @@ export function moonsOf(giant: Planet, star: Star, galaxySeed: number, config: U
 // share of the planet's (the Moon: 0.0123), its orbit 30–60 planet radii. It
 // takes the planets' water rule (impact debris is not ice-rich). A moon of 1%
 // of its planet's mass or more holds the planet's tilt steady (decision 12).
+// Like a giant's moons, it is kept only within half the planet's Hill radius
+// (A3.2): close to its star, a planet's Hill sphere is too small to hold a
+// moon so far out, and it has none.
 // Draws come from the planet's own moon stream, mixSeed(galaxySeed,
 // ...bodyKey(planet), SALT.MOON).
 
@@ -244,6 +247,7 @@ export function largeMoonOf(planet: Planet, star: Star, galaxySeed: number, conf
   const { massRatio, orbitPlanetRadii } = LARGE_MOON;
   const mass = planet.mass * massRatio.min * pow(massRatio.max / massRatio.min, ratioDraw);
   const orbit = orbitPlanetRadii.min + (orbitPlanetRadii.max - orbitPlanetRadii.min) * orbitDraw;
+  if (orbit > moonOrbitLimit(planet, star, config)) return null;
   const physics = derivePhysics(planet, star, galaxySeed, config);
   const orbitAU = effectiveOrbitAU(planet.orbitalRadius, config);
   const waterInventory = planetWaterInventory(orbitAU, physics.snowLineAU, mass, waterDraw);

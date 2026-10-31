@@ -138,7 +138,7 @@ export const systems: Chapter = {
         { name: "Ice-rich water", value: `${formatPercent(MOON_WATER.minShare)}–${formatPercent(MOON_WATER.maxShare)} of the mass`, meaning: `Beyond the snow line, W = ${MOON_WATER.unitsPerShare} × the share (decision 35); inside it, the planets' rule` },
         { name: "Eccentricity", value: `${MOON_ECCENTRICITY.min}–${MOON_ECCENTRICITY.max}`, meaning: "Log-uniform, a stand-in for the resonances that keep the Galilean moons' orbits eccentric (MO3)" },
         { name: "Tidal k₂/Q", value: exact(TIDAL_K2_OVER_Q), meaning: "Io's, for every moon (decision 34): Io 2.2 W/m², Europa 0.2 W/m²" },
-        { name: "Large moons of rocky planets", value: `${formatPercent(LARGE_MOON.chance)} chance`, meaning: `Mass ${formatPercent(LARGE_MOON.massRatio.min)}–${formatPercent(LARGE_MOON.massRatio.max)} of the planet's, ${LARGE_MOON.orbitPlanetRadii.min}–${LARGE_MOON.orbitPlanetRadii.max} planet radii out: a roll for the giant impacts that are not simulated (MO5)` },
+        { name: "Large moons of rocky planets", value: `${formatPercent(LARGE_MOON.chance)} chance`, meaning: `Mass ${formatPercent(LARGE_MOON.massRatio.min)}–${formatPercent(LARGE_MOON.massRatio.max)} of the planet's, ${LARGE_MOON.orbitPlanetRadii.min}–${LARGE_MOON.orbitPlanetRadii.max} planet radii out: a roll for the giant impacts that are not simulated (MO5); none beyond half the planet's Hill radius (A3.2)` },
       ],
       why: "Regular moons form in a giant's own disk, as the Galilean moons did; one share of mass and one spacing rule give systems like Jupiter's, and super-Jupiters moons heavier than Mars.",
       source: "Canup & Ward 2006; the Galilean moons",

@@ -2,7 +2,7 @@
 
 import {
   ACTIVITY_DECAY_EXPONENT, ACTIVITY_SCALE, ENVELOPE_FADE_K, PAST_GIANT_TEMPERATURE_K, SOLAR_AGE_GYR, SOLAR_RADIUS_AU, GIANT_LUMINOSITY_FACTOR, LIFESPAN, luminosityAt, MAIN_SEQUENCE_BRIGHTENING,
-  MAIN_SEQUENCE_END_FRACTION, MASS_DRAW, MASS_LUMINOSITY_EXPONENT, MS_RADIUS_EXPONENT, NEUTRON_STAR_LUMINOSITY,
+  MAIN_SEQUENCE_END_FRACTION, KROUPA_IMF, MASS_LUMINOSITY_EXPONENT, MS_RADIUS_EXPONENT, NEUTRON_STAR_LUMINOSITY,
   PROTOSTAR_FRACTION, PROTOSTAR_MAX_GYR, RARE_STAR, REMNANT_FRACTION, REMNANT_MASS, SATURATION, saturationTimeGyr,
   SOLAR_TEMPERATURE_K, SOLAR_XUV_TODAY, stellarRadiusAU, TEMP_RANGE, TEMPERATURE_JITTER, UNIVERSE_AGE_GYR,
   WHITE_DWARF_LUMINOSITY, XUV_MAX_NM, XUV_SATURATED_SHARE, xuvLuminosityAt,
@@ -43,14 +43,14 @@ export const stars: Chapter = {
     {
       id: "star-mass",
       title: "Masses: most stars are small",
-      statement: "A star's mass comes from one draw through a curve that makes small stars common and giant ones rare, as in real star formation.",
-      rule: MASS_DRAW.map((b) => `draw < ${b.below}: ${b.base} + (draw − ${b.from}) × ${b.slope}`).join("; ") + " (M☉); the draw is divided by the ignition threshold",
-      constants: MASS_DRAW.map((b) => ({ name: `Below draw ${b.below}`, value: `${b.base} M☉ + ${b.slope} per unit`, meaning: "One piece of the curve" })),
-      why: "Real stars follow an initial mass function weighted heavily towards red dwarfs; a piecewise curve gives that shape with one draw.",
-      source: "Shape inspired by the initial mass function (Salpeter, Kroupa); not fitted to it",
-      limits: ["The smallest star is 0.1 M☉ and the largest about 100 M☉; brown dwarfs are not made.", "Far more massive stars than in the Milky Way: 12% of draws (those above 0.88) give more than 5 M☉."],
-      laws: [{ law: "stellarIgnitionThreshold", how: "Divides the draw: above 1, fewer heavy stars" }],
-      code: "simulation/star.ts · MASS_DRAW, generateMass",
+      statement: "A star's mass comes from one draw through the initial mass function measured in the Milky Way: red dwarfs are most stars, and stars heavier than 8 M☉ about one in 250.",
+      rule: KROUPA_IMF.pieces.map((p, i) => `dN/dm ∝ m^−${p.slope} from ${p.fromSolar} M☉${i + 1 < KROUPA_IMF.pieces.length ? "" : ` to ${KROUPA_IMF.maxSolar} M☉`}`).join("; ") + "; mass = the IMF's inverse at draw^threshold",
+      constants: KROUPA_IMF.pieces.map((p) => ({ name: `From ${p.fromSolar} M☉`, value: `slope ${p.slope}`, meaning: "dN/dm ∝ m^−slope" })),
+      why: "Star formation makes many small stars and few large ones, in a shape measured in clusters and the solar neighbourhood; the draw is the share of stars lighter than the one drawn.",
+      source: "Kroupa 2001, the initial mass function above the hydrogen-burning limit",
+      limits: ["The smallest star is 0.08 M☉ and the largest 100 M☉; brown dwarfs are not made.", "One function for every galaxy and every epoch: no top-heavy IMF in starbursts or the early universe."],
+      laws: [{ law: "stellarIgnitionThreshold", how: "Raises the draw to its power: above 1, fewer heavy stars" }],
+      code: "simulation/star.ts · KROUPA_IMF, kroupaMass",
       effect: (ctx) => {
         let from = 0;
         const parts = MASS_BINS.map(({ label, below }) => {

@@ -9,6 +9,10 @@
 // the Newtonian-looking form of the Schwarzschild orbit equation u'' + u = (3/2) u².
 // A ray that falls inside the horizon is black (the shadow); one that escapes
 // shows the sky in the direction it leaves, so the stars behind are lensed.
+// The camera is a static observer, hovering at its distance: the angles on its
+// screen are angles in its own frame, where radial lengths are stretched by
+// 1/√(1 − 1/r). A pixel at angle ψ from the radial direction starts its ray at
+// the coordinate angle α with tan α = tan ψ / √(1 − 1/r) (cameraRay).
 //
 // What it sees, from the simulation (blackHole.ts):
 // - Thin disc: each crossing of the disc plane between its inner edge and its
@@ -273,9 +277,18 @@ vec3 sky(vec3 dir) {
   return colour;
 }
 
+// A camera ray's coordinate direction, for a pixel looking along `screenDir` in the camera's
+// own (static observer's) frame: its radial part shrinks by √(1 − 1/r), so tan α = tan ψ / √(1 − 1/r)
+vec3 cameraRay(vec3 cameraPos, vec3 screenDir) {
+  vec3 outward = normalize(cameraPos);
+  float radial = dot(screenDir, outward);
+  return normalize(screenDir + (sqrt(1.0 - 1.0 / length(cameraPos)) - 1.0) * radial * outward);
+}
+
 void main() {
   vec2 ndc = vUv * 2.0 - 1.0;
-  vec3 dir = normalize(cameraBasis * vec3(ndc.x * tanHalfFov * aspect, ndc.y * tanHalfFov, -1.0));
+  vec3 screenDir = normalize(cameraBasis * vec3(ndc.x * tanHalfFov * aspect, ndc.y * tanHalfFov, -1.0));
+  vec3 dir = cameraRay(cameraPosition_, screenDir);
   vec3 pos = cameraPosition_;
   vec3 vel = dir;
   float exposure = thinDisc > 0.5 ? DISC_EXPOSURE : HOT_FLOW_EXPOSURE;

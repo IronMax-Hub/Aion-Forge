@@ -57,9 +57,14 @@ export interface RayFate {
 /** The step settings a trace uses, as a quality level sets them. */
 export type TraceSteps = Pick<BlackHoleQuality, "maxSteps" | "stepScale" | "minStep" | "maxStep">;
 
-/** The direction a camera ray starts in, for a pixel looking along `screenDir`. */
-export function cameraRay(_pos: Vec3, screenDir: Vec3): Vec3 {
-  return screenDir;
+/**
+ * A camera ray's coordinate direction, for a pixel looking along `screenDir` in the camera's own
+ * (static observer's) frame: its radial part shrinks by √(1 − 1/r), so tan α = tan ψ / √(1 − 1/r).
+ */
+export function cameraRay(cameraPos: Vec3, screenDir: Vec3): Vec3 {
+  const outward = normalize(cameraPos);
+  const radial = dot(screenDir, outward);
+  return normalize(add(screenDir, scale(outward, (Math.sqrt(1 - 1 / length(cameraPos)) - 1) * radial)));
 }
 
 /** Traces one camera ray, as the shader's main() does, without the gas. */

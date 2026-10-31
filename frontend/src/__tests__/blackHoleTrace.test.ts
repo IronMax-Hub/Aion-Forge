@@ -74,12 +74,13 @@ describe("the black hole's light paths (CPU copy of the shader)", () => {
   });
 
   it("bends light that never enters the trace radius by the weak-field 2 r_s / b", () => {
-    for (const b of [30, 100]) expect(tracedDeflection(b)).toBeCloseTo(2 / b, 9);
+    // To a part in 10⁴: the camera, a static observer 10⁵ r_s out, aims a part in 10⁵ differently from a coordinate ray
+    for (const b of [30, 100]) expect(Math.abs(tracedDeflection(b) * b / 2 - 1)).toBeLessThan(1e-4);
   });
 
-  // The camera's rays start in coordinate directions, not a static observer's: the shadow is
-  // drawn too large, by 8.6 % at 6 r_s, 1.7 % at 34 and 0.6 % at 120 (fixed in B3)
-  it.fails("draws the shadow as a static observer sees it, to within 1 %, across the camera's range", () => {
+  // Before B3 the camera's rays started in coordinate directions, and the shadow was drawn
+  // too large: by 8.6 % at 6 r_s, 1.7 % at 34 and 0.6 % at 120
+  it("draws the shadow as a static observer sees it, to within 1 %, across the camera's range", () => {
     for (const r of [BLACK_HOLE_DISTANCE.min, 10, BLACK_HOLE_DISTANCE.start, BLACK_HOLE_DISTANCE.max]) {
       expect(Math.abs(tracedShadow(r) / exactShadow(r) - 1)).toBeLessThan(0.01);
     }

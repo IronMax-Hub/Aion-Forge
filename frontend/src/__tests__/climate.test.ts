@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   bandGeometry, boilingPointK, contrastK, equilibriumTemperatureK, greenhouseK, relativeInsolation,
   solveBands, solvePresentClimate, CO2_REFERENCE_BAR, FREEZING_K, co2SaturationBar, CO2_CRITICAL_K,
-  surfaceMeanK, bandAlbedo, effectiveTemperatureK, RUNAWAY_EFFECTIVE_K,
+  surfaceMeanK, bandAlbedo, effectiveTemperatureK, RUNAWAY_EFFECTIVE_K, RUNAWAY_LIMIT_W_PER_M2,
+  steamSurfaceK, STEAM_WINDOW_K, STEAM_WINDOW_SHARE, MAX_GREENHOUSE_CO2_BAR,
 } from "../simulation/climate";
 import type { ClimateInputs } from "../simulation/climate";
 import { buildGeography, surfaceGrid, BAND_COUNT } from "../simulation/geography";
@@ -29,6 +30,28 @@ describe("energy balance building blocks", () => {
     expect(effectiveAt(0.9)).toBeGreaterThan(RUNAWAY_EFFECTIVE_K);
     expect(effectiveAt(0.95)).toBeLessThan(RUNAWAY_EFFECTIVE_K);
     expect(effectiveAt(1)).toBeLessThan(RUNAWAY_EFFECTIVE_K);
+  });
+
+  it("bounds a steam world by what it can radiate: the limit, then the 4 µm window (A1.2)", () => {
+    const sigma = 5.670e-8;
+    // Just past the limit the surface sits where the window opens, whatever the greenhouse would say
+    expect(steamSurfaceK(RUNAWAY_EFFECTIVE_K * (1 + 1e-9), 5000)).toBeCloseTo(STEAM_WINDOW_K, 3);
+    // Far past it, the window radiates what the air cannot: the energy balances, and the surface stays bounded
+    for (const effectiveK of [400, 1000, 1437]) {
+      const t = steamSurfaceK(effectiveK, 1e5);
+      const radiated = RUNAWAY_LIMIT_W_PER_M2 + STEAM_WINDOW_SHARE * sigma * (t ** 4 - STEAM_WINDOW_K ** 4);
+      expect(radiated / (sigma * effectiveK ** 4)).toBeCloseTo(1, 9);
+    }
+    expect(steamSurfaceK(1437, 1e5)).toBeLessThan(3000);   // the 8,540 K world of the audit
+    // Within the limit it radiates everything at any temperature up to the window's
+    expect(steamSurfaceK(250, 900)).toBe(900);
+    expect(steamSurfaceK(250, 4000)).toBe(STEAM_WINDOW_K);
+  });
+
+  it("stops CO₂'s own warming at the maximum greenhouse, about 8 bar (A1.2)", () => {
+    const at = (co2: number) => greenhouseK(20, co2, 0, 1);   // the same total pressure: the CO₂ term alone
+    expect(at(2 * MAX_GREENHOUSE_CO2_BAR)).toBe(at(MAX_GREENHOUSE_CO2_BAR));
+    expect(at(MAX_GREENHOUSE_CO2_BAR)).toBeGreaterThan(at(MAX_GREENHOUSE_CO2_BAR / 2));
   });
 
   it("warms a wet planet by 3 K per doubling of CO₂, and a dry one by half that", () => {

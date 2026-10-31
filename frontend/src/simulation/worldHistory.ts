@@ -75,13 +75,14 @@
 // set by total pressure, or once the planet absorbs more than a moist air can
 // radiate (climate.ts, RUNAWAY_EFFECTIVE_K), and the escape continues from the steam. The steam
 // weighs on the surface like the ocean it was (Earth's would be ~270 bar),
-// which raises both the greenhouse and the boiling point, so the runaway holds
-// until the water escapes or the star dims enough for it to condense again.
+// which raises the boiling point; its temperature is set by what it can radiate
+// (climate.ts, steamSurfaceK), so the runaway holds until the water escapes or
+// the star dims enough for it to condense again.
 //
 // Assumptions and limits:
 // - The background pressure starts at the atmosphere class's and thins only by
-//   escape (R6 as amended by AE2); CO₂, O₂, CH₄ and steam add to it. Steam
-//   warms only through that pressure. Below water's triple point there is no
+//   escape (R6 as amended by AE2); CO₂, O₂, CH₄ and steam add to it. A steam
+//   world's temperature follows its radiation, not that pressure. Below water's triple point there is no
 //   liquid water (decision 27; climate.ts).
 // - Water in ice, rock and air is not separated from the ocean inventory.
 // - Impacts are recorded but change nothing yet; they are catastrophes for
@@ -539,7 +540,7 @@ export function runWorldHistory(
     const weatherableLand = state.steam ? 0 : openLand * wetness + SEAFLOOR_WEATHERING_SHARE * openOcean;
     const pressureAt = (co2: number) => pressureOf(co2, state.o2Bar, state.ch4Bar, state.water, state.steam);
     const inputsAt = (co2: number): ClimateInputs => ({
-      luminosity, orbitAU, co2Bar: co2, ch4Bar: state.ch4Bar, wetness, pressureBar: pressureAt(co2), interiorK,
+      luminosity, orbitAU, co2Bar: co2, ch4Bar: state.ch4Bar, wetness, pressureBar: pressureAt(co2), interiorK, steam: state.steam,
     });
     let co2 = state.co2Bar + outgassing * dt;
     if (weatherableLand > 0) {
@@ -698,6 +699,7 @@ export function runWorldHistory(
   const present = solvePresentClimate(geography, {
     luminosity: state.luminosity, orbitAU, pressureBar: state.pressureBar, co2Bar: state.co2Bar,
     ch4Bar: state.ch4Bar, wetness: wetnessOf(state.water), interiorK: interiorTemperatureK(interiorHeatFlow(planet, state.tGyr)),
+    steam: state.steam,
   }, seaLevelKm, state.steam, state.axialTiltDeg, physics.tidallyLocked, state.iced);
 
   const phylogeny = life && summarizePhylogeny(life, mind, state.tGyr);

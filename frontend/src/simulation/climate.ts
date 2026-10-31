@@ -46,6 +46,17 @@
 //   mean temperature: its oceans boil into the air. In this model's terms that
 //   is an effective temperature above RUNAWAY_EFFECTIVE_K, about 266 K (Earth's
 //   is 255 K), which puts an Earth twin's inner edge near 0.92 AU.
+// - Steam. Once the oceans are steam, the surface temperature is set by what
+//   the steam can radiate, not by the greenhouse above: the air radiates the
+//   limit's 282 W/m² until the surface reaches about 1,600 K, where its light
+//   starts to leave through water vapour's 4 µm window (Goldblatt et al. 2013).
+//   Above that the window carries the rest: absorbed = 282 + ε·σ(T⁴ − 1,600⁴),
+//   with ε the share of a 1,600–2,000 K surface's light at 3.5–4.1 µm (~0.07).
+//   A steam world absorbing less than the limit radiates it all at any
+//   temperature up to 1,600 K, and sits at the greenhouse's value below that.
+// - Maximum CO₂ greenhouse. Beyond about 8 bar of CO₂ more CO₂ reflects as
+//   much starlight as it traps (Kasting et al. 1993, Kopparapu et al. 2013), so
+//   the CO₂ term stops rising there; the pressure term still counts all the gas.
 //
 // Assumptions and limits:
 // - One mean temperature per region; no seasons, no day–night cycle on a
@@ -77,6 +88,8 @@ export const ALBEDO = { ocean: 0.28, land: 0.32, ice: 0.62 };
 export const GREENHOUSE_BASE_K = 16.5;           // dry, per √bar of total pressure
 export const CO2_REFERENCE_BAR = 2.8e-4;  // pre-industrial Earth
 const CO2_FLOOR_BAR = 1e-7;               // below this the log term stops falling
+/** Above this the CO₂ term stops rising: the maximum greenhouse (Kasting et al. 1993). */
+export const MAX_GREENHOUSE_CO2_BAR = 8;
 export const GREENHOUSE_PER_CO2_DOUBLING_K = 1.5; // dry; 3 K with water vapour
 export const GREENHOUSE_PER_SQRT_CH4_K = 150;    // dry; 1,000 ppm of methane gives ~9 K with vapour
 export const VAPOUR_FEEDBACK = 0.5;
@@ -114,6 +127,10 @@ export const RUNAWAY_LIMIT_W_PER_M2 = 282;
 const STEFAN_BOLTZMANN = 5.670e-8;
 /** The effective temperature at which a planet absorbs RUNAWAY_LIMIT_W_PER_M2: above it, oceans cannot stay liquid, K. */
 export const RUNAWAY_EFFECTIVE_K = pow(RUNAWAY_LIMIT_W_PER_M2 / STEFAN_BOLTZMANN, 0.25);
+/** A steam atmosphere's surface temperature where its light starts to leave through the 4 µm window, K (Goldblatt et al. 2013). */
+export const STEAM_WINDOW_K = 1600;
+/** The share of a hot surface's light that leaves through that window (Planck share at 3.5–4.1 µm, 1,600–2,000 K). */
+export const STEAM_WINDOW_SHARE = 0.07;
 
 const MAX_ICE_ITERATIONS = 30;
 const LN2 = 0.6931471805599453;
@@ -130,7 +147,7 @@ export function equilibriumTemperatureK(luminosity: number, orbitAU: number, alb
 
 /** Warming by the atmosphere at Earth's effective temperature, K. `wetness` (0–1) is how much surface water can feed vapour. */
 export function greenhouseK(pressureBar: number, co2Bar: number, ch4Bar: number, wetness: number): number {
-  const co2Doublings = log(Math.max(CO2_FLOOR_BAR, co2Bar) / CO2_REFERENCE_BAR) / LN2;
+  const co2Doublings = log(Math.min(MAX_GREENHOUSE_CO2_BAR, Math.max(CO2_FLOOR_BAR, co2Bar)) / CO2_REFERENCE_BAR) / LN2;
   const dry = GREENHOUSE_BASE_K * Math.sqrt(pressureBar)
     + GREENHOUSE_PER_CO2_DOUBLING_K * co2Doublings
     + GREENHOUSE_PER_SQRT_CH4_K * Math.sqrt(ch4Bar);
@@ -166,6 +183,18 @@ export function surfaceMeanK(eqK: number, intK: number, warmingK: number): numbe
 }
 
 
+
+/**
+ * The surface temperature under a steam atmosphere, K: past the runaway limit, the temperature at
+ * which the 4 µm window radiates what the air cannot; within it, the greenhouse's value `greenhouseMeanK`,
+ * no hotter than where the window opens.
+ */
+export function steamSurfaceK(effectiveK: number, greenhouseMeanK: number): number {
+  const absorbed = STEFAN_BOLTZMANN * effectiveK * effectiveK * effectiveK * effectiveK;
+  if (absorbed <= RUNAWAY_LIMIT_W_PER_M2) return Math.min(greenhouseMeanK, STEAM_WINDOW_K);
+  const window4 = STEAM_WINDOW_K * STEAM_WINDOW_K * STEAM_WINDOW_K * STEAM_WINDOW_K;
+  return pow(window4 + (absorbed - RUNAWAY_LIMIT_W_PER_M2) / (STEAM_WINDOW_SHARE * STEFAN_BOLTZMANN), 0.25);
+}
 
 /** Temperature difference between the most and least lit regions per unit of insolation, K. */
 export function contrastK(pressureBar: number): number {
@@ -242,6 +271,8 @@ export interface ClimateInputs {
   wetness: number;
   /** The temperature the interior's heat alone would give the surface, K (IH1). */
   interiorK: number;
+  /** The oceans are steam: the surface temperature is the steam's (steamSurfaceK). */
+  steam?: boolean;
 }
 
 export interface BandClimate {
@@ -277,7 +308,8 @@ export function bandAlbedo(geometry: BandGeometry, bandOcean: Float64Array, iced
 
 /** The mean temperature of a climate's inputs over a given equilibrium temperature, K. */
 function meanKOf(eqK: number, inputs: ClimateInputs): number {
-  return surfaceMeanK(eqK, inputs.interiorK, greenhouseK(inputs.pressureBar, inputs.co2Bar, inputs.ch4Bar, inputs.wetness));
+  const greenhouseMeanK = surfaceMeanK(eqK, inputs.interiorK, greenhouseK(inputs.pressureBar, inputs.co2Bar, inputs.ch4Bar, inputs.wetness));
+  return inputs.steam ? steamSurfaceK(effectiveTemperatureK(eqK, inputs.interiorK), greenhouseMeanK) : greenhouseMeanK;
 }
 
 /** The share of the energy that is starlight, T_eq⁴ / T_eff⁴: only starlight is uneven. */

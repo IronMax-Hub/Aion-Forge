@@ -63,3 +63,18 @@ It changes only steam worlds and very CO₂-rich ones; Earth, the twin sweep fro
 From ~1.2 AU outward, Earth twins don't settle. They freeze over, build CO₂ under the ice, thaw, draw the CO₂ down, and freeze again, every 100–300 Myr. These "limit cycles" are a real proposed behaviour at the outer edge (Menou 2015; Haqq-Misra et al. 2016). The problem is that the cycle is about as long as the 100 Myr step, so whether "today" lands frozen or thawed depends on the step size. That is why 1.37 AU ends at 312, 254 or 246 K.
 
 A1.3 will take smaller steps around freezing and thawing, so the cycle's timing, and today's phase, stop depending on the step size. It comes after A1.2 because A1.2 changes how warm the CO₂ makes these worlds.
+
+## A1.2 done (option A, owner's choice)
+
+- **Steam worlds are bounded by their radiation.** Past the runaway limit, the air radiates 282 W/m² and the surface heats until light leaves through water vapour's 4 µm window. The window opens at **1,600 K** (Goldblatt et al. 2013; Goldblatt & Watson 2012 put an Earth-like runaway's equilibrium near 1,400 K). Above that, absorbed = 282 + ε·σ(T⁴ − 1,600⁴), with **ε = 0.07**: the share of a 1,600–2,000 K surface's light at 3.5–4.1 µm. ε is an approximation; it is named on the physics page.
+- A steam world absorbing *less* than the limit radiates everything at any temperature up to 1,600 K, so it keeps the greenhouse's value, capped at 1,600 K. Goldblatt et al. found that a steam atmosphere can persist at Earth's present sunlight, so this hysteresis is physical.
+- **Maximum CO₂ greenhouse:** the CO₂ term stops rising at 8 bar (Kasting et al. 1993). The pressure term still counts all the gas, so Venus-like worlds stay hot.
+
+| | after A1.1 | after A1.2 |
+|---|---|---|
+| Hottest solid planet (seed 42 sample) | 8,540 K | **3,115 K** |
+| Earth twin at 0.9 AU (steam) | 825 K | 1,600 K (where the window opens; it is barely past the limit) |
+| Earth twin at 0.72 AU (Venus analogue) | 535 K | 528 K |
+| Familiar Reality civilizations (100000 / 42 / 7777) | 3 / 6 / 3 | 2 / 6 / 3 |
+
+Life is otherwise unchanged to within a few planets: steam worlds were already lifeless.

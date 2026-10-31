@@ -6,7 +6,8 @@ import {
 import {
   ALBEDO, CO2_CRITICAL_K, CO2_REFERENCE_BAR, CO2_TRIPLE_POINT, CONTRAST_MAX_K, EQUILIBRIUM_K_AT_1_AU, FREEZING_K,
   GREENHOUSE_BASE_K, GREENHOUSE_PER_CO2_DOUBLING_K, GREENHOUSE_PER_SQRT_CH4_K, GREENHOUSE_REFERENCE_K, REDISTRIBUTION_HALF_BAR,
-  RUNAWAY_EFFECTIVE_K, RUNAWAY_LIMIT_W_PER_M2, VAPOUR_FEEDBACK, WATER_CRITICAL_K,
+  MAX_GREENHOUSE_CO2_BAR, RUNAWAY_EFFECTIVE_K, RUNAWAY_LIMIT_W_PER_M2, STEAM_WINDOW_K, STEAM_WINDOW_SHARE, VAPOUR_FEEDBACK,
+  WATER_CRITICAL_K,
 } from "../../../simulation/climate";
 import {
   CH4_DESTRUCTION_PER_GYR, CRUST_O2_CAPACITY_BAR, CRUST_O2_SINK_BAR_PER_GYR, FORMATION_DELAY_GYR, FROZEN_ICE_SHARE,
@@ -105,9 +106,10 @@ export const climate: Chapter = {
       id: "greenhouse",
       title: "The greenhouse",
       statement: "Air warms a planet in proportion to the energy it holds: more pressure, more CO₂ and methane warm it more, and water vapour multiplies the warming on wet worlds. Earth gets 33 K; the same air on a world far from its star warms it far less.",
-      rule: `T_mean = T_eff × (1 + G / ${GREENHOUSE_REFERENCE_K} K); G = (${GREENHOUSE_BASE_K} K × √P + ${GREENHOUSE_PER_CO2_DOUBLING_K} K × log₂(CO₂ / ${CO2_REFERENCE_BAR}) + ${GREENHOUSE_PER_SQRT_CH4_K} K × √CH₄) / (1 − ${VAPOUR_FEEDBACK} × wetness)`,
+      rule: `T_mean = T_eff × (1 + G / ${GREENHOUSE_REFERENCE_K} K); G = (${GREENHOUSE_BASE_K} K × √P + ${GREENHOUSE_PER_CO2_DOUBLING_K} K × log₂(min(CO₂, ${MAX_GREENHOUSE_CO2_BAR}) / ${CO2_REFERENCE_BAR}) + ${GREENHOUSE_PER_SQRT_CH4_K} K × √CH₄) / (1 − ${VAPOUR_FEEDBACK} × wetness)`,
       constants: [
         { name: "Per CO₂ doubling (dry)", value: exact(GREENHOUSE_PER_CO2_DOUBLING_K, "K"), meaning: "3 K with water vapour: Earth's climate sensitivity" },
+        { name: "Maximum CO₂ greenhouse", value: exact(MAX_GREENHOUSE_CO2_BAR, "bar"), meaning: "Beyond it more CO₂ reflects as much light as it traps (Kasting et al. 1993)" },
         { name: "Vapour feedback", value: exact(VAPOUR_FEEDBACK), meaning: "" },
         { name: "Reference", value: exact(GREENHOUSE_REFERENCE_K, "K"), meaning: "Earth's equilibrium temperature: G is the warming there, scaled with T_eff elsewhere (IH2)" },
       ],
@@ -157,10 +159,12 @@ export const climate: Chapter = {
     {
       id: "boiling",
       title: "Boiling oceans",
-      statement: "A world's oceans turn to steam at once when it absorbs more than moist air can radiate, the runaway limit, or when it passes the boiling point set by the total air pressure. The steam's own weight and warmth hold the runaway until the water escapes. Below water's triple point there is no liquid at all: water is ice, or vapour.",
-      rule: `steam when σT_eff⁴ > ${RUNAWAY_LIMIT_W_PER_M2} W/m² (T_eff > ${formatSig(RUNAWAY_EFFECTIVE_K, 4)} K) or T_mean ≥ boiling point; boiling point by Clausius–Clapeyron (L/R = ${formatInt(WATER_LATENT_OVER_R_BELOW_1_ATM_K)} K below 1 atm, through the triple point), capped at water's critical point (${WATER_CRITICAL_K} K)`,
+      statement: "A world's oceans turn to steam at once when it absorbs more than moist air can radiate, the runaway limit, or when it passes the boiling point set by the total air pressure. The steam heats the surface until it can shed the excess: about 1,600 K, where light starts to escape through water vapour's 4 µm window, and hotter on worlds absorbing far more. The steam's weight and heat hold the runaway until the water escapes. Below water's triple point there is no liquid at all: water is ice, or vapour.",
+      rule: `steam when σT_eff⁴ > ${RUNAWAY_LIMIT_W_PER_M2} W/m² (T_eff > ${formatSig(RUNAWAY_EFFECTIVE_K, 4)} K) or T_mean ≥ boiling point; under steam, σT_eff⁴ = ${RUNAWAY_LIMIT_W_PER_M2} + ε·σ(T⁴ − ${formatInt(STEAM_WINDOW_K)}⁴); boiling point by Clausius–Clapeyron (L/R = ${formatInt(WATER_LATENT_OVER_R_BELOW_1_ATM_K)} K below 1 atm, through the triple point), capped at water's critical point (${WATER_CRITICAL_K} K)`,
       constants: [
         { name: "Runaway limit", value: `${RUNAWAY_LIMIT_W_PER_M2} W/m²`, meaning: "The most moist air can radiate (Goldblatt et al. 2013); an Earth twin's inner edge near 0.92 AU" },
+        { name: "Window opens", value: `${formatInt(STEAM_WINDOW_K)} K`, meaning: "Under steam, the surface temperature where its light starts to leave at 4 µm (Goldblatt et al. 2013)" },
+        { name: "Window share ε", value: `${STEAM_WINDOW_SHARE}`, meaning: "The share of a 1,600–2,000 K surface's light at 3.5–4.1 µm; an approximation" },
         { name: "Triple point", value: `${WATER_TRIPLE_POINT.K} K, ${WATER_TRIPLE_POINT.bar} bar`, meaning: "No liquid water at lower pressure (decision 27)" },
       ],
       why: "A runaway greenhouse: Venus's likely fate. Water vapour blocks more of a planet's heat the warmer it gets, so above the limit no ocean temperature balances the starlight.",

@@ -17,6 +17,18 @@ export function createRNG(seed: number) {
 
 export type RNG = ReturnType<typeof createRNG>;
 
+/**
+ * The largest universe seed. createRNG and makeUniverseId read a seed's low 32
+ * bits, so seeds 2³² apart would make the same universe under the same ID:
+ * seeds are kept to 0…2³²−1 wherever they are entered or read (AF-016).
+ */
+export const MAX_SEED = 0xffffffff;
+
+/** Whether `value` is a universe seed: a whole number from 0 to MAX_SEED. */
+export function isSeed(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_SEED;
+}
+
 // ── Stream seeds ──────────────────────────────────────────────────────────────
 //
 // Why: combining ids with XOR is symmetric, so star 2 / planet 5 and star 5 /

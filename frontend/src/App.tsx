@@ -53,6 +53,7 @@ import type { Entry, SubjectRef } from "./ui/encyclopedia/entry";
 import type { UniverseIndex } from "./simulation/universeIndex";
 import { bodyName, moonName, starName, planetLifeLabel, lifeMarkerLabel, civilizationMarkerLabel, formatSolarMasses, PLANET_TYPE_LABEL } from "./ui/format";
 import { makeUniverseId, generateUniverseSummary, importUniverseFromFile } from "./simulation/persistence";
+import { isSeed, MAX_SEED } from "./simulation/rng";
 import type { UniverseMeta, DiscoveryItem } from "./simulation/persistence";
 import { makeJournalEntry } from "./simulation/journal";
 import type { JournalEntry } from "./simulation/journal";
@@ -436,8 +437,9 @@ export default function App() {
 
   const handleSeedSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = parseInt(inputSeed, 10);
-    if (!isNaN(parsed) && parsed >= 0) {
+    // Whole digits only, within the seeds the simulation can tell apart (AF-016)
+    const parsed = /^\d+$/.test(inputSeed.trim()) ? Number(inputSeed.trim()) : NaN;
+    if (isSeed(parsed)) {
       setSeed(parsed);
       generate(parsed);
     }
@@ -1113,6 +1115,8 @@ export default function App() {
             className="seed-input"
             type="number"
             min={0}
+            max={MAX_SEED}
+            step={1}
             placeholder="Enter seed…"
             value={inputSeed}
             onChange={(e) => setInputSeed(e.target.value)}

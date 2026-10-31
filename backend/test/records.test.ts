@@ -39,6 +39,12 @@ describe("universes", () => {
     expect(() => universeSchema.parse({ ...universe, config: { ...universe.config, entropyRate: Infinity } })).toThrow();
   });
 
+  it("accepts seeds 0 to 2³²−1 and rejects wider ones, which the simulation would alias", () => {
+    expect(universeSchema.parse({ ...universe, seed: 0 }).seed).toBe(0);
+    expect(universeSchema.parse({ ...universe, seed: 0xffffffff }).seed).toBe(0xffffffff);
+    expect(() => universeSchema.parse({ ...universe, seed: 2 ** 32 })).toThrow();
+  });
+
   it("allows only name, notes and favourite to be patched", () => {
     expect(universePatchSchema.parse({ name: "Renamed" })).toEqual({ name: "Renamed" });
     expect(() => universePatchSchema.parse({ seed: 5 })).toThrow();

@@ -25,6 +25,7 @@ import { CIVILIZATION_STAGE_CODES } from "../simulation/universeIndex";
 import { breakdown, funnelOf, GATES, quantile, spreadOf, stoppedAt } from "../simulation/greatFilter";
 import type { Funnel, GateId } from "../simulation/greatFilter";
 import { TECH_STAGE_LABEL } from "../simulation/civilization";
+import { MAX_SEED } from "../simulation/rng";
 import { formatGyr, formatInt, formatPercent, formatPressure, formatSig, planetName, starName } from "./format";
 import { formatMass } from "./specimens";
 import { FloatingPanelHeader } from "./FloatingPanelHeader";
@@ -217,7 +218,7 @@ function ManySeeds({ seed, surveySeed }: { seed: number; surveySeed: Props["surv
 
   const start = async () => {
     cancelled.current = false;
-    const seeds = Array.from({ length: count }, (_, i) => seed + i);
+    const seeds = Array.from({ length: count }, (_, i) => (seed + i) % (MAX_SEED + 1));   // past the last seed, start again at 0
     setRun({ seeds, funnels: new Map(), running: true });
     for (const s of seeds) {
       if (cancelled.current) break;
@@ -249,7 +250,7 @@ function ManySeeds({ seed, surveySeed }: { seed: number; surveySeed: Props["surv
           ? <button type="button" className="tl-filter-btn" onClick={cancel}>Cancel</button>
           : <button type="button" className="tl-filter-btn" onClick={() => void start()}>Run</button>}
         <span className="gf-many-status" role="status">
-          {run ? `${run.funnels.size} of ${run.seeds.length} seeds${run.running ? "…" : run.funnels.size < run.seeds.length ? " (cancelled)" : ""}` : `seeds ${seed}–${seed + count - 1}, under these laws`}
+          {run ? `${run.funnels.size} of ${run.seeds.length} seeds${run.running ? "…" : run.funnels.size < run.seeds.length ? " (cancelled)" : ""}` : `seeds ${seed}–${(seed + count - 1) % (MAX_SEED + 1)}, under these laws`}
         </span>
       </div>
       {spread && (

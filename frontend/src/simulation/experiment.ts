@@ -127,13 +127,6 @@ export function compareUniverses(
       delta: experiment.civilizationCount - baseline.civilizationCount,
       unit: "",
     },
-    {
-      label: "Legendary Events",
-      baseline: baseline.legendaryEvents,
-      experiment: experiment.legendaryEvents,
-      delta: experiment.legendaryEvents - baseline.legendaryEvents,
-      unit: "",
-    },
   ];
 
   const gates = gateShifts(baseline.funnel, experiment.funnel);
@@ -223,14 +216,6 @@ function detectSurprises(
     experiment.civilizationCount > 0
   ) {
     surprises.push("Against extraordinary odds, intelligence emerged in a universe that barely permitted it.");
-  }
-
-  // Sparse universe producing rich history
-  if (
-    experiment.legendaryEvents > baseline.legendaryEvents * 1.5 &&
-    experiment.starCount < baseline.starCount * 0.6
-  ) {
-    surprises.push("A sparse universe produced a richer history than its dense counterpart.");
   }
 
   // No life at all

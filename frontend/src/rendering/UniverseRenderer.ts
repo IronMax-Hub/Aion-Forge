@@ -14,6 +14,7 @@ import { effectiveOrbitAU } from "../simulation/planetBasics";
 import type { UniverseConfig } from "../simulation/config";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { PLANET_COLORS } from "../simulation/planet";
+import { createRNG } from "../simulation/rng";
 import type { Biosphere } from "../simulation/biosphere";
 import type { Civilization } from "../simulation/civilization";
 import type { CentralBlackHole } from "../simulation/blackHole";
@@ -37,19 +38,6 @@ import type { GlobeSurface } from "./planet/globe";
 import type { GlobeBake } from "./planet/globeBake";
 import { civilizationLightsOf, vegetationOf } from "./planet/life";
 import type { CivilizationLights } from "./planet/life";
-
-// ── Visual seeded PRNG (ENH-506) ──────────────────────────────────────────────
-// Used for the nebula accents — purely visual, does not affect
-// simulation determinism. Separate from simulation RNG by design.
-
-function mulberry32(seed: number): () => number {
-  return function (): number {
-    seed = (seed + 0x6D2B79F5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = t + Math.imul(t ^ (t >>> 7), 61 | t) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 // ── Canvas texture helpers (ENH-501, ENH-506, ENH-507) ───────────────────────
 
@@ -500,7 +488,7 @@ export class UniverseRenderer {
       }
     }
 
-    const rng = mulberry32((galaxySeed ^ 0x7E6B1A3C) >>> 0);
+    const rng = createRNG((galaxySeed ^ 0x7E6B1A3C) >>> 0);   // purely visual: its own salt keeps it apart from the simulation's streams
     const group = new THREE.Group();
 
     const nebulaDefs = [
@@ -879,6 +867,7 @@ export class UniverseRenderer {
     this.systemHostStar = null;
     this.onPlanetApproach = null;
     this.controls.autoRotate = false;
+    this.controls.autoRotateSpeed = GALAXY_AUTO_ROTATE_SPEED;   // the system and planet views set their own
     this.systemMaxDistance = DEFAULT_DISTANCE.max;
     this.controls.maxDistance = DEFAULT_DISTANCE.max;
   }

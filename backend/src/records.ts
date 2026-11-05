@@ -104,6 +104,12 @@ export function universeToRow(u: Universe): Omit<UniverseRow, "is_favorite"> & {
   };
 }
 
+/** The columns a repeat save may overwrite: everything except what the viewer set (name, notes, favourite) and the first save's date. */
+export function universeResaveColumns(u: Universe) {
+  const { name, notes, is_favorite, created_at, ...resave } = universeToRow(u);
+  return resave;
+}
+
 export function rowToUniverse(r: UniverseRow): Universe {
   return {
     snapshotId: r.snapshot_id, seed: Number(r.seed),

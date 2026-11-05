@@ -6,7 +6,7 @@ import type { Request, Response, NextFunction } from "express";
 import type { Pool, RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { z } from "zod";
 import {
-  universeSchema, universePatchSchema, universeToRow, rowToUniverse,
+  universeSchema, universePatchSchema, universeToRow, universeResaveColumns, rowToUniverse,
   recountSchema, recountToColumns,
   discoverySchema, discoveryToRow, rowToDiscovery,
   experimentSchema, experimentToRow, rowToExperiment,
@@ -40,15 +40,16 @@ export function apiRouter(pool: Pool): Router {
     res.json(rows.map(rowToUniverse));
   }));
 
-  // Saving the same seed again replaces the earlier record, as the Library always has.
+  // Saving the same seed again refreshes the earlier record's numbers and parameters,
+  // but keeps the name, notes and favourite the viewer set, and the first save's date.
   router.put("/universes/:snapshotId", route(async (req, res) => {
     const universe = universeSchema.parse(req.body);
     if (universe.snapshotId !== req.params.snapshotId) {
       res.status(400).json({ error: "snapshotId in the URL and body differ" });
       return;
     }
-    const row = universeToRow(universe);
-    await pool.query("INSERT INTO universes SET ? ON DUPLICATE KEY UPDATE ?", [row, row]);
+    await pool.query("INSERT INTO universes SET ? ON DUPLICATE KEY UPDATE ?",
+      [universeToRow(universe), universeResaveColumns(universe)]);
     res.json(universe);
   }));
 

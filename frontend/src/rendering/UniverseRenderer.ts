@@ -6,6 +6,7 @@ import type { Star, StellarPopulation } from "../simulation/star";
 import { companionAsStar, stellarRadiusAU } from "../simulation/star";
 import { pairLight } from "../simulation/binary";
 import { starDisplayColour, starDisplayThreeColour, starLightThreeColour } from "./starColour";
+import { nearestStarOnScreen } from "./starPick";
 import { moonKey } from "../simulation/bodyKey";
 import { formatSig, spectralType, STELLAR_CLASS_NAME } from "../ui/format";
 import type { Planet, PlanetarySystem, SolidWorld } from "../simulation/planet";
@@ -13,6 +14,7 @@ import { effectiveOrbitAU } from "../simulation/planetBasics";
 import type { UniverseConfig } from "../simulation/config";
 import type { PlanetPhysics } from "../simulation/planetPhysics";
 import { PLANET_COLORS } from "../simulation/planet";
+import { createRNG } from "../simulation/rng";
 import type { Biosphere } from "../simulation/biosphere";
 import type { Civilization } from "../simulation/civilization";
 import type { CentralBlackHole } from "../simulation/blackHole";
@@ -36,19 +38,6 @@ import type { GlobeSurface } from "./planet/globe";
 import type { GlobeBake } from "./planet/globeBake";
 import { civilizationLightsOf, vegetationOf } from "./planet/life";
 import type { CivilizationLights } from "./planet/life";
-
-// ── Visual seeded PRNG (ENH-506) ──────────────────────────────────────────────
-// Used for the nebula accents — purely visual, does not affect
-// simulation determinism. Separate from simulation RNG by design.
-
-function mulberry32(seed: number): () => number {
-  return function (): number {
-    seed = (seed + 0x6D2B79F5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = t + Math.imul(t ^ (t >>> 7), 61 | t) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 // ── Canvas texture helpers (ENH-501, ENH-506, ENH-507) ───────────────────────
 
@@ -210,6 +199,8 @@ export interface ViewScale {
 
 // Orbit-control limits outside the planet view
 const DEFAULT_DISTANCE = { min: 0.01, max: 2000 };
+// Where the camera starts for every new galaxy: above the disc, looking at its centre
+const GALAXY_START_POSITION = new THREE.Vector3(0, 80, 220);
 // The views' slow turns, in turns per minute (OrbitControls' autoRotateSpeed, given each frame's
 // duration). They match what the views did on the owner's phone at 120 frames a second, when
 // the turn was counted per frame and so ran many times slower on a slow desktop GPU.
@@ -452,7 +443,7 @@ export class UniverseRenderer {
     this.scene = new THREE.Scene();
 
     this.camera = new THREE.PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 0.01, 100000);
-    this.camera.position.set(0, 80, 220);
+    this.camera.position.copy(GALAXY_START_POSITION);
 
     // ENH-510: cinematic orbit controls
     this.controls = new OrbitControls(this.camera, canvas);
@@ -497,7 +488,7 @@ export class UniverseRenderer {
       }
     }
 
-    const rng = mulberry32((galaxySeed ^ 0x7E6B1A3C) >>> 0);
+    const rng = createRNG((galaxySeed ^ 0x7E6B1A3C) >>> 0);   // purely visual: its own salt keeps it apart from the simulation's streams
     const group = new THREE.Group();
 
     const nebulaDefs = [
@@ -531,6 +522,7 @@ export class UniverseRenderer {
   // ── Galaxy dust cloud (ENH-501 / ENH-503) ────────────────────────────────
 
   renderGalaxy(particles: GalaxyParticles) {
+    this.resetGalaxyCamera();
     if (this.galaxyMesh) {
       this.scene.remove(this.galaxyMesh);
       this.galaxyMesh.geometry.dispose();
@@ -875,6 +867,7 @@ export class UniverseRenderer {
     this.systemHostStar = null;
     this.onPlanetApproach = null;
     this.controls.autoRotate = false;
+    this.controls.autoRotateSpeed = GALAXY_AUTO_ROTATE_SPEED;   // the system and planet views set their own
     this.systemMaxDistance = DEFAULT_DISTANCE.max;
     this.controls.maxDistance = DEFAULT_DISTANCE.max;
   }
@@ -1023,6 +1016,15 @@ export class UniverseRenderer {
     this.controls.maxDistance = this.systemMaxDistance;
   }
 
+  /** Put the camera back where every galaxy starts, so a new one is seen whole whatever the last was zoomed to. */
+  private resetGalaxyCamera() {
+    this.tween = null;
+    this.camera.position.copy(GALAXY_START_POSITION);
+    this.controls.target.set(0, 0, 0);
+    this.controls.autoRotate = true;
+    this.controls.update();
+  }
+
   // ── Star highlight ────────────────────────────────────────────────────────
 
   // A thin square frame drawn at constant screen size, like a telescope's target marker.
@@ -1084,9 +1086,9 @@ export class UniverseRenderer {
     }
     if (!this.starMesh || this.starData.length === 0) return;
     this.raycaster.params.Points = { threshold: 3 };
-    const hits = this.raycaster.intersectObject(this.starMesh);
-    if (hits.length > 0) {
-      this.selectStar(this.starData[hits[0].index!]);
+    const picked = nearestStarOnScreen(this.raycaster.intersectObject(this.starMesh));
+    if (picked !== null) {
+      this.selectStar(this.starData[picked]);
     } else {
       this.onStarSelected?.(null);
       this.highlightStar(null);

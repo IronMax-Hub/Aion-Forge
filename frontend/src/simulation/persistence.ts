@@ -87,7 +87,7 @@ export function deserializeUniverse(raw: string): UniverseMeta | null {
 // ── Snapshot summary generator (AF-142) ───────────────────────────────────────
 
 export function generateUniverseSummary(meta: Omit<UniverseMeta, "summary" | "name" | "notes" | "isFavorite" | "snapshotId" | "createdAt" | "rulesVersion">): string {
-  const { lifeBearingPlanets, civilizationCount, legendaryEvents, galaxyType, starCount, totalPlanets } = meta;
+  const { lifeBearingPlanets, civilizationCount, galaxyType, starCount, totalPlanets } = meta;
 
   const density = starCount < 1000 ? "sparse" : starCount > 1800 ? "dense" : "mid-sized";
   const galaxyDesc = `A ${density} ${galaxyType} galaxy containing ${starCount.toLocaleString()} stars`;
@@ -111,14 +111,7 @@ export function generateUniverseSummary(meta: Omit<UniverseMeta, "summary" | "na
       ? "a single civilization arose to ask questions of the cosmos"
       : `${civilizationCount} civilizations independently discovered language, fire, and the stars`;
 
-  const legacyDesc =
-    legendaryEvents === 0
-      ? "Their history unfolded quietly."
-      : legendaryEvents <= 3
-      ? `${legendaryEvents} legendary moment${legendaryEvents > 1 ? "s" : ""} shaped their story.`
-      : `A universe of legendary moments — ${legendaryEvents} events that will not be forgotten.`;
-
-  return `${galaxyDesc}${planetDesc}. ${lifeDesc}, and ${civDesc}. ${legacyDesc}`;
+  return `${galaxyDesc}${planetDesc}. ${lifeDesc}, and ${civDesc}.`;
 }
 
 // ── Export / import (AF-137, AF-138) ─────────────────────────────────────────
@@ -153,7 +146,6 @@ export function getFeaturedUniverses(gallery: UniverseMeta[]): UniverseMeta[] {
   const scored = gallery.map((m) => {
     let score = 0;
     if (m.isFavorite)              score += 10;
-    if (m.legendaryEvents > 5)     score += 5;
     if (m.civilizationCount > 2)   score += 4;
     if (m.lifeBearingPlanets === 0) score += 3;  // the silent universe — eerie
     if (m.civilizationCount > 0 && m.lifeBearingPlanets === 1) score += 4; // lone civilization

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  universeSchema, universeToRow, rowToUniverse, universePatchSchema,
+  universeSchema, universeToRow, universeResaveColumns, rowToUniverse, universePatchSchema,
   recountSchema, recountToColumns,
   discoverySchema, discoveryToRow, rowToDiscovery,
   experimentSchema, experimentToRow, rowToExperiment,
@@ -32,6 +32,13 @@ describe("universes", () => {
     const row = universeToRow(universeSchema.parse(universe));
     const fromDb: UniverseRow = { ...row, is_favorite: row.is_favorite ? 1 : 0 };  // MySQL returns BOOLEAN as 0/1
     expect(rowToUniverse(fromDb)).toEqual(universe);
+  });
+
+  it("lets a repeat save refresh everything but the name, notes, favourite and first save date", () => {
+    const row = universeToRow(universeSchema.parse(universe));
+    const resave = universeResaveColumns(universeSchema.parse(universe));
+    expect(Object.keys(row).filter((column) => !(column in resave)).sort())
+      .toEqual(["created_at", "is_favorite", "name", "notes"]);
   });
 
   it("rejects malformed IDs and non-finite parameters", () => {

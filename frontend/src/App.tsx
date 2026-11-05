@@ -15,7 +15,6 @@ import { generateBiosphere } from "./simulation/biosphere";
 import type { Biosphere } from "./simulation/biosphere";
 import { generateCivilization } from "./simulation/civilization";
 import type { Civilization, Species } from "./simulation/civilization";
-import { surveyLife } from "./simulation/lifeSurvey";
 import { buildUniverseTimeline, summarizeTimeline } from "./simulation/history";
 import type { UniverseTimeline } from "./simulation/history";
 import { makeConfig, DEFAULT_CONFIG, CONFIG_LABELS } from "./simulation/config";
@@ -79,7 +78,7 @@ const surveyClient = createSurveyClient(() =>
   createSurveyPool(() => new SurveyWorker(), surveyPoolSize(navigator.hardwareConcurrency)));
 
 function randomSeed(): number {
-  return Math.floor(Math.random() * 1_000_000_000);
+  return Math.floor(Math.random() * (MAX_SEED + 1));
 }
 
 type View = "galaxy" | "system" | "biosphere" | "civilization";
@@ -170,7 +169,7 @@ export default function App() {
   const surveying = surveyProgress !== null;
   const [surveyError, setSurveyError] = useState<string | null>(null);
   // Snapshots are built from the life survey, so their buttons wait for it
-  const snapshotPending = isGenerating || surveyProgress !== null;
+  const snapshotPending = isGenerating || surveyProgress !== null || surveyError !== null;   // no survey, no counts
   const [view, setView]             = useState<View>("galaxy");
   // In orbit around the selected planet (Worlds Up Close A4). The biosphere and
   // civilization panels still open from orbit; leaving orbit returns to the system.
@@ -446,29 +445,25 @@ export default function App() {
     }
   };
 
-  // Snapshot of the universe on screen, for comparison and saving
-  function snapshotOf(s: number, cfg: UniverseConfig, pop: StellarPopulation): UniverseSnapshot {
-    return buildSnapshot(s, cfg, pop.stars.length, surveyLife(pop.stars, s, cfg));
-  }
+  // The snapshot of the universe on screen comes only from the worker's survey (cachedSnapshotRef):
+  // surveying on the main thread would freeze the interface for over a minute
 
   const handleSetBaseline = useCallback(() => {
-    if (!populationRef.current) return;
-    const snap = cachedSnapshotRef.current ?? snapshotOf(currentSeed, universeConfig, populationRef.current);
-    cachedSnapshotRef.current = snap;
+    const snap = cachedSnapshotRef.current;
+    if (!snap) return;
     snapshotRef.current = snap;
     setBaselineSnapshot(snap);
     ui.baseline();
-  }, [currentSeed, universeConfig]);
+  }, []);
 
   const handleCompare = useCallback(() => {
-    if (!baselineSnapshot || !populationRef.current) return;
+    const expSnap = cachedSnapshotRef.current;
+    if (!baselineSnapshot || !expSnap) return;
     lab.compareBegin();
-    const expSnap = cachedSnapshotRef.current ?? snapshotOf(currentSeed, universeConfig, populationRef.current);
-    cachedSnapshotRef.current = expSnap;
     const cmp = compareUniverses(baselineSnapshot, expSnap);
     setComparison(cmp);
     lab.compareReveal();
-  }, [baselineSnapshot, currentSeed, universeConfig]);
+  }, [baselineSnapshot]);
 
   /** Run a database operation; on failure show why in the status bar instead of saving. */
   const withStorage = useCallback(async (operation: () => Promise<void>) => {
@@ -515,10 +510,9 @@ export default function App() {
   }, [comparison, withStorage]);
 
   const handleSaveToGallery = useCallback(() => {
-    if (!populationRef.current) return;
+    const snap = cachedSnapshotRef.current;
+    if (!snap) return;
     ui.save();
-    const snap = cachedSnapshotRef.current ?? snapshotOf(currentSeed, universeConfig, populationRef.current);
-    cachedSnapshotRef.current = snap;
     const summaryText = generateUniverseSummary({
       seed: currentSeed,
       config: universeConfig,
